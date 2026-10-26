@@ -9,6 +9,7 @@ import { ProgressUpdateComposer } from "../../progress/progress-update-composer"
 import type { ObjectiveRecord } from "../objective-record-model";
 import { MeasurementSection } from "../sections/measurement-section";
 import { RecordRequestBand } from "../../update-requests/update-requests";
+import { useTranslations } from "next-intl";
 
 /**
  * Recording progress is a task inside the same record, not another surface: the measurement it is read
@@ -16,6 +17,7 @@ import { RecordRequestBand } from "../../update-requests/update-requests";
  * update, and saving returns to the record's details so the new truth is confirmed in context.
  */
 export function RecordProgressMode({ record, onDone }: { record: ObjectiveRecord; onDone: () => void }) {
+  const t = useTranslations("objective.RecordProgressMode");
   const { cycleId, objectiveId } = record.ref;
   const progressQuery = useObjectiveProgress(cycleId, objectiveId);
   const mutations = useProgressMutations(cycleId, objectiveId);
@@ -31,7 +33,7 @@ export function RecordProgressMode({ record, onDone }: { record: ObjectiveRecord
           onClick={onDone}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <ArrowLeft className="size-3.5" aria-hidden /> Back to objective details
+          <ArrowLeft className="size-3.5" aria-hidden /> {t("backToObjectiveDetails")}
         </button>
 
         {record.kind === "plan" && record.source.plan ? (
@@ -41,12 +43,12 @@ export function RecordProgressMode({ record, onDone }: { record: ObjectiveRecord
         <MeasurementSection measurement={record.measurement} showMilestones={false} />
 
         <div className="border-t border-border pt-5">
-          <p className="text-sm font-semibold tracking-tight text-foreground">Record progress</p>
+          <p className="text-sm font-semibold tracking-tight text-foreground">{t("recordProgress")}</p>
           <div className="mt-4">
             {progressQuery.isLoading ? (
-              <PageSkeleton rows={2} label="Loading progress" />
+              <PageSkeleton rows={2} label={t("loadingProgress")} />
             ) : progressQuery.error || !progress ? (
-              <PageError title="Progress unavailable" description={progressQuery.error?.message} onRetry={progressQuery.refetch} />
+              <PageError title={t("progressUnavailable")} description={progressQuery.error?.message} onRetry={progressQuery.refetch} />
             ) : (
               <ProgressUpdateComposer
                 progress={progress}
@@ -64,10 +66,10 @@ export function RecordProgressMode({ record, onDone }: { record: ObjectiveRecord
 
       <div className="flex items-center justify-between gap-3 border-t border-border bg-inlay p-5 dark:bg-popover">
         <Button type="button" variant="outline" onClick={onDone}>
-          Cancel
+          {t("cancel")}
         </Button>
         <AsyncButton type="submit" form={formId} pending={mutations.submit.isLoading} disabled={!canSubmit || !progress}>
-          Record progress
+          {t("recordProgress")}
         </AsyncButton>
       </div>
     </>

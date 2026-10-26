@@ -31,11 +31,13 @@ import { NativeSelect, NativeSelectOption } from "@repo/ds/components/ui/native-
 import { AsyncButton, PageError } from "@repo/ds/shell";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
-import { DEVELOPMENT_STATUS_LABEL } from "@repo/performance-ui";
+import { usePerformanceWords } from "@repo/performance-ui";
 import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
 import { useDevelopmentMutations, useDevelopmentPlan } from "../../api/use-performance";
-import { formatDate } from "../../lib";
+
 import { PlanSection } from "./plan-layout";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 const STATUSES: DevelopmentGoalStatus[] = ["NotStarted", "InProgress", "Done"];
 const MAX_ACTIONS = 5;
@@ -46,6 +48,7 @@ const MAX_ACTIONS = 5;
  * date, actions — and changes save at once. Open goals from the previous cycle are offered once here.
  */
 export function DevelopmentSection({ cycleId, employeeId }: { cycleId: string; employeeId: string }) {
+  const t = useTranslations("plan.DevelopmentSection");
   const query = useDevelopmentPlan(cycleId, employeeId);
   const plan = query.data;
   const [composer, setComposer] = useState<{ goal?: DevelopmentGoalDto } | null>(null);
@@ -53,30 +56,30 @@ export function DevelopmentSection({ cycleId, employeeId }: { cycleId: string; e
   return (
     <div id="development" className="scroll-mt-6">
       <PlanSection
-        label="Development"
+        label={t("development")}
         count={plan && plan.goals.length > 0 ? plan.goals.length : undefined}
         action={
           // The empty state carries the first Add itself; with an offer to bring goals over, Add sits here instead.
           plan?.canEdit && plan.room > 0 && (plan.goals.length > 0 || plan.carryOver) ? (
             <Button size="sm" variant="outline" onClick={() => setComposer({})}>
-              <Plus className="size-4" data-icon="inline-start" /> Add goal
+              <Plus className="size-4" data-icon="inline-start" /> {t("addGoal")}
             </Button>
           ) : null
         }
       >
         {query.isLoading ? (
-          <Skeleton className="h-28 w-full rounded-surface" aria-label="Loading development" />
+          <Skeleton className="h-28 w-full rounded-surface" aria-label={t("loadingDevelopment")} />
         ) : query.error || !plan ? (
-          <PageError title="Development unavailable" description={query.error?.message} onRetry={query.refetch} />
+          <PageError title={t("developmentUnavailable")} description={query.error?.message} onRetry={query.refetch} />
         ) : (
           <div className="space-y-3">
             {plan.carryOver ? <CarryOverOffer plan={plan} cycleId={cycleId} employeeId={employeeId} /> : null}
             {plan.goals.length === 0 && plan.carryOver ? null : plan.goals.length === 0 ? (
               <div className="flex flex-col items-center rounded-surface border border-dashed border-border px-6 py-8 text-center">
-                <p className="text-sm font-medium text-foreground">No development goals yet</p>
+                <p className="text-sm font-medium text-foreground">{t("noDevelopmentGoalsYet")}</p>
                 {plan.canEdit ? (
                   <Button size="sm" className="mt-4" onClick={() => setComposer({})}>
-                    <Plus className="size-4" data-icon="inline-start" /> Add a goal
+                    <Plus className="size-4" data-icon="inline-start" /> {t("addAGoal")}
                   </Button>
                 ) : null}
               </div>
@@ -114,6 +117,9 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
   employeeId: string;
   onEdit: () => void;
 }) {
+  const format = useFormat();
+  const t = useTranslations("plan.GoalCard");
+  const words = usePerformanceWords();
   const mutations = useDevelopmentMutations(cycleId, employeeId);
   const [removing, setRemoving] = useState(false);
   const editable = plan.canEdit && !goal.carriedToCycleName;
@@ -122,7 +128,7 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
     try {
       await mutations.update.mutateAsync({ goalId: goal.id, input: toInput(goal, plan.version, { status }) });
     } catch (error) {
-      reportPerformanceFailure(error, "Could not change the goal's status.");
+      reportPerformanceFailure(error, t("couldNotChangeTheGoals"));
     }
   };
 
@@ -138,9 +144,9 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
                 {goal.competencyName}
               </span>
             ) : null}
-            {goal.targetDate && goal.status !== "Done" ? <span>By {formatDate(goal.targetDate)}</span> : null}
-            {goal.carriedFromEarlierCycle ? <span>From last cycle</span> : null}
-            {goal.carriedToCycleName ? <span className="font-medium text-foreground">Carried to {goal.carriedToCycleName}</span> : null}
+            {goal.targetDate && goal.status !== "Done" ? <span>{t("by", { targetDate: format.date(goal.targetDate) })}</span> : null}
+            {goal.carriedFromEarlierCycle ? <span>{t("fromLastCycle")}</span> : null}
+            {goal.carriedToCycleName ? <span className="font-medium text-foreground">{t("carriedTo", { carriedToCycleName: goal.carriedToCycleName })}</span> : null}
           </p>
         </div>
         {editable ? (
@@ -148,36 +154,36 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" disabled={mutations.update.isLoading}>
-                  {DEVELOPMENT_STATUS_LABEL[goal.status]}
+                  {words.developmentStatus(goal.status)}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuRadioGroup value={goal.status} onValueChange={(value) => void setStatus(value as DevelopmentGoalStatus)}>
                   {STATUSES.map((status) => (
-                    <DropdownMenuRadioItem key={status} value={status}>{DEVELOPMENT_STATUS_LABEL[status]}</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem key={status} value={status}>{words.developmentStatus(status)}</DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label={`More for ${goal.title}`}>
+                <Button variant="ghost" size="icon-sm" aria-label={t("moreFor", { title: goal.title })}>
                   <MoreHorizontal className="size-4" aria-hidden />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={onEdit}>
-                  <Pencil className="size-4" aria-hidden /> Edit
+                  <Pencil className="size-4" aria-hidden /> {t("edit")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={() => setRemoving(true)}>
-                  <Trash2 className="size-4" aria-hidden /> Remove
+                  <Trash2 className="size-4" aria-hidden /> {t("remove")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         ) : (
-          <span className="shrink-0 text-xs font-medium text-muted-foreground">{DEVELOPMENT_STATUS_LABEL[goal.status]}</span>
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">{words.developmentStatus(goal.status)}</span>
         )}
       </div>
 
@@ -195,13 +201,13 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
       <AlertDialog open={removing} onOpenChange={(open) => { if (!mutations.remove.isLoading) setRemoving(open); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove this goal?</AlertDialogTitle>
+            <AlertDialogTitle>{t("removeThisGoal")}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-medium text-foreground">{goal.title}</span> leaves the development plan.
+              <span className="font-medium text-foreground">{goal.title}</span> {t("leavesTheDevelopmentPlan")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={mutations.remove.isLoading}>Keep it</AlertDialogCancel>
+            <AlertDialogCancel disabled={mutations.remove.isLoading}>{t("keepIt")}</AlertDialogCancel>
             <AsyncButton
               variant="destructive"
               pending={mutations.remove.isLoading}
@@ -210,11 +216,11 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
                   await mutations.remove.mutateAsync({ goalId: goal.id, expectedVersion: plan.version });
                   setRemoving(false);
                 } catch (error) {
-                  reportPerformanceFailure(error, "Could not remove the goal.");
+                  reportPerformanceFailure(error, t("couldNotRemoveTheGoal"));
                 }
               }}
             >
-              Remove goal
+              {t("removeGoal")}
             </AsyncButton>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -246,6 +252,8 @@ function StatusMark({ status }: { status: DevelopmentGoalStatus }) {
 
 /** Open goals from the previous cycle, offered once: choose which to bring over, or dismiss the offer. */
 function CarryOverOffer({ plan, cycleId, employeeId }: { plan: DevelopmentPlanDto; cycleId: string; employeeId: string }) {
+  const t = useTranslations("plan.CarryOverOffer");
+  const words = usePerformanceWords();
   const offer = plan.carryOver!;
   const mutations = useDevelopmentMutations(cycleId, employeeId);
   const [choosing, setChoosing] = useState(false);
@@ -255,7 +263,7 @@ function CarryOverOffer({ plan, cycleId, employeeId }: { plan: DevelopmentPlanDt
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-surface bg-card px-4 py-3">
       <div className="min-w-0 flex-1">
-        <p className="type-label text-foreground">{count} open goal{count === 1 ? "" : "s"} from {offer.fromCycleName}</p>
+        <p className="type-label text-foreground">{t("openGoal", { count })}{count === 1 ? "" : t("s")} {t("from", { fromCycleName: offer.fromCycleName })}</p>
         <p className="truncate type-meta text-muted-foreground">{offer.goals.map((goal) => goal.title).join(", ")}</p>
       </div>
       <Button
@@ -266,19 +274,19 @@ function CarryOverOffer({ plan, cycleId, employeeId }: { plan: DevelopmentPlanDt
           try {
             await mutations.dismiss.mutateAsync(plan.version);
           } catch (error) {
-            reportPerformanceFailure(error, "Could not dismiss the offer.");
+            reportPerformanceFailure(error, t("couldNotDismissTheOffer"));
           }
         }}
       >
-        Dismiss
+        {t("dismiss")}
       </Button>
-      <Button size="sm" onClick={() => setChoosing(true)}>Bring over</Button>
+      <Button size="sm" onClick={() => setChoosing(true)}>{t("bringOver")}</Button>
 
       <Dialog open={choosing} onOpenChange={(open) => { if (!mutations.carryOver.isLoading) setChoosing(open); }}>
         <DialogContent className="w-[min(32rem,calc(100vw-2rem))] max-w-none">
           <DialogHeader>
-            <DialogTitle>Bring goals over from {offer.fromCycleName}</DialogTitle>
-            <DialogDescription>Room for {plan.room} more</DialogDescription>
+            <DialogTitle>{t("bringGoalsOverFrom", { fromCycleName: offer.fromCycleName })}</DialogTitle>
+            <DialogDescription>{t("roomForMore", { room: plan.room })}</DialogDescription>
           </DialogHeader>
           <ul className="space-y-1.5">
             {offer.goals.map((goal) => {
@@ -296,7 +304,7 @@ function CarryOverOffer({ plan, cycleId, employeeId }: { plan: DevelopmentPlanDt
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium text-foreground">{goal.title}</span>
-                      <span className="block text-xs text-muted-foreground">{DEVELOPMENT_STATUS_LABEL[goal.status]}</span>
+                      <span className="block text-xs text-muted-foreground">{words.developmentStatus(goal.status)}</span>
                     </span>
                   </label>
                 </li>
@@ -304,21 +312,21 @@ function CarryOverOffer({ plan, cycleId, employeeId }: { plan: DevelopmentPlanDt
             })}
           </ul>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setChoosing(false)} disabled={mutations.carryOver.isLoading}>Cancel</Button>
+            <Button variant="outline" onClick={() => setChoosing(false)} disabled={mutations.carryOver.isLoading}>{t("cancel")}</Button>
             <AsyncButton
               pending={mutations.carryOver.isLoading}
               disabled={chosen.length === 0}
               onClick={async () => {
                 try {
                   await mutations.carryOver.mutateAsync({ goalIds: chosen, expectedVersion: plan.version });
-                  toast.success(chosen.length === 1 ? "1 goal brought over." : `${chosen.length} goals brought over.`);
+                  toast.success(t("broughtOver", { count: chosen.length }));
                   setChoosing(false);
                 } catch (error) {
-                  reportPerformanceFailure(error, "Could not bring the goals over.");
+                  reportPerformanceFailure(error, t("couldNotBringTheGoals"));
                 }
               }}
             >
-              Bring over {chosen.length}
+              {t("bringOver2", { length: chosen.length })}
             </AsyncButton>
           </DialogFooter>
         </DialogContent>
@@ -335,6 +343,8 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
   goal?: DevelopmentGoalDto;
   onClose: () => void;
 }) {
+  const t = useTranslations("plan.GoalComposer");
+  const words = usePerformanceWords();
   const mutations = useDevelopmentMutations(cycleId, employeeId);
   const [title, setTitle] = useState(goal?.title ?? "");
   const [competencyId, setCompetencyId] = useState(goal?.competencyId ?? "");
@@ -357,7 +367,7 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
       else await mutations.add.mutateAsync(input);
       onClose();
     } catch (error) {
-      reportPerformanceFailure(error, "Could not save the goal.");
+      reportPerformanceFailure(error, t("couldNotSaveTheGoal"));
     }
   };
 
@@ -365,31 +375,31 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
     <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
       <DialogContent className="w-[min(36rem,calc(100vw-2rem))] max-w-none">
         <DialogHeader>
-          <DialogTitle>{goal ? "Edit goal" : "Add a development goal"}</DialogTitle>
+          <DialogTitle>{goal ? t("editGoal") : t("addADevelopmentGoal")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-5">
           <div className="space-y-1.5">
-            <Label htmlFor="dg-title">Goal</Label>
+            <Label htmlFor="dg-title">{t("goal")}</Label>
             <Input id="dg-title" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} autoFocus />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="dg-competency">Competency <span className="font-normal text-muted-foreground">(optional)</span></Label>
+              <Label htmlFor="dg-competency">{t("competency")} <span className="font-normal text-muted-foreground">{t("optional")}</span></Label>
               <NativeSelect id="dg-competency" value={competencyId} onChange={(e) => setCompetencyId(e.target.value)} className="w-full">
-                <NativeSelectOption value="">None</NativeSelectOption>
+                <NativeSelectOption value="">{t("none")}</NativeSelectOption>
                 {plan.competencyOptions.map((option) => (
                   <NativeSelectOption key={option.id} value={option.id}>{option.name}</NativeSelectOption>
                 ))}
               </NativeSelect>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="dg-target">By <span className="font-normal text-muted-foreground">(optional)</span></Label>
+              <Label htmlFor="dg-target">{t("by")} <span className="font-normal text-muted-foreground">{t("optional")}</span></Label>
               <DatePicker id="dg-target" value={targetDate} onChange={setTargetDate} />
             </div>
           </div>
           <fieldset className="space-y-1.5">
-            <legend className="text-sm font-medium text-foreground">Status</legend>
-            <div role="radiogroup" aria-label="Status" className="grid grid-cols-3 gap-2">
+            <legend className="text-sm font-medium text-foreground">{t("status")}</legend>
+            <div role="radiogroup" aria-label={t("status")} className="grid grid-cols-3 gap-2">
               {STATUSES.map((value) => (
                 <button
                   key={value}
@@ -402,17 +412,17 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
                     status === value ? "border-primary bg-primary-tint text-primary-ink" : "border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {DEVELOPMENT_STATUS_LABEL[value]}
+                  {words.developmentStatus(value)}
                 </button>
               ))}
             </div>
           </fieldset>
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-foreground">Actions <span className="font-normal text-muted-foreground">(optional)</span></legend>
+            <legend className="text-sm font-medium text-foreground">{t("actions")} <span className="font-normal text-muted-foreground">{t("optional")}</span></legend>
             {actions.map((action, index) => (
               <div key={index} className="flex items-center gap-2">
                 <Input
-                  aria-label={`Action ${index + 1}`}
+                  aria-label={t("action", { value: index + 1 })}
                   value={action}
                   maxLength={200}
                   onChange={(e) => setActions((all) => all.map((a, i) => (i === index ? e.target.value : a)))}
@@ -420,7 +430,7 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Remove action ${index + 1}`}
+                  aria-label={t("removeAction", { value: index + 1 })}
                   onClick={() => setActions((all) => (all.length === 1 ? [""] : all.filter((_, i) => i !== index)))}
                 >
                   <X className="size-4" aria-hidden />
@@ -429,15 +439,15 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
             ))}
             {actions.length < MAX_ACTIONS ? (
               <Button variant="ghost" size="sm" className="-ms-2" onClick={() => setActions((all) => [...all, ""])}>
-                <Plus className="size-4" data-icon="inline-start" /> Add an action
+                <Plus className="size-4" data-icon="inline-start" /> {t("addAnAction")}
               </Button>
             ) : null}
           </fieldset>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={saving}>{t("cancel")}</Button>
           <AsyncButton pending={saving} disabled={title.trim() === ""} onClick={save}>
-            {goal ? "Save goal" : "Add goal"}
+            {goal ? t("saveGoal") : t("addGoal")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>

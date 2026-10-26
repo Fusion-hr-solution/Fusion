@@ -32,8 +32,10 @@ import { ChangesView, DistributionView, PeopleView } from "./calibration-views";
 import { FinalizeDialog } from "./finalize-dialog";
 import { NineBoxView, type NineBoxMove } from "./nine-box";
 import { useRecentRecord } from "@repo/api/react";
+import { useTranslations } from "next-intl";
 
 export function CalibrationWorkspacePage({ roundId }: { roundId: string }) {
+  const t = useTranslations("calibration.CalibrationWorkspacePage");
   const context = useWorkspaceContext();
   const canCalibrate = context.data?.capabilities.canCalibrate ?? false;
   const session = useCalibrationSession(roundId, canCalibrate);
@@ -45,14 +47,14 @@ export function CalibrationWorkspacePage({ roundId }: { roundId: string }) {
   );
   const mutations = useCalibrationMutations(roundId, session.data?.cycleId ?? context.data?.selected?.id ?? null);
 
-  if (context.isLoading || (canCalibrate && session.isLoading)) return <PageSkeleton rows={7} width="wide" label="Loading calibration" />;
-  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Calibration" />;
-  if (!canCalibrate) return <PagePermissionNotice title="Calibration unavailable" description="Calibration is open to people who facilitate rating calibration." />;
+  if (context.isLoading || (canCalibrate && session.isLoading)) return <PageSkeleton rows={7} width="wide" label={t("loadingCalibration")} />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject={t("calibration")} />;
+  if (!canCalibrate) return <PagePermissionNotice title={t("calibrationUnavailable")} description={t("calibrationIsOpenToPeople")} />;
   const status = session.error instanceof ApiError ? session.error.status : null;
-  if (status === 403) return <PagePermissionNotice title="You are not a facilitator of this session" description="A facilitator of this calibration can add you." />;
+  if (status === 403) return <PagePermissionNotice title={t("youAreNotAFacilitator")} description={t("aFacilitatorOfThisCalibration")} />;
   if (status === 404) return <OpenSession roundId={roundId} cycleId={context.data?.selected?.id ?? null} mutations={mutations} />;
-  if (session.error) return <ContentUnavailable error={session.error} onRetry={session.refetch} subject="Calibration" />;
-  if (!session.data?.header) return <PageSkeleton rows={7} width="wide" label="Loading calibration" />;
+  if (session.error) return <ContentUnavailable error={session.error} onRetry={session.refetch} subject={t("calibration")} />;
+  if (!session.data?.header) return <PageSkeleton rows={7} width="wide" label={t("loadingCalibration")} />;
   return (
     <RecordCycleScope cycleId={session.data.cycleId}>
       <CalibrationSession session={session.data} header={session.data.header} roundId={roundId} mutations={mutations} />
@@ -119,12 +121,13 @@ function SessionBody({ roundId, view, filter, header, top, session, mutations, o
   onPerson: (reviewId: string) => void;
   onManager: (managerId: string) => void;
 }) {
+  const t = useTranslations("calibration.SessionBody");
   const distribution = useCalibrationDistribution(roundId, filter, view === "distribution");
   const people = useCalibrationPeople(roundId, filter, view === "people");
   const nineBox = useCalibrationNineBox(roundId, filter, view === "nine-box");
   const lenient = useMemo(() => new Set(header.managers.filter((manager) => manager.flagged).map((manager) => manager.id)), [header.managers]);
   const query = view === "distribution" ? distribution : view === "nine-box" ? nineBox : people;
-  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject="This view" />;
+  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject={t("thisView")} />;
   if (view === "distribution" && distribution.data) return <DistributionView view={distribution.data} onManager={onManager} />;
   if (view === "people" && people.data) return <PeopleView view={people.data} top={top} lenient={lenient} onOpen={(person) => onPerson(person.reviewId)} />;
   if (view === "nine-box" && nineBox.data) {
@@ -139,7 +142,7 @@ function SessionBody({ roundId, view, filter, header, top, session, mutations, o
             expectedVersion: move.person.version,
             potential: move.potential,
           });
-          toast.success(`${move.person.name} moved.`);
+          toast.success(t("moved", { name: move.person.name }));
         }} />
     );
   }
@@ -148,10 +151,11 @@ function SessionBody({ roundId, view, filter, header, top, session, mutations, o
 
 /** Board 02: work starts on what is in; what is missing is listed by manager. */
 function StillWithManagers({ header }: { header: CalibrationHeaderDto }) {
+  const t = useTranslations("calibration.StillWithManagers");
   return (
     <section aria-labelledby="still-title" className="mt-6 rounded-surface bg-card p-5">
       <h2 id="still-title" className="type-label text-foreground">
-        Still with managers<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{header.outstanding}</span>
+        {t("stillWithManagers")}<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{header.outstanding}</span>
       </h2>
       <ul className="mt-3 grid gap-3 md:grid-cols-3">
         {header.outstandingByReviewer.map((group) => (
@@ -169,14 +173,16 @@ function StillWithManagers({ header }: { header: CalibrationHeaderDto }) {
 }
 
 function Finalized({ roundId, top }: { roundId: string; top: number }) {
+  const t = useTranslations("calibration.Finalized");
   const changes = useCalibrationChanges(roundId, {}, true);
-  if (changes.error) return <ContentUnavailable error={changes.error} onRetry={changes.refetch} subject="The outcome" />;
+  if (changes.error) return <ContentUnavailable error={changes.error} onRetry={changes.refetch} subject={t("theOutcome")} />;
   if (!changes.data) return <Skeleton className="mt-8 h-96 rounded-surface" />;
   return <div className="mt-8"><ChangesView view={changes.data} top={top} /></div>;
 }
 
 /** Board 01: before the session exists, what is in, who is late, and who facilitates. */
 function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId: string | null; mutations: Mutations }) {
+  const t = useTranslations("calibration.OpenSession");
   const round = useReviewRound(roundId);
   const candidates = useFacilitatorCandidates(roundId);
   const [chosen, setChosen] = useState<Set<string> | null>(null);
@@ -196,15 +202,15 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
     <PageContainer width="default">
       <Link href={withCycle(roundHref(roundId), cycleId)}
         className="mb-3 inline-flex items-center gap-1.5 rounded-detail text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <ArrowLeft className="size-4" aria-hidden />{round.data?.name ?? "Review round"}
+        <ArrowLeft className="size-4" aria-hidden />{round.data?.name ?? t("reviewRound")}
       </Link>
-      <h1 className="type-display text-foreground">Open calibration</h1>
+      <h1 className="type-display text-foreground">{t("openCalibration")}</h1>
       {managerStage ? (
-        <section aria-label="Manager reviews" className="mt-6 rounded-surface bg-card p-5">
-          <p className="type-meta text-muted-foreground">Manager reviews in</p>
+        <section aria-label={t("managerReviews")} className="mt-6 rounded-surface bg-card p-5">
+          <p className="type-meta text-muted-foreground">{t("managerReviewsIn")}</p>
           <p className="mt-2 flex items-baseline gap-1.5">
             <span className="type-metric tabular-nums text-foreground">{managerStage.done}</span>
-            <span className="type-meta tabular-nums text-muted-foreground">of {managerStage.total}</span>
+            <span className="type-meta tabular-nums text-muted-foreground">{t("of", { total: managerStage.total })}</span>
           </p>
           {late.length > 0 ? (
             <ul className="mt-4 divide-y divide-border">
@@ -212,7 +218,7 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
                 <li key={team.reviewerEmployeeId} className="flex items-center gap-3 py-2.5">
                   <PersonInitials name={team.reviewerDisplayName} size="md" />
                   <span className="flex-1 type-label text-foreground">{team.reviewerDisplayName}</span>
-                  <span className="type-meta tabular-nums text-muted-foreground">{team.manager.total - team.manager.done} to submit</span>
+                  <span className="type-meta tabular-nums text-muted-foreground">{t("toSubmit", { value: team.manager.total - team.manager.done })}</span>
                 </li>
               ))}
             </ul>
@@ -220,7 +226,7 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
         </section>
       ) : null}
       <section aria-labelledby="facilitators-title" className="mt-6 rounded-surface bg-card p-5">
-        <h2 id="facilitators-title" className="type-label text-foreground">Facilitators</h2>
+        <h2 id="facilitators-title" className="type-label text-foreground">{t("facilitators")}</h2>
         {candidates.isLoading ? <Skeleton className="mt-3 h-20" />
           : candidates.error ? <p className="mt-3 text-sm text-destructive" role="alert">{candidates.error.message}</p>
           : (
@@ -246,7 +252,7 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
         <p className="mt-4 text-sm text-destructive" role="alert">{(mutations.open.error ?? mutations.setFacilitators.error)?.message}</p>
       ) : null}
       <div className="mt-6 flex justify-end">
-        <AsyncButton pending={mutations.open.isLoading || mutations.setFacilitators.isLoading} onClick={open}>Open the session</AsyncButton>
+        <AsyncButton pending={mutations.open.isLoading || mutations.setFacilitators.isLoading} onClick={open}>{t("openTheSession")}</AsyncButton>
       </div>
     </PageContainer>
   );
@@ -255,6 +261,7 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
 function FacilitatorDialog({ session, roundId, mutations, onClose }: {
   session: CalibrationSessionDto; roundId: string; mutations: Mutations; onClose: () => void;
 }) {
+  const t = useTranslations("calibration.FacilitatorDialog");
   const candidates = useFacilitatorCandidates(roundId);
   const [chosen, setChosen] = useState(() => new Set(session.facilitators.map((item) => item.userId)));
   const toggle = (userId: string) => setChosen((current) => {
@@ -265,7 +272,7 @@ function FacilitatorDialog({ session, roundId, mutations, onClose }: {
   return (
     <Dialog open onOpenChange={(next) => { if (!next && !mutations.setFacilitators.isLoading) onClose(); }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Facilitators</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("facilitators")}</DialogTitle></DialogHeader>
         {candidates.isLoading ? <Skeleton className="h-24" />
           : candidates.error ? <p className="text-sm text-destructive" role="alert">{candidates.error.message}</p>
           : (
@@ -282,12 +289,12 @@ function FacilitatorDialog({ session, roundId, mutations, onClose }: {
           )}
         {mutations.setFacilitators.error ? <p className="text-sm text-destructive" role="alert">{mutations.setFacilitators.error.message}</p> : null}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={mutations.setFacilitators.isLoading}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={mutations.setFacilitators.isLoading}>{t("cancel")}</Button>
           <AsyncButton pending={mutations.setFacilitators.isLoading} disabled={chosen.size === 0}
             onClick={async () => {
               try { await mutations.setFacilitators.mutateAsync({ userIds: [...chosen], expectedVersion: session.version }); onClose(); } catch { /* shown above */ }
             }}>
-            Save facilitators
+            {t("saveFacilitators")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>

@@ -1,0 +1,396 @@
+{
+  "PlanPage": {
+    "performanceWorkspace": "Performance workspace",
+    "youreNotPartOf": "You're not part of {selected}",
+    "youreNotPartOfA": "You're not part of a performance cycle",
+    "theCycle": "The Cycle",
+    "noPerformanceCycleYet": "No performance cycle yet"
+  },
+  "ChangeRequestDraft": {
+    "whatShouldChange": "What should change",
+    "cancel": "Cancel",
+    "saveChange": "Save change",
+    "changeToRequest": "Change to request",
+    "editTheChange": "Edit the change",
+    "removeTheChange": "Remove the change",
+    "requestAChange": "Request a change"
+  },
+  "ChangeRequestOutcome": {
+    "youAsked": "You asked",
+    "reply": "Reply ·",
+    "objectiveRemoved": "Objective removed",
+    "changed": "Changed",
+    "notChanged": "Not changed"
+  },
+  "OwnerChangeRequest": {
+    "askedForAChange": "{reviewerName} asked for a change",
+    "addressed": "Addressed",
+    "markAddressed": "Mark addressed",
+    "reply": "Reply",
+    "optional": "(optional)",
+    "cancel": "Cancel"
+  },
+  "DevelopmentSection": {
+    "loadingDevelopment": "Loading development",
+    "developmentUnavailable": "Development unavailable",
+    "noDevelopmentGoalsYet": "No development goals yet",
+    "addAGoal": "Add a goal",
+    "development": "Development",
+    "addGoal": "Add goal"
+  },
+  "GoalCard": {
+    "by": "By {targetDate}",
+    "fromLastCycle": "From last cycle",
+    "carriedTo": "Carried to {carriedToCycleName}",
+    "moreFor": "More for {title}",
+    "edit": "Edit",
+    "remove": "Remove",
+    "removeThisGoal": "Remove this goal?",
+    "leavesTheDevelopmentPlan": "leaves the development plan.",
+    "keepIt": "Keep it",
+    "removeGoal": "Remove goal",
+    "couldNotChangeTheGoals": "Could not change the goal's status.",
+    "couldNotRemoveTheGoal": "Could not remove the goal."
+  },
+  "CarryOverOffer": {
+    "openGoal": "{count} open goal",
+    "s": "s",
+    "from": "from {fromCycleName}",
+    "dismiss": "Dismiss",
+    "bringOver": "Bring over",
+    "bringGoalsOverFrom": "Bring goals over from {fromCycleName}",
+    "roomForMore": "Room for {room} more",
+    "cancel": "Cancel",
+    "bringOver2": "Bring over {length}",
+    "couldNotDismissTheOffer": "Could not dismiss the offer.",
+    "couldNotBringTheGoals": "Could not bring the goals over.",
+    "broughtOver": "{count, plural, one {# goal brought over.} other {# goals brought over.}}"
+  },
+  "GoalComposer": {
+    "editGoal": "Edit goal",
+    "addADevelopmentGoal": "Add a development goal",
+    "goal": "Goal",
+    "competency": "Competency",
+    "optional": "(optional)",
+    "none": "None",
+    "by": "By",
+    "status": "Status",
+    "actions": "Actions",
+    "action": "Action {value}",
+    "removeAction": "Remove action {value}",
+    "addAnAction": "Add an action",
+    "cancel": "Cancel",
+    "saveGoal": "Save goal",
+    "addGoal": "Add goal",
+    "couldNotSaveTheGoal": "Could not save the goal."
+  },
+  "PlanGoalComposer": {
+    "addATitleFirst": "Add a title first",
+    "chooseTheObjectiveThisAligns": "Choose the objective this aligns to",
+    "chooseHowProgressIsMeasured": "Choose how progress is measured",
+    "giveEachMilestoneAWeight": "Give each milestone a weight totalling 100%",
+    "setABaselineTargetAnd": "Set a baseline, target, and unit for the measure",
+    "moveMilestoneDueDatesInside": "Move milestone due dates inside the objective's dates",
+    "giveThisObjectiveAPlan": "Give this objective a plan weight",
+    "planWeightCanBeAt": "Plan weight can be at most 100%",
+    "editObjective": "Edit objective",
+    "addObjective": "Add objective",
+    "allocated": "allocated",
+    "percentOfPlanWeightAllocated": "{existing} percent of plan weight allocated",
+    "left": "{remaining}% left",
+    "alignedToDirection": "Aligned to direction",
+    "alignThisObjectiveToAn": "Align this objective to an existing organizational objective.",
+    "standaloneRoleObjective": "Standalone role objective",
+    "createAnObjectiveFocusedOn": "Create an objective focused on your role and responsibilities.",
+    "notPermittedThisCycleEvery": "Not permitted this cycle — every objective must align to direction.",
+    "noPublishedOrganizationalObjectivesTo": "No published organizational objectives to align to yet.",
+    "chooseAnOrganizationalObjective": "Choose an organizational objective",
+    "selectOrganizationalObjective": "Select organizational objective",
+    "companyStrategy": "Company strategy",
+    "organizational": "Organizational",
+    "alignment": "Alignment",
+    "chooseHowThisObjectiveConnects": "Choose how this objective connects to organizational direction.",
+    "title": "Title",
+    "enterAClearAndSpecific": "Enter a clear and specific objective title",
+    "description": "Description",
+    "optional": "(optional)",
+    "describeWhatSuccessLooksLike": "Describe what success looks like, key outcomes, and why this objective is important.",
+    "objectiveDefinition": "Objective definition",
+    "measurement": "Measurement",
+    "howWillYouMeasureProgress": "How will you measure progress on this objective?",
+    "decreaseWeightBy5": "Decrease weight by 5",
+    "planWeightPercent": "Plan weight percent",
+    "increaseWeightBy5": "Increase weight by 5",
+    "inYourOtherObjectives": "in your other objectives",
+    "planTotal": "Plan total",
+    "planWeight": "Plan weight",
+    "assignTheWeightOfThis": "Assign the weight of this objective in your overall plan.",
+    "cancel": "Cancel",
+    "saveChanges": "Save changes",
+    "couldNotSaveTheObjective": "Could not save the objective."
+  },
+  "TargetSummary": {
+    "companyStrategy": "Company strategy"
+  },
+  "MyPlanWorkspace": {
+    "myPlan": "My Plan"
+  },
+  "MyPlan": {
+    "planUnavailable": "Plan unavailable",
+    "youAreNotPartOf": "You are not part of this Cycle. When your organization adds you, your plan opens here.",
+    "objectiveAdded": "Objective added.",
+    "objectiveUpdated": "Objective updated.",
+    "couldNotSubmitYourPlan": "Could not submit your plan.",
+    "couldNotMarkTheChange": "Could not mark the change addressed.",
+    "couldNotRemoveTheObjective": "Could not remove the objective.",
+    "resubmitted": "Plan resubmitted for review.",
+    "submitted": "Plan submitted for review."
+  },
+  "ObjectiveLedger": {
+    "noObjectivesYetAddThe": "No objectives yet. Add the first one to start building your plan.",
+    "objectives": "Objectives",
+    "addObjective": "Add objective",
+    "yourReviewer": "Your reviewer"
+  },
+  "SubmitPlanAction": {
+    "yourReviewer": "your reviewer",
+    "saved": "Saved {lastSavedAt}",
+    "resubmitPlan": "Resubmit plan",
+    "submitPlan": "Submit plan",
+    "resubmitYourPlan": "Resubmit your plan?",
+    "submitYourPlan": "Submit your plan?",
+    "your": "Your",
+    "objective": "{objectiveCount} objective",
+    "s": "s",
+    "goTo": "go to",
+    "you": ". You",
+    "cantEditThem": "can't edit them",
+    "whileThePlanIsIn": "while the plan is in review.",
+    "keepEditing": "Keep editing",
+    "resubmit": "Resubmit",
+    "submit": "Submit"
+  },
+  "PlanNotStarted": {
+    "createYourPlan": "Create your {cycleName} plan",
+    "defineYourObjectivesAndAlign": "Define your objectives and align them to your team.",
+    "startMyPlan": "Start my plan",
+    "objectives": "Objectives",
+    "pillars": {
+      "set": "Set meaningful objectives",
+      "align": "Align to your team",
+      "track": "Track progress"
+    }
+  },
+  "PlanApprovedStatus": {
+    "approvedItAsAdministrator": "{approver} approved it as administrator",
+    "approvedByAdministration": "Approved by administration",
+    "approvedBy": "Approved by {approver}",
+    "youApprovedPlanAsAdministrator": "You approved {whose} plan as administrator",
+    "youApprovedPlan": "You approved {whose} plan",
+    "approvedLocked": "Approved & locked"
+  },
+  "PlanDirectionSection": {
+    "noDirectionLinkedYet": "No direction linked yet",
+    "direction": "Direction",
+    "open": "Open {title}"
+  },
+  "PlanReviewerSection": {
+    "noReviewerAssigned": "No reviewer assigned",
+    "reviewer": "Reviewer",
+    "returned": "Returned your plan"
+  },
+  "PlanStateBadge": {
+    "draft": "Draft",
+    "submitted": "Submitted",
+    "approved": "Approved"
+  },
+  "NotStartedBadge": {
+    "notStarted": "Not started"
+  },
+  "PlanWeightStrip": {
+    "weight": "Weight",
+    "ofPlanWeightAllocated": "of plan weight allocated"
+  },
+  "PlanObjectiveRow": {
+    "alignedTo": "Aligned to",
+    "standaloneRoleObjective": "Standalone role objective",
+    "actionsFor": "Actions for {title}",
+    "editObjective": "Edit objective",
+    "removeObjective": "Remove objective",
+    "view": "View {title}",
+    "measurement": "Measurement",
+    "target": "Target",
+    "milestones": "Milestones",
+    "singlePercentage": "Single percentage",
+    "measure": "Measure",
+    "duration": "Duration",
+    "weight": "Weight",
+    "updateProgress": "Update progress",
+    "view2": "View",
+    "direction": "direction"
+  },
+  "MilestoneStrip": {
+    "ofDone": "{done} of {length} done",
+    "milestone": "{length} milestone",
+    "milestones": "{length} milestones"
+  },
+  "ExecutionState": {
+    "ofMilestone": "{done} of {total} milestone",
+    "s": "s",
+    "completed": "completed",
+    "updated": "updated",
+    "overdue": "· {overdue} overdue",
+    "nextDue": "· next due {nextDue}",
+    "updated2": "Updated {updated}",
+    "milestoneProgress": "Milestone progress",
+    "currentProgress": "Current progress",
+    "currentValue": "Current value"
+  },
+  "PlanProgressCard": {
+    "noProgressReportedYet": "No progress reported yet",
+    "planProgress": "Plan progress",
+    "weightedAcrossObjectives": "Weighted across {length} objectives"
+  },
+  "StatusMixLine": {
+    "onTrack": "{onTrack} on track",
+    "atRisk": "{atRisk} at risk",
+    "offTrack": "{offTrack} off track",
+    "notReported": "{notReported} not reported"
+  },
+  "ObjectiveProgressRing": {
+    "overallProgress": "overall progress"
+  },
+  "PlanRail": {
+    "status": "Status",
+    "planProgressBeginsOnceYou": "Plan progress begins once you update your objectives.",
+    "startsOnceThePlanIs": "Starts once the plan is approved",
+    "planProgress": "Plan progress"
+  },
+  "StatusBody": {
+    "yourReviewer": "your reviewer",
+    "submitted": "Submitted",
+    "returnedForChanges": "Returned for changes",
+    "draft": "Draft",
+    "notStarted": "Not started",
+    "due": "Due",
+    "inReview": "In review",
+    "waitingForYourDecision": "Waiting for your decision",
+    "isReviewing": "is reviewing",
+    "approved": "Approved",
+    "readOnlyWhileInReview": "Read-only while in review",
+    "they": "They",
+    "you": "You"
+  },
+  "ReturnNote": {
+    "yourReviewer": "Your reviewer",
+    "you": "You",
+    "ofChange": "{addressed} of {total} change",
+    "s": "s",
+    "addressed": "addressed",
+    "by": "by {subjectFirstName}",
+    "revised": "Revised"
+  },
+  "ResubmissionOutcome": {
+    "addressedOfChange": "{who} addressed {addressed} of {length} change",
+    "s": "s",
+    "objectiveRemoved": "Objective removed · “{text}”"
+  },
+  "ClampedText": {
+    "showLess": "Show less",
+    "readMore": "Read more"
+  },
+  "PlanRecordPage": {
+    "sPlan": "{name}'s plan",
+    "plan": "Plan",
+    "planUnavailable": "Plan unavailable",
+    "theCycle": "The Cycle"
+  },
+  "PlanReview": {
+    "planUnavailable": "Plan unavailable",
+    "theEmployee": "the employee"
+  },
+  "ReviewStateBadge": {
+    "approved": "Approved",
+    "returned": "Returned",
+    "submitted": "Submitted"
+  },
+  "ReviewHeading": {
+    "employee": "Employee",
+    "trackingExecution": "Tracking execution"
+  },
+  "ObjectiveLedgerReadOnly": {
+    "objectives": "Objectives"
+  },
+  "ReviewDecision": {
+    "returnWithChange": "Return with {length} change",
+    "returnWithChanges": "Return with {length} changes",
+    "returnPlan": "Return plan",
+    "requestChanges": "Request changes",
+    "theWholePlanReopensFor": "The whole plan reopens for {firstName} to revise and resubmit.",
+    "aNoteForTheWhole": "A note for the whole plan (optional)",
+    "whatShouldChange": "What should {firstName} change?",
+    "cancel": "Cancel",
+    "planReturnedToForChanges": "Plan returned to {firstName} for changes.",
+    "approvePlan": "Approve plan",
+    "approveThisPlan": "Approve this plan?",
+    "approving": "Approving",
+    "locksSPlan": "locks {firstName}'s plan",
+    "asTheAgreedBaselineFor": "as the agreed baseline for",
+    "it": ". It",
+    "cantBeEditedAfterward": "can't be edited afterward",
+    "withoutAnAdministrator": "without an administrator.",
+    "planApprovedAndLocked": "Plan approved and locked.",
+    "couldNotReturnThePlan": "Could not return the plan.",
+    "couldNotApproveThePlan": "Could not approve the plan.",
+    "objective": "Objective"
+  },
+  "ExceptionalApproval": {
+    "approveAsAdministrator": "Approve as administrator",
+    "approveSPlanAsAdministrator": "Approve {firstName}'s plan as administrator",
+    "remainsThePlansReviewer": "{reviewerName} remains the plan's reviewer.",
+    "thisApprovalIsRecordedAs": "This approval is recorded as yours, with your reason.",
+    "reasonForApprovingOnThe": "Reason for approving on the reviewer's behalf",
+    "whyTheReviewerCantDecide": "Why the reviewer can't decide",
+    "cancel": "Cancel",
+    "approvePlan": "Approve plan",
+    "planApprovedByAdministration": "Plan approved by administration.",
+    "couldNotApproveThePlan": "Could not approve the plan."
+  },
+  "PlanSurfaceSkeleton": {
+    "loadingYourPlan": "Loading your plan"
+  },
+  "PlanEmptySkeleton": {
+    "loadingYourPlan": "Loading your plan"
+  },
+  "PlanSubmissionChecks": {
+    "check": "{passedCount} check",
+    "s": "s",
+    "passed": "passed",
+    "hideChecks": "Hide checks",
+    "viewChecks": "View checks",
+    "check2": "{length} check",
+    "need": "need",
+    "attention": "attention",
+    "submissionChecks": "Submission checks"
+  },
+  "TargetRange": {
+    "decreaseTo": "decrease to",
+    "increaseTo": "increase to"
+  },
+  "checks": {
+    "objective": {
+      "label": "Plan has at least one objective",
+      "detail": "Add an objective to your plan"
+    },
+    "weightAssigned": {
+      "label": "Every objective carries a weight",
+      "detail": "Give every objective a weight above zero"
+    },
+    "weightTotal": {
+      "label": "Weights total 100%",
+      "remaining": "{remaining}% of plan weight is still to assign",
+      "over": "Plan weight is over by {over}%"
+    }
+  },
+  "leaveGuard": "Leave without sending your change requests?"
+}

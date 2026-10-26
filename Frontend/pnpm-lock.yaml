@@ -1037,6 +1037,9 @@ importers:
       '@repo/ds':
         specifier: workspace:*
         version: link:../ds
+      next-intl:
+        specifier: ^4.13.0
+        version: 4.13.0(next@15.5.12(@playwright/test@1.61.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       react:
         specifier: ^19.0.0
         version: 19.2.4

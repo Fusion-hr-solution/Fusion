@@ -1,10 +1,11 @@
 import { Target, Users, BarChart3 } from "@/lib/icons";
+import { useTranslations } from "next-intl";
 
 const VALUES = [
-  { icon: Target, label: "Align people and goals" },
-  { icon: Users, label: "Drive meaningful impact" },
-  { icon: BarChart3, label: "Build a stronger future" },
-];
+  { icon: Target, label: "align" },
+  { icon: Users, label: "impact" },
+  { icon: BarChart3, label: "future" },
+] as const;
 
 /**
  * A deliberately dark spotlight that frames the whole setup journey — the same in light and dark,
@@ -12,6 +13,7 @@ const VALUES = [
  * motif for "reach higher together."
  */
 export function CycleSetupHero() {
+  const t = useTranslations("cycleSetup.CycleSetupHero");
   return (
     <section className="relative isolate overflow-hidden rounded-surface border border-white/10 bg-[#0b0c10] text-white shadow-lg">
       {/* warm summit glow */}
@@ -27,21 +29,20 @@ export function CycleSetupHero() {
 
       {/* People · Progress · Possibility — pinned to the top-right corner */}
       <div className="absolute inset-e-7 top-6 z-10 hidden items-center gap-2.5 lg:flex lg:inset-e-9">
-        {["People", "Progress", "Possibility"].map((w, i) => (
+        {(["people", "progress", "possibility"] as const).map((w, i) => (
           <span key={w} className="flex items-center gap-2.5">
             {i > 0 && <span className="size-1 rounded-full bg-amber-400/60" aria-hidden />}
-            <span className="type-label text-zinc-300">{w}</span>
+            <span className="type-label text-zinc-300">{t(`words.${w}`)}</span>
           </span>
         ))}
       </div>
 
       <div className="relative grid gap-8 p-7 lg:gap-12 lg:p-9">
         <div>
-          <p className="type-meta text-amber-400/90">Higher performance, together</p>
-          <h2 className="type-display mt-2 max-w-xl text-white">Set the stage for performance</h2>
+          <p className="type-meta text-amber-400/90">{t("higherPerformanceTogether")}</p>
+          <h2 className="type-display mt-2 max-w-xl text-white">{t("setTheStageForPerformance")}</h2>
           <p className="type-body mt-3 max-w-xl text-zinc-300">
-            Bring your people, goals, and growth into one cycle. A few clear steps and your
-            organization is ready to perform.
+            {t("bringYourPeopleGoalsAnd")}
           </p>
 
           <ul className="mt-6 flex flex-row flex-wrap items-center gap-x-7 gap-y-3 sm:flex-nowrap">
@@ -50,7 +51,7 @@ export function CycleSetupHero() {
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-amber-400/12 text-amber-400 ring-1 ring-inset ring-amber-400/20">
                   <v.icon className="size-4" aria-hidden />
                 </span>
-                <span className="whitespace-nowrap text-sm font-medium text-zinc-200">{v.label}</span>
+                <span className="whitespace-nowrap text-sm font-medium text-zinc-200">{t(`values.${v.label}`)}</span>
               </li>
             ))}
           </ul>

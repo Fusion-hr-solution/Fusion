@@ -1,11 +1,6 @@
 import type { ObjectiveStatus } from "@repo/api";
 import { StatusBadge, type StatusTone } from "@repo/ds/shell";
-
-export const OBJECTIVE_STATUS_LABEL: Record<ObjectiveStatus, string> = {
-  OnTrack: "On track",
-  AtRisk: "At risk",
-  OffTrack: "Off track",
-};
+import { usePerformanceWords } from "./use-words";
 
 const TONE: Record<ObjectiveStatus, StatusTone> = {
   OnTrack: "success",
@@ -15,10 +10,11 @@ const TONE: Record<ObjectiveStatus, StatusTone> = {
 
 /** The owner's reported status (D-05). Nothing renders before the first report: unreported is never "on track". */
 export function ObjectiveStatusBadge({ status, className }: { status: ObjectiveStatus | null; className?: string }) {
+  const words = usePerformanceWords();
   if (!status) return null;
   return (
     <StatusBadge tone={TONE[status]} dot className={className}>
-      {OBJECTIVE_STATUS_LABEL[status]}
+      {words.objectiveStatus(status)}
     </StatusBadge>
   );
 }
@@ -39,15 +35,3 @@ export function statusMix(statuses: ReadonlyArray<ObjectiveStatus | null>): Stat
   };
 }
 
-/** "2 on track · 1 at risk · 1 not reported", leaving out what is zero. */
-export function describeStatusMix(mix: StatusMix): string {
-  return [
-    [mix.onTrack, "on track"],
-    [mix.atRisk, "at risk"],
-    [mix.offTrack, "off track"],
-    [mix.notReported, "not reported"],
-  ]
-    .filter(([count]) => (count as number) > 0)
-    .map(([count, label]) => `${count} ${label}`)
-    .join(" · ");
-}

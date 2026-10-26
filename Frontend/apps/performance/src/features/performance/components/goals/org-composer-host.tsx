@@ -17,6 +17,7 @@ import {
 import { useWorkspaceContext } from "../../api/use-workspace";
 import { OrgObjectiveComposer } from "./org-objective-composer";
 import { type UnitContext } from "./working-context-lib";
+import { useTranslations } from "next-intl";
 
 export type ComposerAlignmentContext =
   | { mode: "aligned"; parentId: string }
@@ -55,6 +56,7 @@ export function OrgComposerHost({
   onClose: () => void;
   onFocusParent?: (parentId: string) => void;
 }) {
+  const t = useTranslations("goals.OrgComposerHost");
   const { user } = useAuth();
   const context = useWorkspaceContext();
   const mutations = useGoalMutations(cycle.id);
@@ -76,10 +78,10 @@ export function OrgComposerHost({
 
   useEffect(() => {
     if (invalid) {
-      toast.error("This objective can’t be edited.");
+      toast.error(t("thisObjectiveCantBeEdited"));
       onClose();
     }
-  }, [invalid, isCreate, onClose]);
+  }, [invalid, isCreate, onClose, t]);
 
   if (invalid) return null;
 
@@ -187,18 +189,19 @@ function ComposerSkeleton({
   isCreate: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("goals.ComposerSkeleton");
   return (
     <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
       <DialogContent className="flex max-h-[92vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <div className="border-b border-border px-6 py-5 pe-14">
           <DialogTitle>
-            {isCreate ? "Create team objective" : "Edit team objective"}
+            {isCreate ? t("createTeamObjective") : t("editTeamObjective")}
           </DialogTitle>
         </div>
         <div
           className="flex-1 overflow-y-auto px-6 py-6"
           role="status"
-          aria-label="Loading objective"
+          aria-label={t("loadingObjective")}
         >
           <div className="space-y-8">
             {/* Alignment editor: heading, then the Aligned / Standalone choice cards. */}

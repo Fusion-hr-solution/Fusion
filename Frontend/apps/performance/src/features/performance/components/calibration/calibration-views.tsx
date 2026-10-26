@@ -18,6 +18,9 @@ import { PersonInitials } from "@repo/performance-ui";
 import { ArrowRight, ChevronDown, Flag, Users } from "@/lib/icons";
 import { dayLabel } from "../reviews/review-parts";
 import { average, flagText, leniencyText, signed } from "./calibration-format";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
 
 // ── Marks shared by the views and the drawer ─────────────────────────────────
 
@@ -33,9 +36,10 @@ export function LevelMark({ value, top, muted = false, className }: { value: num
 
 /** The manager's rating, and the calibrated one when it moved. */
 export function RatingChange({ original, current, top }: { original: number; current: number; top: number }) {
+  const t = useTranslations("calibration.RatingChange");
   if (original === current) return <LevelMark value={current} top={top} className="bg-inlay text-foreground" />;
   return (
-    <span className="inline-flex items-center gap-1.5" aria-label={`${original} to ${current}`}>
+    <span className="inline-flex items-center gap-1.5" aria-label={t("to", { original, current })}>
       <LevelMark value={original} top={top} muted />
       <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden />
       <LevelMark value={current} top={top} className="border border-primary bg-primary-tint text-primary-ink" />
@@ -64,8 +68,9 @@ export function FlagChip({ children, quiet = false }: { children: string; quiet?
 }
 
 export function PersonFlags({ flags }: { flags: CalibrationFlagDto[] }) {
+  const say = useSay("calibration.format");
   if (flags.length === 0) return null;
-  return <span className="flex flex-wrap gap-1.5">{flags.map((flag) => <FlagChip key={flag.kind}>{flagText(flag)}</FlagChip>)}</span>;
+  return <span className="flex flex-wrap gap-1.5">{flags.map((flag) => <FlagChip key={flag.kind}>{flagText(flag, say)}</FlagChip>)}</span>;
 }
 
 /** Weighted attainment as a short bar: success from half, warning below. */
@@ -86,6 +91,7 @@ export function Attainment({ value }: { value: number | null }) {
 
 /** Board 03: the managers' ratings outlined beside where the session stands, then each manager furthest first. */
 export function DistributionView({ view, onManager }: { view: CalibrationDistributionViewDto; onManager: (managerId: string) => void }) {
+  const t = useTranslations("calibration.DistributionView");
   const top = view.levels.length;
   const max = Math.max(1, ...view.levels.flatMap((level) => [level.original, level.current]));
   const [all, setAll] = useState(false);
@@ -96,11 +102,11 @@ export function DistributionView({ view, onManager }: { view: CalibrationDistrib
     <div className="space-y-10">
       <section aria-labelledby="distribution-title" className="rounded-surface bg-card p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="distribution-title" className="type-section-title text-foreground">Ratings across the session</h2>
+          <h2 id="distribution-title" className="type-section-title text-foreground">{t("ratingsAcrossTheSession")}</h2>
           <p className="flex flex-wrap items-center gap-4 type-meta text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-detail border border-dashed border-muted-foreground" aria-hidden />Managers&apos; ratings</span>
-            <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-detail bg-primary" aria-hidden />Now</span>
-            <span>Average <b className="tabular-nums text-foreground">{average(view.currentAverage)}</b> · was {average(view.sessionAverage)}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-detail border border-dashed border-muted-foreground" aria-hidden />{t("managersRatings")}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-detail bg-primary" aria-hidden />{t("now")}</span>
+            <span>{t("average")} <b className="tabular-nums text-foreground">{average(view.currentAverage)}</b> {t("was", { sessionAverage: average(view.sessionAverage) })}</span>
           </p>
         </div>
         <div className="mt-6 grid items-end gap-4" style={{ gridTemplateColumns: `repeat(${view.levels.length}, minmax(0, 1fr))` }}>
@@ -111,22 +117,22 @@ export function DistributionView({ view, onManager }: { view: CalibrationDistrib
       <section aria-labelledby="by-manager-title">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
           <h2 id="by-manager-title" className="type-section-title text-foreground">
-            By manager<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{view.managers.length}</span>
+            {t("byManager")}<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{view.managers.length}</span>
           </h2>
-          <p className="type-meta text-muted-foreground">Furthest from the session average first</p>
+          <p className="type-meta text-muted-foreground">{t("furthestFromTheSessionAverage")}</p>
         </div>
         {view.managers.length === 0 ? (
-          <p className="rounded-surface bg-card px-6 py-10 text-center type-body text-muted-foreground">No one matches these filters</p>
+          <p className="rounded-surface bg-card px-6 py-10 text-center type-body text-muted-foreground">{t("noOneMatchesTheseFilters")}</p>
         ) : (
           <div className="overflow-x-auto rounded-surface bg-card">
             <table className="w-full min-w-[44rem] text-start">
               <thead>
                 <tr className="border-b border-border type-meta text-muted-foreground">
-                  <th className="px-5 py-3 font-medium">Manager</th>
-                  <th className="px-3 py-3 font-medium">People</th>
-                  <th className="px-3 py-3 font-medium">Their ratings, now</th>
-                  <th className="px-3 py-3 font-medium">Average</th>
-                  <th className="px-5 py-3 font-medium">Flag</th>
+                  <th className="px-5 py-3 font-medium">{t("manager")}</th>
+                  <th className="px-3 py-3 font-medium">{t("people")}</th>
+                  <th className="px-3 py-3 font-medium">{t("theirRatingsNow")}</th>
+                  <th className="px-3 py-3 font-medium">{t("average")}</th>
+                  <th className="px-5 py-3 font-medium">{t("flag")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -135,8 +141,8 @@ export function DistributionView({ view, onManager }: { view: CalibrationDistrib
             </table>
             {hidden > 0 ? (
               <div className="flex items-center justify-between border-t border-border px-5 py-3 type-meta text-muted-foreground">
-                <span>{hidden} more {hidden === 1 ? "manager" : "managers"} within 0.2 of the session average</span>
-                <Button variant="ghost" size="sm" onClick={() => setAll(true)}>Show all<ChevronDown className="size-3.5" aria-hidden /></Button>
+                <span>{t("more", { hidden })} {hidden === 1 ? t("manager2") : t("managers")} {t("within02OfThe")}</span>
+                <Button variant="ghost" size="sm" onClick={() => setAll(true)}>{t("showAll")}<ChevronDown className="size-3.5" aria-hidden /></Button>
               </div>
             ) : null}
           </div>
@@ -147,6 +153,7 @@ export function DistributionView({ view, onManager }: { view: CalibrationDistrib
 }
 
 function LevelBar({ level, max, top }: { level: CalibrationLevelDto; max: number; top: number }) {
+  const t = useTranslations("calibration.LevelBar");
   const height = 220;
   const delta = level.current - level.original;
   const accent = level.value >= top - 1;
@@ -156,7 +163,7 @@ function LevelBar({ level, max, top }: { level: CalibrationLevelDto; max: number
       <span className={cn("mt-1 rounded-detail px-1.5 type-meta font-semibold tabular-nums", delta === 0 ? "text-muted-foreground" : "bg-info-subtle text-info")}>
         {signed(delta)}
       </span>
-      <div className="relative mt-3 w-full max-w-36" style={{ height }} aria-label={`${level.label}: ${level.current} now, ${level.original} from managers`} role="img">
+      <div className="relative mt-3 w-full max-w-36" style={{ height }} aria-label={t("nowFromManagers", { label: level.label, current: level.current, original: level.original })} role="img">
         <span className="absolute inset-x-0 bottom-0 rounded-t-control border border-dashed border-muted-foreground/50"
           style={{ height: Math.max(2, (level.original / max) * height) }} aria-hidden />
         <span className={cn("absolute inset-x-0 bottom-0 rounded-t-control", accent ? "bg-primary" : "bg-muted-foreground/45")}
@@ -171,6 +178,8 @@ function LevelBar({ level, max, top }: { level: CalibrationLevelDto; max: number
 }
 
 function ManagerRow({ manager, top, onOpen }: { manager: CalibrationManagerDto; top: number; onOpen: () => void }) {
+  const t = useTranslations("calibration.ManagerRow");
+  const say = useSay("calibration.format");
   const total = Math.max(1, manager.currentMix.reduce((sum, count) => sum + count, 0));
   return (
     <tr className="cursor-pointer hover:bg-inlay/50" onClick={onOpen}>
@@ -183,7 +192,7 @@ function ManagerRow({ manager, top, onOpen }: { manager: CalibrationManagerDto; 
       <td className="px-3 py-3.5 type-body tabular-nums text-foreground">{manager.reviews}</td>
       <td className="px-3 py-3.5">
         <span className="flex h-2.5 w-full min-w-40 overflow-hidden rounded-full bg-inlay" role="img"
-          aria-label={manager.currentMix.map((count, index) => `${count} at ${index + 1}`).join(", ")}>
+          aria-label={manager.currentMix.map((count, index) => t("at", { count, value: index + 1 })).join(", ")}>
           {manager.currentMix.map((count, index) => count === 0 ? null : (
             <span key={index} className={cn("h-full border-e border-card last:border-e-0", MIX[Math.min(MIX.length - 1, index + MIX.length - top)])}
               style={{ width: `${(count / total) * 100}%` }} />
@@ -196,7 +205,7 @@ function ManagerRow({ manager, top, onOpen }: { manager: CalibrationManagerDto; 
           <span className="ms-1.5 type-meta tabular-nums text-muted-foreground">→ {average(manager.currentAverage)}</span>
         ) : null}
       </td>
-      <td className="px-5 py-3.5">{manager.lenient ? <FlagChip>{leniencyText(manager.delta)}</FlagChip> : <span className="type-meta text-muted-foreground">—</span>}</td>
+      <td className="px-5 py-3.5">{manager.lenient ? <FlagChip>{leniencyText(manager.delta, say)}</FlagChip> : <span className="type-meta text-muted-foreground">—</span>}</td>
     </tr>
   );
 }
@@ -215,11 +224,12 @@ export function PeopleView({ view, top, lenient, onOpen }: {
   lenient: ReadonlySet<string>;
   onOpen: (person: CalibrationPersonDto) => void;
 }) {
+  const t = useTranslations("calibration.PeopleView");
   if (view.total === 0) {
     return (
       <div className="rounded-surface bg-card px-6 py-12 text-center">
         <Users className="mx-auto size-8 text-muted-foreground/50" aria-hidden />
-        <p className="mt-3 type-body text-foreground">No one matches these filters</p>
+        <p className="mt-3 type-body text-foreground">{t("noOneMatchesTheseFilters")}</p>
       </div>
     );
   }
@@ -228,13 +238,13 @@ export function PeopleView({ view, top, lenient, onOpen }: {
       <table className="w-full min-w-[60rem] text-start">
         <thead>
           <tr className="border-b border-border type-meta text-muted-foreground">
-            <th className="px-4 py-3 font-medium">Person</th>
-            <th className="px-3 py-3 font-medium">Manager</th>
-            <th className="px-3 py-3 font-medium">Rating</th>
-            <th className="px-3 py-3 font-medium">Potential</th>
-            <th className="px-3 py-3 font-medium">Objectives</th>
-            <th className="px-3 py-3 font-medium">Last cycle</th>
-            <th className="px-4 py-3 font-medium">Flags</th>
+            <th className="px-4 py-3 font-medium">{t("person")}</th>
+            <th className="px-3 py-3 font-medium">{t("manager")}</th>
+            <th className="px-3 py-3 font-medium">{t("rating")}</th>
+            <th className="px-3 py-3 font-medium">{t("potential")}</th>
+            <th className="px-3 py-3 font-medium">{t("objectives")}</th>
+            <th className="px-3 py-3 font-medium">{t("lastCycle")}</th>
+            <th className="px-4 py-3 font-medium">{t("flags")}</th>
           </tr>
         </thead>
         {view.groups.map((group) => <Group key={group.value} group={group} top={top} lenient={lenient} onOpen={onOpen} />)}
@@ -244,6 +254,7 @@ export function PeopleView({ view, top, lenient, onOpen }: {
 }
 
 function Group({ group, top, lenient, onOpen }: { group: CalibrationGroupDto; top: number; lenient: ReadonlySet<string>; onOpen: (person: CalibrationPersonDto) => void }) {
+  const t = useTranslations("calibration.Group");
   const notable = group.people.some((person) => person.flags.length > 0 || person.originalRating !== person.currentRating);
   const [open, setOpen] = useState(notable);
   const [all, setAll] = useState(false);
@@ -257,7 +268,7 @@ function Group({ group, top, lenient, onOpen }: { group: CalibrationGroupDto; to
             <LevelMark value={group.value} top={top} />
             <span className="type-label text-foreground">{group.label}</span>
             <span className="type-meta tabular-nums text-muted-foreground">
-              {group.count}{group.originalCount !== group.count ? ` · was ${group.originalCount}` : ""}
+              {group.count}{group.originalCount !== group.count ? " " + t("was", { originalCount: group.originalCount }) : ""}
             </span>
             {group.count > 0 ? <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} aria-hidden /> : null}
           </button>
@@ -267,8 +278,8 @@ function Group({ group, top, lenient, onOpen }: { group: CalibrationGroupDto; to
       {open && group.people.length > rows.length ? (
         <tr>
           <td colSpan={7} className="px-4 py-2.5 type-meta text-muted-foreground">
-            {group.people.length - rows.length} more at {group.label}
-            <Button variant="ghost" size="sm" className="ms-2" onClick={() => setAll(true)}>Show</Button>
+            {t("moreAt", { value: group.people.length - rows.length, label: group.label })}
+            <Button variant="ghost" size="sm" className="ms-2" onClick={() => setAll(true)}>{t("show")}</Button>
           </td>
         </tr>
       ) : null}
@@ -277,6 +288,7 @@ function Group({ group, top, lenient, onOpen }: { group: CalibrationGroupDto; to
 }
 
 function PersonRow({ person, top, lenient, onOpen }: { person: CalibrationPersonDto; top: number; lenient: boolean; onOpen: () => void }) {
+  const t = useTranslations("calibration.PersonRow");
   return (
     <tr className="cursor-pointer border-t border-border hover:bg-inlay/50" onClick={onOpen}>
       <td className="px-4 py-3">
@@ -291,7 +303,7 @@ function PersonRow({ person, top, lenient, onOpen }: { person: CalibrationPerson
       </td>
       <td className="whitespace-nowrap px-3 py-3 type-body text-foreground">
         {person.reviewerName}
-        {lenient ? <Flag className="ms-1.5 inline size-3 text-info" aria-label="Manager flagged" /> : null}
+        {lenient ? <Flag className="ms-1.5 inline size-3 text-info" aria-label={t("managerFlagged")} /> : null}
       </td>
       <td className="px-3 py-3"><RatingChange original={person.originalRating} current={person.currentRating} top={top} /></td>
       <td className="px-3 py-3"><PotentialBadge value={person.currentPotential} was={person.originalPotential} /></td>
@@ -306,21 +318,23 @@ function PersonRow({ person, top, lenient, onOpen }: { person: CalibrationPerson
 
 /** Board 10: where ratings landed against what managers gave, and every change with its reason. */
 export function ChangesView({ view, top }: { view: CalibrationChangesViewDto; top: number }) {
+  const format = useFormat();
+  const t = useTranslations("calibration.ChangesView");
   const max = Math.max(1, ...view.levels.flatMap((level) => [level.original, level.current]));
   return (
     <div className="space-y-10">
       <section aria-labelledby="landed-title" className="rounded-surface bg-card p-6">
-        <h2 id="landed-title" className="type-section-title text-foreground">Where ratings landed</h2>
+        <h2 id="landed-title" className="type-section-title text-foreground">{t("whereRatingsLanded")}</h2>
         <div className="mt-6 grid items-end gap-4" style={{ gridTemplateColumns: `repeat(${view.levels.length}, minmax(0, 1fr))` }}>
           {view.levels.map((level) => <LevelBar key={level.value} level={level} max={max} top={top} />)}
         </div>
       </section>
       <section aria-labelledby="changes-title">
         <h2 id="changes-title" className="mb-3 type-section-title text-foreground">
-          Changes<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{view.changes.length}</span>
+          {t("changes")}<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{view.changes.length}</span>
         </h2>
         {view.changes.length === 0 ? (
-          <p className="rounded-surface bg-card px-6 py-10 text-center type-body text-muted-foreground">Every rating stayed as managers gave it</p>
+          <p className="rounded-surface bg-card px-6 py-10 text-center type-body text-muted-foreground">{t("everyRatingStayedAsManagers")}</p>
         ) : (
           <ul className="divide-y divide-border rounded-surface bg-card">
             {view.changes.map((change) => (
@@ -338,7 +352,7 @@ export function ChangesView({ view, top }: { view: CalibrationChangesViewDto; to
                 </div>
                 <p className="type-body-secondary text-foreground">{change.reason}</p>
                 <p className="whitespace-nowrap type-meta text-muted-foreground">
-                  {[change.changedBy, change.changedAt ? dayLabel(change.changedAt.slice(0, 10)) : null].filter(Boolean).join(" · ")}
+                  {[change.changedBy, change.changedAt ? dayLabel(change.changedAt.slice(0, 10), format.locale) : null].filter(Boolean).join(" · ")}
                 </p>
               </li>
             ))}

@@ -8,6 +8,7 @@ import type { EvidenceInput } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Input } from "@repo/ds/components/ui/input";
 import { cn } from "@repo/ds/lib/utils";
+import { useTranslations } from "next-intl";
 
 type UploadFn = (file: File) => Promise<{ uploadId: string; fileName: string; contentType: string; sizeBytes: number }>;
 
@@ -32,6 +33,7 @@ export function EvidenceUploader({
   onChange: (items: EvidenceInput[]) => void;
   upload: UploadFn;
 }) {
+  const t = useTranslations("progress.EvidenceUploader");
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -55,7 +57,7 @@ export function EvidenceUploader({
         },
       ]);
     } catch (error) {
-      reportPerformanceFailure(error, "Upload failed. Try again.");
+      reportPerformanceFailure(error, t("uploadFailedTryAgain"));
     } finally {
       setUploading(false);
       if (fileInput.current) fileInput.current.value = "";
@@ -82,7 +84,7 @@ export function EvidenceUploader({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Remove evidence"
+                aria-label={t("removeEvidence")}
                 onClick={() => onChange(items.filter((_, i) => i !== index))}
               >
                 <X className="size-3.5" />
@@ -117,19 +119,19 @@ export function EvidenceUploader({
             className={cn(dragging && "border-primary bg-primary/[0.04]")}
           >
             {uploading ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Paperclip className="size-3.5" data-icon="inline-start" />}
-            {uploading ? "Uploading" : "Attach file"}
+            {uploading ? t("uploading") : t("attachFile")}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => setMode("link")}>
-            <Link2 className="size-3.5" data-icon="inline-start" /> Add link
+            <Link2 className="size-3.5" data-icon="inline-start" /> {t("addLink")}
           </Button>
         </div>
       ) : null}
 
       {mode === "link" ? (
         <div className="space-y-2 rounded-surface border p-3">
-          <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" autoFocus />
+          <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder={t("https")} autoFocus />
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setMode("none")}>Cancel</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setMode("none")}>{t("cancel")}</Button>
             <Button
               type="button"
               size="sm"
@@ -140,7 +142,7 @@ export function EvidenceUploader({
                 setMode("none");
               }}
             >
-              <Plus className="size-3.5" data-icon="inline-start" /> Add link
+              <Plus className="size-3.5" data-icon="inline-start" /> {t("addLink")}
             </Button>
           </div>
         </div>

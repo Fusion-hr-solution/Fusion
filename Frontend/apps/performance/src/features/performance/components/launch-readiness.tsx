@@ -4,6 +4,7 @@ import { ArrowRight, Check } from "@/lib/icons";
 import type { LaunchReadinessDto } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
+import { useTranslations } from "next-intl";
 
 const AREA_ORDER = ["details", "population"] as const;
 
@@ -24,6 +25,7 @@ export function LaunchReadiness({
   onActivate?: () => void;
   activating?: boolean;
 }) {
+  const t = useTranslations("cycleSetup.LaunchReadiness");
   const areas = [...readiness.areas].sort(
     (a, b) =>
       AREA_ORDER.indexOf(a.key as (typeof AREA_ORDER)[number]) -
@@ -34,9 +36,9 @@ export function LaunchReadiness({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="type-section-title text-foreground">Launch readiness</h2>
+        <h2 className="type-section-title text-foreground">{t("launchReadiness")}</h2>
         <p className="text-sm text-muted-foreground tabular-nums">
-          {completeCount} of {areas.length} ready
+          {t("ofReady", { completeCount, length: areas.length })}
         </p>
       </div>
 
@@ -77,12 +79,12 @@ export function LaunchReadiness({
                       area.complete ? "text-muted-foreground" : "text-destructive"
                     )}
                   >
-                    {area.complete ? "Ready" : (area.detail ?? "Needs attention")}
+                    {area.complete ? t("ready") : (area.detail ?? t("needsAttention"))}
                   </span>
                 </span>
                 {interactive ? (
                   <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-ink">
-                    Set up
+                    {t("setUp")}
                     <ArrowRight className="size-3.5" aria-hidden />
                   </span>
                 ) : null}
@@ -95,7 +97,7 @@ export function LaunchReadiness({
       {readiness.canActivate && onActivate ? (
         <div className="flex justify-end">
           <AsyncButton size="lg" onClick={onActivate} pending={activating ?? false}>
-            Review &amp; activate
+            {t("reviewActivate")}
             <ArrowRight className="size-4" data-icon="inline-end" />
           </AsyncButton>
         </div>

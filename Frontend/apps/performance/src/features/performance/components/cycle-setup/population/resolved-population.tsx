@@ -21,14 +21,16 @@ import {
   TooltipTrigger,
 } from "@repo/ds/components/ui/tooltip";
 import { cn } from "@repo/ds/lib/utils";
+import { useTranslations } from "next-intl";
+import type { Say } from "@/i18n/say";
 
-function relativeSince(ts: number): string {
+function relativeSince(ts: number, say: Say): string {
   const secs = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (secs < 45) return "just now";
+  if (secs < 45) return say("justNow");
   const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  if (mins < 60) return say("minutesAgo", { count: mins });
   const hrs = Math.round(mins / 60);
-  return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+  return say("hoursAgo", { count: hrs });
 }
 
 /**
@@ -45,6 +47,7 @@ export function ResolvedPopulation({
   onRefresh: () => void;
   refreshing: boolean;
 }) {
+  const tr = useTranslations("cycleSetup.ResolvedPopulation");
   const total = population.candidates.length;
   const coverage =
     population.reviewerRequiredCount === 0
@@ -78,7 +81,7 @@ export function ResolvedPopulation({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="type-section-title text-foreground">
-                Resolved population
+                {tr("resolvedPopulation")}
               </h2>
               {refreshing ? (
                 <span
@@ -86,13 +89,13 @@ export function ResolvedPopulation({
                   role="status"
                 >
                   <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
-                  Resolving workforce…
+                  {tr("resolvingWorkforce")}
                 </span>
               ) : null}
             </div>
             <div className="flex items-center gap-1.5 type-meta text-muted-foreground">
               <span>
-                Evaluated from the selected scope and eligibility date.
+                {tr("evaluatedFromTheSelectedScope")}
               </span>
               <TooltipProvider delayDuration={150}>
                 <Tooltip>
@@ -100,14 +103,13 @@ export function ResolvedPopulation({
                     <button
                       type="button"
                       className="rounded-control text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label="How Fusion resolves the population"
+                      aria-label={tr("howFusionResolvesThePopulation")}
                     >
                       <Info className="size-3.5" aria-hidden />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    Fusion resolves this selection against CoreHR as of the
-                    cycle eligibility date.
+                    {tr("fusionResolvesThisSelectionAgainst")}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -116,7 +118,7 @@ export function ResolvedPopulation({
         </div>
         <div className="flex items-center gap-4">
           <span className="hidden type-meta text-muted-foreground sm:inline">
-            Last resolved {relativeSince(updatedAt)}
+            {tr("lastResolved", { updatedAt: relativeSince(updatedAt, (key, values) => tr(key as "justNow", values as never)) })}
           </span>
           <TooltipProvider delayDuration={150}>
             <Tooltip>
@@ -132,11 +134,11 @@ export function ResolvedPopulation({
                       className={cn("size-4", refreshing && "animate-spin")}
                       data-icon="inline-start"
                     />
-                    Refresh
+                    {tr("refresh")}
                   </Button>
                 </span>
               </TooltipTrigger>
-              <TooltipContent>Re-resolve population from CoreHR</TooltipContent>
+              <TooltipContent>{tr("reResolvePopulationFromCorehr")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -147,29 +149,29 @@ export function ResolvedPopulation({
           icon={<UserRound className="size-5" />}
           tone="primary"
           value={total}
-          label="Total resolved"
-          caption="Employees evaluated for this cycle"
+          label={tr("totalResolved")}
+          caption={tr("employeesEvaluatedForThisCycle")}
         />
         <Metric
           icon={<CircleCheck className="size-5" />}
           tone="success"
           value={population.readyCount}
-          label="Ready"
-          caption="Valid and can participate"
+          label={tr("ready")}
+          caption={tr("validAndCanParticipate")}
         />
         <Metric
           icon={<TriangleAlert className="size-5" />}
           tone={population.needsAttentionCount > 0 ? "warning" : "muted"}
           value={population.needsAttentionCount}
-          label="Need attention"
-          caption="Resolve or exclude before confirmation"
+          label={tr("needAttention")}
+          caption={tr("resolveOrExcludeBeforeConfirmation")}
         />
         <Metric
           icon={<UserX className="size-5" />}
           tone={population.excludedCount > 0 ? "danger" : "muted"}
           value={population.excludedCount}
-          label="Excluded"
-          caption="Won't participate in this cycle"
+          label={tr("excluded")}
+          caption={tr("wontParticipateInThisCycle")}
         />
         <div className="col-span-2 md:col-span-4 md:mt-6 md:border-t md:border-border md:pt-6 xl:col-span-1 xl:mt-0 xl:border-0 xl:pt-0 xl:ps-5">
           <div className="flex gap-3">
@@ -178,7 +180,7 @@ export function ResolvedPopulation({
             </Chip>
             <div className="min-w-0 flex-1">
               <p className="type-meta text-muted-foreground">
-                Reviewer coverage
+                {tr("reviewerCoverage")}
               </p>
               <div className="mt-0.5 flex items-baseline gap-2">
                 <span className="type-metric text-foreground tabular-nums">
@@ -193,7 +195,7 @@ export function ResolvedPopulation({
               </div>
               <Progress value={coverage} className="mt-2 h-1.5" />
               <p className="type-meta mt-1.5 text-muted-foreground">
-                Employees with a valid reviewer
+                {tr("employeesWithAValidReviewer")}
               </p>
             </div>
           </div>
@@ -267,6 +269,7 @@ function HealthStrip({
   needsAttention: number;
   ready: number;
 }) {
+  const t = useTranslations("cycleSetup.HealthStrip");
   if (needsAttention > 0) {
     return (
       <div className="flex items-center gap-3 border-t border-amber-500/20 bg-amber-500/[0.04] px-5 py-3">
@@ -276,11 +279,10 @@ function HealthStrip({
         <p className="type-body-secondary">
           <span className="font-medium text-foreground">
             {needsAttention}{" "}
-            {needsAttention === 1 ? "employee needs" : "employees need"}{" "}
-            attention.
+            {needsAttention === 1 ? t("employeeNeeds") : t("employeesNeed")}{t("attention")}
           </span>{" "}
           <span className="text-muted-foreground">
-            Resolve the issue in Core or exclude them before confirmation.
+            {t("resolveTheIssueInCore")}
           </span>
         </p>
       </div>
@@ -296,10 +298,10 @@ function HealthStrip({
       </span>
       <p className="type-body-secondary">
         <span className="font-medium text-foreground">
-          No one is currently eligible for this population.
+          {t("noOneIsCurrentlyEligible")}
         </span>{" "}
         <span className="text-muted-foreground">
-          Broaden the scope or review the selection.
+          {t("broadenTheScopeOrReview")}
         </span>
       </p>
     </div>

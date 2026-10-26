@@ -3,13 +3,15 @@
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { PageContainer } from "@repo/ds/shell";
 import { PlanDocument, PlanSection, SidebarSection } from "./plan-layout";
+import { useTranslations } from "next-intl";
 
 /**
  * The Plan's loading state in its real frame: the objective cards beside the unframed sidebar, so the surface fills in place rather than swapping layouts.
  */
 export function PlanSurfaceSkeleton() {
+  const t = useTranslations("plan.PlanSurfaceSkeleton");
   return (
-    <div role="status" aria-label="Loading your plan">
+    <div role="status" aria-label={t("loadingYourPlan")}>
       <PlanDocument
         main={
           <PlanSection label={<Skeleton className="h-5 w-28" />} summary={<Skeleton className="h-2 w-40 rounded-full" />}>
@@ -73,8 +75,9 @@ export function PlanSurfaceSkeleton() {
  * heading, three pillars, the start action) beside the next-steps and direction sidebar.
  */
 export function PlanEmptySkeleton() {
+  const t = useTranslations("plan.PlanEmptySkeleton");
   return (
-    <div role="status" aria-label="Loading your plan">
+    <div role="status" aria-label={t("loadingYourPlan")}>
       <PlanDocument
         main={
           <PlanSection label={<Skeleton className="h-5 w-28" />}>

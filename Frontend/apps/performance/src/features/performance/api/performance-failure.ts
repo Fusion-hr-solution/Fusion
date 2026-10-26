@@ -1,25 +1,40 @@
 import { toast } from "sonner";
 import { ApiError } from "@repo/api";
+import enCommon from "../../../../messages/en/common.json";
+import frCommon from "../../../../messages/fr/common.json";
 
-export function performanceFailure(error: unknown) {
+/**
+ * The page's language, read when a failure is reported (always in the browser, after an action). The service words
+ * its refusals in English, so they read as sent in English and as the screen's own line in other languages.
+ */
+function language(): string {
+  return typeof document === "undefined" ? "en" : document.documentElement.lang || "en";
+}
+
+function words() {
+  return (language() === "fr" ? frCommon : enCommon).failure;
+}
+
+export function performanceFailure(error: unknown, fallback?: string) {
   const kind = error instanceof ApiError ? error.failureKind : null;
+  const w = words();
+  const english = language() === "en";
   return {
     kind,
     unavailable: kind === "Forbidden",
     refresh: kind === "Stale" || kind === "InvalidState" || kind === "Forbidden",
-    message: kind === "Stale" ? "This changed since you opened it"
-      : kind === "Forbidden" ? "This record is not available"
-      : error instanceof Error ? error.message : "Could not complete this action.",
+    message: kind === "Stale" ? w.stale
+      : kind === "Forbidden" ? w.unavailable
+      : english && error instanceof Error && error.message ? error.message : fallback ?? w.generic,
   };
 }
 
 const reported = new WeakSet<Error>();
 
-export function reportPerformanceFailure(error: unknown, fallback = "Could not complete this action.") {
+export function reportPerformanceFailure(error: unknown, fallback?: string) {
   if (error instanceof Error && reported.has(error)) return;
   if (error instanceof Error) reported.add(error);
-  const failure = performanceFailure(error);
-  toast.error(error instanceof Error ? failure.message : fallback);
+  toast.error(performanceFailure(error, fallback).message);
 }
 
 export async function recoverPerformanceFailure(error: unknown, refresh: () => Promise<unknown>) {

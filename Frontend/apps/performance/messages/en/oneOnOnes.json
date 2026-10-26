@@ -1,0 +1,260 @@
+{
+  "NotesEditor": {
+    "saving": "Saving…",
+    "saved": "Saved",
+    "notSaved": "Not saved",
+    "onlyYouSeeThis": "Only you see this",
+    "startWriting": "Start writing",
+    "theseNotesChangedWhileYou": "These notes changed while you were editing.",
+    "keepMyVersion": "Keep my version",
+    "useTheirs": "Use theirs",
+    "trySavingAgain": "Try saving again",
+    "empty": "(empty)"
+  },
+  "RhythmScale": {
+    "today": "Today"
+  },
+  "RhythmStrip": {
+    "heldMissedInTheLast": "{label}: {held} held, {missed} missed in the last six weeks"
+  },
+  "OneOnOnesWorkspace": {
+    "your11s": "Your 1:1s"
+  },
+  "Workspace": {
+    "n11s": "1:1s",
+    "youHaveNoManagerOr": "You have no manager or direct reports in Core HR.",
+    "yourReportingLineCouldntBe": "Your reporting line couldn't be loaded. Try again shortly.",
+    "yourTeam": "Your team",
+    "withYourManager": "With your manager",
+    "yourReportingLineCouldntBe2": "Your reporting line couldn't be loaded, so nothing new can start until it is.",
+    "notMeetingYet": "Not meeting yet",
+    "noManagerInCoreHr": "No manager in Core HR",
+    "actionsYouOwe": "Actions you owe{value}",
+    "thisWeek": "This week"
+  },
+  "NextUp": {
+    "nextUp": "Next up · {howSoon}",
+    "open11": "Open 1:1",
+    "onTheAgenda": "On the agenda",
+    "nothingYet": "Nothing yet",
+    "more": "+{value} more",
+    "sinceYouMet": "Since you met · {lastMetAt}",
+    "readyToDiscuss": "Ready to discuss",
+    "nothingNew": "Nothing new",
+    "action": "{overdueActions} action",
+    "s": "s",
+    "overdue": "overdue",
+    "yourManager": "your manager",
+    "since": {
+      "Objective": "{count, plural, one {# objective at risk} other {# objectives at risk}}",
+      "UpdateRequest": "{count, plural, one {# update requested} other {# updates requested}}",
+      "Feedback": "{count} feedback",
+      "Praise": "{count} praise"
+    }
+  },
+  "RhythmTable": {
+    "person": "Person",
+    "next": "Next"
+  },
+  "RhythmRow": {
+    "overdue": "· {overdueActions} overdue",
+    "open": "· {openActions} open",
+    "n11sWith": "1:1s with {displayName}",
+    "notSet": "Not set"
+  },
+  "StartRow": {
+    "notMeetingYet": "Not meeting yet",
+    "start11s": "Start 1:1s"
+  },
+  "EndedLine": {
+    "ended": "Ended",
+    "ended2": "· ended {endedAt}",
+    "showHistory": "Show history"
+  },
+  "ManagerCard": {
+    "notScheduled": "Not scheduled",
+    "onTheAgenda": "{agendaCount} on the agenda"
+  },
+  "OwedActions": {
+    "nothingOpen": "Nothing open",
+    "n11With": "1:1 with {displayName}",
+    "overdue": "Overdue",
+    "more": "+{value} more"
+  },
+  "ThisWeek": {
+    "yourManager": "Your manager",
+    "onTheAgenda": "{agendaCount} on the agenda",
+    "nothingOnTheAgendaYet": "Nothing on the agenda yet"
+  },
+  "OneOnOnesSkeleton": {
+    "loadingYour11s": "Loading your 1:1s"
+  },
+  "SeriesRecord": {
+    "this11": "This 1:1"
+  },
+  "SeriesView": {
+    "n11With": "1:1 with {displayName}",
+    "someoneLeftTheCompanyYou": "Someone left the company · you met {toLowerCase}, {startedAt} – {value}",
+    "theReportingLineChangedYou": "The reporting line changed · you met {toLowerCase}, {startedAt} – {value}",
+    "ended": "Ended",
+    "reschedule": "Reschedule",
+    "completeMeeting": "Complete meeting",
+    "earlierMeetings": "Earlier meetings",
+    "since": "{value} since {startedAt}"
+  },
+  "MeetingTrack": {
+    "notHeld": "Not held",
+    "ended": "Ended",
+    "meetings": "Meetings",
+    "point": "{length} point",
+    "points": "{length} points"
+  },
+  "UpcomingMeeting": {
+    "talkingPoints": "Talking points",
+    "fromSYear": "From {reportFirstName}'s year",
+    "fromYourYear": "From your year",
+    "actions": "Actions",
+    "notes": "Notes"
+  },
+  "TalkingPoints": {
+    "nothingOnTheAgenda": "Nothing on the agenda",
+    "addedBy": "Added by {value}",
+    "remove": "Remove {text}",
+    "talkedAbout": "Talked about: {text}",
+    "addATalkingPoint": "Add a talking point",
+    "add": "Add"
+  },
+  "Suggestions": {
+    "add": "Add",
+    "addToTheTalkingPoints": "Add {label} to the talking points"
+  },
+  "Actions": {
+    "noActions": "No actions",
+    "done": "Done: {text}",
+    "from": "From {createdInMeetingAt}",
+    "overdue": "Overdue",
+    "due": "Due",
+    "newAction": "New action",
+    "addAnAction": "Add an action",
+    "owner": "Owner",
+    "dueDate": "Due date",
+    "add": "Add"
+  },
+  "MeetingNotes": {
+    "sharedWith": "Shared with {value}",
+    "onlyYou": "Only you"
+  },
+  "History": {
+    "lastMeeting": "Last meeting",
+    "noMeetingWasHeld": "No meeting was held.",
+    "earlierMeetings": "Earlier meetings",
+    "meetings": "Meetings"
+  },
+  "EarlierMeetings": {
+    "notHeld": "Not held",
+    "noTalkingPoints": "No talking points",
+    "missed": "Missed",
+    "talkingPoints": "{count, plural, one {+# talking point} other {+# talking points}}",
+    "actions": "{count, plural, one {# action} other {# actions}}",
+    "notes": "notes"
+  },
+  "MeetingDetail": {
+    "talkedAbout": "Talked about",
+    "noTalkingPoints": "No talking points",
+    "notReached": "Not reached",
+    "actions": "Actions",
+    "notes": "Notes",
+    "none": "None",
+    "onlyYou": "Only you"
+  },
+  "MeetingNotesStacked": {
+    "sharedWith": "Shared with {value}",
+    "onlyYou": "Only you"
+  },
+  "SeriesSidebar": {
+    "meetingsHeld": "meetings held",
+    "actionsDone": "actions done",
+    "overTheSeries": "Over the series",
+    "objective": "{length} objective",
+    "s": "s",
+    "atRisk": "{atRisk} at risk",
+    "noneAtRisk": "None at risk",
+    "open": "Open",
+    "their": "their",
+    "your": "your",
+    "plan": "plan",
+    "noPlanInTheCurrent": "No plan in the current cycle",
+    "year": "{value} year{value2}",
+    "recognition": "Recognition",
+    "howOften": "How often",
+    "heldOf": "Held {held} of {meetings} ·",
+    "since": "since {startedAt}",
+    "rhythm": "Rhythm",
+    "unshared": {
+      "NotStarted": "No plan yet",
+      "Draft": "Plan in draft",
+      "ReturnedForChanges": "Plan returned for changes",
+      "Submitted": "Plan waiting for approval",
+      "Approved": "No objectives"
+    }
+  },
+  "RescheduleDialog": {
+    "moveTheNextMeeting": "Move the next meeting",
+    "date": "Date",
+    "time": "Time",
+    "cancel": "Cancel",
+    "moveMeeting": "Move meeting"
+  },
+  "SeriesSkeleton": {
+    "loadingThis11": "Loading this 1:1"
+  },
+  "StartForm": {
+    "howOften": "How often",
+    "firstMeeting": "First meeting",
+    "time": "Time",
+    "firstAgenda": "First agenda",
+    "picked": "{value} picked",
+    "putOnTheFirstAgenda": "Put {label} on the first agenda",
+    "remove": "Remove {text}",
+    "addYourOwnTalkingPoint": "Add your own talking point",
+    "addYourOwn": "Add your own",
+    "add": "Add",
+    "cancel": "Cancel",
+    "start11s": "Start 1:1s"
+  },
+  "StartWithManager": {
+    "n11sWith": "1:1s with {displayName}",
+    "yourManager": "Your manager"
+  },
+  "StartOneOnOnesDialog": {
+    "n11sWith": "1:1s with {displayName}"
+  },
+  "lib": {
+    "cadence": {
+      "Weekly": "Weekly",
+      "EveryTwoWeeks": "Every two weeks",
+      "Monthly": "Monthly"
+    },
+    "then": {
+      "Weekly": "Then every week",
+      "EveryTwoWeeks": "Then every two weeks",
+      "Monthly": "Then every month"
+    },
+    "source": {
+      "Objective": "Objective",
+      "UpdateRequest": "Update requested",
+      "Feedback": "Feedback",
+      "Praise": "Praise"
+    },
+    "todayAt": "Today {time}",
+    "tomorrowAt": "Tomorrow {time}",
+    "dayAt": "{day} · {time}",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "overdue": "overdue",
+    "inMinutes": "in {count} min",
+    "inHours": "{count, plural, one {in # hour} other {in # hours}}",
+    "tomorrowSoon": "tomorrow",
+    "inDays": "{count, plural, one {in # day} other {in # days}}"
+  }
+}

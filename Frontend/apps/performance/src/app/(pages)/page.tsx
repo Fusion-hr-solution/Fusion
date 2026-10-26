@@ -22,6 +22,7 @@ import {
   ReviewsYouWriteRow,
   TeamRow,
 } from "@/features/performance/components/overview/overview-rows";
+import { useTranslations } from "next-intl";
 
 /**
  * Overview: where the year stands, then one row per responsibility in a fixed order (the cycle, your team or the
@@ -30,15 +31,16 @@ import {
  * or record.
  */
 export default function OverviewPage() {
+  const t = useTranslations("overview.OverviewPage");
   const context = useWorkspaceContext();
   const overview = useOverview(!context.isLoading && !context.error);
 
-  if (context.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
-  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
+  if (context.isLoading) return <PageSkeleton rows={4} label={t("loadingPerformance")} />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject={t("performanceWorkspace")} />;
   if (overview.error) {
-    return <ContentUnavailable error={overview.error} onRetry={overview.refetch} subject="Overview" />;
+    return <ContentUnavailable error={overview.error} onRetry={overview.refetch} subject={t("overview")} />;
   }
-  if (!overview.data) return <PageSkeleton rows={4} label="Loading Overview" />;
+  if (!overview.data) return <PageSkeleton rows={4} label={t("loadingOverview")} />;
 
   const { cycle, year, rows } = overview.data;
   const cycleId = cycle?.id ?? "";
@@ -75,7 +77,7 @@ export default function OverviewPage() {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title="Overview" size="display" />
+      <PerformancePageHeading title={t("overview")} size="display" />
       <div className="mt-8 max-w-5xl space-y-8">
         {year && cycle ? <YearBand year={year} cycleName={cycle.name} /> : null}
         <div className="[&>section:first-child]:border-t-0">

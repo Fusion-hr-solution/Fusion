@@ -23,6 +23,7 @@ import { ProgressSection } from "./sections/progress-section";
 import { ObjectiveSummary } from "./sections/summary-section";
 import { useObjectiveRecord } from "./use-objective-record";
 import { RecordRequestBand, RequestUpdateAction } from "../update-requests/update-requests";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * The one objective record. Its canonical cycle-and-objective address renders
@@ -49,7 +50,8 @@ export function ObjectiveRecordHost({ reference, presentation = "sheet" }: { ref
   // Only trust data that belongs to the reference being shown — a query keeping its previous result while
   // the next one loads must not paint the old objective into the new record.
   const matches = detail.data?.node.id === shownRef?.objectiveId && detail.data?.cycleId === shownRef?.cycleId;
-  const record = useMemo(() => (matches && detail.data ? toObjectiveRecord(detail.data) : null), [matches, detail.data]);
+  const model = useSay("objective.model");
+  const record = useMemo(() => (matches && detail.data ? toObjectiveRecord(detail.data, model) : null), [matches, detail.data, model]);
 
   const state: RecordSheetState = performanceFailure(detail.error).unavailable
     ? { status: "denied" }

@@ -32,14 +32,20 @@ import { CalibratedOutcome } from "./calibrated-outcome";
 import { ReviewDraftBlock } from "./review-draft";
 import { ColleaguePicker } from "../conversations/colleague-picker";
 import { objectiveHref, roundHref, withCycle } from "@/lib/performance-routes";
-import { DueChip, LevelCards, POTENTIAL_COPY, ProgressRing, SectionHeading, SegmentRating, StageTrack, dayLabel, dueIn, type Step } from "./review-parts";
+import { DueChip, LevelCards, ProgressRing, SectionHeading, SegmentRating, StageTrack, dayLabel, dueIn, type Step } from "./review-parts";
 import { useRecentRecord } from "@repo/api/react";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+import { useFormat } from "@repo/ds/lib/use-format";
+import type { Say } from "@/i18n/say";
 
 /**
  * One review as a page (D12): the person writing (board 08), what they sent (09), their released result (13); the reviewer
  * beside the person's words and the evidence (12); HR's operational view (14). What each lens may see comes from the server.
  */
 export function ReviewRecordPage() {
+  const t = useTranslations("reviews.ReviewRecordPage");
   const { reviewId } = useParams<{ reviewId: string }>();
   const context = useWorkspaceContext();
   const review = useReview(reviewId, Boolean(context.data));
@@ -47,16 +53,16 @@ export function ReviewRecordPage() {
     "performance",
     review.data
       ? {
-          label: `${review.data.subjectDisplayName}'s review`,
+          label: t("sReview", { subjectDisplayName: review.data.subjectDisplayName }),
           kind: review.data.reviewRoundName,
           href: `/performance/reviews/${review.data.id}`,
         }
       : null,
   );
-  if (context.isLoading || (context.data && review.isLoading)) return <PageSkeleton rows={7} width="wide" label="Loading review" />;
-  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
-  if (review.error) return <ContentUnavailable error={review.error} onRetry={review.refetch} subject="Review" />;
-  if (!review.data) return <PagePermissionNotice title="Review unavailable" description="This review could not be found." />;
+  if (context.isLoading || (context.data && review.isLoading)) return <PageSkeleton rows={7} width="wide" label={t("loadingReview")} />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject={t("performanceWorkspace")} />;
+  if (review.error) return <ContentUnavailable error={review.error} onRetry={review.refetch} subject={t("review")} />;
+  if (!review.data) return <PagePermissionNotice title={t("reviewUnavailable")} description={t("thisReviewCouldNotBe")} />;
   const record = review.data;
   return (
     <RecordCycleScope cycleId={record.cycleId}>
@@ -74,7 +80,8 @@ const first = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 const levelLabel = (levels: RatingScaleLevelDto[], value: number | null | undefined) => levels.find((l) => l.value === value)?.label ?? null;
 const ratingRequired = (record: PerformanceReviewDto, item: ReviewItemAssessmentDto) => item.kind === "Competency" || record.objectiveRatingsEnabled;
 
-function reviewSteps(record: PerformanceReviewDto, perspective: "subject" | "reviewer"): Step[] {
+function reviewSteps(record: PerformanceReviewDto, perspective: "subject" | "reviewer" | "hr", say: Say, locale: string): Step[] {
+  const on = (value: string | null | undefined) => dayLabel(value, locale);
   const order = ["SelfAssessment", "ManagerAssessment", "Calibration", "ReadyToFinalize", "Finalized"];
   const at = order.indexOf(record.state);
   const late = (record.schedule?.daysLate ?? 0) > 0;
@@ -84,32 +91,33 @@ function reviewSteps(record: PerformanceReviewDto, perspective: "subject" | "rev
   const steps: Step[] = [];
   if (record.selfAssessmentEnabled)
     steps.push({
-      label: perspective === "subject" ? "Your self-assessment" : `${subject}'s self-assessment`,
-      detail: record.selfAssessment?.submittedAt ? dayLabel(record.selfAssessment.submittedAt.slice(0, 10)) : `Due ${dayLabel(record.schedule?.selfAssessmentDue)}`,
+      label: perspective === "subject" ? say("yourSelf") : perspective === "hr" ? say("self") : say("theirSelf", { subject }),
+      detail: record.selfAssessment?.submittedAt ? on(record.selfAssessment.submittedAt.slice(0, 10)) : say("due", { day: on(record.schedule?.selfAssessmentDue) }),
       state: state(0),
     });
   steps.push({
-    label: perspective === "subject" ? `${reviewer}'s assessment` : "Your review",
-    detail: record.managerAssessment?.submittedAt && perspective === "reviewer" ? dayLabel(record.managerAssessment.submittedAt.slice(0, 10)) : `Due ${dayLabel(record.schedule?.managerAssessmentDue)}`,
+    label: perspective === "reviewer" ? say("yourReview") : say("theirAssessment", { reviewer }),
+    detail: record.managerAssessment?.submittedAt && perspective === "reviewer" ? on(record.managerAssessment.submittedAt.slice(0, 10)) : say("due", { day: on(record.schedule?.managerAssessmentDue) }),
     state: state(1),
   });
-  if (record.calibrationEnabled) steps.push({ label: "Calibration", detail: "HR", state: record.state === "Calibration" ? "current" : state(2) });
-  steps.push({ label: perspective === "subject" ? "Your result" : "Released", detail: record.finalizedAt ? dayLabel(record.finalizedAt.slice(0, 10)) : "Released by HR", state: record.state === "Finalized" ? "done" : "todo" });
+  if (record.calibrationEnabled) steps.push({ label: say("calibration"), detail: say("hr"), state: record.state === "Calibration" ? "current" : state(2) });
+  steps.push({ label: perspective === "subject" ? say("yourResult") : say("released"), detail: record.finalizedAt ? on(record.finalizedAt.slice(0, 10)) : say("releasedByHr"), state: record.state === "Finalized" ? "done" : "todo" });
   return steps;
 }
 
 function YearChips({ record }: { record: PerformanceReviewDto }) {
+  const t = useTranslations("reviews.YearChips");
   const year = record.year;
   if (!year) return null;
   const chips: { icon: ReactNode; text: string }[] = [
-    { icon: <FeedbackIcon className="size-3.5" aria-hidden />, text: `${year.feedback} feedback` },
-    { icon: <Star className="size-3.5" aria-hidden />, text: `${year.praise} praise` },
-    { icon: <OneOnOnes className="size-3.5" aria-hidden />, text: `${year.oneOnOnesHeld} 1:1s${year.actionsDone ? ` · ${year.actionsDone} actions done` : ""}` },
-    ...(year.developmentGoals ? [{ icon: <UserRoundCheck className="size-3.5" aria-hidden />, text: `${year.developmentGoals} development goals` }] : []),
-    ...(year.lastResult ? [{ icon: <FileText className="size-3.5" aria-hidden />, text: `${year.lastResult.roundName} · ${year.lastResult.label ?? "released"}` }] : []),
+    { icon: <FeedbackIcon className="size-3.5" aria-hidden />, text: t("feedback", { feedback: year.feedback }) },
+    { icon: <Star className="size-3.5" aria-hidden />, text: t("praise", { praise: year.praise }) },
+    { icon: <OneOnOnes className="size-3.5" aria-hidden />, text: year.actionsDone ? t("oneOnOnesActions", { count: year.oneOnOnesHeld, actions: year.actionsDone }) : t("oneOnOnes", { count: year.oneOnOnesHeld }) },
+    ...(year.developmentGoals ? [{ icon: <UserRoundCheck className="size-3.5" aria-hidden />, text: t("developmentGoals", { developmentGoals: year.developmentGoals }) }] : []),
+    ...(year.lastResult ? [{ icon: <FileText className="size-3.5" aria-hidden />, text: t("lastResult", { round: year.lastResult.roundName, label: year.lastResult.label ?? t("released") }) }] : []),
   ];
   return (
-    <ul className="flex flex-wrap justify-end gap-2" aria-label={`${first(record.subjectDisplayName)}'s year`}>
+    <ul className="flex flex-wrap justify-end gap-2" aria-label={t("sYear", { subjectDisplayName: first(record.subjectDisplayName) })}>
       {chips.map((chip) => (
         <li key={chip.text}>
           <Link href={`/people/${record.subjectEmployeeId}`} className="inline-flex items-center gap-1.5 rounded-control bg-inlay px-2.5 py-1 type-meta font-medium text-foreground hover:bg-card">
@@ -124,11 +132,12 @@ function YearChips({ record }: { record: PerformanceReviewDto }) {
 // ── The person (boards 08, 09, 13) ─────────────────────────────────────────────────
 
 function SubjectView({ record }: { record: PerformanceReviewDto }) {
+  const t = useTranslations("reviews.SubjectView");
   if (record.state === "Finalized") return <ReleasedView record={record} />;
   if (record.state === "Closed") return (
     <div className="mx-auto max-w-3xl">
       <SubjectHeading record={record} />
-      <p className="type-body-secondary text-muted-foreground">This review was closed without a result.</p>
+      <p className="type-body-secondary text-muted-foreground">{t("thisReviewWasClosedWithout")}</p>
     </div>
   );
   if (record.canEditSelfAssessment) return <SelfAssessmentWriter record={record} />;
@@ -136,12 +145,13 @@ function SubjectView({ record }: { record: PerformanceReviewDto }) {
 }
 
 function SubjectHeading({ record, actions, detail }: { record: PerformanceReviewDto; actions?: ReactNode; detail?: string }) {
+  const t = useTranslations("reviews.SubjectHeading");
   return (
     <PerformancePageHeading
-      back={{ href: "/reviews", label: "Reviews" }}
+      back={{ href: "/reviews", label: t("reviews") }}
       leading={<PersonInitials name={record.subjectDisplayName} size="xl" />}
-      title={`Your ${record.reviewRoundName.toLowerCase()}`}
-      description={detail ?? `${record.periodStart.slice(0, 4)}–${record.periodEnd.slice(0, 4)} · ${record.reviewerDisplayName} reviews you`}
+      title={t("your", { toLowerCase: record.reviewRoundName.toLowerCase() })}
+      description={detail ?? t("reviewsYou", { slice: record.periodStart.slice(0, 4), slice2: record.periodEnd.slice(0, 4), reviewerDisplayName: record.reviewerDisplayName })}
       actions={actions}
     />
   );
@@ -152,6 +162,7 @@ const keyOf = (item: ReviewItemAssessmentDto) => `${item.kind}:${item.itemId}`;
 
 /** Drafts for one side, autosaved a moment after the last change. The latest version follows each save. */
 function useDraft(record: PerformanceReviewDto, side: "self" | "manager") {
+  const t = useTranslations("reviews.useDraft");
   const mutations = useReviewAssessmentMutations(record.id, record.cycleId);
   const own = side === "self" ? record.selfAssessment : record.managerAssessment;
   const [summary, setSummary] = useState(own?.summary ?? "");
@@ -208,12 +219,12 @@ function useDraft(record: PerformanceReviewDto, side: "self" | "manager") {
         ? await mutations.submitSelf.mutateAsync(body)
         : await mutations.submitManager.mutateAsync({ ...body, potential: record.potentialEnabled ? potential : null });
       version.current = result.version;
-      toast.success(side === "self" ? `Sent to ${first(record.reviewerDisplayName)}.` : "Your review is submitted.");
+      toast.success(side === "self" ? t("sentTo", { name: first(record.reviewerDisplayName) }) : t("submitted"));
     } catch (error) {
       if (error instanceof ApiError && error.details && typeof error.details === "object" && "extra" in error.details) {
         setMissing((error.details as { extra: ReviewMissingDto }).extra);
       }
-      toast.error(error instanceof Error ? error.message : "This couldn't be submitted.");
+      reportPerformanceFailure(error, t("thisCouldntBeSubmitted"));
     }
   };
 
@@ -226,14 +237,18 @@ function useDraft(record: PerformanceReviewDto, side: "self" | "manager") {
   };
 }
 
-function savedLabel(savedAt: Date | null, saving: boolean) {
-  if (saving) return "saving…";
+function savedLabel(savedAt: Date | null, saving: boolean, say: Say) {
+  if (saving) return say("saving");
   if (!savedAt) return null;
   const minutes = Math.round((Date.now() - savedAt.getTime()) / 60_000);
-  return minutes < 1 ? "saved just now" : `saved ${minutes} min ago`;
+  return minutes < 1 ? say("savedNow") : say("savedAgo", { count: minutes });
 }
 
 function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.SelfAssessmentWriter");
+  const rs = useSay("reviews.steps");
+  const partWords = useSay("reviews.parts");
   const draft = useDraft(record, "self");
   const objectives = record.items.filter((i) => i.kind === "Objective");
   const competencies = record.items.filter((i) => i.kind === "Competency");
@@ -245,8 +260,8 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
   ];
   const unanswered = questions.filter((q) => !draft.answers[q.questionId]?.trim()).length;
   const parts = [
-    left.length ? `${left.length} ${left.length === 1 ? "rating" : "ratings"}` : null,
-    unanswered ? `${unanswered} ${unanswered === 1 ? "question" : "questions"}` : null,
+    left.length ? t("ratingsLeft", { count: left.length }) : null,
+    unanswered ? t("questionsLeft", { count: unanswered }) : null,
     draft.overall === null ? "overall" : null,
     !draft.summary.trim() ? "summary" : null,
   ].filter(Boolean) as string[];
@@ -256,10 +271,10 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
 
   return (
     <div className="max-w-4xl pb-24">
-      <SubjectHeading record={record} detail={`${record.periodStart.slice(0, 4)}–${record.periodEnd.slice(0, 4)} · ${record.reviewerDisplayName} reviews you${savedLabel(draft.savedAt, draft.saving) ? ` · ${savedLabel(draft.savedAt, draft.saving)}` : ""}`} />
+      <SubjectHeading record={record} detail={t("reviewsYou", { slice: record.periodStart.slice(0, 4), slice2: record.periodEnd.slice(0, 4), reviewerDisplayName: record.reviewerDisplayName, value: savedLabel(draft.savedAt, draft.saving, rs) ? ` · ${savedLabel(draft.savedAt, draft.saving, rs)}` : "" })} />
 
-      <section aria-label="Where your review stands" className="rounded-surface bg-card p-5">
-        <StageTrack label="Your review's stages" steps={reviewSteps(record, "subject").map((s, i) => i === 1 ? { ...s, detail: "Sees yours once you submit" } : s)} />
+      <section aria-label={t("whereYourReviewStands")} className="rounded-surface bg-card p-5">
+        <StageTrack label={t("yourReviewsStages")} steps={reviewSteps(record, "subject", rs, format.locale).map((s, i) => i === 1 ? { ...s, detail: t("seesYoursOnceYouSubmit") } : s)} />
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-4">
           <PeersAsked record={record} />
           <div className="ms-auto"><YearChips record={record} /></div>
@@ -268,23 +283,23 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
 
       {objectives.length ? (
         <section className="mt-10" aria-labelledby="objectives-heading">
-          <SectionHeading id="objectives-heading" title="Objectives" count={objectives.length} aside="Progress and evidence from your plan" />
+          <SectionHeading id="objectives-heading" title={t("objectives")} count={objectives.length} aside={t("progressAndEvidenceFromYour")} />
           <div className="space-y-4">
             {objectives.map((item) => (
               <ObjectiveCard key={item.itemId} record={record} item={item}>
                 <div className="mt-4 border-t border-border pt-4">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                    <span className="type-label text-foreground">How it went</span>
+                    <span className="type-label text-foreground">{t("howItWent")}</span>
                     {record.objectiveRatingsEnabled ? (
                       <span className="flex items-center gap-2">
-                        <span className="type-meta text-muted-foreground">Your rating</span>
-                        <SegmentRating label={`Your rating for ${item.title}`} levels={record.ratingScale} value={draft.items[keyOf(item)]!.selfRating}
+                        <span className="type-meta text-muted-foreground">{t("yourRating")}</span>
+                        <SegmentRating label={t("yourRatingFor", { title: item.title })} levels={record.ratingScale} value={draft.items[keyOf(item)]!.selfRating}
                           onChange={(value) => draft.updateItem(item, { selfRating: value })} />
                         <span className="w-36 type-meta text-muted-foreground">{levelLabel(record.ratingScale, draft.items[keyOf(item)]!.selfRating)}</span>
                       </span>
                     ) : null}
                   </div>
-                  <Textarea aria-label={`How ${item.title} went`} className="min-h-24 type-narrative" maxLength={4000}
+                  <Textarea aria-label={t("howWent", { title: item.title })} className="min-h-24 type-narrative" maxLength={4000}
                     aria-invalid={missingItems.includes(keyOf(item)) || undefined}
                     value={draft.items[keyOf(item)]!.reflection} onChange={(e) => draft.updateItem(item, { reflection: e.target.value })} />
                 </div>
@@ -296,15 +311,15 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
 
       {competencies.length ? (
         <section className="mt-10" aria-labelledby="competencies-heading">
-          <SectionHeading id="competencies-heading" title="Competencies"
-            count={`${competencies.filter((c) => draft.items[keyOf(c)]?.selfRating !== null).length} of ${competencies.length}`} />
+          <SectionHeading id="competencies-heading" title={t("competencies")}
+            count={rs("of", { done: competencies.filter((c) => draft.items[keyOf(c)]?.selfRating !== null).length, total: competencies.length })} />
           <ul className="divide-y divide-border rounded-surface bg-card">
             {competencies.map((item) => (
               <li key={item.itemId} className={cn("grid items-center gap-3 px-5 py-3 md:grid-cols-[14rem_auto_minmax(0,1fr)]", missingItems.includes(keyOf(item)) && "bg-destructive/5")}>
                 <ValueChip value={{ id: item.itemId, name: item.title }} />
-                <SegmentRating label={`Your rating for ${item.title}`} levels={record.ratingScale} value={draft.items[keyOf(item)]!.selfRating}
+                <SegmentRating label={t("yourRatingFor", { title: item.title })} levels={record.ratingScale} value={draft.items[keyOf(item)]!.selfRating}
                   onChange={(value) => draft.updateItem(item, { selfRating: value })} />
-                <Input aria-label={`Comment on ${item.title}`} className="border-transparent bg-transparent" placeholder="Add a comment" maxLength={2000}
+                <Input aria-label={t("commentOn", { title: item.title })} className="border-transparent bg-transparent" placeholder={t("addAComment")} maxLength={2000}
                   value={draft.items[keyOf(item)]!.selfComment} onChange={(e) => draft.updateItem(item, { selfComment: e.target.value })} />
               </li>
             ))}
@@ -314,15 +329,15 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
 
       {questions.length ? (
         <section className="mt-10" aria-labelledby="questions-heading">
-          <SectionHeading id="questions-heading" title="Questions" count={`${questions.length - unanswered} of ${questions.length}`} />
+          <SectionHeading id="questions-heading" title={t("questions")} count={rs("of", { done: questions.length - unanswered, total: questions.length })} />
           <ul className="divide-y divide-border rounded-surface bg-card">
             {questions.map((question) => (
               <li key={question.questionId} className="p-5">
                 <label htmlFor={`q-${question.questionId}`} className="type-label text-foreground">{question.text}</label>
-                <Textarea id={`q-${question.questionId}`} className="mt-2 min-h-20 type-narrative" placeholder="Write your answer" maxLength={4000}
+                <Textarea id={`q-${question.questionId}`} className="mt-2 min-h-20 type-narrative" placeholder={t("writeYourAnswer")} maxLength={4000}
                   aria-invalid={draft.missing?.questions.includes(question.questionId) || undefined}
                   value={draft.answers[question.questionId] ?? ""} onChange={(e) => draft.setAnswer(question.questionId, e.target.value)} />
-                {draft.missing?.questions.includes(question.questionId) ? <p className="mt-1.5 type-meta text-destructive">Answer this before submitting.</p> : null}
+                {draft.missing?.questions.includes(question.questionId) ? <p className="mt-1.5 type-meta text-destructive">{t("answerThisBeforeSubmitting")}</p> : null}
               </li>
             ))}
           </ul>
@@ -330,11 +345,11 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
       ) : null}
 
       <section className="mt-10" aria-labelledby="overall-heading">
-        <SectionHeading id="overall-heading" title="Your overall view" />
+        <SectionHeading id="overall-heading" title={t("yourOverallView")} />
         <div className="space-y-3 rounded-surface bg-card p-5">
           <ReviewDraftBlock reviewId={record.id} lens="self" subject={first(record.subjectDisplayName)} value={draft.summary} onInsert={draft.setSummary} />
-          <LevelCards label="Your overall rating" levels={record.ratingScale} value={draft.overall} onChange={draft.setOverall} />
-          <Textarea aria-label="Your summary" className="min-h-24 type-narrative" placeholder="Sum up your year in a few sentences" maxLength={4000}
+          <LevelCards label={t("yourOverallRating")} levels={record.ratingScale} value={draft.overall} onChange={draft.setOverall} />
+          <Textarea aria-label={t("yourSummary")} className="min-h-24 type-narrative" placeholder={t("sumUpYourYearIn")} maxLength={4000}
             aria-invalid={draft.missing?.summary || undefined} value={draft.summary} onChange={(e) => draft.setSummary(e.target.value)} />
         </div>
       </section>
@@ -344,11 +359,11 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
           {Array.from({ length: Math.min(total, 12) }, (_, i) => <span key={i} className={cn("h-1.5 w-6 rounded-full", i < Math.round((done / total) * Math.min(total, 12)) ? "bg-success" : "bg-inlay")} />)}
         </span>
         <span className="flex-1 type-meta text-muted-foreground">
-          {parts.length ? <><strong className="font-semibold text-foreground">{parts.length} {parts.length === 1 ? "part" : "parts"} left</strong> · {parts.join(", ")}</> : <strong className="font-semibold text-foreground">Ready to submit</strong>}
-          {savedLabel(draft.savedAt, draft.saving) ? ` · ${savedLabel(draft.savedAt, draft.saving)}` : ""}
+          {parts.length ? <><strong className="font-semibold text-foreground">{parts.length} {parts.length === 1 ? t("part") : t("parts")} {t("left")}</strong> · {parts.join(", ")}</> : <strong className="font-semibold text-foreground">{t("readyToSubmit")}</strong>}
+          {savedLabel(draft.savedAt, draft.saving, rs) ? ` · ${savedLabel(draft.savedAt, draft.saving, rs)}` : ""}
         </span>
-        {record.schedule?.selfAssessmentDue ? <DueChip date={record.schedule.selfAssessmentDue} late={late} label={late ? dueIn(record.schedule.selfAssessmentDue) : `Due ${dayLabel(record.schedule.selfAssessmentDue)}`} /> : null}
-        <AsyncButton pending={draft.pending} onClick={() => void draft.submit()}><Send className="size-4" aria-hidden />Submit self-assessment</AsyncButton>
+        {record.schedule?.selfAssessmentDue ? <DueChip date={record.schedule.selfAssessmentDue} late={late} label={late ? dueIn(record.schedule.selfAssessmentDue, partWords) : t("due", { selfAssessmentDue: dayLabel(record.schedule.selfAssessmentDue, format.locale) })} /> : null}
+        <AsyncButton pending={draft.pending} onClick={() => void draft.submit()}><Send className="size-4" aria-hidden />{t("submitSelfAssessment")}</AsyncButton>
       </div>
     </div>
   );
@@ -356,6 +371,7 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
 
 /** Who gives peer input: chosen while self-assessing, then the reviewer approves. The person never sees answers. */
 function PeersAsked({ record }: { record: PerformanceReviewDto }) {
+  const t = useTranslations("reviews.PeersAsked");
   const peers = record.peers;
   const [choosing, setChoosing] = useState(false);
   const [picked, setPicked] = useState<{ employeeId: string; displayName: string }[]>(() => peers?.people.map((p) => ({ employeeId: p.employeeId, displayName: p.displayName })) ?? []);
@@ -366,12 +382,12 @@ function PeersAsked({ record }: { record: PerformanceReviewDto }) {
   if (choosing) {
     return (
       <div className="w-full space-y-2">
-        <p className="type-label text-foreground">Who should give peer input? <span className="type-meta text-muted-foreground">1 to 5 colleagues, {reviewer} approves</span></p>
+        <p className="type-label text-foreground">{t("whoShouldGivePeerInput")} <span className="type-meta text-muted-foreground">{t("n1To5ColleaguesApproves", { reviewer })}</span></p>
         <ul className="flex flex-wrap gap-2">
           {picked.map((person) => (
             <li key={person.employeeId} className="inline-flex items-center gap-1.5 rounded-control bg-inlay py-1 pe-1 ps-2 type-meta text-foreground">
               {person.displayName}
-              <Button size="icon" variant="ghost" className="size-6" aria-label={`Remove ${person.displayName}`}
+              <Button size="icon" variant="ghost" className="size-6" aria-label={t("remove", { displayName: person.displayName })}
                 onClick={() => setPicked(picked.filter((p) => p.employeeId !== person.employeeId))}>×</Button>
             </li>
           ))}
@@ -381,11 +397,11 @@ function PeersAsked({ record }: { record: PerformanceReviewDto }) {
         <div className="flex gap-2">
           <AsyncButton size="sm" pending={nominate.isLoading} disabled={picked.length === 0}
             onClick={() => void nominate.mutateAsync({ ids: picked.map((p) => p.employeeId), version: record.version })
-              .then(() => { setChoosing(false); toast.success(`${reviewer} will review your list.`); })
-              .catch((error) => toast.error(error instanceof Error ? error.message : "The list couldn't be saved."))}>
-            Send to {reviewer}
+              .then(() => { setChoosing(false); toast.success(t("willReviewYourList", { reviewer })); })
+              .catch((error) => reportPerformanceFailure(error, t("theListCouldntBeSaved")))}>
+            {t("sendTo", { reviewer })}
           </AsyncButton>
-          <Button size="sm" variant="ghost" onClick={() => setChoosing(false)}>Cancel</Button>
+          <Button size="sm" variant="ghost" onClick={() => setChoosing(false)}>{t("cancel")}</Button>
         </div>
       </div>
     );
@@ -394,14 +410,17 @@ function PeersAsked({ record }: { record: PerformanceReviewDto }) {
     <span className="flex flex-wrap items-center gap-2 type-meta text-muted-foreground">
       {names.length ? <AvatarStack names={names} size="xs" /> : null}
       {names.length
-        ? `${names.length === 1 ? names[0] : `${names.slice(0, -1).map(first).join(", ")} and ${first(names[names.length - 1]!)}`} ${peers.approved ? "were asked" : "await approval"} · their answers go to ${reviewer}`
-        : "No colleagues chosen for peer input yet"}
-      {record.canNominatePeers ? <Button size="sm" variant="outline" onClick={() => setChoosing(true)}>{names.length ? "Change" : "Choose colleagues"}</Button> : null}
+        ? (peers.approved ? t("wereAskedTheirAnswersGo", { value: (names.length === 1 ? names[0] : `${names.slice(0, -1).map(first).join(", ")} and ${first(names[names.length - 1]!)}`) ?? "", reviewer }) : t("awaitApprovalTheirAnswersGo", { value: (names.length === 1 ? names[0] : `${names.slice(0, -1).map(first).join(", ")} and ${first(names[names.length - 1]!)}`) ?? "", reviewer }))
+        : t("noColleaguesChosenForPeer")}
+      {record.canNominatePeers ? <Button size="sm" variant="outline" onClick={() => setChoosing(true)}>{names.length ? t("change") : t("chooseColleagues")}</Button> : null}
     </span>
   );
 }
 
 function ObjectiveCard({ record, item, children }: { record: PerformanceReviewDto; item: ReviewItemAssessmentDto; children?: ReactNode }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.ObjectiveCard");
+  const words = useSay("common.words");
   const quote = item.feedback?.[0];
   return (
     <article className="rounded-surface bg-card p-5">
@@ -410,7 +429,7 @@ function ObjectiveCard({ record, item, children }: { record: PerformanceReviewDt
           <Link href={objectiveHref({ cycleId: record.cycleId, objectiveId: item.itemId })} className="type-subsection-title text-foreground hover:underline">{item.title}</Link>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 type-meta text-muted-foreground">
             {item.status ? <ObjectiveStatusBadge status={item.status} /> : null}
-            {item.measurement ? <span>{measurementSummary(item.measurement)}</span> : item.legacyMeasurementSummary ? <span>{item.legacyMeasurementSummary}</span> : null}
+            {item.measurement ? <span>{measurementSummary(item.measurement, words)}</span> : item.legacyMeasurementSummary ? <span>{item.legacyMeasurementSummary}</span> : null}
             {item.evidenceSummary.slice(0, 2).map((evidence, i) => <span key={i} className="inline-flex items-center gap-1 rounded-control bg-inlay px-2 py-0.5 text-foreground"><FileText className="size-3.5" aria-hidden />{evidence.label}</span>)}
           </div>
         </div>
@@ -419,7 +438,7 @@ function ObjectiveCard({ record, item, children }: { record: PerformanceReviewDt
       {quote ? (
         <blockquote className="mt-4 flex flex-wrap items-start justify-between gap-3 rounded-control bg-inlay px-4 py-3">
           <p className="max-w-[60ch] type-narrative text-foreground">“{quote.message}”</p>
-          <footer className="type-meta text-muted-foreground">{first(quote.authorName)} · feedback, {dayLabel(quote.sentAt.slice(0, 10))}</footer>
+          <footer className="type-meta text-muted-foreground">{t("feedback", { authorName: first(quote.authorName), dayLabel: dayLabel(quote.sentAt.slice(0, 10), format.locale) })}</footer>
         </blockquote>
       ) : null}
       {children}
@@ -428,6 +447,9 @@ function ObjectiveCard({ record, item, children }: { record: PerformanceReviewDt
 }
 
 function SubmittedView({ record }: { record: PerformanceReviewDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.SubmittedView");
+  const rs = useSay("reviews.steps");
   const [open, setOpen] = useState<string | null>(null);
   const objectives = record.items.filter((i) => i.kind === "Objective");
   const competencies = record.items.filter((i) => i.kind === "Competency");
@@ -440,15 +462,15 @@ function SubmittedView({ record }: { record: PerformanceReviewDto }) {
         <div className="flex items-start gap-4">
           <span className="flex size-11 items-center justify-center rounded-control bg-success/15 text-success"><Check className="size-5" aria-hidden /></span>
           <div>
-            <h2 className="type-page-title text-foreground">{record.selfAssessment?.submittedAt ? `Submitted ${dayLabel(record.selfAssessment.submittedAt.slice(0, 10))}` : `${reviewer} is writing your review`}</h2>
-            <p className="mt-0.5 type-meta text-muted-foreground">{reviewer} writes their part by {dayLabel(record.schedule?.managerAssessmentDue)}</p>
+            <h2 className="type-page-title text-foreground">{record.selfAssessment?.submittedAt ? t("submitted", { dayLabel: dayLabel(record.selfAssessment.submittedAt.slice(0, 10), format.locale) }) : t("isWritingYourReview", { reviewer })}</h2>
+            <p className="mt-0.5 type-meta text-muted-foreground">{t("writesTheirPartBy", { reviewer, managerAssessmentDue: dayLabel(record.schedule?.managerAssessmentDue, format.locale) })}</p>
           </div>
         </div>
-        <StageTrack className="mt-6" label="Your review's stages" steps={reviewSteps(record, "subject").map((s, i) => i === reviewSteps(record, "subject").length - 1 ? { ...s, detail: "You'll be notified" } : s)} />
+        <StageTrack className="mt-6" label={t("yourReviewsStages")} steps={reviewSteps(record, "subject", rs, format.locale).map((s, i) => i === reviewSteps(record, "subject", rs, format.locale).length - 1 ? { ...s, detail: t("youllBeNotified") } : s)} />
       </section>
       {record.selfAssessment ? (
         <section className="mt-10" aria-labelledby="sent-heading">
-          <SectionHeading id="sent-heading" title="What you sent" aside={<span className="inline-flex items-center gap-1"><Lock className="size-3.5" aria-hidden />Locked</span>} />
+          <SectionHeading id="sent-heading" title={t("whatYouSent")} aside={<span className="inline-flex items-center gap-1"><Lock className="size-3.5" aria-hidden />{t("locked")}</span>} />
           <ul className="divide-y divide-border rounded-surface bg-card">
             {objectives.map((item) => (
               <li key={item.itemId} className="flex items-center gap-4 px-5 py-3.5">
@@ -460,18 +482,18 @@ function SubmittedView({ record }: { record: PerformanceReviewDto }) {
               </li>
             ))}
             {competencies.length ? (
-              <Disclosure id="c" open={open} setOpen={setOpen} title="Competencies"
-                summary={`${competencies.length} rated · ${competencies.map((c) => `${c.title} ${c.selfRating ?? "–"}`).join(" · ")}`}>
+              <Disclosure id="c" open={open} setOpen={setOpen} title={t("competencies")}
+                summary={t("rated", { length: competencies.length, join: competencies.map((c) => `${c.title} ${c.selfRating ?? "–"}`).join(" · ") })}>
                 {competencies.map((c) => <p key={c.itemId} className="type-body text-foreground">{c.title} · {c.selfRating ?? "–"}{c.selfComment ? ` · ${c.selfComment}` : ""}</p>)}
               </Disclosure>
             ) : null}
             {questions.length ? (
-              <Disclosure id="q" open={open} setOpen={setOpen} title="Questions" summary={`${questions.length} answered`}>
+              <Disclosure id="q" open={open} setOpen={setOpen} title={t("questions")} summary={t("answered", { length: questions.length })}>
                 {questions.map((q) => <div key={q.questionId}><p className="type-label text-foreground">{q.text}</p><p className="type-narrative text-foreground">{q.selfAnswer}</p></div>)}
               </Disclosure>
             ) : null}
             <Disclosure id="o" open={open} setOpen={setOpen}
-              title={`Overall${record.selfAssessment.overallRating ? ` · ${levelLabel(record.ratingScale, record.selfAssessment.overallRating)}` : ""}`}
+              title={t("overall", { value: record.selfAssessment.overallRating ? ` · ${levelLabel(record.ratingScale, record.selfAssessment.overallRating)}` : "" })}
               summary={`“${record.selfAssessment.summary}”`}>
               <p className="type-narrative text-foreground">{record.selfAssessment.summary}</p>
             </Disclosure>
@@ -502,10 +524,12 @@ function Disclosure({ id, title, summary, open, setOpen, children }: {
 }
 
 function ReleasedView({ record }: { record: PerformanceReviewDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.ReleasedView");
   const acknowledge = useAcknowledge(record.id);
   const download = useDownloadReviewPdf();
   const [comment, setComment] = useState("");
-  const final = levelLabel(record.ratingScale, record.finalRating) ?? "Released";
+  const final = levelLabel(record.ratingScale, record.finalRating) ?? t("released");
   const objectives = record.items.filter((i) => i.kind === "Objective");
   const competencies = record.items.filter((i) => i.kind === "Competency");
   const managerAnswers = record.questions.filter((q) => q.audience === "Manager" && q.managerAnswer);
@@ -513,14 +537,14 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
   return (
     <div className="max-w-4xl">
       <SubjectHeading record={record}
-        detail={`Released ${dayLabel(record.finalizedAt?.slice(0, 10))} · reviewed by ${record.reviewerDisplayName}`}
+        detail={t("releasedReviewedBy", { dayLabel: dayLabel(record.finalizedAt?.slice(0, 10), format.locale), reviewerDisplayName: record.reviewerDisplayName })}
         actions={<div className="flex items-center gap-2">
-          {record.acknowledgement ? <StatusBadge tone="success" dot>Acknowledged</StatusBadge> : <StatusBadge tone="warning" dot>Not acknowledged</StatusBadge>}
-          {record.canDownloadPdf ? <Button variant="outline" onClick={() => void download(record.id, `${record.reviewRoundName}.pdf`)}><Download className="size-4" aria-hidden />PDF</Button> : null}
+          {record.acknowledgement ? <StatusBadge tone="success" dot>{t("acknowledged")}</StatusBadge> : <StatusBadge tone="warning" dot>{t("notAcknowledged")}</StatusBadge>}
+          {record.canDownloadPdf ? <Button variant="outline" onClick={() => void download(record.id, `${record.reviewRoundName}.pdf`)}><Download className="size-4" aria-hidden />{t("pdf")}</Button> : null}
         </div>} />
       {/* A result to read, not a decision: a plain card, with amber only on the level reached. */}
-      <section aria-label="Your result" className="rounded-surface bg-card p-6">
-        <p className="type-meta text-muted-foreground">Your result</p>
+      <section aria-label={t("yourResult")} className="rounded-surface bg-card p-6">
+        <p className="type-meta text-muted-foreground">{t("yourResult")}</p>
         <h2 className="mt-2 type-display text-foreground">{final}</h2>
         <div className="mt-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${record.ratingScale.length}, minmax(0, 1fr))` }} aria-hidden>
           {record.ratingScale.map((level) => (
@@ -540,7 +564,7 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
 
       {objectives.length ? (
         <section className="mt-10" aria-labelledby="r-objectives">
-          <SectionHeading id="r-objectives" title="Objectives" />
+          <SectionHeading id="r-objectives" title={t("objectives")} />
           <ul className="divide-y divide-border rounded-surface bg-card">
             {objectives.map((item) => (
               <li key={item.itemId} className="flex items-center gap-4 px-5 py-3.5">
@@ -559,7 +583,7 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
 
       {competencies.length ? (
         <section className="mt-10" aria-labelledby="r-competencies">
-          <SectionHeading id="r-competencies" title="Competencies" />
+          <SectionHeading id="r-competencies" title={t("competencies")} />
           <div className="grid gap-3 md:grid-cols-2">
             {competencies.map((item) => (
               <div key={item.itemId} className="rounded-surface bg-card p-4">
@@ -576,7 +600,7 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
 
       {managerAnswers.length ? (
         <section className="mt-10" aria-labelledby="r-answers">
-          <SectionHeading id="r-answers" title={`${reviewer}'s answers`} />
+          <SectionHeading id="r-answers" title={t("sAnswers", { reviewer })} />
           <ul className="divide-y divide-border rounded-surface bg-card">
             {managerAnswers.map((q) => (
               <li key={q.questionId} className="p-5"><p className="type-label text-foreground">{q.text}</p><p className="mt-1 type-narrative text-foreground">{q.managerAnswer}</p></li>
@@ -589,21 +613,21 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
         <div className="flex items-start gap-3">
           <span className="flex size-9 items-center justify-center rounded-control bg-primary-tint text-primary"><Check className="size-4" aria-hidden /></span>
           <div>
-            <h2 id="ack-heading" className="type-panel-title text-foreground">{record.acknowledgement ? `You acknowledged this ${dayLabel(record.acknowledgement.at.slice(0, 10))}` : "I've read my review"}</h2>
-            <p className="type-meta text-muted-foreground">Acknowledging isn&apos;t agreeing · {reviewer} and HR see it · optional comment</p>
+            <h2 id="ack-heading" className="type-panel-title text-foreground">{record.acknowledgement ? t("youAcknowledgedThis", { dayLabel: dayLabel(record.acknowledgement.at.slice(0, 10), format.locale) }) : t("iveReadMyReview")}</h2>
+            <p className="type-meta text-muted-foreground">{t("acknowledgingIsntAgreeingAndHr", { reviewer })}</p>
           </div>
         </div>
         {record.acknowledgement ? (
           record.acknowledgement.comment ? <p className="mt-3 type-narrative text-foreground">“{record.acknowledgement.comment}”</p> : null
         ) : record.canAcknowledge ? (
           <>
-            <Textarea className="mt-4" aria-label="Comment for your reviewer and HR" maxLength={1000} value={comment} onChange={(e) => setComment(e.target.value)} />
+            <Textarea className="mt-4" aria-label={t("commentForYourReviewerAnd")} maxLength={1000} value={comment} onChange={(e) => setComment(e.target.value)} />
             <div className="mt-3 flex items-center justify-between">
               <span className="type-meta tabular-nums text-muted-foreground">{comment.length} / 1,000</span>
               <AsyncButton pending={acknowledge.isLoading} onClick={() => void acknowledge.mutateAsync(comment.trim() || null)
-                .then(() => toast.success("Acknowledged."))
-                .catch((error) => toast.error(error instanceof Error ? error.message : "This couldn't be acknowledged."))}>
-                <Check className="size-4" aria-hidden />Acknowledge
+                .then(() => toast.success(t("acknowledged2")))
+                .catch((error) => reportPerformanceFailure(error, t("thisCouldntBeAcknowledged")))}>
+                <Check className="size-4" aria-hidden />{t("acknowledge")}
               </AsyncButton>
             </div>
           </>
@@ -612,8 +636,8 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
       <Link href={withCycle("/plan#development", record.cycleId)} className="mt-3 flex items-center gap-3 rounded-surface bg-card px-5 py-4 hover:bg-inlay/60">
         <span className="flex size-9 items-center justify-center rounded-control bg-primary-tint text-primary"><Target className="size-4" aria-hidden /></span>
         <span className="flex-1">
-          <span className="block type-label text-foreground">Plan your development</span>
-          <span className="block type-meta text-muted-foreground">{record.year?.developmentGoals ? `${record.year.developmentGoals} goals in your plan` : "Turn this into a goal or two"}</span>
+          <span className="block type-label text-foreground">{t("planYourDevelopment")}</span>
+          <span className="block type-meta text-muted-foreground">{record.year?.developmentGoals ? t("goalsInYourPlan", { developmentGoals: record.year.developmentGoals }) : t("turnThisIntoAGoal")}</span>
         </span>
       </Link>
     </div>
@@ -623,6 +647,10 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
 // ── The reviewer (board 12) ────────────────────────────────────────────────────────
 
 function ReviewerView({ record }: { record: PerformanceReviewDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.ReviewerView");
+  const rs = useSay("reviews.steps");
+  const parts = useSay("reviews.parts");
   const editable = record.canEditManagerAssessment;
   const draft = useDraft(record, "manager");
   const download = useDownloadReviewPdf();
@@ -636,40 +664,40 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
   return (
     <div className="pb-16">
       <PerformancePageHeading
-        back={{ href: "/reviews", label: "Reviews" }}
+        back={{ href: "/reviews", label: t("reviews") }}
         leading={<span className="flex"><PersonInitials name={record.subjectDisplayName} size="xl" /><PersonInitials name={record.reviewerDisplayName} size="xl" className="-ms-4 ring-2 ring-background" /></span>}
         title={record.subjectDisplayName}
         description={[record.reviewRoundName, record.subjectJobTitle,
-          selfIn ? `self-assessment came in ${dayLabel(record.selfAssessment!.submittedAt!.slice(0, 10))}` : null,
-          editable ? savedLabel(draft.savedAt, draft.saving) : null].filter(Boolean).join(" · ")}
-        actions={editable ? <AsyncButton pending={draft.pending} onClick={() => void draft.submit()}><Send className="size-4" aria-hidden />Submit review</AsyncButton>
-          : record.canDownloadPdf ? <Button variant="outline" onClick={() => void download(record.id, `${record.reviewRoundName} ${record.subjectDisplayName}.pdf`)}><Download className="size-4" aria-hidden />PDF</Button>
+          selfIn ? `self-assessment came in ${dayLabel(record.selfAssessment!.submittedAt!.slice(0, 10), format.locale)}` : null,
+          editable ? savedLabel(draft.savedAt, draft.saving, rs) : null].filter(Boolean).join(" · ")}
+        actions={editable ? <AsyncButton pending={draft.pending} onClick={() => void draft.submit()}><Send className="size-4" aria-hidden />{t("submitReview")}</AsyncButton>
+          : record.canDownloadPdf ? <Button variant="outline" onClick={() => void download(record.id, `${record.reviewRoundName} ${record.subjectDisplayName}.pdf`)}><Download className="size-4" aria-hidden />{t("pdf")}</Button>
           : null}
       />
 
-      <section aria-label="Where the review stands" className="flex flex-wrap items-start gap-6 rounded-surface bg-card p-5">
-        <StageTrack className="min-w-[28rem] flex-1" label="Review stages" steps={reviewSteps(record, "reviewer")} />
+      <section aria-label={t("whereTheReviewStands")} className="flex flex-wrap items-start gap-6 rounded-surface bg-card p-5">
+        <StageTrack className="min-w-[28rem] flex-1" label={t("reviewStages")} steps={reviewSteps(record, "reviewer", rs, format.locale)} />
         <YearChips record={record} />
       </section>
       {record.lens === "Reviewer" ? <CalibratedOutcome record={record} /> : null}
       {record.acknowledgement ? (
         <p className="mt-4 rounded-surface bg-card px-5 py-3 type-body text-foreground">
-          {subject} acknowledged this {dayLabel(record.acknowledgement.at.slice(0, 10))}{record.acknowledgement.comment ? `: “${record.acknowledgement.comment}”` : "."}
+          {t("acknowledgedThis", { subject, dayLabel: dayLabel(record.acknowledgement.at.slice(0, 10), format.locale) })}{record.acknowledgement.comment ? `: “${record.acknowledgement.comment}”` : "."}
         </p>
       ) : null}
       {!selfIn && record.selfAssessmentEnabled && record.state === "SelfAssessment" ? (
-        <p className="mt-4 type-body-secondary text-muted-foreground">{subject}&apos;s self-assessment isn&apos;t in yet. You&apos;ll write yours beside it once it is.</p>
+        <p className="mt-4 type-body-secondary text-muted-foreground">{t("sSelfAssessmentIsntIn", { subject })}</p>
       ) : null}
 
       {record.state !== "SelfAssessment" ? (
         <>
           <p className="mt-6 flex gap-4 type-meta text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-info" />{subject}&apos;s view</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-primary" />Yours</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-info" />{t("sView", { subject })}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-primary" />{t("yours")}</span>
           </p>
           {objectives.length ? (
             <section className="mt-6" aria-labelledby="m-objectives">
-              <SectionHeading id="m-objectives" title="Objectives" count={record.objectiveRatingsEnabled ? `${objectives.filter((o) => draft.items[keyOf(o)]?.managerRating !== null).length} of ${objectives.length} rated` : objectives.length} />
+              <SectionHeading id="m-objectives" title={t("objectives")} count={record.objectiveRatingsEnabled ? rs("ofRated", { done: objectives.filter((o) => draft.items[keyOf(o)]?.managerRating !== null).length, total: objectives.length }) : objectives.length} />
               <div className="space-y-4">
                 {objectives.map((item) => (
                   <ObjectiveCard key={item.itemId} record={record} item={item}>
@@ -679,21 +707,21 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
                           <span className="inline-flex items-center gap-2"><PersonInitials name={record.subjectDisplayName} size="xs" />{subject}</span>
                           {item.selfRating ? <span className="rounded-control-sm px-1.5 type-label tabular-nums text-info ring-1 ring-info">{item.selfRating}</span> : null}
                         </p>
-                        <p className="type-narrative text-foreground">{item.selfReflection ?? <span className="text-muted-foreground">No reflection</span>}</p>
+                        <p className="type-narrative text-foreground">{item.selfReflection ?? <span className="text-muted-foreground">{t("noReflection")}</span>}</p>
                       </div>
                       <div className="border-border py-4 md:border-s md:ps-5">
                         <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-2 type-label text-foreground"><PersonInitials name={record.reviewerDisplayName} size="xs" />You</span>
+                          <span className="inline-flex items-center gap-2 type-label text-foreground"><PersonInitials name={record.reviewerDisplayName} size="xs" />{t("you")}</span>
                           {record.objectiveRatingsEnabled ? (
-                            <SegmentRating label={`Your rating for ${item.title}`} levels={record.ratingScale} value={draft.items[keyOf(item)]!.managerRating}
+                            <SegmentRating label={t("yourRatingFor", { title: item.title })} levels={record.ratingScale} value={draft.items[keyOf(item)]!.managerRating}
                               disabled={!editable} onChange={editable ? (value) => draft.updateItem(item, { managerRating: value }) : undefined} />
                           ) : null}
                         </div>
                         {editable ? (
-                          <Textarea aria-label={`Your view of ${item.title}`} className="min-h-24 type-narrative" placeholder="Your view of this objective" maxLength={4000}
+                          <Textarea aria-label={t("yourViewOf", { title: item.title })} className="min-h-24 type-narrative" placeholder={t("yourViewOfThisObjective")} maxLength={4000}
                             aria-invalid={missingItems.includes(keyOf(item)) || undefined}
                             value={draft.items[keyOf(item)]!.assessment} onChange={(e) => draft.updateItem(item, { assessment: e.target.value })} />
-                        ) : <p className="type-narrative text-foreground">{item.managerAssessment ?? <span className="text-muted-foreground">No assessment</span>}</p>}
+                        ) : <p className="type-narrative text-foreground">{item.managerAssessment ?? <span className="text-muted-foreground">{t("noAssessment")}</span>}</p>}
                       </div>
                     </div>
                   </ObjectiveCard>
@@ -704,24 +732,24 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
 
           {competencies.length ? (
             <section className="mt-10" aria-labelledby="m-competencies">
-              <SectionHeading id="m-competencies" title="Competencies" count={`${competencies.filter((c) => draft.items[keyOf(c)]?.managerRating !== null).length} of ${competencies.length}`} />
+              <SectionHeading id="m-competencies" title={t("competencies")} count={rs("of", { done: competencies.filter((c) => draft.items[keyOf(c)]?.managerRating !== null).length, total: competencies.length })} />
               <div className="overflow-x-auto rounded-surface bg-card">
                 <table className="w-full min-w-[48rem] text-start">
                   <thead className="bg-inlay"><tr className="type-meta text-muted-foreground">
-                    <th scope="col" className="px-5 py-3 font-semibold">Competency</th>
+                    <th scope="col" className="px-5 py-3 font-semibold">{t("competency")}</th>
                     <th scope="col" className="px-3 py-3 font-semibold">{subject}</th>
-                    <th scope="col" className="px-3 py-3 font-semibold">You</th>
-                    <th scope="col" className="px-5 py-3 font-semibold">Comment</th>
+                    <th scope="col" className="px-3 py-3 font-semibold">{t("you")}</th>
+                    <th scope="col" className="px-5 py-3 font-semibold">{t("comment")}</th>
                   </tr></thead>
                   <tbody className="divide-y divide-border">
                     {competencies.map((item) => (
                       <tr key={item.itemId} className={cn(missingItems.includes(keyOf(item)) && "bg-destructive/5")}>
                         <td className="px-5 py-3"><ValueChip value={{ id: item.itemId, name: item.title }} /></td>
-                        <td className="px-3 py-3"><SegmentRating label={`${subject}'s rating for ${item.title}`} levels={record.ratingScale} value={null} theirs={item.selfRating} /></td>
-                        <td className="px-3 py-3"><SegmentRating label={`Your rating for ${item.title}`} levels={record.ratingScale} value={draft.items[keyOf(item)]!.managerRating}
+                        <td className="px-3 py-3"><SegmentRating label={t("sRatingFor", { subject, title: item.title })} levels={record.ratingScale} value={null} theirs={item.selfRating} /></td>
+                        <td className="px-3 py-3"><SegmentRating label={t("yourRatingFor", { title: item.title })} levels={record.ratingScale} value={draft.items[keyOf(item)]!.managerRating}
                           disabled={!editable} onChange={editable ? (value) => draft.updateItem(item, { managerRating: value }) : undefined} /></td>
                         <td className="px-5 py-3">{editable ? (
-                          <Input aria-label={`Comment on ${item.title}`} className="border-transparent bg-transparent" placeholder="Add a comment" maxLength={4000}
+                          <Input aria-label={t("commentOn", { title: item.title })} className="border-transparent bg-transparent" placeholder={t("addAComment")} maxLength={4000}
                             value={draft.items[keyOf(item)]!.assessment} onChange={(e) => draft.updateItem(item, { assessment: e.target.value })} />
                         ) : <span className="type-body text-foreground">{item.managerAssessment}</span>}</td>
                       </tr>
@@ -736,7 +764,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
 
           {personQuestions.length ? (
             <section className="mt-10" aria-labelledby="m-person-answers">
-              <SectionHeading id="m-person-answers" title={`${subject}'s answers`} />
+              <SectionHeading id="m-person-answers" title={t("sAnswers", { subject })} />
               <ul className="divide-y divide-border rounded-surface bg-card">
                 {personQuestions.map((q) => <li key={q.questionId} className="p-5"><p className="type-label text-foreground">{q.text}</p><p className="mt-1 type-narrative text-foreground">{q.selfAnswer}</p></li>)}
               </ul>
@@ -745,7 +773,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
 
           {managerQuestions.length ? (
             <section className="mt-10" aria-labelledby="m-questions">
-              <SectionHeading id="m-questions" title="Your answers" />
+              <SectionHeading id="m-questions" title={t("yourAnswers")} />
               <ul className="divide-y divide-border rounded-surface bg-card">
                 {managerQuestions.map((q) => (
                   <li key={q.questionId} className="p-5">
@@ -766,13 +794,13 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
           ) : null}
 
           <section className="mt-10" aria-labelledby="m-overall">
-            <SectionHeading id="m-overall" title="Overall" aside={record.selfAssessment?.overallRating ? `${subject}'s view: ${levelLabel(record.ratingScale, record.selfAssessment.overallRating)}` : undefined} />
+            <SectionHeading id="m-overall" title={t("overall")} aside={record.selfAssessment?.overallRating ? t("theirView", { subject, level: levelLabel(record.ratingScale, record.selfAssessment.overallRating) ?? "" }) : undefined} />
             <div className="space-y-3 rounded-surface bg-card p-5">
               {editable ? <ReviewDraftBlock reviewId={record.id} lens="manager" subject={subject} value={draft.summary} onInsert={draft.setSummary} /> : null}
-              <LevelCards label="Your overall rating" levels={record.ratingScale} value={draft.overall} theirs={record.selfAssessment?.overallRating}
+              <LevelCards label={t("yourOverallRating")} levels={record.ratingScale} value={draft.overall} theirs={record.selfAssessment?.overallRating}
                 disabled={!editable} onChange={editable ? draft.setOverall : undefined} />
               {editable ? (
-                <Textarea aria-label="Your summary" className="min-h-24 type-narrative" placeholder={`What ${subject} should read first`} maxLength={4000}
+                <Textarea aria-label={t("yourSummary")} className="min-h-24 type-narrative" placeholder={t("whatShouldReadFirst", { subject })} maxLength={4000}
                   aria-invalid={draft.missing?.summary || undefined} value={draft.summary} onChange={(e) => draft.setSummary(e.target.value)} />
               ) : <p className="type-narrative text-foreground">{record.managerAssessment?.summary}</p>}
             </div>
@@ -780,16 +808,16 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
 
           {record.potentialEnabled ? (
             <section className="mt-10" aria-labelledby="m-potential">
-              <SectionHeading id="m-potential" title="Potential" aside={<span className="inline-flex items-center gap-1"><Lock className="size-3.5" aria-hidden />Never shown to {subject}</span>} />
-              <div role="radiogroup" aria-label="Potential" className={cn("grid gap-3 md:grid-cols-3", draft.missing?.potential && "rounded-surface ring-1 ring-destructive")}>
+              <SectionHeading id="m-potential" title={t("potential")} aside={<span className="inline-flex items-center gap-1"><Lock className="size-3.5" aria-hidden />{t("neverShownTo", { subject })}</span>} />
+              <div role="radiogroup" aria-label={t("potential")} className={cn("grid gap-3 md:grid-cols-3", draft.missing?.potential && "rounded-surface ring-1 ring-destructive")}>
                 {REVIEW_POTENTIALS.map((level) => {
                   const selected = draft.potential === level;
                   return (
                     <button key={level} type="button" role="radio" aria-checked={selected} disabled={!editable} onClick={() => draft.setPotential(level)}
                       className={cn("rounded-surface border px-4 py-3 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         selected ? "border-success bg-success/10" : "border-transparent bg-card hover:border-border")}>
-                      <span className="block type-label text-foreground">{level}</span>
-                      <span className="block type-meta text-muted-foreground">{POTENTIAL_COPY[level]}</span>
+                      <span className="block type-label text-foreground">{parts(`potentialName.${level}`)}</span>
+                      <span className="block type-meta text-muted-foreground">{parts(`potential.${level}`)}</span>
                     </button>
                   );
                 })}
@@ -803,6 +831,8 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
 }
 
 function PeerAnswers({ record }: { record: PerformanceReviewDto }) {
+  const t = useTranslations("reviews.PeerAnswers");
+  const rs = useSay("reviews.steps");
   const [all, setAll] = useState(false);
   const peers = record.peers;
   if (!peers || !peers.approved) return null;
@@ -812,10 +842,10 @@ function PeerAnswers({ record }: { record: PerformanceReviewDto }) {
   const shown = all ? questions : questions.slice(0, 1);
   return (
     <section className="mt-10" aria-labelledby="m-peers">
-      <SectionHeading id="m-peers" title={`From ${first(record.subjectDisplayName)}'s peers`} count={`${answered.length} of ${peers.people.length}`}
-        aside={<span className="inline-flex items-center gap-1"><Lock className="size-3.5" aria-hidden />You and HR only</span>} />
+      <SectionHeading id="m-peers" title={t("fromSPeers", { subjectDisplayName: first(record.subjectDisplayName) })} count={rs("of", { done: answered.length, total: peers.people.length })}
+        aside={<span className="inline-flex items-center gap-1"><Lock className="size-3.5" aria-hidden />{t("youAndHrOnly")}</span>} />
       <div className="rounded-surface bg-card">
-        {answered.length === 0 ? <p className="p-5 type-body-secondary text-muted-foreground">No answers yet.</p> : (
+        {answered.length === 0 ? <p className="p-5 type-body-secondary text-muted-foreground">{t("noAnswersYet")}</p> : (
           <div className="divide-y divide-border">
             {shown.map((question) => (
               <div key={question} className="p-5">
@@ -832,13 +862,13 @@ function PeerAnswers({ record }: { record: PerformanceReviewDto }) {
         )}
         {questions.length > 1 ? (
           <button type="button" onClick={() => setAll(!all)} className="flex w-full items-center justify-between border-t border-border px-5 py-3 type-meta text-muted-foreground hover:text-foreground">
-            <span>{all ? "Showing every question" : `${questions.length - 1} more ${questions.length === 2 ? "question" : "questions"}`}</span>
-            <span className="inline-flex items-center gap-1 type-label text-foreground">{all ? "Show less" : "Show all"}<ChevronDown className={cn("size-4", all && "rotate-180")} aria-hidden /></span>
+            <span>{all ? t("showingEveryQuestion") : (questions.length === 2 ? t("moreQuestion", { value: questions.length - 1 }) : t("moreQuestions", { value: questions.length - 1 }))}</span>
+            <span className="inline-flex items-center gap-1 type-label text-foreground">{all ? t("showLess") : t("showAll")}<ChevronDown className={cn("size-4", all && "rotate-180")} aria-hidden /></span>
           </button>
         ) : null}
         {declined.map((peer) => (
           <p key={peer.employeeId} className="border-t border-border px-5 py-3 type-meta text-muted-foreground">
-            <Ban className="me-1.5 inline size-3.5" aria-hidden />{peer.displayName} declined{peer.declineNote ? `: “${peer.declineNote}”` : ""}
+            <Ban className="me-1.5 inline size-3.5" aria-hidden />{t("declined", { displayName: peer.displayName })}{peer.declineNote ? `: “${peer.declineNote}”` : ""}
           </p>
         ))}
       </div>
@@ -849,8 +879,11 @@ function PeerAnswers({ record }: { record: PerformanceReviewDto }) {
 // ── HR (board 14) ──────────────────────────────────────────────────────────────────
 
 function AdministratorView({ record }: { record: PerformanceReviewDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.AdministratorView");
+  const rs = useSay("reviews.steps");
   const late = record.schedule?.daysLate ?? 0;
-  const stage = record.state === "SelfAssessment" ? "Self-assessment" : record.state === "ManagerAssessment" ? "Manager assessment" : null;
+  const stage = record.state === "SelfAssessment" ? t("selfAssessment") : record.state === "ManagerAssessment" ? t("managerAssessment") : null;
   const peers = record.peers;
   return (
     <div className="pb-16">
@@ -858,42 +891,42 @@ function AdministratorView({ record }: { record: PerformanceReviewDto }) {
         back={{ href: withCycle(roundHref(record.reviewRoundId), record.cycleId), label: record.reviewRoundName }}
         leading={<PersonInitials name={record.subjectDisplayName} size="xl" />}
         title={record.subjectDisplayName}
-        description={[record.reviewRoundName, record.subjectJobTitle, record.subjectOrgUnitName, `reviewed by ${record.reviewerDisplayName}`].filter(Boolean).join(" · ")}
+        description={[record.reviewRoundName, record.subjectJobTitle, record.subjectOrgUnitName, t("reviewedBy", { reviewerDisplayName: record.reviewerDisplayName })].filter(Boolean).join(" · ")}
         actions={<div className="flex items-center gap-2">
           {record.canMoveDueDate ? <MoveReviewDueDate record={record} /> : null}
           {record.canClose ? <CloseWithoutResult record={record} /> : null}
         </div>}
       />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <section className="rounded-surface bg-card p-5" aria-label="Where the review stands">
-          {late > 0 && stage ? <StatusBadge tone="danger" dot>{stage} {late === 1 ? "a day" : `${late} days`} late</StatusBadge> : null}
-          {record.state === "Closed" ? <StatusBadge tone="muted">Closed without a result{record.closeReason ? ` · ${record.closeReason}` : ""}</StatusBadge> : null}
-          <StageTrack className="mt-4" label="Review stages" steps={reviewSteps(record, "subject").map((s) => ({ ...s, label: s.label.replace("Your self-assessment", "Self-assessment").replace("Your result", "Released") }))} />
+        <section className="rounded-surface bg-card p-5" aria-label={t("whereTheReviewStands")}>
+          {late > 0 && stage ? <StatusBadge tone="danger" dot>{stage} {late === 1 ? t("aDay") : t("days", { late })} {t("late")}</StatusBadge> : null}
+          {record.state === "Closed" ? <StatusBadge tone="muted">{t("closedWithoutAResult")}{record.closeReason ? ` · ${record.closeReason}` : ""}</StatusBadge> : null}
+          <StageTrack className="mt-4" label={t("reviewStages")} steps={reviewSteps(record, "hr", rs, format.locale)} />
           <div className="mt-5 grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
             <div className="rounded-control bg-inlay p-3">
-              <p className="type-meta text-muted-foreground">Peers</p>
+              <p className="type-meta text-muted-foreground">{t("peers")}</p>
               {peers?.people.length ? (
                 <p className="mt-1.5 flex items-center gap-2"><AvatarStack names={peers.people.map((p) => p.displayName)} size="xs" />
-                  <span className="type-label tabular-nums">{peers.people.filter((p) => p.state === "Answered").length} of {peers.people.length}</span></p>
-              ) : <p className="mt-1.5 type-meta text-muted-foreground">{record.peerInputEnabled ? "None yet" : "Not asked"}</p>}
+                  <span className="type-label tabular-nums">{peers.people.filter((p) => p.state === "Answered").length} {t("of", { length: peers.people.length })}</span></p>
+              ) : <p className="mt-1.5 type-meta text-muted-foreground">{record.peerInputEnabled ? t("noneYet") : t("notAsked")}</p>}
             </div>
             <div className="rounded-control bg-inlay p-3">
-              <p className="type-meta text-muted-foreground">Reminders sent</p>
+              <p className="type-meta text-muted-foreground">{t("remindersSent")}</p>
               <p className="mt-1.5 type-body text-foreground"><strong className="tabular-nums">{record.schedule?.remindersSent.length ?? 0}</strong>
-                {record.schedule?.remindersSent.length ? <span className="type-meta text-muted-foreground"> · last {dayLabel(record.schedule.remindersSent.at(-1)!.slice(0, 10))}</span> : null}</p>
+                {record.schedule?.remindersSent.length ? <span className="type-meta text-muted-foreground"> {t("last", { dayLabel: dayLabel(record.schedule.remindersSent.at(-1)!.slice(0, 10), format.locale) })}</span> : null}</p>
             </div>
             <div className="rounded-control bg-inlay p-3">
-              <p className="type-meta text-muted-foreground">Next reminder</p>
-              <p className="mt-1.5 type-body text-foreground">{record.schedule?.nextReminder ? <strong>{dayLabel(record.schedule.nextReminder)}</strong> : "None"}</p>
+              <p className="type-meta text-muted-foreground">{t("nextReminder")}</p>
+              <p className="mt-1.5 type-body text-foreground">{record.schedule?.nextReminder ? <strong>{dayLabel(record.schedule.nextReminder, format.locale)}</strong> : t("none")}</p>
             </div>
           </div>
         </section>
         <section aria-labelledby="hr-activity" className="rounded-surface bg-card p-5">
-          <h2 id="hr-activity" className="mb-3 type-meta text-muted-foreground">Activity</h2>
+          <h2 id="hr-activity" className="mb-3 type-meta text-muted-foreground">{t("activity")}</h2>
           <ol className="divide-y divide-border">
             {record.activity.map((entry, index) => (
               <li key={`${entry.kind}-${index}`} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 py-2.5">
-                <span className="type-meta text-muted-foreground">{dayLabel(entry.at.slice(0, 10))}</span>
+                <span className="type-meta text-muted-foreground">{dayLabel(entry.at.slice(0, 10), format.locale)}</span>
                 <span>
                   <span className="block type-body text-foreground">{entry.text}</span>
                   {entry.detail ? <span className="block type-meta text-muted-foreground">{entry.detail}</span> : null}
@@ -911,6 +944,8 @@ function AdministratorView({ record }: { record: PerformanceReviewDto }) {
 }
 
 function MoveReviewDueDate({ record }: { record: PerformanceReviewDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.MoveReviewDueDate");
   const { moveReview } = useScheduleCommands();
   const [open, setOpen] = useState(false);
   const current = record.state === "SelfAssessment" ? record.schedule?.selfAssessmentDue : record.schedule?.managerAssessmentDue;
@@ -919,23 +954,23 @@ function MoveReviewDueDate({ record }: { record: PerformanceReviewDto }) {
   const subject = first(record.subjectDisplayName);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild><Button variant="outline"><CalendarDays className="size-4" aria-hidden />Move due date</Button></PopoverTrigger>
+      <PopoverTrigger asChild><Button variant="outline"><CalendarDays className="size-4" aria-hidden />{t("moveDueDate")}</Button></PopoverTrigger>
       <PopoverContent align="end" className="w-96 p-5">
-        <p className="type-panel-title text-foreground">Move {subject}&apos;s due date</p>
-        <p className="mt-0.5 type-meta text-muted-foreground">Only this review · {subject} and {first(record.reviewerDisplayName)} are notified</p>
+        <p className="type-panel-title text-foreground">{t("moveSDueDate", { subject })}</p>
+        <p className="mt-0.5 type-meta text-muted-foreground">{t("onlyThisReviewAndAre", { subject, reviewerDisplayName: first(record.reviewerDisplayName) })}</p>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex-1 type-label text-foreground">{record.state === "SelfAssessment" ? "Self-assessment" : "Manager assessment"}</span>
-          {date && date !== current ? <span className="type-meta text-muted-foreground line-through">{dayLabel(current)}</span> : null}
-          <Input type="date" aria-label="New due date" className="w-40" value={date} onChange={(e) => setDate(e.target.value)} />
+          <span className="flex-1 type-label text-foreground">{record.state === "SelfAssessment" ? t("selfAssessment") : t("managerAssessment")}</span>
+          {date && date !== current ? <span className="type-meta text-muted-foreground line-through">{dayLabel(current, format.locale)}</span> : null}
+          <Input type="date" aria-label={t("newDueDate")} className="w-40" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
-        <Textarea className="mt-4" aria-label="Reason" placeholder="Why it moves" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+        <Textarea className="mt-4" aria-label={t("reason")} placeholder={t("whyItMoves")} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setOpen(false)}>{t("cancel")}</Button>
           <AsyncButton pending={moveReview.isLoading} disabled={!date || date === current || !reason.trim()}
             onClick={() => void moveReview.mutateAsync({ reviewId: record.id, request: { expectedVersion: record.version, dueDate: date, reason: reason.trim() } })
-              .then(() => { toast.success(`${subject}'s due date moved.`); setOpen(false); setReason(""); })
-              .catch((error) => toast.error(error instanceof Error ? error.message : "The due date couldn't move."))}>
-            Move date
+              .then(() => { toast.success(t("sDueDateMoved", { subject })); setOpen(false); setReason(""); })
+              .catch((error) => reportPerformanceFailure(error, t("theDueDateCouldntMove")))}>
+            {t("moveDate")}
           </AsyncButton>
         </div>
       </PopoverContent>
@@ -944,23 +979,24 @@ function MoveReviewDueDate({ record }: { record: PerformanceReviewDto }) {
 }
 
 function CloseWithoutResult({ record }: { record: PerformanceReviewDto }) {
+  const t = useTranslations("reviews.CloseWithoutResult");
   const mutations = useReviewAssessmentMutations(record.id, record.cycleId);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild><Button variant="ghost"><Ban className="size-4" aria-hidden />Close without a result</Button></PopoverTrigger>
+      <PopoverTrigger asChild><Button variant="ghost"><Ban className="size-4" aria-hidden />{t("closeWithoutAResult")}</Button></PopoverTrigger>
       <PopoverContent align="end" className="w-96 p-5">
-        <p className="type-panel-title text-foreground">Close {first(record.subjectDisplayName)}&apos;s review without a result</p>
-        <p className="mt-0.5 type-meta text-muted-foreground">No rating is released and open peer requests close. This can&apos;t be undone.</p>
-        <Textarea className="mt-4" aria-label="Reason" placeholder="Left the company on 10 Sep" maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />
+        <p className="type-panel-title text-foreground">{t("closeSReviewWithoutA", { subjectDisplayName: first(record.subjectDisplayName) })}</p>
+        <p className="mt-0.5 type-meta text-muted-foreground">{t("noRatingIsReleasedAnd")}</p>
+        <Textarea className="mt-4" aria-label={t("reason")} placeholder={t("leftTheCompanyOn10")} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setOpen(false)}>{t("cancel")}</Button>
           <AsyncButton variant="destructive" pending={mutations.close.isLoading} disabled={!reason.trim()}
             onClick={() => void mutations.close.mutateAsync({ expectedVersion: record.version, reason: reason.trim() })
-              .then(() => { toast.success("Review closed."); setOpen(false); })
-              .catch((error) => toast.error(error instanceof Error ? error.message : "The review couldn't close."))}>
-            Close review
+              .then(() => { toast.success(t("reviewClosed")); setOpen(false); })
+              .catch((error) => reportPerformanceFailure(error, t("theReviewCouldntClose")))}>
+            {t("closeReview")}
           </AsyncButton>
         </div>
       </PopoverContent>

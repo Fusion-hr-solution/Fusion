@@ -12,15 +12,16 @@ import { PerformancePageHeading } from "@/features/performance/components/perfor
 import { MilestoneRail } from "@/features/performance/components/milestone-rail";
 import { CycleInsights } from "@/features/performance/components/cycle/cycle-insights";
 import { cn } from "@repo/ds/lib/utils";
+import { useTranslations } from "next-intl";
 
 /**
  * The durable Cycle surface — the established (Active/Closed) Cycle, read-only. A Draft is still
  * being created, so it belongs to the guided setup flow (/cycle/setup), and no Cycle at all means
  * there is nothing to manage. Both redirect out.
  */
-const PHASE_LABEL = { Planning: "Planning", Execution: "Execution", Review: "Review" } as const;
 
 export default function CyclePage() {
+  const t = useTranslations("cycle.CyclePage");
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -54,19 +55,19 @@ export default function CyclePage() {
   }, [noCycle, router]);
 
   if (context.isLoading) return <CycleSurfaceSkeleton />;
-  if (context.error && !canAdminister) return <PagePermissionNotice title="Administration only" description="Cycle administration is available to performance administrators." />;
-  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
+  if (context.error && !canAdminister) return <PagePermissionNotice title={t("administrationOnly")} description={t("cycleAdministrationIsAvailableTo")} />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject={t("performanceWorkspace")} />;
   if (!canAdminister) {
     return (
       <PagePermissionNotice
-        title="Administration only"
-        description="Cycle administration is available to performance administrators."
+        title={t("administrationOnly")}
+        description={t("cycleAdministrationIsAvailableTo")}
       />
     );
   }
   if (detail.isLoading) return <CycleSurfaceSkeleton />;
   if (detail.error) {
-    return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
+    return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject={t("theCycle")} />;
   }
   if (!detail.data || isDraft) return <CycleSurfaceSkeleton />;
 
@@ -77,10 +78,10 @@ export default function CyclePage() {
     <PageContainer width="wide">
       <PerformancePageHeading
         title={cycleDetail.cycle.name}
-        description={isActive ? PHASE_LABEL[cycleDetail.phase ?? "Planning"] : "Closed"}
+        description={isActive ? t(`phase.${cycleDetail.phase ?? "Planning"}`) : t("closed")}
         actions={isActive ? <CloseCycleAction detail={cycleDetail} closure={closure.data} /> : null}
       />
-      <div role="tablist" aria-label="Cycle views" className="mb-8 flex gap-6 border-b border-border">
+      <div role="tablist" aria-label={t("cycleViews")} className="mb-8 flex gap-6 border-b border-border">
         {(["status", "insights"] as const).map((tab) => (
           <button
             key={tab}
@@ -93,7 +94,7 @@ export default function CyclePage() {
               view === tab ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            {tab === "status" ? "Status" : "Insights"}
+            {tab === "status" ? t("status") : t("insights")}
           </button>
         ))}
       </div>
@@ -103,7 +104,7 @@ export default function CyclePage() {
         <div className="space-y-8">
           <MilestoneRail milestones={cycleDetail.milestones} />
           {closure.error ? (
-            <ContentUnavailable error={closure.error} onRetry={closure.refetch} subject="Closure readiness" />
+            <ContentUnavailable error={closure.error} onRetry={closure.refetch} subject={t("closureReadiness")} />
           ) : (
             <ClosureSection closure={closure.data} loading={closure.isLoading} />
           )}

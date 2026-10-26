@@ -1,9 +1,11 @@
-/**
+
+import { useTranslations } from "next-intl";/**
  * The Population step's banner — the same forced-dark spotlight language as the Step 1 hero, kept
  * shorter so the operational workspace below stays front and centre. It carries the intent of the
  * step (assemble the right people), not instructions.
  */
 export function PopulationHero() {
+  const t = useTranslations("cycleSetup.PopulationHero");
   return (
     <section className="relative isolate overflow-hidden rounded-surface border border-white/10 bg-[#0b0c10] text-white shadow-lg">
       <div
@@ -18,19 +20,18 @@ export function PopulationHero() {
 
       <div className="relative flex items-center justify-between gap-8 p-6 lg:p-7">
         <div className="max-w-xl">
-          <p className="type-meta text-amber-400/90">People · Power · Progress</p>
-          <h2 className="type-page-title mt-1.5 text-white">Build your cycle population</h2>
+          <p className="type-meta text-amber-400/90">{t("peoplePowerProgress")}</p>
+          <h2 className="type-page-title mt-1.5 text-white">{t("buildYourCyclePopulation")}</h2>
           <p className="type-body mt-2 max-w-lg text-zinc-300">
-            Choose who takes part. Fusion validates eligibility, resolves reviewers, and flags
-            anything that needs your attention.
+            {t("chooseWhoTakesPartFusion")}
           </p>
         </div>
         <p className="hidden shrink-0 border-s border-white/10 ps-6 type-body-secondary text-zinc-300 lg:block">
-          The right people.
+          {t("theRightPeople")}
           <br />
-          Greater conversations.
+          {t("greaterConversations")}
           <br />
-          <span className="text-amber-400/90">A stronger tomorrow.</span>
+          <span className="text-amber-400/90">{t("aStrongerTomorrow")}</span>
         </p>
       </div>
     </section>

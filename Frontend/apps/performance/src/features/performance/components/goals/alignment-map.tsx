@@ -33,6 +33,8 @@ import {
   statusLabel,
   visibleMap,
 } from "./alignment-map-model";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 // Tall enough for an eyebrow, a two-line title, the status row and the personal row without overlap.
 const DIRECTION = { width: 272, height: 152 };
@@ -76,6 +78,7 @@ const hiddenHandle =
   "!pointer-events-none !h-1.5 !w-1.5 !min-h-0 !min-w-0 !border-0 !bg-transparent !opacity-0";
 
 function StatusMark({ status }: { status: ObjectiveStatus | null }) {
+  const map = useSay("goals.map");
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
       <span
@@ -83,7 +86,7 @@ function StatusMark({ status }: { status: ObjectiveStatus | null }) {
         className={cn("size-2 shrink-0 rounded-full", STATUS_DOT[tone(status)])}
       />
       <span className={cn("truncate", status && "font-medium text-foreground")}>
-        {statusLabel(status)}
+        {statusLabel(status, map)}
       </span>
     </span>
   );
@@ -91,11 +94,12 @@ function StatusMark({ status }: { status: ObjectiveStatus | null }) {
 
 /** The owner's reported status as the same badge the plan and record use; unreported stays quiet text. */
 function NodeStatus({ status }: { status: ObjectiveStatus | null }) {
+  const map = useSay("goals.map");
   return status ? (
     <ObjectiveStatusBadge status={status} className="shrink-0" />
   ) : (
     <span className="shrink-0 text-xs text-muted-foreground">
-      {statusLabel(null)}
+      {statusLabel(null, map)}
     </span>
   );
 }
@@ -129,6 +133,8 @@ function MixBar({ counts }: { counts: PersonalAlignmentDto }) {
 const DirectionNode = memo(function DirectionNode({
   data,
 }: NodeProps<Node<DirectionData, "direction">>) {
+  const t = useTranslations("goals.DirectionNode");
+  const map = useSay("goals.map");
   const { node } = data;
   const company = node.kind === "Company";
   const counts = node.personal;
@@ -144,7 +150,7 @@ const DirectionNode = memo(function DirectionNode({
       <Handle type="target" position={Position.Top} className={hiddenHandle} />
       <button
         type="button"
-        aria-label={nodeAccessibleName(node)}
+        aria-label={nodeAccessibleName(node, map)}
         onClick={() => data.onOpen(node.id)}
         className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden rounded-control px-3.5 pt-3 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -156,7 +162,7 @@ const DirectionNode = memo(function DirectionNode({
               company ? "text-foreground" : "text-muted-foreground"
             )}
           >
-            {scopeLabel(node)}
+            {scopeLabel(node, map)}
           </span>
           <NodeStatus status={node.status} />
         </span>
@@ -181,7 +187,7 @@ const DirectionNode = memo(function DirectionNode({
               node.hasProgress && "font-medium text-foreground"
             )}
           >
-            {progressLabel(node)}
+            {progressLabel(node, map)}
           </span>
         </span>
       </button>
@@ -189,7 +195,7 @@ const DirectionNode = memo(function DirectionNode({
         <button
           type="button"
           aria-expanded={data.personalOpen}
-          aria-label={`${personalSummary(counts)}. ${data.personalOpen ? "Hide" : "Show"} them`}
+          aria-label={(data.personalOpen ? t("hideThem", { counts: personalSummary(counts, map) }) : t("showThem", { counts: personalSummary(counts, map) }))}
           onClick={(event) => {
             event.stopPropagation();
             data.onTogglePersonal(node.id);
@@ -197,7 +203,7 @@ const DirectionNode = memo(function DirectionNode({
           className="mx-2 mb-2 flex items-center gap-2 rounded-control-sm border-t border-border/70 px-1.5 pt-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Users className="size-3.5" aria-hidden />
-          <span className="tabular-nums">{counts.total} personal</span>
+          <span className="tabular-nums">{t("personal", { total: counts.total })}</span>
           <MixBar counts={counts} />
           {data.personalOpen ? (
             <ChevronDown className="ms-auto size-3.5" aria-hidden />
@@ -211,8 +217,8 @@ const DirectionNode = memo(function DirectionNode({
           type="button"
           aria-label={
             data.expanded
-              ? `Collapse ${node.title}`
-              : `Expand ${node.title}, ${data.hiddenCount} hidden objective${data.hiddenCount === 1 ? "" : "s"}`
+              ? t("collapse", { title: node.title })
+              : (data.hiddenCount === 1 ? t("expandHiddenObjective", { title: node.title, hiddenCount: data.hiddenCount }) : t("expandHiddenObjectives", { title: node.title, hiddenCount: data.hiddenCount }))
           }
           aria-expanded={data.expanded}
           onClick={(event) => {
@@ -248,6 +254,8 @@ const DirectionNode = memo(function DirectionNode({
 const PersonalNode = memo(function PersonalNode({
   data,
 }: NodeProps<Node<PersonalData, "personal">>) {
+  const t = useTranslations("goals.PersonalNode");
+  const map = useSay("goals.map");
   const { node } = data;
   return (
     <div
@@ -259,7 +267,7 @@ const PersonalNode = memo(function PersonalNode({
       <Handle type="target" position={Position.Top} className={hiddenHandle} />
       <button
         type="button"
-        aria-label={nodeAccessibleName(node)}
+        aria-label={nodeAccessibleName(node, map)}
         onClick={() => data.onOpen(node.id)}
         className="flex h-full w-full flex-col justify-between rounded-control px-3 py-2 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -275,7 +283,7 @@ const PersonalNode = memo(function PersonalNode({
                 : "text-muted-foreground"
             )}
           >
-            {node.isOwn ? "You" : (node.ownerName ?? "Personal objective")}
+            {node.isOwn ? t("you") : (node.ownerName ?? t("personalObjective"))}
           </span>
           <NodeStatus status={node.status} />
         </span>
@@ -287,10 +295,11 @@ const PersonalNode = memo(function PersonalNode({
 const HiddenNode = memo(function HiddenNode({
   data,
 }: NodeProps<Node<HiddenData, "hidden">>) {
+  const t = useTranslations("goals.HiddenNode");
   return (
     <div className="flex h-[44px] w-[228px] items-center justify-center rounded-control border border-dashed border-border px-3 text-xs text-muted-foreground">
       <Handle type="target" position={Position.Top} className={hiddenHandle} />
-      {`+${data.count} not visible to you`}
+      {t("notVisibleToYou", { count: data.count })}
     </div>
   );
 });
@@ -362,6 +371,7 @@ export default function AlignmentMap({
   nearId?: string | null;
   onOpen: (objectiveId: string) => void;
 }) {
+  const t = useTranslations("goals.AlignmentMap");
   const model = useMemo(() => buildAlignmentMap(map), [map]);
   // Focus only what is on the map; otherwise the fallback, otherwise frame the whole tree.
   const focusId =
@@ -537,7 +547,7 @@ export default function AlignmentMap({
         />
         <Panel position="top-left">
           <ul
-            aria-label="Status key"
+            aria-label={t("statusKey")}
             className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-control border border-border bg-card px-3 py-1.5 shadow-raised"
           >
             {(["OnTrack", "AtRisk", "OffTrack", null] as const).map(

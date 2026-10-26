@@ -1,49 +1,34 @@
 import type {
   MeasurementDto,
-  MeasurementMethod,
-  OperationalMilestone,
   ReadinessIssueCode,
 } from "@repo/api";
 import { formatDate as formatSharedDate, formatDateRange as formatSharedRange, formatDateTime as formatSharedDateTime, formatRelative } from "@repo/ds/lib/dates";
+import { english, type Say } from "@/i18n/say";
 
-export const MEASUREMENT_LABELS: Record<MeasurementMethod, string> = {
-  ManualPercentage: "Manual percentage",
-  NumericTarget: "Numeric target",
-  WeightedMilestones: "Weighted milestones",
-};
-
-export const MILESTONE_LABELS: Record<OperationalMilestone, string> = {
-  StrategicDirectionPublished: "Direction published",
-  PopulationConfirmed: "Population confirmed",
-  PlanningOpened: "Planning opened",
-  PlanningCompleted: "Planning completed",
-  PerformanceEndReached: "Performance end",
-  ClosureReady: "Closure ready",
-};
+/** Shared Performance words (`common.words`) in English, for helpers outside a translated tree. */
+const en = english("common.words");
 
 /**
  * The secondary detail line for a readiness issue, dated to the cycle's eligibility date where it
  * matters. The short title comes from the server (`issue.label`); this composes the specific
  * consequence the admin needs to act on.
  */
-export function readinessIssueDetail(code: ReadinessIssueCode, eligibilityDate: string): string {
+export function readinessIssueDetail(code: ReadinessIssueCode, eligibilityDate: string, say: Say = en, locale?: string): string {
+  const date = formatDate(eligibilityDate, locale);
   switch (code) {
     case "InactiveEmployment":
-      return `Employment is not active as of ${formatDate(eligibilityDate)}.`;
     case "NoPrimaryAssignment":
-      return `No active primary assignment as of ${formatDate(eligibilityDate)}.`;
     case "MissingManager":
-      return "A valid manager is required for plan reviews.";
     case "InactiveManager":
-      return `The assigned manager is not active as of ${formatDate(eligibilityDate)}.`;
+      return say(`issue.${code}`, { date });
     default:
       return "";
   }
 }
 
 /** A calendar date in Fusion's one date grammar ("20 Oct", "20 Oct 2025"). */
-export function formatDate(value: string | null | undefined): string {
-  return formatSharedDate(value);
+export function formatDate(value: string | null | undefined, locale?: string): string {
+  return formatSharedDate(value, { locale });
 }
 
 /** A date range with the shared year said once ("10 Oct – 9 Nov 2026"); `omitYear` where the cycle already gives it. */
@@ -73,16 +58,16 @@ export function parseNumeric(value: string): { num: number | null; invalid: bool
   return Number.isFinite(num) ? { num, invalid: false } : { num: null, invalid: true };
 }
 
-export function measurementSummary(measurement: MeasurementDto): string {
+export function measurementSummary(measurement: MeasurementDto, say: Say = en): string {
   switch (measurement.method) {
     case "NumericTarget": {
       const arrow = measurement.direction === "Decrease" ? "↓" : "↑";
       return `${measurement.baseline ?? "?"} ${arrow} ${measurement.target ?? "?"} ${measurement.unit ?? ""}`.trim();
     }
     case "WeightedMilestones":
-      return `${measurement.milestones.length} milestone${measurement.milestones.length === 1 ? "" : "s"}`;
+      return say("milestones", { count: measurement.milestones.length });
     case "ManualPercentage":
     default:
-      return "Manual percentage";
+      return say("method.ManualPercentage");
   }
 }

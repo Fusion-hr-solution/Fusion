@@ -11,6 +11,8 @@ import { cn } from "@repo/ds/lib/utils";
 import { useGoalMutations } from "../../../api/use-performance";
 import { directionScopeLabel, type ObjectiveRecord } from "../objective-record-model";
 import { RECORD_SURFACE, RecordSection } from "./record-primitives";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * How a calculated objective's progress is composed: the weight each aligned objective contributes,
@@ -18,6 +20,8 @@ import { RECORD_SURFACE, RecordSection } from "./record-primitives";
  * else, and once locked.
  */
 export function ContributionSection({ record }: { record: ObjectiveRecord }) {
+  const t = useTranslations("objective.ContributionSection");
+  const model = useSay("objective.model");
   const mutations = useGoalMutations(record.ref.cycleId);
   const { links, locked } = record.contribution;
   const children = record.children;
@@ -38,7 +42,7 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
       <RecordSection
         label={
           <span className="inline-flex items-center gap-1.5">
-            <Lock className="size-3.5" aria-hidden /> Contribution baseline
+            <Lock className="size-3.5" aria-hidden /> {t("contributionBaseline")}
           </span>
         }
       >
@@ -51,7 +55,7 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
           ))}
           <div className="mt-2 flex items-center justify-between border-t border-success/20 pt-2 text-sm font-semibold">
             <span className="inline-flex items-center gap-1.5 text-success">
-              <Check className="size-4" aria-hidden /> Baseline locked
+              <Check className="size-4" aria-hidden /> {t("baselineLocked")}
             </span>
             <span className="tabular-nums">100%</span>
           </div>
@@ -62,9 +66,9 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
 
   if (children.length === 0) {
     return (
-      <RecordSection label="Contribution baseline">
+      <RecordSection label={t("contributionBaseline")}>
         <p className="rounded-surface border border-dashed border-border p-4 text-sm text-muted-foreground">
-          No aligned objectives contribute yet.
+          {t("noAlignedObjectivesContributeYet")}
         </p>
       </RecordSection>
     );
@@ -76,19 +80,19 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
   const allPublished = contributors.length > 0 && contributors.every((child) => child.state === "Published");
 
   return (
-    <RecordSection label="Contribution baseline">
+    <RecordSection label={t("contributionBaseline")}>
       <div className={cn(RECORD_SURFACE, "space-y-3")}>
         {children.map((child) => (
           <div key={child.id} className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm text-foreground">{child.title}</p>
-              <p className="truncate text-xs text-muted-foreground">{directionScopeLabel(child)}</p>
+              <p className="truncate text-xs text-muted-foreground">{directionScopeLabel(child, model)}</p>
             </div>
             <div className="flex items-center gap-1">
               <Input
                 type="number"
                 inputMode="numeric"
-                aria-label={`Contribution of ${child.title}`}
+                aria-label={t("contributionOf", { title: child.title })}
                 value={weights[child.id] ?? ""}
                 disabled={!canEdit}
                 onChange={(event) => setWeights((prev) => ({ ...prev, [child.id]: event.target.value }))}
@@ -102,7 +106,7 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
 
         <div className="flex items-center justify-between border-t border-border pt-3">
           <span className="text-sm text-muted-foreground">
-            {total === 100 ? "Fully allocated" : total < 100 ? `${100 - total}% to assign` : `${total - 100}% over`}
+            {total === 100 ? t("fullyAllocated") : total < 100 ? t("toAssign", { value: 100 - total }) : t("over", { value: total - 100 })}
           </span>
           <span className={cn("text-lg font-semibold tabular-nums", total === 100 ? "text-success" : "text-warning")}>
             {total}%
@@ -127,29 +131,29 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
                       })),
                     },
                   });
-                  toast.success("Contribution saved.");
+                  toast.success(t("contributionSaved"));
                 } catch (error) {
-                  reportPerformanceFailure(error, "Could not save.");
+                  reportPerformanceFailure(error, t("couldNotSave"));
                 }
               }}
             >
-              Save
+              {t("save")}
             </AsyncButton>
             <AsyncButton
               size="sm"
               pending={mutations.lockContribution.isLoading}
               disabled={total !== 100 || !allPublished}
-              title={total === 100 && !allPublished ? "Every contributing objective must be published first" : undefined}
+              title={total === 100 && !allPublished ? t("everyContributingObjectiveMustBe") : undefined}
               onClick={async () => {
                 try {
                   await mutations.lockContribution.mutateAsync({ objectiveId: record.ref.objectiveId, expectedVersion: record.source.node.version });
-                  toast.success("Contribution baseline locked.");
+                  toast.success(t("contributionBaselineLocked"));
                 } catch (error) {
-                  reportPerformanceFailure(error, "Could not lock.");
+                  reportPerformanceFailure(error, t("couldNotLock"));
                 }
               }}
             >
-              <Lock className="size-3.5" data-icon="inline-start" /> Lock baseline
+              <Lock className="size-3.5" data-icon="inline-start" /> {t("lockBaseline")}
             </AsyncButton>
           </div>
         ) : null}

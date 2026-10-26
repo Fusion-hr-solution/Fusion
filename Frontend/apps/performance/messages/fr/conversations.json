@@ -1,0 +1,278 @@
+{
+  "ColleaguePicker": {
+    "typeAtLeastTwoLetters": "Saisissez au moins deux lettres d’un nom",
+    "colleaguesCouldntBeLoadedTry": "Les collègues n’ont pas pu être chargés. Réessayez.",
+    "typeANameToSearch": "Saisissez un nom pour rechercher",
+    "noColleaguesMatch": "Aucun collègue ne correspond à « {typed} »"
+  },
+  "ColleaguesPicker": {
+    "remove": "Retirer {displayName}",
+    "searchColleagues": "Rechercher des collègues",
+    "addAnother": "Ajouter une autre personne"
+  },
+  "SubjectPicker": {
+    "nothingSpecific": "Rien de précis",
+    "about": "Sujet"
+  },
+  "VisibilityChoice": {
+    "shared": "Partagé",
+    "managerOnly": "Manager uniquement",
+    "whoReadsIt": "Qui le lit",
+    "they": "Cette personne",
+    "sharedWho": "{name} et son manager",
+    "managerOnlyWho": "Uniquement le manager de {name}",
+    "managerOnlyWhoAnon": "Uniquement son manager"
+  },
+  "FeedbackComposer": {
+    "giveFeedback": "Donner un feedback",
+    "change": "Modifier",
+    "to": "Vers",
+    "about": "Sujet",
+    "feedback": "Feedback",
+    "whoReadsIt": "Qui le lit",
+    "cantBeChangedOnceSent": "Ne peut plus être modifié une fois envoyé",
+    "cancel": "Annuler",
+    "sendTo": "Envoyer à {displayName}",
+    "sendFeedback": "Envoyer le feedback",
+    "feedbackSentTo": "Feedback envoyé à {displayName}."
+  },
+  "RequestComposer": {
+    "askForFeedback": "Demander un feedback",
+    "howIsLanding": "Comment « {title} » est-il perçu ?",
+    "yourQuestion": "Votre question",
+    "ask": "Demander",
+    "about": "Sujet",
+    "answerBy": "Réponse attendue le",
+    "cancel": "Annuler",
+    "askColleagues": "Demander à {length} collègues",
+    "sendRequest": "Envoyer la demande",
+    "askedColleague": "Demande envoyée à {length} collègue.",
+    "askedColleagues": "Demande envoyée à {length} collègues."
+  },
+  "PraiseComposer": {
+    "whatTheyDidInYour": "Ce qu’il ou elle a fait, avec vos mots.",
+    "givePraise": "Féliciter",
+    "who": "Qui",
+    "value": "Valeur",
+    "for": "Pour",
+    "whatTheyDid": "Ce qu’il ou elle a fait",
+    "everyoneWillSee": "Tout le monde le verra",
+    "cancel": "Annuler",
+    "praisePeople": "Reconnaître {length} personnes",
+    "praiseShared": "Reconnaissance partagée."
+  },
+  "DueBlock": {
+    "overdue": "En retard",
+    "due": "Échéance",
+    "today": "Aujourd’hui",
+    "tomorrow": "Demain"
+  },
+  "FeedbackDrawer": {
+    "aColleague": "Un collègue",
+    "from": "De",
+    "to": "Vers",
+    "about": "Sujet",
+    "only": "Uniquement {value}",
+    "andTheirManager": "{name} et son manager",
+    "whoReadsIt": "Qui le lit",
+    "answers": "Réponses",
+    "thisFeedbackIsntAvailableTo": "Ce feedback ne vous est pas accessible.",
+    "loadingFeedback": "Chargement du feedback",
+    "feedback": "Feedback · {sentAt}",
+    "feedback2": "Feedback",
+    "fixedOnceSent": "Figé une fois envoyé"
+  },
+  "AddToNextOneOnOne": {
+    "onTheNext11": "Au prochain entretien individuel",
+    "addToNext11": "Ajouter au prochain entretien",
+    "addedToYourNext1": "Ajouté à votre prochain entretien individuel avec {displayName}."
+  },
+  "PraiseDrawer": {
+    "thisPraiseWasRemoved": "Cette reconnaissance a été retirée.",
+    "from": "de",
+    "aColleague": "un collègue",
+    "deleteThisPraise": "Supprimer cette reconnaissance ?",
+    "itDisappearsFromTheFeed": "Elle disparaît du fil, de l’accueil et du profil de {recipients} pour tout le monde.",
+    "keepIt": "La garder",
+    "deletePraise": "Supprimer la reconnaissance",
+    "praiseDeleted": "Reconnaissance supprimée.",
+    "thisPraiseIsntAvailable": "Cette reconnaissance n’est pas disponible.",
+    "loadingPraise": "Chargement des reconnaissances",
+    "praise": "Reconnaissances",
+    "couldNotDelete": "Impossible de supprimer cette reconnaissance."
+  },
+  "FeedbackWorkspace": {
+    "yourTeam": "Votre équipe",
+    "feedback": "Feedback",
+    "askForFeedback": "Demander un feedback",
+    "giveFeedback": "Donner un feedback",
+    "toAnswer": "{toAnswer} à répondre",
+    "noFeedbackAboutYourTeam": "Aucun feedback sur votre équipe pour l’instant",
+    "youHaventGivenFeedbackYet": "Vous n’avez pas encore donné de feedback",
+    "tabs": {
+      "received": "Reçus",
+      "given": "Donnés",
+      "requests": "Demandes",
+      "praise": "Reconnaissances",
+      "team": "Votre équipe"
+    }
+  },
+  "ReceivedTab": {
+    "noFeedbackYet": "Aucun feedback pour l’instant",
+    "askAbout": "Demander à propos de {title}",
+    "askForFeedback": "Demander un feedback"
+  },
+  "ReceivedBand": {
+    "fromColleague": "de {fromCount} collègue",
+    "s": "s",
+    "nothingSpecific": "Rien de précis",
+    "toAnswer": "{toAnswer} à répondre",
+    "requestsWaitingOnYou": "Demandes qui vous attendent",
+    "yourFeedbackAtAGlance": "Votre feedback en un coup d’œil"
+  },
+  "ReceivedSidebar": {
+    "noFeedbackYet": "Aucun feedback pour l’instant",
+    "pieceOfFeedback": "{feedback} feedback",
+    "piecesOfFeedback": "{feedback} feedbacks",
+    "ask": "Demander",
+    "askAbout": "Demander à propos de",
+    "feedback": "feedback",
+    "praise": "reconnaissance",
+    "givenByYou": "Donnés par vous"
+  },
+  "FeedbackPage": {
+    "feedback": "Feedback",
+    "showOlder": "Afficher les plus anciens"
+  },
+  "FeedbackCard": {
+    "to": "à",
+    "to2": "Vers",
+    "aColleague": "Un collègue",
+    "managerOnly": "Manager uniquement",
+    "answerTo": "Réponse à « {requestQuestion} »"
+  },
+  "RequestsTab": {
+    "feedbackRequests": "Demandes de feedback",
+    "askedOfYou": "Qui vous sont adressées",
+    "nothingToAnswer": "Rien à répondre",
+    "lastAnsweredFor": "· dernière réponse pour {name}",
+    "yours": "Les vôtres",
+    "open": "{length} ouvertes",
+    "noOpenRequests": "Aucune demande ouverte",
+    "closed": "Clôturé",
+    "asked": "{name} a demandé :",
+    "answered": "Répondu",
+    "declined": "Refusé",
+    "answer": "{answered} réponse",
+    "answers": "{answered} réponses"
+  },
+  "AskedOfYou": {
+    "askedYou": "vous a demandé · {requestedAt}",
+    "answer": "Répondre"
+  },
+  "YourRequest": {
+    "overdue": "En retard",
+    "due": "Échéance",
+    "noAnswersYet": "Aucune réponse pour l’instant",
+    "answered": "Répondu",
+    "declined": "Refusé",
+    "waiting": "En attente",
+    "asked": "Demandé",
+    "ofAnswered": "{answered} sur {invited} ont répondu"
+  },
+  "PraiseTab": {
+    "showPraise": "Afficher les reconnaissances",
+    "praise": "Reconnaissances",
+    "filters": {
+      "all": "Tout le monde",
+      "forMe": "Pour vous",
+      "byMe": "Par vous"
+    }
+  },
+  "GivePraiseBar": {
+    "praiseAColleagueFor": "Reconnaître un collègue pour…",
+    "praiseSomeoneFor": "Reconnaître quelqu’un pour {name}",
+    "givePraise": "Féliciter"
+  },
+  "PraiseSidebar": {
+    "whatWeCelebrateLastDays": "Ce que nous célébrons · {windowDays} derniers jours",
+    "received": "reçues",
+    "given": "données",
+    "yourPraise": "Vos reconnaissances"
+  },
+  "PraisePage": {
+    "praise": "Reconnaissances",
+    "noPraiseYet": "Aucune reconnaissance pour l’instant",
+    "giveTheFirst": "Donner la première",
+    "noPraiseForYouYet": "Aucune reconnaissance pour vous pour l’instant",
+    "youHaventGivenPraiseYet": "Vous n’avez pas encore donné de reconnaissance",
+    "showOlder": "Afficher les plus anciens"
+  },
+  "RequestRecord": {
+    "thisRequest": "Cette demande"
+  },
+  "RequestView": {
+    "requests": "Demandes",
+    "askedYou": "{name} vous a demandé",
+    "open": "Ouvrir",
+    "closed": "Clôturé",
+    "asked": "Demandé le {requestedAt}",
+    "due": "· échéance le {dueDate}",
+    "closed2": "· clôturée le {closedAt}",
+    "closeRequest": "Clôturer la demande"
+  },
+  "FullView": {
+    "asked": "Demandé",
+    "answered": "{answered} ont répondu",
+    "declined": "· {declined} ont refusé",
+    "waiting": "· {length} en attente",
+    "answers": "Réponses",
+    "hasntAnsweredYet": "{name} n’a pas encore répondu",
+    "noAnswers": "Aucune réponse",
+    "declined2": "{name} a refusé : {declineReason}",
+    "statusAnswered": "Répondu",
+    "answeredOn": "Répondu le {day}",
+    "statusDeclined": "Refusé",
+    "statusWaiting": "En attente"
+  },
+  "InviteeView": {
+    "answered": "Répondu le {sentAt}",
+    "yourAnswer": "Votre réponse",
+    "youDeclinedThisRequest": "Vous avez refusé cette demande.",
+    "closedThisRequest": "{name} a clôturé cette demande.",
+    "yourFeedbackFor": "Votre feedback pour {name}",
+    "yourAnswerFor": "Votre réponse pour {name}",
+    "andTheirManagerReadIt": "{name} et son manager le lisent, avec votre nom",
+    "decline": "Refuser",
+    "sendAnswer": "Envoyer la réponse",
+    "reason": "Motif",
+    "optional": "(facultatif)",
+    "declineRequest": "Refuser la demande"
+  },
+  "RequestSkeleton": {
+    "loadingThisRequest": "Chargement de cette demande"
+  },
+  "RequestUpdateDialog": {
+    "askForAnUpdate": "Demander une mise à jour à {personName}",
+    "onTheWholePlan": "Sur l’ensemble du plan",
+    "note": "Note",
+    "optional": "(facultatif)",
+    "cancel": "Annuler",
+    "sendRequest": "Envoyer la demande",
+    "updateRequestedFrom": "Mise à jour demandée à {personName}."
+  },
+  "RequestUpdateAction": {
+    "updateRequested": "Mise à jour demandée",
+    "withdraw": "Retirer",
+    "requestUpdate": "Demander une mise à jour",
+    "couldNotWithdrawTheRequest": "Impossible de retirer la demande."
+  },
+  "RequestBand": {
+    "askedForAnUpdate": "{requestedByName} a demandé une mise à jour",
+    "recordingProgressAnswersIt": "Enregistrer l’avancement y répond.",
+    "recordProgress": "Enregistrer l’avancement"
+  },
+  "ObjectiveRequestMarker": {
+    "asked": "{value} a demandé · {formatDate}"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "CoachTrigger": {
+    "suggesting": "Suggesting",
+    "suggestImprovements": "Suggest improvements"
+  },
+  "CoachSuggestion": {
+    "suggested": "Suggested {label}",
+    "apply": "Apply",
+    "suggested2": "suggested {label}",
+    "dismissSuggested": "Dismiss suggested {label}"
+  },
+  "CoachField": {
+    "apply": "Apply",
+    "suggested": "suggested {label}",
+    "dismissSuggested": "Dismiss suggested {label}",
+    "suggested2": "Suggested {label}"
+  },
+  "CoachNothing": {
+    "noSuggestionsForThisObjective": "No suggestions for this objective"
+  },
+  "AiSuggestedTag": {
+    "aiSuggested": "AI-suggested"
+  }
+}

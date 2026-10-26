@@ -60,14 +60,13 @@ import {
   useTeamObjectiveWorkspace,
 } from "../../api/use-performance";
 import { useWorkforceMe } from "../../api/use-workforce-me";
-import { formatDate } from "../../lib";
 import { AlignmentTargetPicker } from "../goals/org-objective-composer";
 import {
   OrgComposerHost,
   type ComposerAlignmentContext,
   type ComposerState,
 } from "../goals/org-composer-host";
-import { initials, STATE_LABEL, STATE_TONE } from "../goals/goals-lib";
+import { initials, STATE_TONE } from "../goals/goals-lib";
 import type { UnitContext } from "../goals/working-context-lib";
 import { ScopeMark } from "../scope-mark";
 import { useObjectiveRecord } from "../objective-record/use-objective-record";
@@ -78,6 +77,9 @@ import {
   type LifecycleFilter,
   type ObjectiveSort,
 } from "./team-objectives-model";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
 
 export function TeamDirection({
   cycle,
@@ -86,6 +88,7 @@ export function TeamDirection({
   cycle: CycleSummaryDto;
   canViewOrgDirection: boolean;
 }) {
+  const t = useTranslations("team.TeamDirection");
   const { user } = useAuth();
   const me = useWorkforceMe(true);
   const ownUnit: UnitContext | null = useMemo(() => {
@@ -144,10 +147,10 @@ export function TeamDirection({
     return (
       <section>
         <h2 className="type-section-title text-foreground">
-          Upstream direction
+          {t("upstreamDirection")}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {workspace.error?.message || "Team objectives could not be loaded."}
+          {workspace.error?.message || t("teamObjectivesCouldNotBe")}
         </p>
         {/* A validation or access answer won't change on retry; only transient failures offer one. */}
         {["validation", "auth"].includes(classifyApiError(workspace.error)) ? null : (
@@ -156,7 +159,7 @@ export function TeamDirection({
             className="mt-4"
             onClick={() => void workspace.refetch()}
           >
-            Try again
+            {t("tryAgain")}
           </Button>
         )}
       </section>
@@ -197,9 +200,9 @@ export function TeamDirection({
           onDelete={async (item) => {
             try {
               await mutations.remove.mutateAsync({ objectiveId: item.node.id, expectedVersion: item.node.version });
-              toast.success("Draft objective deleted.");
+              toast.success(t("draftObjectiveDeleted"));
             } catch (error) {
-              reportPerformanceFailure(error, "The objective could not be deleted.");
+              reportPerformanceFailure(error, t("theObjectiveCouldNotBe"));
             }
           }}
           onViewDirection={(item) => item.parent && inspect(item.parent.id)}
@@ -248,6 +251,7 @@ function StrategicDirection({
   onCreate: () => void;
   onInspect: (id: string) => void;
 }) {
+  const t = useTranslations("team.StrategicDirection");
   const aligned = direction?.mode === "aligned";
   const [pickerOpen, setPickerOpen] = useState(false);
   const selectionValue = aligned
@@ -262,12 +266,12 @@ function StrategicDirection({
           id="strategic-direction-heading"
           className="type-section-title text-foreground"
         >
-          Upstream direction
+          {t("upstreamDirection")}
         </h2>
         {canViewOrgDirection ? (
           <Button variant="outline" asChild>
             <Link href={goalsHref}>
-              Open organization direction
+              {t("openOrganizationDirection")}
               <ArrowRight className="size-4" data-icon="inline-end" aria-hidden />
             </Link>
           </Button>
@@ -300,18 +304,18 @@ function StrategicDirection({
             <span className="flex size-8 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink">
               <Target className="size-4" aria-hidden />
             </span>
-            <p className="type-meta text-primary-ink">Next team objective</p>
+            <p className="type-meta text-primary-ink">{t("nextTeamObjective")}</p>
           </div>
           <div className="mt-2.5">
             <h3 className="text-lg font-semibold tracking-tight text-foreground">
-              Create a team objective
+              {t("createATeamObjective")}
             </h3>
             <p className="mt-1 max-w-xl text-sm leading-5 text-muted-foreground">
-              Choose what it supports before defining its result and measure.
+              {t("chooseWhatItSupportsBefore")}
             </p>
           </div>
           <div className="mt-3 space-y-1.5">
-            <label className="type-label text-foreground">Align to</label>
+            <label className="type-label text-foreground">{t("alignTo")}</label>
             <AlignmentTargetPicker
               targets={targets}
               value={selectionValue}
@@ -327,15 +331,15 @@ function StrategicDirection({
           <div className="mt-auto pt-3">
             <Button onClick={onCreate} disabled={!direction || !canCreate}>
               <Plus className="size-4" data-icon="inline-start" aria-hidden />
-              Create team objective
+              {t("createTeamObjective")}
             </Button>
             {noEligibleOwners ? (
               <p className="mt-2 text-xs text-destructive">
-                No active team member can own an objective in this cycle.
+                {t("noActiveTeamMemberCan")}
               </p>
             ) : cycle.state === "Closed" ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                This cycle is closed.
+                {t("thisCycleIsClosed")}
               </p>
             ) : null}
           </div>
@@ -378,14 +382,16 @@ function DirectionCard({
   description: string | null;
   onInspect: (id: string) => void;
 }) {
+  const t = useTranslations("team.DirectionCard");
+  const lib = useSay("goals.lib");
   const progress = Math.max(
     0,
     Math.min(100, Math.round(node.hasProgress ? node.derivedProgress : 0))
   );
   const kind =
     node.ownershipScope === "Company"
-      ? "Company objective"
-      : `${node.orgUnitName ?? "Team"} objective`;
+      ? t("companyObjective")
+      : t("objective", { value: node.orgUnitName ?? "Team" });
   return (
     <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
@@ -393,10 +399,10 @@ function DirectionCard({
           <span className="flex size-8 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink">
             <Target className="size-4" aria-hidden />
           </span>
-          <p className="type-meta text-primary-ink">Selected direction</p>
+          <p className="type-meta text-primary-ink">{t("selectedDirection")}</p>
         </div>
         <StatusBadge tone={STATE_TONE[node.state]} dot>
-          {STATE_LABEL[node.state]}
+          {lib(`state.${node.state}`)}
         </StatusBadge>
       </div>
 
@@ -418,17 +424,17 @@ function DirectionCard({
       <div className="mt-4 grid gap-3 sm:grid-cols-3 sm:divide-x sm:divide-border [&>*]:sm:ps-4 [&>*:first-child]:sm:ps-0">
         <DirectionFact
           icon={<UserRound aria-hidden />}
-          label="Accountable owner"
+          label={t("accountableOwner")}
           value={node.accountablePersonName ?? "No owner"}
         />
         <DirectionFact
           icon={<ChartColumn aria-hidden />}
-          label="Measurement"
+          label={t("measurement")}
           value={node.measurementSummary}
         />
         <DirectionFact
           icon={<Flag aria-hidden />}
-          label="Objective type"
+          label={t("objectiveType")}
           value={kind}
         />
       </div>
@@ -436,7 +442,7 @@ function DirectionCard({
       <div className="mt-4 flex items-end gap-5 border-t border-border/60 pt-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs text-muted-foreground">
-            Progress toward target
+            {t("progressTowardTarget")}
           </p>
           <div className="relative mt-2 h-1.5 rounded-full bg-muted">
             <span
@@ -453,8 +459,7 @@ function DirectionCard({
         <p className="shrink-0 text-xs text-muted-foreground">
           <span className="text-sm font-semibold tabular-nums text-foreground">
             {progress}%
-          </span>{" "}
-          of target
+          </span>{t("ofTarget")}
         </p>
       </div>
     </div>
@@ -471,6 +476,7 @@ function EligibleRow({
   hint: string;
   onClick: () => void;
 }) {
+  const t = useTranslations("team.EligibleRow");
   return (
     <button
       type="button"
@@ -481,7 +487,7 @@ function EligibleRow({
         <Layers className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-        {count} eligible objective{count === 1 ? "" : "s"}{" "}
+        {t("eligibleObjective", { count })}{count === 1 ? "" : t("s")}{" "}
         <span className="font-normal text-muted-foreground">· {hint}</span>
       </span>
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors group-hover:bg-muted group-hover:text-foreground group-focus-visible:ring-2 group-focus-visible:ring-ring">
@@ -498,6 +504,7 @@ function StandaloneCard({
   targetCount: number;
   onChoose: () => void;
 }) {
+  const t = useTranslations("team.StandaloneCard");
   return (
     <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
       <div className="flex items-start gap-4">
@@ -506,11 +513,10 @@ function StandaloneCard({
         </span>
         <div className="min-w-0">
           <h3 className="text-lg font-semibold tracking-tight text-foreground">
-            No upstream objective selected
+            {t("noUpstreamObjectiveSelected")}
           </h3>
           <p className="mt-1 max-w-md text-sm leading-5 text-muted-foreground">
-            The next team objective will be standalone and won&apos;t be aligned
-            to an objective from a team above yours.
+            {t("theNextTeamObjectiveWill")}
           </p>
         </div>
       </div>
@@ -518,10 +524,10 @@ function StandaloneCard({
         <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">
-            Standalone objectives stay in My Team
+            {t("standaloneObjectivesStayInMy")}
           </p>
           <p className="text-xs text-muted-foreground">
-            They appear in Organization Goals once aligned.
+            {t("theyAppearInOrganizationGoals")}
           </p>
         </div>
       </div>
@@ -529,7 +535,7 @@ function StandaloneCard({
         <div className="mt-auto">
           <EligibleRow
             count={targetCount}
-            hint="choose one"
+            hint={t("chooseOne")}
             onClick={onChoose}
           />
         </div>
@@ -585,6 +591,7 @@ function EmptyDirectionCard({
   onChoose: () => void;
   onStandalone: () => void;
 }) {
+  const t = useTranslations("team.EmptyDirectionCard");
   const hasTargets = targetCount > 0;
   return (
     <div className="relative isolate flex flex-col overflow-hidden rounded-surface border border-border bg-card p-4 sm:p-5">
@@ -599,26 +606,26 @@ function EmptyDirectionCard({
         <div className="flex min-w-0 flex-1 flex-col">
           <h3 className="text-xl font-semibold tracking-tight text-foreground">
             {hasTargets
-              ? "No direction selected"
-              : "No published direction yet"}
+              ? t("noDirectionSelected")
+              : t("noPublishedDirectionYet")}
           </h3>
           <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
             {hasTargets
-              ? "Choose one of the eligible objectives for this team, or continue without alignment for a standalone team objective."
-              : "Nothing above your team is published yet. You can still create a standalone team objective."}
+              ? t("chooseOneOfTheEligible")
+              : t("nothingAboveYourTeamIs")}
           </p>
           {/* The chips settle at the bottom edge as the card's height allows. */}
           <div className="mt-auto flex flex-wrap gap-2 pt-4">
             {hasTargets ? (
               <DirectionChip icon={<Target aria-hidden />} onClick={onChoose}>
-                {targetCount} eligible objective{targetCount === 1 ? "" : "s"}
+                {t("eligibleObjective", { targetCount })}{targetCount === 1 ? "" : t("s")}
               </DirectionChip>
             ) : null}
             <DirectionChip
               icon={<Waypoints className="!text-info" aria-hidden />}
               onClick={onStandalone}
             >
-              Standalone allowed
+              {t("standaloneAllowed")}
             </DirectionChip>
           </div>
         </div>
@@ -746,6 +753,7 @@ function TeamObjectives({
   onRecord: (item: TeamObjectiveWorkspaceItemDto) => void;
   currentEmployeeId: string | null;
 }) {
+  const t = useTranslations("team.TeamObjectives");
   const [lifecycle, setLifecycle] = useState<LifecycleFilter>("all");
   const [alignment, setAlignment] = useState<AlignmentFilter>("all");
   const [sort, setSort] = useState<ObjectiveSort>("default");
@@ -760,7 +768,7 @@ function TeamObjectives({
           id="team-objectives-heading"
           className="flex items-baseline gap-2 type-section-title text-foreground"
         >
-          Team objectives
+          {t("teamObjectives")}
           <span className="type-meta tabular-nums text-muted-foreground">
             {items.length}
           </span>
@@ -771,40 +779,40 @@ function TeamObjectives({
               value={lifecycle}
               onValueChange={(value) => setLifecycle(value as LifecycleFilter)}
             >
-              <SelectTrigger aria-label="Filter by lifecycle">
+              <SelectTrigger aria-label={t("filterByLifecycle")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All states</SelectItem>
-                <SelectItem value="Draft">Draft</SelectItem>
-                <SelectItem value="Published">Published</SelectItem>
+                <SelectItem value="all">{t("allStates")}</SelectItem>
+                <SelectItem value="Draft">{t("draft")}</SelectItem>
+                <SelectItem value="Published">{t("published")}</SelectItem>
               </SelectContent>
             </Select>
             <Select
               value={alignment}
               onValueChange={(value) => setAlignment(value as AlignmentFilter)}
             >
-              <SelectTrigger aria-label="Filter by alignment">
+              <SelectTrigger aria-label={t("filterByAlignment")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All alignment</SelectItem>
-                <SelectItem value="aligned">Aligned</SelectItem>
-                <SelectItem value="standalone">Standalone</SelectItem>
+                <SelectItem value="all">{t("allAlignment")}</SelectItem>
+                <SelectItem value="aligned">{t("aligned")}</SelectItem>
+                <SelectItem value="standalone">{t("standalone")}</SelectItem>
               </SelectContent>
             </Select>
             <Select
               value={sort}
               onValueChange={(value) => setSort(value as ObjectiveSort)}
             >
-              <SelectTrigger aria-label="Sort objectives">
+              <SelectTrigger aria-label={t("sortObjectives")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="default">Priority order</SelectItem>
-                <SelectItem value="due">Due date</SelectItem>
-                <SelectItem value="recent">Recently edited</SelectItem>
-                <SelectItem value="title">Title</SelectItem>
+                <SelectItem value="default">{t("priorityOrder")}</SelectItem>
+                <SelectItem value="due">{t("dueDate")}</SelectItem>
+                <SelectItem value="recent">{t("recentlyEdited")}</SelectItem>
+                <SelectItem value="title">{t("title")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -815,7 +823,7 @@ function TeamObjectives({
       ) : visible.length === 0 ? (
         <div className="mt-4 rounded-surface border border-dashed border-border px-6 py-8 text-center">
           <p className="text-sm font-medium text-foreground">
-            No objectives match these filters.
+            {t("noObjectivesMatchTheseFilters")}
           </p>
           <Button
             variant="ghost"
@@ -825,7 +833,7 @@ function TeamObjectives({
               setAlignment("all");
             }}
           >
-            Clear filters
+            {t("clearFilters")}
           </Button>
         </div>
       ) : (
@@ -856,6 +864,7 @@ function TeamObjectivesEmpty({
   canCreate: boolean;
   onCreate: () => void;
 }) {
+  const t = useTranslations("team.TeamObjectivesEmpty");
   return (
     <div className="relative mt-4 overflow-hidden rounded-surface border border-dashed border-border px-6 pb-10 pt-10 text-center">
       {/* Horizon glow behind the emblem. */}
@@ -876,17 +885,17 @@ function TeamObjectivesEmpty({
         />
       </div>
       <h3 className="relative mt-6 text-2xl font-semibold tracking-tight text-foreground">
-        No team objectives yet
+        {t("noTeamObjectivesYet")}
       </h3>
       <p className="relative mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-        Create an objective to define what the team will deliver this cycle.
+        {t("createAnObjectiveToDefine")}
       </p>
       <Button
         onClick={onCreate}
         disabled={!canCreate}
         className="relative mt-6 h-10 px-5 shadow-[0_0_24px_-8px_var(--primary)]"
       >
-        Create your team objective
+        {t("createYourTeamObjective")}
         <ArrowRight className="size-4" data-icon="inline-end" aria-hidden />
       </Button>
     </div>
@@ -936,6 +945,9 @@ function TeamObjectiveRow({
   onViewDirection: (item: TeamObjectiveWorkspaceItemDto) => void;
   onRecord: (item: TeamObjectiveWorkspaceItemDto) => void;
 }) {
+  const format = useFormat();
+  const t = useTranslations("team.TeamObjectiveRow");
+  const lib = useSay("goals.lib");
   const { node } = item;
   const isDraft = node.state === "Draft";
   const aligned = Boolean(item.parent);
@@ -972,7 +984,7 @@ function TeamObjectiveRow({
               {node.title}
             </button>
             <StatusBadge className="shrink-0" tone={STATE_TONE[node.state]} dot>
-              {STATE_LABEL[node.state]}
+              {lib(`state.${node.state}`)}
             </StatusBadge>
           </div>
           {/* Middle band: what it sets out to do beside its facts; title and alignment span above and below. */}
@@ -986,27 +998,27 @@ function TeamObjectiveRow({
             </div>
             {/* Facts, divided: who answers for it, how it is read, how far it is, when it is due. */}
             <div className="flex flex-wrap items-center gap-y-4 lg:flex-nowrap lg:border-s lg:border-border lg:ps-2">
-              <RowFact label="Accountable owner">
+              <RowFact label={t("accountableOwner")}>
                 <span className="inline-flex items-center gap-2.5">
                   <OwnerAvatar
                     id={node.accountablePersonId}
                     name={node.accountablePersonName}
                   />
                   <span className="max-w-32 truncate">
-                    {node.accountablePersonName ?? "No owner"}
+                    {node.accountablePersonName ?? t("noOwner")}
                   </span>
                 </span>
               </RowFact>
-              <RowFact label="Measurement">
+              <RowFact label={t("measurement")}>
                 <span className="inline-flex items-center gap-2">
                   <BarChart3
                     className="size-4 text-muted-foreground"
                     aria-hidden
                   />
-                  {node.measurementSummary || "Not set"}
+                  {node.measurementSummary || t("notSet")}
                 </span>
               </RowFact>
-              <RowFact label="Progress">
+              <RowFact label={t("progress")}>
                 <span className="flex items-center gap-2.5">
                   <span className="tabular-nums">{progress}%</span>
                   <span className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
@@ -1026,13 +1038,13 @@ function TeamObjectiveRow({
                   </span>
                 </span>
               </RowFact>
-              <RowFact label="Due date">
+              <RowFact label={t("dueDate")}>
                 <span className="inline-flex items-center gap-2">
                   <CalendarDays
                     className="size-4 text-muted-foreground"
                     aria-hidden
                   />
-                  {formatDate(node.endDate)}
+                  {format.date(node.endDate)}
                 </span>
               </RowFact>
               <div className="flex items-center ps-4 lg:border-s lg:border-border">
@@ -1041,23 +1053,21 @@ function TeamObjectiveRow({
                     <Button
                       variant="outline"
                       size="icon"
-                      aria-label={`Actions for ${node.title}`}
+                      aria-label={t("actionsFor", { title: node.title })}
                     >
                       <MoreHorizontal className="size-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={() => onInspect(node.id)}>
-                      <Eye className="size-3.5" data-icon="inline-start" /> View
-                      details
+                      <Eye className="size-3.5" data-icon="inline-start" /> {t("viewDetails")}
                     </DropdownMenuItem>
                     {canRecord ? (
                       <DropdownMenuItem onSelect={() => onRecord(item)}>
                         <TrendingUp
                           className="size-3.5"
                           data-icon="inline-start"
-                        />{" "}
-                        Update progress
+                        />{t("updateProgress")}
                       </DropdownMenuItem>
                     ) : null}
                     {isDraft ? (
@@ -1066,8 +1076,7 @@ function TeamObjectiveRow({
                           <Pencil
                             className="size-3.5"
                             data-icon="inline-start"
-                          />{" "}
-                          Edit objective
+                          />{t("editObjective")}
                         </DropdownMenuItem>
                         {node.childCount === 0 ? (
                           <>
@@ -1079,8 +1088,7 @@ function TeamObjectiveRow({
                               <Trash2
                                 className="size-3.5"
                                 data-icon="inline-start"
-                              />{" "}
-                              Delete draft
+                              />{t("deleteDraft")}
                             </DropdownMenuItem>
                           </>
                         ) : null}
@@ -1090,8 +1098,7 @@ function TeamObjectiveRow({
                         <CornerLeftUp
                           className="size-3.5"
                           data-icon="inline-start"
-                        />{" "}
-                        View direction
+                        />{t("viewDirection")}
                       </DropdownMenuItem>
                     ) : null}
                   </DropdownMenuContent>
@@ -1104,7 +1111,7 @@ function TeamObjectiveRow({
               <>
                 <Link2 className="size-4 shrink-0 text-primary-ink" aria-hidden />
                 <span className="shrink-0 text-muted-foreground">
-                  Aligned to
+                  {t("alignedTo")}
                 </span>
                 <button
                   type="button"
@@ -1117,7 +1124,7 @@ function TeamObjectiveRow({
             ) : (
               <span className="inline-flex items-center gap-2 font-medium text-info">
                 <Waypoints className="size-4 shrink-0" aria-hidden />
-                Standalone team objective
+                {t("standaloneTeamObjective")}
               </span>
             )}
           </div>

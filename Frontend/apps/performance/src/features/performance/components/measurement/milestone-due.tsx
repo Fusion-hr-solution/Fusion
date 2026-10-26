@@ -1,5 +1,6 @@
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "@repo/ds/lib/dates";
+import { useTranslations } from "next-intl";
 
 type DatedMilestone = { dueDate: string | null; isCompleted: boolean };
 
@@ -36,6 +37,7 @@ export function milestoneSchedule(milestones: DatedMilestone[]) {
  * when it has passed without completion. Nothing renders for an undated milestone.
  */
 export function MilestoneDue({ milestone, className }: { milestone: DatedMilestone; className?: string }) {
+  const t = useTranslations("progress.MilestoneDue");
   if (!milestone.dueDate) return null;
   const overdue = isMilestoneOverdue(milestone);
   return (
@@ -47,7 +49,7 @@ export function MilestoneDue({ milestone, className }: { milestone: DatedMilesto
         className
       )}
     >
-      {overdue ? "Overdue · " : "Due "}
+      {overdue ? t("overdue") + " " : t("due") + " "}
       {formatMilestoneDue(milestone.dueDate)}
     </time>
   );

@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import { initials } from "./population-model";
+import { useTranslations } from "next-intl";
 
 /**
  * The exception picker: layer specific people onto the base scope. It searches the tenant workforce,
@@ -43,6 +44,7 @@ export function AddInclusionSheet({
   scopeMembers: Map<string, string | null>;
   onAddMany: (employeeIds: string[]) => Promise<void>;
 }) {
+  const t = useTranslations("cycleSetup.AddInclusionSheet");
   const [term, setTerm] = useState("");
   const [tray, setTray] = useState<WorkforceEmployeeSummaryDto[]>([]);
   const [committing, setCommitting] = useState(false);
@@ -83,7 +85,7 @@ export function AddInclusionSheet({
       await onAddMany(tray.map((person) => person.employeeId));
       onOpenChange(false);
     } catch (error) {
-      reportPerformanceFailure(error, "Could not add the employees.");
+      reportPerformanceFailure(error, t("couldNotAddTheEmployees"));
     } finally {
       setCommitting(false);
     }
@@ -96,9 +98,9 @@ export function AddInclusionSheet({
         className="flex w-full flex-col gap-0 p-0 sm:max-w-xl"
       >
         <SheetHeader className="border-b border-border px-6 py-5">
-          <SheetTitle>Add specific employees</SheetTitle>
+          <SheetTitle>{t("addSpecificEmployees")}</SheetTitle>
           <SheetDescription>
-            Add employees outside the selected organization scope.
+            {t("addEmployeesOutsideTheSelected")}
           </SheetDescription>
         </SheetHeader>
 
@@ -111,7 +113,7 @@ export function AddInclusionSheet({
             <Input
               value={term}
               onChange={(event) => setTerm(event.target.value)}
-              placeholder="Search by name, email, or ID"
+              placeholder={t("searchByNameEmailOr")}
               className="ps-9"
               autoFocus
             />
@@ -130,8 +132,8 @@ export function AddInclusionSheet({
               <UserPlus className="size-6 text-muted-foreground" aria-hidden />
               <p className="type-body-secondary text-muted-foreground">
                 {term.trim().length >= 2
-                  ? "No one matches that search."
-                  : "Search for people to add."}
+                  ? t("noOneMatchesThatSearch")
+                  : t("searchForPeopleToAdd")}
               </p>
             </div>
           ) : (
@@ -157,7 +159,7 @@ export function AddInclusionSheet({
         {tray.length > 0 ? (
           <div className="border-t border-border px-6 py-3">
             <div className="flex items-center justify-between">
-              <p className="type-label text-foreground">Selected employees</p>
+              <p className="type-label text-foreground">{t("selectedEmployees")}</p>
               <span className="flex size-5 items-center justify-center rounded-full bg-primary-tint type-meta font-semibold tabular-nums text-primary-ink">
                 {tray.length}
               </span>
@@ -175,7 +177,7 @@ export function AddInclusionSheet({
                     type="button"
                     onClick={() => remove(person.employeeId)}
                     className="flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label={`Remove ${person.displayName}`}
+                    aria-label={t("remove", { displayName: person.displayName })}
                   >
                     <X className="size-3" />
                   </button>
@@ -187,7 +189,7 @@ export function AddInclusionSheet({
 
         <div className="flex items-center justify-between gap-4 border-t border-border px-6 py-4">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
           <AsyncButton
             pending={committing}
@@ -195,8 +197,8 @@ export function AddInclusionSheet({
             onClick={commit}
           >
             {tray.length === 0
-              ? "Add employees"
-              : `Add ${tray.length} ${tray.length === 1 ? "employee" : "employees"}`}
+              ? t("addEmployees")
+              : (tray.length === 1 ? t("addEmployee", { length: tray.length }) : t("addEmployees2", { length: tray.length }))}
           </AsyncButton>
         </div>
       </SheetContent>
@@ -205,12 +207,12 @@ export function AddInclusionSheet({
 }
 
 /** Whether the person's current Core data would resolve a valid reviewer, for an at-a-glance preview. */
-function issuePreview(person: WorkforceEmployeeSummaryDto): string | null {
-  if (!person.orgUnit) return "No primary assignment";
+function issuePreview(person: WorkforceEmployeeSummaryDto): "noPrimaryAssignment" | "noEligibleReviewer" | null {
+  if (!person.orgUnit) return "noPrimaryAssignment";
   const manager = person.manager;
   const selfManaged = manager?.employeeId === person.employeeId;
   if (!manager || !manager.isActive || selfManaged)
-    return "No eligible reviewer";
+    return "noEligibleReviewer";
   return null;
 }
 
@@ -227,6 +229,7 @@ function ResultRow({
   scopeUnit: { name: string | null } | null;
   onToggle: () => void;
 }) {
+  const t = useTranslations("cycleSetup.ResultRow");
   const disabled = alreadyIncluded || scopeUnit !== null;
   const issue = issuePreview(person);
 
@@ -249,17 +252,17 @@ function ResultRow({
         {disabled ? (
           <p className="type-meta text-muted-foreground">
             {alreadyIncluded
-              ? "Already added individually"
-              : `Already included through ${scopeUnit?.name ?? "the selected scope"}`}
+              ? t("alreadyAddedIndividually")
+              : t("alreadyIncludedThrough", { value: scopeUnit?.name ?? "the selected scope" })}
           </p>
         ) : issue ? (
           <p className="mt-0.5 flex items-center gap-1 type-meta text-muted-foreground">
             <TriangleAlert className="size-3" aria-hidden />
-            May need attention after adding: {issue.toLowerCase()}
+            {t("mayNeedAttentionAfterAdding", { issue: t(issue) })}
           </p>
         ) : person.manager ? (
           <p className="type-meta text-muted-foreground">
-            Reviewer: {person.manager.displayName}
+            {t("reviewer", { displayName: person.manager.displayName })}
           </p>
         ) : null}
       </div>
@@ -292,12 +295,12 @@ function ResultRow({
         {selected ? (
           <span className="flex shrink-0 items-center gap-1 rounded-control bg-primary px-2 py-1 type-meta font-medium text-primary-foreground">
             <Check className="size-3.5" aria-hidden />
-            Selected
+            {t("selected")}
           </span>
         ) : (
           <span className="flex shrink-0 items-center gap-1 rounded-control border border-border px-2 py-1 type-meta font-medium text-foreground">
             <Plus className="size-3.5" aria-hidden />
-            Add
+            {t("add")}
           </span>
         )}
       </button>

@@ -14,22 +14,27 @@ import { useSelectedCycleId } from "../../api/use-workspace";
 import { useDownloadReviewPdf, useReviewsWorkspace } from "../../api/use-review-work";
 import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
-import { formatDate, formatDateRange } from "../../lib";
+import { formatDate } from "../../lib";
 import { calibrationHref, newReviewRoundHref, peerRequestHref, reviewHref, roundHref, withCycle } from "@/lib/performance-routes";
 import { CountTile, DueChip, SectionHeading, StageTrack, dayLabel, dueIn, type Step } from "./review-parts";
 import { PeerListDrawer } from "./peer-list-drawer";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
+import type { Say } from "@/i18n/say";
 
 /**
  * Reviews (boards 01–03, 18): one landing composed from what the viewer holds. The person's own review leads for someone
  * who only has their own; a reviewer's ready review leads their page; a round administrator's running round leads theirs.
  */
 export function ReviewsWorkspace() {
+  const t = useTranslations("reviews.ReviewsWorkspace");
   const cycleId = useSelectedCycleId();
   const query = useReviewsWorkspace(cycleId);
   const params = useSearchParams();
   const router = useRouter();
   const peers = params.get("peers");
-  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject="Reviews" />;
+  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject={t("reviews")} />;
   if (!query.data) return <WorkspaceSkeleton />;
   const close = () => {
     const next = new URLSearchParams(params.toString());
@@ -45,6 +50,9 @@ export function ReviewsWorkspace() {
 }
 
 function Workspace({ data }: { data: ReviewsWorkspaceDto }) {
+  const t = useTranslations("reviews.Workspace");
+  const headlineWords = useSay("reviews.headline");
+  const format = useFormat();
   const running = data.rounds.find((round) => round.state === "Active") ?? null;
   const ready = data.toWrite.filter((row) => row.nextAction === "WriteReview");
   const lead: "round" | "ready" | "own" | "firstRound" | null = data.canAdminister
@@ -56,11 +64,11 @@ function Workspace({ data }: { data: ReviewsWorkspaceDto }) {
   return (
     <PageContainer width="wide">
       <PerformancePageHeading
-        title="Reviews"
+        title={t("reviews")}
         size="display"
-        description={headline(data, running)}
+        description={headline(data, running, headlineWords, format.locale)}
         actions={data.canAdminister ? (
-          <Button variant="outline" asChild><Link href={withCycle(newReviewRoundHref(), data.cycleId)}><Plus className="size-4" aria-hidden />New round</Link></Button>
+          <Button variant="outline" asChild><Link href={withCycle(newReviewRoundHref(), data.cycleId)}><Plus className="size-4" aria-hidden />{t("newRound")}</Link></Button>
         ) : writes ? <YourReviewsCount rows={data.toWrite} /> : null}
       />
 
@@ -72,11 +80,11 @@ function Workspace({ data }: { data: ReviewsWorkspaceDto }) {
         {ownIsLead && data.own ? <OwnReviewCard own={data.own} cycleName={data.cycleName} cycleId={data.cycleId} /> : null}
         {!data.own && data.notIncluded ? <NotIncluded data={data} /> : null}
         {!data.own && !data.notIncluded && !writes && !data.canAdminister && data.askedOfYou.length === 0 ? (
-          <p className="type-body-secondary text-muted-foreground">No review yet in {data.cycleName ?? "this cycle"}.</p>
+          <p className="type-body-secondary text-muted-foreground">{t("noReviewYetIn")} {data.cycleName ?? t("thisCycle")}.</p>
         ) : null}
         {ownIsLead && data.own && data.own.state !== "Finalized" && data.year ? <YearFacts data={data} /> : null}
 
-        {writes ? <TeamTable rows={data.toWrite} cycleId={data.cycleId} title={data.canAdminister ? "Reviews you write" : "Your team"} /> : null}
+        {writes ? <TeamTable rows={data.toWrite} cycleId={data.cycleId} title={data.canAdminister ? t("reviewsYouWrite") : t("yourTeam")} /> : null}
         {data.canAdminister && data.rounds.length > 0 ? <RoundList rounds={data.rounds} cycleId={data.cycleId} cycleName={data.cycleName} /> : null}
 
         <BottomRow data={data} ownIsLead={ownIsLead} />
@@ -85,23 +93,25 @@ function Workspace({ data }: { data: ReviewsWorkspaceDto }) {
   );
 }
 
-function headline(data: ReviewsWorkspaceDto, running: ReviewsWorkspaceRoundDto | null): string | undefined {
+function headline(data: ReviewsWorkspaceDto, running: ReviewsWorkspaceRoundDto | null, say: Say, locale: string): string | undefined {
   if (data.canAdminister) {
     const count = data.rounds.filter((r) => r.state === "Active").length;
-    return `${data.cycleName ?? ""}${count ? ` · ${count} round running` : ""}`.trim() || undefined;
+    return (count ? say("running", { count, cycle: data.cycleName ?? "" }) : data.cycleName ?? "").trim() || undefined;
   }
   const lists = data.peerLists.length;
   if (data.toWrite.length > 0) {
     const round = data.toWrite[0]!.roundName;
-    return `${round}${lists ? ` · ${lists} peer ${lists === 1 ? "list" : "lists"} to approve` : ""}`;
+    return lists ? say("lists", { count: lists, round }) : round;
   }
   if (data.own && data.own.state === "SelfAssessment" && data.own.selfAssessmentEnabled)
-    return `${data.own.roundName} · your self-assessment is due ${dayLabel(data.own.selfAssessmentDue)}`;
+    return say("selfDue", { round: data.own.roundName, day: dayLabel(data.own.selfAssessmentDue, locale) });
   if (data.own) return data.own.roundName;
   return running?.name;
 }
 
 function YourReviewsCount({ rows }: { rows: ReviewsWorkspaceTeamRowDto[] }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.YourReviewsCount");
   const done = rows.filter((r) => r.reviewStep === "Submitted" || r.reviewStep === "Released").length;
   const ready = rows.filter((r) => r.nextAction === "WriteReview").length;
   const due = rows.find((r) => r.state === "ManagerAssessment" || r.state === "SelfAssessment")?.dueDate ?? null;
@@ -109,8 +119,8 @@ function YourReviewsCount({ rows }: { rows: ReviewsWorkspaceTeamRowDto[] }) {
     <div className="flex items-center gap-3">
       <span className="flex size-12 items-center justify-center rounded-full bg-card type-label tabular-nums text-foreground">{done}/{rows.length}</span>
       <div>
-        <p className="type-label text-foreground">Your reviews</p>
-        <p className="type-meta text-muted-foreground">{[due ? `Due ${dayLabel(due)}` : null, ready ? `${ready} ready now` : null].filter(Boolean).join(" · ")}</p>
+        <p className="type-label text-foreground">{t("yourReviews")}</p>
+        <p className="type-meta text-muted-foreground">{[due ? t("due", { due: dayLabel(due, format.locale) }) : null, ready ? t("readyNow", { ready }) : null].filter(Boolean).join(" · ")}</p>
       </div>
     </div>
   );
@@ -131,24 +141,27 @@ function ownSteps(own: ReviewsWorkspaceOwnDto, reviewer: string): Step[] {
 }
 
 function OwnReviewCard({ own, cycleName, cycleId }: { own: ReviewsWorkspaceOwnDto; cycleName: string | null; cycleId: string | null }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.OwnReviewCard");
+  const parts = useSay("reviews.parts");
   const writing = own.state === "SelfAssessment" && own.selfAssessmentEnabled;
   const released = own.state === "Finalized";
-  const title = released ? (own.finalRatingLabel ?? "Your result is released")
-    : writing ? `Self-assessment · ${dueIn(own.selfAssessmentDue)}`
-    : `${firstName(own.reviewerName)} is writing your review`;
-  const action = released ? (own.acknowledgedAt ? "Read your review" : "Read and acknowledge")
-    : writing ? (own.sections.objectivesDone + own.sections.competenciesDone + own.sections.questionsDone > 0 ? "Continue self-assessment" : "Start self-assessment")
-    : "Open your review";
+  const title = released ? (own.finalRatingLabel ?? t("yourResultIsReleased"))
+    : writing ? t("selfAssessment", { selfAssessmentDue: dueIn(own.selfAssessmentDue, parts) })
+    : t("isWritingYourReview", { reviewerName: firstName(own.reviewerName) });
+  const action = released ? (own.acknowledgedAt ? t("readYourReview") : t("readAndAcknowledge"))
+    : writing ? (own.sections.objectivesDone + own.sections.competenciesDone + own.sections.questionsDone > 0 ? t("continueSelfAssessment") : t("startSelfAssessment"))
+    : t("openYourReview");
   // Amber is the one decision (start, continue, acknowledge); a read-only review keeps a quiet button.
   const decision = writing || (released && !own.acknowledgedAt);
   return (
-    <section aria-label="Your review" className="rounded-surface bg-card p-6">
+    <section aria-label={t("yourReview")} className="rounded-surface bg-card p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="type-meta text-muted-foreground">Your {own.roundName.toLowerCase()}{cycleName ? ` · ${cycleName}` : ""}</p>
+          <p className="type-meta text-muted-foreground">{t("your", { toLowerCase: own.roundName.toLowerCase() })}{cycleName ? ` · ${cycleName}` : ""}</p>
           <h2 className="mt-1.5 type-page-title text-foreground">{title}</h2>
           <p className="mt-1 type-meta text-muted-foreground">
-            {own.reviewerName} reviews you · covers {formatDateRange(own.periodStart, own.periodEnd)}
+            {t("reviewsYouCovers", { reviewerName: own.reviewerName, periodStart: format.range(own.periodStart, own.periodEnd) })}
           </p>
         </div>
         <Button asChild variant={decision ? "default" : "outline"}>
@@ -158,25 +171,25 @@ function OwnReviewCard({ own, cycleName, cycleId }: { own: ReviewsWorkspaceOwnDt
       {released ? (
         // The process is over: the result leads and the stages recede to one line.
         <p className="mt-4 type-meta text-muted-foreground">
-          Released {formatDate(own.finalizedAt?.slice(0, 10))}{own.acknowledgedAt ? ` · you acknowledged it ${formatDate(own.acknowledgedAt.slice(0, 10))}` : ""}
+          {t("released", { formatDate: format.date(own.finalizedAt?.slice(0, 10)) })}{own.acknowledgedAt ? " " + t("youAcknowledgedIt", { formatDate: format.date(own.acknowledgedAt.slice(0, 10)) }) : ""}
         </p>
       ) : (
-        <StageTrack className="mt-6" label="Your review's stages" steps={ownSteps(own, own.reviewerName)} />
+        <StageTrack className="mt-6" label={t("yourReviewsStages")} steps={ownSteps(own, own.reviewerName)} />
       )}
       {writing ? (
         <div className="mt-6 grid gap-3 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-4">
-          <SectionTile label="Objectives" done={own.sections.objectivesDone} total={own.sections.objectives} />
-          <SectionTile label="Competencies" done={own.sections.competenciesDone} total={own.sections.competencies} />
-          <SectionTile label="Questions" done={own.sections.questionsDone} total={own.sections.questions} />
+          <SectionTile label={t("objectives")} done={own.sections.objectivesDone} total={own.sections.objectives} />
+          <SectionTile label={t("competencies")} done={own.sections.competenciesDone} total={own.sections.competencies} />
+          <SectionTile label={t("questions")} done={own.sections.questionsDone} total={own.sections.questions} />
           {own.peers ? (
             <div className="rounded-surface bg-card p-4">
-              <p className="type-meta text-muted-foreground">Peers asked</p>
+              <p className="type-meta text-muted-foreground">{t("peersAsked")}</p>
               {own.peers.asked.length ? (
                 <>
                   <p className="mt-2 flex items-center gap-2"><AvatarStack names={own.peers.asked} size="xs" /><span className="type-label tabular-nums">{own.peers.asked.length}</span></p>
-                  <p className="mt-1.5 type-meta text-muted-foreground">{own.peers.approved ? `Approved by ${firstName(own.reviewerName)} · ${dayLabel(own.peers.approvedAt?.slice(0, 10))}` : "Waiting for approval"}</p>
+                  <p className="mt-1.5 type-meta text-muted-foreground">{own.peers.approved ? t("approvedBy", { reviewerName: firstName(own.reviewerName), dayLabel: dayLabel(own.peers.approvedAt?.slice(0, 10), format.locale) }) : t("waitingForApproval")}</p>
                 </>
-              ) : <p className="mt-2 type-meta text-muted-foreground">Choose 1 to 5 colleagues</p>}
+              ) : <p className="mt-2 type-meta text-muted-foreground">{t("choose1To5Colleagues")}</p>}
             </div>
           ) : null}
         </div>
@@ -186,11 +199,12 @@ function OwnReviewCard({ own, cycleName, cycleId }: { own: ReviewsWorkspaceOwnDt
 }
 
 function SectionTile({ label, done, total }: { label: string; done: number; total: number }) {
+  const t = useTranslations("reviews.SectionTile");
   if (total === 0) return null;
   return (
     <div className="rounded-surface bg-card p-4">
       <p className="type-meta text-muted-foreground">{label}</p>
-      <p className="mt-2"><span className="type-label tabular-nums text-foreground">{done}</span> <span className="type-meta text-muted-foreground">of {total}</span></p>
+      <p className="mt-2"><span className="type-label tabular-nums text-foreground">{done}</span> <span className="type-meta text-muted-foreground">{t("of", { total })}</span></p>
       <div className="mt-2.5 flex gap-1" aria-hidden>
         {Array.from({ length: total }, (_, i) => <span key={i} className={cn("h-1 flex-1 rounded-full", i < done ? "bg-success" : "bg-inlay")} />)}
       </div>
@@ -200,16 +214,17 @@ function SectionTile({ label, done, total }: { label: string; done: number; tota
 
 /** What the review will draw on, as one line of figures beside the person's own review (no tiles, no icons). */
 function YearFacts({ data }: { data: ReviewsWorkspaceDto }) {
+  const t = useTranslations("reviews.YearFacts");
   const year = data.year!;
   const facts = [
-    { value: year.planProgress === null ? "–" : `${Math.round(year.planProgress)}%`, label: `plan progress · ${year.objectives} ${year.objectives === 1 ? "objective" : "objectives"}` },
-    { value: String(year.feedback), label: "feedback received" },
+    { value: year.planProgress === null ? "–" : `${Math.round(year.planProgress)}%`, label: (year.objectives === 1 ? t("planProgressObjective", { objectives: year.objectives }) : t("planProgressObjectives", { objectives: year.objectives })) },
+    { value: String(year.feedback), label: t("feedbackReceived") },
     { value: String(year.praise), label: "praise" },
-    { value: String(year.oneOnOnes), label: "1:1s held" },
+    { value: String(year.oneOnOnes), label: t("n11sHeld") },
   ];
   return (
     <section aria-labelledby="year-heading">
-      <SectionHeading id="year-heading" title="Your year, already in the review" />
+      <SectionHeading id="year-heading" title={t("yourYearAlreadyInThe")} />
       <dl className="flex flex-wrap gap-x-10 gap-y-3">
         {facts.map((fact) => (
           <div key={fact.label} className="flex items-baseline gap-2">
@@ -224,10 +239,11 @@ function YearFacts({ data }: { data: ReviewsWorkspaceDto }) {
 }
 
 function NotIncluded({ data }: { data: ReviewsWorkspaceDto }) {
+  const t = useTranslations("reviews.NotIncluded");
   const excluded = data.notIncluded!;
   return (
     <section className="rounded-surface bg-card p-6">
-      <h2 className="type-panel-title text-foreground">You&apos;re not in the {excluded.roundName}</h2>
+      <h2 className="type-panel-title text-foreground">{t("youreNotInThe", { roundName: excluded.roundName })}</h2>
       {excluded.reason ? <p className="mt-1 type-body-secondary text-muted-foreground">{excluded.reason}</p> : null}
     </section>
   );
@@ -236,28 +252,30 @@ function NotIncluded({ data }: { data: ReviewsWorkspaceDto }) {
 // ── Reviewer (board 02) ───────────────────────────────────────────────────────────
 
 function ReadyForYou({ row, cycleId }: { row: ReviewsWorkspaceTeamRowDto; cycleId: string | null }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.ReadyForYou");
   return (
-    <section aria-label="Ready for you" className="rounded-surface border border-primary/40 bg-primary-tint p-6">
+    <section aria-label={t("readyForYou")} className="rounded-surface border border-primary/40 bg-primary-tint p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
           <PersonInitials name={row.subjectDisplayName} size="xl" />
           <div className="min-w-0">
-            <p className="type-meta text-primary">Ready for you</p>
+            <p className="type-meta text-primary">{t("readyForYou")}</p>
             <h2 className="mt-1 type-page-title text-foreground">{row.subjectDisplayName}</h2>
             <p className="mt-0.5 type-meta text-muted-foreground">
-              {[row.jobTitle, row.selfSubmittedAt ? `self-assessment in since ${dayLabel(row.selfSubmittedAt.slice(0, 10))}` : null].filter(Boolean).join(" · ")}
+              {[row.jobTitle, row.selfSubmittedAt ? `self-assessment in since ${dayLabel(row.selfSubmittedAt.slice(0, 10), format.locale)}` : null].filter(Boolean).join(" · ")}
             </p>
           </div>
         </div>
-        <Button asChild><Link href={withCycle(reviewHref(row.reviewId), cycleId)}><Pencil className="size-4" aria-hidden />Write review</Link></Button>
+        <Button asChild><Link href={withCycle(reviewHref(row.reviewId), cycleId)}><Pencil className="size-4" aria-hidden />{t("writeReview")}</Link></Button>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <FactTile label={`${pronounView(row)} view`}>{row.selfOverallLabel ? <><strong className="font-semibold">{row.selfOverallLabel}</strong> overall</> : "No self-assessment"}</FactTile>
-        <FactTile label="Peers">
-          {row.peerTotal ? <span className="flex items-center gap-2"><AvatarStack names={row.peerNames} size="xs" /><strong className="font-semibold tabular-nums">{row.peerAnswered} of {row.peerTotal}</strong></span> : "None asked"}
+        <FactTile label={t("view", { row: pronounView(row) })}>{row.selfOverallLabel ? <><strong className="font-semibold">{row.selfOverallLabel}</strong> {t("overall")}</> : t("noSelfAssessment")}</FactTile>
+        <FactTile label={t("peers")}>
+          {row.peerTotal ? <span className="flex items-center gap-2"><AvatarStack names={row.peerNames} size="xs" /><strong className="font-semibold tabular-nums">{t("of", { peerAnswered: row.peerAnswered, peerTotal: row.peerTotal })}</strong></span> : t("noneAsked")}
         </FactTile>
-        <FactTile label="Plan">{row.planProgress === null ? "No progress yet" : <><strong className="font-semibold">{Math.round(row.planProgress)}%</strong>{row.atRisk ? ` · ${row.atRisk} at risk` : ""}</>}</FactTile>
-        <FactTile label="Their year"><strong className="font-semibold">{row.feedback}</strong> feedback · <strong className="font-semibold">{row.praise}</strong> praise</FactTile>
+        <FactTile label={t("plan")}>{row.planProgress === null ? t("noProgressYet") : <><strong className="font-semibold">{Math.round(row.planProgress)}%</strong>{row.atRisk ? " " + t("atRisk", { atRisk: row.atRisk }) : ""}</>}</FactTile>
+        <FactTile label={t("theirYear")}><strong className="font-semibold">{row.feedback}</strong> {t("feedback")} <strong className="font-semibold">{row.praise}</strong> {t("praise")}</FactTile>
       </div>
     </section>
   );
@@ -277,6 +295,7 @@ function FactTile({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function TeamTable({ rows, cycleId, title }: { rows: ReviewsWorkspaceTeamRowDto[]; cycleId: string | null; title: string }) {
+  const t = useTranslations("reviews.TeamTable");
   return (
     <section aria-labelledby="team-heading">
       <SectionHeading id="team-heading" title={title} count={rows.length} />
@@ -284,12 +303,12 @@ function TeamTable({ rows, cycleId, title }: { rows: ReviewsWorkspaceTeamRowDto[
         <table className="w-full min-w-[56rem] text-start">
           <thead className="bg-inlay">
             <tr className="type-meta text-muted-foreground">
-              <th scope="col" className="px-5 py-3 font-semibold">Person</th>
-              <th scope="col" className="px-3 py-3 font-semibold">Peers</th>
-              <th scope="col" className="px-3 py-3 font-semibold">Self-assessment</th>
-              <th scope="col" className="px-3 py-3 font-semibold">Peer input</th>
-              <th scope="col" className="px-3 py-3 font-semibold">Your review</th>
-              <th scope="col" className="px-5 py-3"><span className="sr-only">Action</span></th>
+              <th scope="col" className="px-5 py-3 font-semibold">{t("person")}</th>
+              <th scope="col" className="px-3 py-3 font-semibold">{t("peers")}</th>
+              <th scope="col" className="px-3 py-3 font-semibold">{t("selfAssessment")}</th>
+              <th scope="col" className="px-3 py-3 font-semibold">{t("peerInput")}</th>
+              <th scope="col" className="px-3 py-3 font-semibold">{t("yourReview")}</th>
+              <th scope="col" className="px-5 py-3"><span className="sr-only">{t("action")}</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -315,6 +334,9 @@ function StepCell({ state, children }: { state: "done" | "current" | "todo" | "l
 }
 
 function TeamRow({ row, cycleId, primary }: { row: ReviewsWorkspaceTeamRowDto; cycleId: string | null; primary: boolean }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.TeamRow");
+  const parts = useSay("reviews.parts");
   const href = withCycle(reviewHref(row.reviewId), cycleId);
   const name = firstName(row.subjectDisplayName);
   const late = row.daysLate > 0;
@@ -330,30 +352,30 @@ function TeamRow({ row, cycleId, primary }: { row: ReviewsWorkspaceTeamRowDto; c
         </div>
       </td>
       <td className="px-3 py-3.5">
-        {row.peerStep === "Off" ? <span className="type-meta text-muted-foreground">Not asked</span>
-          : row.peerStep === "Approved" ? <StepCell state="done">{row.peerCount} approved</StepCell>
-          : row.peerStep === "ToApprove" ? <StepCell state="current"><span className="font-medium text-primary">{row.peerCount} to approve</span></StepCell>
-          : <StepCell state="todo"><span className="text-muted-foreground">Not chosen yet</span></StepCell>}
+        {row.peerStep === "Off" ? <span className="type-meta text-muted-foreground">{t("notAsked")}</span>
+          : row.peerStep === "Approved" ? <StepCell state="done">{t("approved", { peerCount: row.peerCount })}</StepCell>
+          : row.peerStep === "ToApprove" ? <StepCell state="current"><span className="font-medium text-primary">{t("toApprove", { peerCount: row.peerCount })}</span></StepCell>
+          : <StepCell state="todo"><span className="text-muted-foreground">{t("notChosenYet")}</span></StepCell>}
       </td>
       <td className="px-3 py-3.5">
-        {row.selfStep === "Off" ? <span className="type-meta text-muted-foreground">Not asked</span>
-          : row.selfStep === "Submitted" ? <StepCell state="done">Submitted<p className="type-meta text-muted-foreground">{dayLabel(row.selfSubmittedAt?.slice(0, 10))}</p></StepCell>
+        {row.selfStep === "Off" ? <span className="type-meta text-muted-foreground">{t("notAsked")}</span>
+          : row.selfStep === "Submitted" ? <StepCell state="done">{t("submitted")}<p className="type-meta text-muted-foreground">{dayLabel(row.selfSubmittedAt?.slice(0, 10), format.locale)}</p></StepCell>
           : <StepCell state={late && row.state === "SelfAssessment" ? "late" : row.selfStep === "Writing" ? "current" : "todo"}>
-              <span className={cn(row.selfStep === "NotStarted" && "text-primary")}>{row.selfStep === "Writing" ? "Writing" : "Not started"}</span>
-              <p className="type-meta text-muted-foreground">{late && row.state === "SelfAssessment" ? dueIn(row.dueDate) : `Due ${dayLabel(row.dueDate)}`}</p>
+              <span className={cn(row.selfStep === "NotStarted" && "text-primary")}>{row.selfStep === "Writing" ? t("writing") : t("notStarted")}</span>
+              <p className="type-meta text-muted-foreground">{late && row.state === "SelfAssessment" ? dueIn(row.dueDate, parts) : t("due", { dueDate: dayLabel(row.dueDate, format.locale) })}</p>
             </StepCell>}
       </td>
       <td className="px-3 py-3.5">
         {row.peerStep === "Off" ? <span className="type-meta text-muted-foreground">–</span>
-          : row.peerTotal === 0 ? <span className="type-body-secondary text-muted-foreground">{row.peerStep === "ToApprove" ? "After your approval" : "–"}</span>
+          : row.peerTotal === 0 ? <span className="type-body-secondary text-muted-foreground">{row.peerStep === "ToApprove" ? t("afterYourApproval") : "–"}</span>
           : <StepCell state={row.peerAnswered + row.peerDeclined === row.peerTotal ? "done" : "current"}>
-              <span className="tabular-nums">{row.peerAnswered} of {row.peerTotal}</span>
-              {row.peerDeclined ? <p className="type-meta text-muted-foreground">{row.peerDeclined} declined</p> : null}
+              <span className="tabular-nums">{t("of", { peerAnswered: row.peerAnswered, peerTotal: row.peerTotal })}</span>
+              {row.peerDeclined ? <p className="type-meta text-muted-foreground">{t("declined", { peerDeclined: row.peerDeclined })}</p> : null}
             </StepCell>}
       </td>
       <td className="px-3 py-3.5">
         {row.state === "Calibration" ? (
-          <StepCell state="current">In calibration<p className="type-meta text-muted-foreground">You rated {row.managerRating ?? "–"}</p></StepCell>
+          <StepCell state="current">{t("inCalibration")}<p className="type-meta text-muted-foreground">{t("youRated", { value: row.managerRating ?? "–" })}</p></StepCell>
         ) : row.state === "ReadyToFinalize" && row.finalRating !== null ? (
           <StepCell state="done">
             {row.calibrationChanged ? (
@@ -361,23 +383,23 @@ function TeamRow({ row, cycleId, primary }: { row: ReviewsWorkspaceTeamRowDto; c
                 <span className="tabular-nums text-muted-foreground line-through">{row.managerRating}</span>
                 <ArrowRight className="size-3.5" aria-hidden /><span className="tabular-nums">{row.finalRating}</span>
               </span>
-            ) : <span className="tabular-nums">Final {row.finalRating}</span>}
-            <p className="type-meta text-muted-foreground">{row.calibrationChanged ? "Changed in calibration" : "Calibrated"}</p>
+            ) : <span className="tabular-nums">{t("final", { finalRating: row.finalRating })}</span>}
+            <p className="type-meta text-muted-foreground">{row.calibrationChanged ? t("changedInCalibration") : t("calibrated")}</p>
           </StepCell>
-        ) : row.reviewStep === "Waiting" ? <span className="type-body-secondary text-muted-foreground">After {name}</span>
-          : row.reviewStep === "ReadyToWrite" || row.reviewStep === "Writing" ? <StepCell state={late ? "late" : "current"}><span className="font-medium text-primary">{row.reviewStep === "Writing" ? "Writing" : "Ready to write"}</span>{late ? <p className="type-meta text-destructive">{dueIn(row.dueDate)}</p> : null}</StepCell>
-          : row.reviewStep === "Closed" ? <span className="type-body-secondary text-muted-foreground">Closed</span>
-          : <StepCell state="done">{row.reviewStep === "Released" ? "Released" : "Submitted"}</StepCell>}
+        ) : row.reviewStep === "Waiting" ? <span className="type-body-secondary text-muted-foreground">{t("after", { name })}</span>
+          : row.reviewStep === "ReadyToWrite" || row.reviewStep === "Writing" ? <StepCell state={late ? "late" : "current"}><span className="font-medium text-primary">{row.reviewStep === "Writing" ? t("writing") : t("readyToWrite")}</span>{late ? <p className="type-meta text-destructive">{dueIn(row.dueDate, parts)}</p> : null}</StepCell>
+          : row.reviewStep === "Closed" ? <span className="type-body-secondary text-muted-foreground">{t("closed")}</span>
+          : <StepCell state="done">{row.reviewStep === "Released" ? t("released") : t("submitted")}</StepCell>}
       </td>
       <td className="px-5 py-3.5 text-end">
         {row.summaryToCheck ? (
-          <Button size="sm" asChild><Link href={href}>Check summary</Link></Button>
+          <Button size="sm" asChild><Link href={href}>{t("checkSummary")}</Link></Button>
         ) : row.nextAction === "WriteReview" ? (
-          <Button size="sm" variant={primary ? "default" : "outline"} asChild><Link href={href}>Write review</Link></Button>
+          <Button size="sm" variant={primary ? "default" : "outline"} asChild><Link href={href}>{t("writeReview")}</Link></Button>
         ) : row.nextAction === "ApprovePeers" ? (
-          <Button size="sm" variant="outline" asChild><Link href={`/reviews?${new URLSearchParams({ ...(cycleId ? { cycle: cycleId } : {}), peers: row.reviewId }).toString()}`} scroll={false}>Review list</Link></Button>
+          <Button size="sm" variant="outline" asChild><Link href={`/reviews?${new URLSearchParams({ ...(cycleId ? { cycle: cycleId } : {}), peers: row.reviewId }).toString()}`} scroll={false}>{t("reviewList")}</Link></Button>
         ) : (
-          <Link href={href} aria-label={`Open ${row.subjectDisplayName}'s review`} className="inline-flex text-muted-foreground hover:text-foreground"><ChevronRight className="size-4" aria-hidden /></Link>
+          <Link href={href} aria-label={t("openSReview", { subjectDisplayName: row.subjectDisplayName })} className="inline-flex text-muted-foreground hover:text-foreground"><ChevronRight className="size-4" aria-hidden /></Link>
         )}
       </td>
     </tr>
@@ -387,25 +409,26 @@ function TeamRow({ row, cycleId, primary }: { row: ReviewsWorkspaceTeamRowDto; c
 // ── Calibration a facilitator holds (board 11) ─────────────────────────────────────
 
 function SessionLead({ session, cycleId }: { session: ReviewsWorkspaceSessionDto; cycleId: string | null }) {
+  const t = useTranslations("reviews.SessionLead");
   const discussed = session.people === 0 ? 0 : Math.round((session.discussed / session.people) * 100);
   return (
     <section aria-labelledby={`session-${session.roundId}`} className="rounded-surface bg-card p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="type-meta text-muted-foreground">Calibration</p>
+          <p className="type-meta text-muted-foreground">{t("calibration")}</p>
           <h2 id={`session-${session.roundId}`} className="mt-1 type-section-title text-foreground">{session.roundName}</h2>
         </div>
-        <Button asChild><Link href={withCycle(calibrationHref(session.roundId), cycleId)}>Open the session<ArrowRight className="size-4" aria-hidden /></Link></Button>
+        <Button asChild><Link href={withCycle(calibrationHref(session.roundId), cycleId)}>{t("openTheSession")}<ArrowRight className="size-4" aria-hidden /></Link></Button>
       </div>
       <dl className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
         <div>
-          <dt className="type-meta text-muted-foreground">Discussed</dt>
-          <dd className="mt-1 type-metric tabular-nums text-foreground">{session.discussed}<span className="ms-1.5 type-meta text-muted-foreground">of {session.people}</span></dd>
+          <dt className="type-meta text-muted-foreground">{t("discussed")}</dt>
+          <dd className="mt-1 type-metric tabular-nums text-foreground">{session.discussed}<span className="ms-1.5 type-meta text-muted-foreground">{t("of", { people: session.people })}</span></dd>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-inlay" aria-hidden><div className="h-full rounded-full bg-success" style={{ width: `${discussed}%` }} /></div>
         </div>
-        <div><dt className="type-meta text-muted-foreground">People</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.people}</dd></div>
-        <div><dt className="type-meta text-muted-foreground">Flags</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.flags}</dd></div>
-        <div><dt className="type-meta text-muted-foreground">With managers</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.outstanding}</dd></div>
+        <div><dt className="type-meta text-muted-foreground">{t("people")}</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.people}</dd></div>
+        <div><dt className="type-meta text-muted-foreground">{t("flags")}</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.flags}</dd></div>
+        <div><dt className="type-meta text-muted-foreground">{t("withManagers")}</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.outstanding}</dd></div>
       </dl>
     </section>
   );
@@ -414,6 +437,8 @@ function SessionLead({ session, cycleId }: { session: ReviewsWorkspaceSessionDto
 // ── Round administration (board 03) ───────────────────────────────────────────────
 
 function RunningRoundCard({ round, cycleId, cycleEnd }: { round: ReviewsWorkspaceRoundDto; cycleId: string | null; cycleEnd: string | null }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.RunningRoundCard");
   const stage = (name: string) => round.stages.find((s) => s.stage === name);
   const self = stage("SelfAssessment");
   const peers = stage("PeerInput");
@@ -422,56 +447,60 @@ function RunningRoundCard({ round, cycleId, cycleEnd }: { round: ReviewsWorkspac
   const today = new Date().toISOString().slice(0, 10);
   const passed = (date: string | null) => Boolean(date && date < today);
   const timeline: Step[] = [
-    { label: "Launched", detail: dayLabel(round.launchedAt?.slice(0, 10)), state: "done" },
-    ...(round.selfAssessmentDue ? [{ label: round.peerInputDue ? "Self and peers close" : "Self-assessments close", detail: dayLabel(round.selfAssessmentDue),
+    { label: t("launched"), detail: dayLabel(round.launchedAt?.slice(0, 10), format.locale), state: "done" },
+    ...(round.selfAssessmentDue ? [{ label: round.peerInputDue ? t("selfAndPeersClose") : t("selfAssessmentsClose"), detail: dayLabel(round.selfAssessmentDue, format.locale),
       state: passed(round.selfAssessmentDue) ? "done" : "current" } as Step] : []),
-    { label: "Manager reviews close", detail: dayLabel(round.managerAssessmentDue), state: passed(round.managerAssessmentDue) ? "done" : passed(round.selfAssessmentDue) || !round.selfAssessmentDue ? "current" : "todo" },
-    ...(round.calibrationEnabled ? [{ label: "Calibration", detail: "When manager reviews are in", state: "todo" } as Step] : []),
-    ...(cycleEnd ? [{ label: "Cycle ends", detail: dayLabel(cycleEnd), state: "todo" } as Step] : []),
+    { label: t("managerReviewsClose"), detail: dayLabel(round.managerAssessmentDue, format.locale), state: passed(round.managerAssessmentDue) ? "done" : passed(round.selfAssessmentDue) || !round.selfAssessmentDue ? "current" : "todo" },
+    ...(round.calibrationEnabled ? [{ label: t("calibration"), detail: t("whenManagerReviewsAreIn"), state: "todo" } as Step] : []),
+    ...(cycleEnd ? [{ label: t("cycleEnds"), detail: dayLabel(cycleEnd, format.locale), state: "todo" } as Step] : []),
   ];
   return (
-    <section aria-label="Running round" className="rounded-surface bg-section p-6">
+    <section aria-label={t("runningRound")} className="rounded-surface bg-section p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">
           <span className="flex size-11 items-center justify-center rounded-control bg-primary-tint text-primary"><Layers className="size-5" aria-hidden /></span>
           <div className="min-w-0">
-            <p className="type-meta text-muted-foreground">Running · launched {dayLabel(round.launchedAt?.slice(0, 10))}</p>
+            <p className="type-meta text-muted-foreground">{t("runningLaunched", { dayLabel: dayLabel(round.launchedAt?.slice(0, 10), format.locale) })}</p>
             <h2 className="mt-1 type-page-title text-foreground">{round.name}</h2>
             <p className="mt-0.5 type-meta text-muted-foreground">
-              {round.people} {round.people === 1 ? "person" : "people"} · {formatDateRange(round.periodStart, round.periodEnd)}{round.calibrationEnabled ? " · calibration on" : ""}
+              {round.people} {round.people === 1 ? t("person") : t("people")} · {format.range(round.periodStart, round.periodEnd)}{round.calibrationEnabled ? " " + t("calibrationOn") : ""}
             </p>
           </div>
         </div>
-        <Button asChild><Link href={withCycle(roundHref(round.roundId), cycleId)}>Open round<ArrowRight className="size-4" aria-hidden /></Link></Button>
+        <Button asChild><Link href={withCycle(roundHref(round.roundId), cycleId)}>{t("openRound")}<ArrowRight className="size-4" aria-hidden /></Link></Button>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {self ? <CountTile label="Self-assessments" value={self.done} total={self.total} foot={`${self.open} still open`} /> : null}
-        {peers ? <CountTile label="Peer input" value={peers.done} total={peers.total} foot={round.listsToApprove ? `${round.listsToApprove} ${round.listsToApprove === 1 ? "list waits" : "lists wait"} for approval` : `${peers.declined} declined`} /> : null}
-        {manager ? <CountTile label="Manager reviews" value={manager.done} total={manager.total} tone="primary" foot={`${manager.readyToWrite} ready to write`} /> : null}
-        {released ? <CountTile label="Released" value={released.done} total={released.total} foot={round.calibrationEnabled ? "After calibration" : "After manager reviews"} /> : null}
+        {self ? <CountTile label={t("selfAssessments")} value={self.done} total={self.total} foot={t("stillOpen", { open: self.open })} /> : null}
+        {peers ? <CountTile label={t("peerInput")} value={peers.done} total={peers.total} foot={round.listsToApprove ? t("listsWait", { count: round.listsToApprove }) : t("declined", { count: peers.declined })} /> : null}
+        {manager ? <CountTile label={t("managerReviews")} value={manager.done} total={manager.total} tone="primary" foot={t("readyToWrite", { readyToWrite: manager.readyToWrite })} /> : null}
+        {released ? <CountTile label={t("released")} value={released.done} total={released.total} foot={round.calibrationEnabled ? t("afterCalibration") : t("afterManagerReviews")} /> : null}
       </div>
-      <StageTrack className="mt-6" label="Round timeline" steps={timeline} />
+      <StageTrack className="mt-6" label={t("roundTimeline")} steps={timeline} />
     </section>
   );
 }
 
 function FirstRoundCard({ data }: { data: ReviewsWorkspaceDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.FirstRoundCard");
   return (
     <section className="rounded-surface border border-dashed border-border p-6">
-      <h2 className="type-panel-title text-foreground">Set up the {data.cycleName ?? "cycle"} review</h2>
+      <h2 className="type-panel-title text-foreground">{t("setUpTheReview", { value: data.cycleName ?? "cycle" })}</h2>
       <p className="mt-1 type-meta text-muted-foreground">
-        {data.cycleFacts ? `${data.cycleFacts.participants} in the cycle · ${data.cycleFacts.approvedPlans} approved plans` : null}
-        {data.cycleEnd ? ` · ${dayLabel(data.cycleEnd)} cycle ends` : null}
+        {data.cycleFacts ? t("inTheCycleApprovedPlans", { participants: data.cycleFacts.participants, approvedPlans: data.cycleFacts.approvedPlans }) : null}
+        {data.cycleEnd ? " " + t("cycleEnds", { cycleEnd: dayLabel(data.cycleEnd, format.locale) }) : null}
       </p>
-      <Button className="mt-4" asChild><Link href={withCycle(newReviewRoundHref(), data.cycleId)}><Plus className="size-4" aria-hidden />New round</Link></Button>
+      <Button className="mt-4" asChild><Link href={withCycle(newReviewRoundHref(), data.cycleId)}><Plus className="size-4" aria-hidden />{t("newRound")}</Link></Button>
     </section>
   );
 }
 
 function RoundList({ rounds, cycleId, cycleName }: { rounds: ReviewsWorkspaceRoundDto[]; cycleId: string | null; cycleName: string | null }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.RoundList");
   return (
     <section aria-labelledby="rounds-heading">
-      <SectionHeading id="rounds-heading" title={`${cycleName ?? "Cycle"} rounds`} count={rounds.length} />
+      <SectionHeading id="rounds-heading" title={t("rounds", { value: cycleName ?? "Cycle" })} count={rounds.length} />
       <ul className="divide-y divide-border rounded-surface bg-card">
         {rounds.map((round) => {
           const self = round.stages.find((s) => s.stage === "SelfAssessment");
@@ -482,18 +511,18 @@ function RoundList({ rounds, cycleId, cycleName }: { rounds: ReviewsWorkspaceRou
                 <span className={cn("flex size-10 items-center justify-center rounded-control", round.state === "Active" ? "bg-primary-tint text-primary" : "bg-inlay text-muted-foreground")}><Layers className="size-4" aria-hidden /></span>
                 <span className="min-w-48 flex-1">
                   <span className="block type-label text-foreground">{round.name}</span>
-                  <span className="block type-meta text-muted-foreground">{round.people} {round.people === 1 ? "person" : "people"} · {round.components} components</span>
+                  <span className="block type-meta text-muted-foreground">{round.people} {round.people === 1 ? t("person") : t("people")} {t("components", { components: round.components })}</span>
                 </span>
                 {round.state !== "Draft" ? (
                   <span className="w-64">
                     <span className="block h-1.5 overflow-hidden rounded-full bg-inlay"><span className="block h-full rounded-full bg-success" style={{ width: `${Math.round(share * 100)}%` }} /></span>
                     <span className="mt-1 block type-meta text-muted-foreground">
-                      {round.state === "Closed" ? `${round.released} released · ${round.acknowledged} acknowledged` : self ? `Self-assessments ${Math.round(share * 100)}%` : "Manager reviews"}
+                      {round.state === "Closed" ? t("releasedAcknowledged", { released: round.released, acknowledged: round.acknowledged }) : self ? t("selfAssessments", { round: Math.round(share * 100) }) : t("managerReviews")}
                     </span>
                   </span>
                 ) : null}
                 <StatusBadge tone={round.state === "Active" ? "warning" : round.state === "Draft" ? "neutral" : "muted"}>
-                  {round.state === "Active" ? "Running" : round.state === "Draft" ? "Draft" : `Closed ${formatDate(round.closedAt?.slice(0, 10))}`}
+                  {round.state === "Active" ? t("running") : round.state === "Draft" ? t("draft") : t("closed", { formatDate: format.date(round.closedAt?.slice(0, 10)) })}
                 </StatusBadge>
               </Link>
             </li>
@@ -520,27 +549,31 @@ function BottomRow({ data, ownIsLead }: { data: ReviewsWorkspaceDto; ownIsLead: 
 }
 
 function OwnCompact({ own, cycleId }: { own: ReviewsWorkspaceOwnDto; cycleId: string | null }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.OwnCompact");
   const writing = own.state === "SelfAssessment" && own.selfAssessmentEnabled;
   return (
     <section aria-labelledby="own-heading">
-      <SectionHeading id="own-heading" title="Your own review" />
+      <SectionHeading id="own-heading" title={t("yourOwnReview")} />
       <div className="flex items-center gap-4 rounded-surface bg-card px-5 py-4">
         <PersonInitials name={own.reviewerName} size="lg" />
         <div className="min-w-0 flex-1">
-          <p className="type-label text-foreground">{own.reviewerName} reviews you</p>
-          <p className="type-meta text-muted-foreground">{writing ? `Self-assessment due ${dayLabel(own.selfAssessmentDue)}` : own.state === "Finalized" ? "Released" : "With your reviewer"}</p>
+          <p className="type-label text-foreground">{t("reviewsYou", { reviewerName: own.reviewerName })}</p>
+          <p className="type-meta text-muted-foreground">{writing ? t("selfAssessmentDue", { selfAssessmentDue: dayLabel(own.selfAssessmentDue, format.locale) }) : own.state === "Finalized" ? t("released") : t("withYourReviewer")}</p>
         </div>
-        <Button size="sm" variant="outline" asChild><Link href={withCycle(reviewHref(own.reviewId), cycleId)}>{writing ? "Start" : "Open"}</Link></Button>
+        <Button size="sm" variant="outline" asChild><Link href={withCycle(reviewHref(own.reviewId), cycleId)}>{writing ? t("start") : t("open")}</Link></Button>
       </div>
     </section>
   );
 }
 
 function AskedOfYou({ data }: { data: ReviewsWorkspaceDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.AskedOfYou");
   return (
     <section aria-labelledby="asked-heading">
       {/* The count is what still waits on you; answered and declined requests stay listed without counting. */}
-      <SectionHeading id="asked-heading" title="Asked of you" count={data.askedOfYou.filter((r) => r.state === "Open").length || undefined} />
+      <SectionHeading id="asked-heading" title={t("askedOfYou")} count={data.askedOfYou.filter((r) => r.state === "Open").length || undefined} />
       <ul className="divide-y divide-border rounded-surface bg-card">
         {data.askedOfYou.map((request) => (
           <li key={request.requestId} className="flex items-center gap-4 px-5 py-4">
@@ -549,16 +582,16 @@ function AskedOfYou({ data }: { data: ReviewsWorkspaceDto }) {
               <p className="type-label text-foreground">{request.subjectDisplayName}</p>
               <p className="type-meta text-muted-foreground">
                 {request.state === "Open" ? `${request.questions} ${request.questions === 1 ? "question" : "questions"}`
-                  : request.state === "Answered" ? `Sent ${dayLabel(request.respondedAt?.slice(0, 10))}`
-                  : request.state === "Declined" ? "Declined" : "Closed"}
+                  : request.state === "Answered" ? t("sent", { dayLabel: dayLabel(request.respondedAt?.slice(0, 10), format.locale) })
+                  : request.state === "Declined" ? t("declined") : t("closed")}
               </p>
             </div>
             {request.state === "Open" ? (
               <>
                 <DueChip date={request.dueDate} late={request.daysLate > 0} />
-                <Button size="sm" asChild><Link href={peerRequestHref(request.requestId)}>Give input</Link></Button>
+                <Button size="sm" asChild><Link href={peerRequestHref(request.requestId)}>{t("giveInput")}</Link></Button>
               </>
-            ) : request.state === "Answered" ? <StatusBadge tone="success" dot>Sent</StatusBadge> : <StatusBadge tone="muted">{request.state}</StatusBadge>}
+            ) : request.state === "Answered" ? <StatusBadge tone="success" dot>{t("sent2")}</StatusBadge> : <StatusBadge tone="muted">{request.state}</StatusBadge>}
           </li>
         ))}
       </ul>
@@ -567,19 +600,20 @@ function AskedOfYou({ data }: { data: ReviewsWorkspaceDto }) {
 }
 
 function PastResults({ data }: { data: ReviewsWorkspaceDto }) {
+  const t = useTranslations("reviews.PastResults");
   const download = useDownloadReviewPdf();
   return (
     <section aria-labelledby="past-heading">
-      <SectionHeading id="past-heading" title="Past results" />
+      <SectionHeading id="past-heading" title={t("pastResults")} />
       <ul className="divide-y divide-border rounded-surface bg-card">
         {data.pastResults.filter((result) => result.reviewId !== data.own?.reviewId).map((result) => (
           <li key={result.reviewId} className="flex items-center gap-4 px-5 py-4">
             <div className="min-w-0 flex-1">
-              <Link href={reviewHref(result.reviewId)} className="type-subsection-title text-foreground hover:underline">{result.label ?? "Released"}</Link>
-              <p className="type-meta text-muted-foreground">{result.cycleName} {result.roundName.toLowerCase()}{result.acknowledgedAt ? " · acknowledged" : ""}</p>
+              <Link href={reviewHref(result.reviewId)} className="type-subsection-title text-foreground hover:underline">{result.label ?? t("released")}</Link>
+              <p className="type-meta text-muted-foreground">{result.cycleName} {result.roundName.toLowerCase()}{result.acknowledgedAt ? " " + t("acknowledged") : ""}</p>
             </div>
             <Button size="sm" variant="ghost" onClick={() => void download(result.reviewId, `${result.roundName}.pdf`)}>
-              <Download className="size-4" aria-hidden />PDF
+              <Download className="size-4" aria-hidden />{t("pdf")}
             </Button>
           </li>
         ))}
@@ -589,10 +623,11 @@ function PastResults({ data }: { data: ReviewsWorkspaceDto }) {
 }
 
 function WorkspaceSkeleton() {
+  const t = useTranslations("reviews.WorkspaceSkeleton");
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title="Reviews" size="display" />
-      <div className="space-y-6" aria-label="Loading Reviews" role="status">
+      <PerformancePageHeading title={t("reviews")} size="display" />
+      <div className="space-y-6" aria-label={t("loadingReviews")} role="status">
         <Skeleton className="h-56 rounded-surface" />
         <div className="grid gap-3 sm:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-surface" />)}</div>
         <Skeleton className="h-40 rounded-surface" />

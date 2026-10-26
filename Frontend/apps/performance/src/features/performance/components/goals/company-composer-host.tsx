@@ -10,6 +10,7 @@ import {
   type ObjectiveDraft,
   type ObjectiveSubmissionIntent,
 } from "../objective-editor";
+import { useTranslations } from "next-intl";
 
 /** What the company composer is opened for — a new root direction, or editing an existing draft. */
 export type CompanyComposerState = { mode: "create" } | { mode: "edit"; objectiveId: string };
@@ -31,6 +32,7 @@ export function CompanyComposerHost({
   state: CompanyComposerState;
   onClose: () => void;
 }) {
+  const t = useTranslations("goals.CompanyComposerHost");
   const isEdit = state.mode === "edit";
   const mutations = useSaveStrategy(cycle.id);
   // Only fetch the strategy list when editing — we need the full objective (measurement, dates) to
@@ -41,9 +43,9 @@ export function CompanyComposerHost({
 
   useEffect(() => {
     if (!vanished) return;
-    toast.error("This objective can’t be edited.");
+    toast.error(t("thisObjectiveCantBeEdited"));
     onClose();
-  }, [vanished, onClose]);
+  }, [vanished, onClose, t]);
 
   // Editing waits for the objective to resolve so the editor seeds from real values rather than
   // flashing empty; a vanished draft closes with a brief notice.
@@ -51,7 +53,7 @@ export function CompanyComposerHost({
     return (
       <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
         <DialogContent className="sm:max-w-3xl">
-          <DialogTitle>Opening objective…</DialogTitle>
+          <DialogTitle>{t("openingObjective")}</DialogTitle>
           <div className="mt-4 space-y-3" aria-hidden>
             <div className="h-9 animate-pulse rounded-control bg-muted" />
             <div className="h-24 animate-pulse rounded-surface bg-muted" />
@@ -86,7 +88,7 @@ export function CompanyComposerHost({
               publish,
             },
           });
-          toast.success(publish ? "Company direction published." : "Objective updated.");
+          toast.success(publish ? t("published") : t("updated"));
         } else {
           await mutations.create.mutateAsync({
             expectedVersion: cycle.version,
@@ -98,7 +100,7 @@ export function CompanyComposerHost({
             measurement: draft.measurement,
             publish,
           });
-          toast.success(publish ? "Company direction published." : "Company objective saved as draft.");
+          toast.success(publish ? t("published") : t("savedDraft"));
         }
       }}
     />

@@ -2,30 +2,34 @@ import type { PersonSummaryCycleDto } from "@repo/api";
 import { cn } from "@repo/ds";
 import { ObjectiveStatusBadge } from "./objective-status";
 import { percent, weightPercent, type RenderSummaryLink } from "./summary-lib";
+import { useTranslations } from "next-intl";
+import { usePerformanceWords } from "./use-words";
 
 /**
  * The plan's objectives in Performance's own language: a numbered tile in the objective's type colour
  * (amber aligned, blue standalone), its alignment, weight and progress. Each opens its record.
  */
 export function SummaryObjectives({ cycle, renderLink }: { cycle: PersonSummaryCycleDto; renderLink: RenderSummaryLink }) {
+  const t = useTranslations("performanceUi.SummaryObjectives");
+  const words = usePerformanceWords();
   return (
     <section aria-labelledby="summary-objectives-heading" className="space-y-3">
       <div className="flex items-baseline justify-between gap-4">
         <h2 id="summary-objectives-heading" className="type-section-title text-foreground">
-          Objectives
+          {t("objectives")}
         </h2>
         {cycle.planHref
           ? renderLink({
               href: cycle.planHref,
               className: "type-label text-foreground hover:underline",
-              children: "Open plan",
+              children: words.t("openPlan"),
             })
           : null}
       </div>
       {!cycle.isParticipant ? (
-        <p className="type-body-secondary text-muted-foreground">Not part of {cycle.cycleName}</p>
+        <p className="type-body-secondary text-muted-foreground">{t("notPartOf", { cycleName: cycle.cycleName })}</p>
       ) : cycle.objectives.length === 0 ? (
-        <p className="type-body-secondary text-muted-foreground">No objectives shared yet</p>
+        <p className="type-body-secondary text-muted-foreground">{t("noObjectivesSharedYet")}</p>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-surface bg-card">
           {cycle.objectives.map((objective) => {
@@ -42,7 +46,7 @@ export function SummaryObjectives({ cycle, renderLink }: { cycle: PersonSummaryC
                           {objective.title}
                         </span>
                         <span className={cn("block truncate type-meta", aligned ? "text-primary-ink" : "text-info")}>
-                          {aligned ? `Aligned to ${objective.alignedTo}` : "Standalone"}
+                          {aligned ? t("alignedTo", { alignedTo: objective.alignedTo ?? "" }) : t("standalone")}
                         </span>
                       </span>
                       {objective.weight !== null ? (

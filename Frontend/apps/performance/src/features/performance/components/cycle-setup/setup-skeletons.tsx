@@ -2,6 +2,7 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { PageContainer } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import type { SetupStep } from "./setup-readiness";
+import { useTranslations } from "next-intl";
 
 /*
  * Shape-matched loading states for the cycle-setup journey. Each mirrors the layout it stands in
@@ -161,8 +162,9 @@ export function DetailsStepSkeleton() {
 }
 
 export function PopulationStepSkeleton() {
+  const t = useTranslations("cycleSetup.PopulationStepSkeleton");
   return (
-    <div className="space-y-6" aria-busy aria-label="Resolving population">
+    <div className="space-y-6" aria-busy aria-label={t("resolvingPopulation")}>
       <PopulationHeroSkeleton />
 
       <div className="space-y-2">
@@ -260,11 +262,12 @@ export function PopulationStepSkeleton() {
 
 /** Summary cards + readiness rail, below the launch hero. */
 export function ReviewBodySkeleton() {
+  const t = useTranslations("cycleSetup.ReviewBodySkeleton");
   return (
     <div
       className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]"
       aria-busy
-      aria-label="Loading review"
+      aria-label={t("loadingReview")}
     >
       <Card>
         <Skeleton className="h-7 w-56" />
@@ -335,9 +338,10 @@ function SetupStepSkeleton({ step }: { step: SetupStep }) {
 
 /** The whole setup shell: header, three-node stepper, (Step 1) hero, and the step body. */
 export function SetupShellSkeleton({ step, label }: { step: SetupStep; label?: string }) {
+  const t = useTranslations("cycleSetup.SetupShellSkeleton");
   return (
     <PageContainer>
-      <div aria-busy aria-label={label ?? "Loading Cycle setup"}>
+      <div aria-busy aria-label={label ?? t("loadingCycleSetup")}>
         <div className="flex items-center justify-between gap-4">
           <Skeleton className="h-8 w-72 max-w-full" />
           <Skeleton className="h-9 w-32" />
@@ -369,9 +373,10 @@ export function SetupShellSkeleton({ step, label }: { step: SetupStep; label?: s
 
 /** The established /cycle surface: heading, milestone rail, population block (Cycle context is in the top bar). */
 export function CycleSurfaceSkeleton() {
+  const t = useTranslations("cycleSetup.CycleSurfaceSkeleton");
   return (
     <PageContainer>
-      <div aria-busy aria-label="Loading Cycle" className="space-y-8">
+      <div aria-busy aria-label={t("loadingCycle")} className="space-y-8">
         <div className="space-y-2">
           <Skeleton className="h-7 w-32" />
           <Skeleton className="h-4 w-96 max-w-full" />

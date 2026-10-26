@@ -5,10 +5,11 @@ import { renderWithIntl } from "@repo/ds/testing";
 import type { Say } from "@repo/ds/lib/say";
 import dsFr from "@repo/ds/messages/fr.json";
 import authFr from "@repo/auth/messages/fr.json";
+import performanceUiFr from "@repo/performance-ui/messages/fr.json";
 import { loadCoreMessages } from "@/i18n/messages";
 
-/** Core HR's catalogue in French, as the app serves it: @repo/ds's and @repo/auth's merged with its own. */
-export const frenchMessages = { ...dsFr, ...authFr, ...(await loadCoreMessages("fr")) };
+/** Core HR's catalogue in French, as the app serves it: @repo/ds's, @repo/auth's and @repo/performance-ui's merged with its own. */
+export const frenchMessages = { ...dsFr, ...authFr, ...performanceUiFr, ...(await loadCoreMessages("fr")) };
 
 /** One namespace in French, for pure helpers that take a {@link Say}. */
 export function sayInFrench(namespace: string): Say {

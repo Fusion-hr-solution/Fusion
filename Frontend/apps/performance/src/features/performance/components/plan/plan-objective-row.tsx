@@ -31,15 +31,17 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ds/components/ui/dropdown-menu";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDate, formatDateRange } from "../../lib";
+import { formatDateRange } from "../../lib";
 import {
-  MEASUREMENT_METHOD_LABEL,
   PROGRESS_TONE_BG,
   PROGRESS_TONE_TEXT,
   formatMeasureValue,
   objectiveProgressTone,
   pct,
 } from "./plan-lib";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * One objective inside a plan, read as a numbered ledger row rather than a nested card. The title and
@@ -82,6 +84,8 @@ export function PlanObjectiveRow({
   /** Under everything, inside the card: a change request on this objective. */
   footer?: ReactNode;
 }) {
+  const t = useTranslations("plan.PlanObjectiveRow");
+  const words = useSay("common.words");
   const duration = formatObjectiveDuration(objective.startDate, objective.endDate, cycle);
   const weight = objective.planWeight ?? 0;
   const progress = objective.derivedProgress;
@@ -136,7 +140,7 @@ export function PlanObjectiveRow({
               <>
                 <Target className="size-4 shrink-0 text-primary-ink" aria-hidden />
                 <span>
-                  Aligned to{" "}
+                  {t("alignedTo")}
                   {onViewAlignment && objective.parentObjectiveId ? (
                     <button
                       type="button"
@@ -145,11 +149,11 @@ export function PlanObjectiveRow({
                       }
                       className="rounded-control font-medium text-primary-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      {parentObjective ?? "direction"}
+                      {parentObjective ?? t("direction")}
                     </button>
                   ) : (
                     <span className="font-medium text-primary-ink">
-                      {parentObjective ?? "direction"}
+                      {parentObjective ?? t("direction")}
                     </span>
                   )}
                 </span>
@@ -162,7 +166,7 @@ export function PlanObjectiveRow({
             ) : (
               <span className="inline-flex items-center gap-1.5 text-info">
                 <Unlink className="size-4 shrink-0" aria-hidden />
-                Standalone role objective
+                {t("standaloneRoleObjective")}
               </span>
             )}
           </p>
@@ -175,7 +179,7 @@ export function PlanObjectiveRow({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Actions for ${objective.title}`}
+                  aria-label={t("actionsFor", { title: objective.title })}
                 >
                   <MoreHorizontal className="size-4" />
                 </Button>
@@ -183,12 +187,12 @@ export function PlanObjectiveRow({
               <DropdownMenuContent align="end">
                 {onEdit ? (
                   <DropdownMenuItem onSelect={onEdit}>
-                    <SquarePen className="size-3.5" /> Edit objective
+                    <SquarePen className="size-3.5" /> {t("editObjective")}
                   </DropdownMenuItem>
                 ) : null}
                 {onRemove ? (
                   <DropdownMenuItem onSelect={onRemove} variant="destructive">
-                    <Trash2 className="size-3.5" /> Remove objective
+                    <Trash2 className="size-3.5" /> {t("removeObjective")}
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuContent>
@@ -198,7 +202,7 @@ export function PlanObjectiveRow({
               variant="ghost"
               size="icon-sm"
               onClick={onViewDetails}
-              aria-label={`View ${objective.title}`}
+              aria-label={t("view", { title: objective.title })}
               className="text-muted-foreground hover:text-foreground"
             >
               <SquareArrowEnter className="size-4 -scale-x-100" />
@@ -211,12 +215,12 @@ export function PlanObjectiveRow({
           The inspect affordance closes the row on the reading/authoring states. */}
       <div className="mt-4 flex items-end gap-3 ps-14">
         <dl className="flex min-w-0 flex-1 flex-col gap-3 text-sm sm:flex-row sm:gap-0 sm:divide-x sm:divide-border">
-          <MetaCell icon={Measurement} label="Measurement">
-            {measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
+          <MetaCell icon={Measurement} label={t("measurement")}>
+            {measurement ? words(`method.${measurement.method}`) : "—"}
           </MetaCell>
 
           {measurement?.method === "NumericTarget" ? (
-            <MetaCell icon={NumericGoal} label="Target">
+            <MetaCell icon={NumericGoal} label={t("target")}>
               <span className="inline-flex items-center gap-1.5 tabular-nums">
                 <TargetRange
                   baseline={measurement.baseline}
@@ -227,16 +231,16 @@ export function PlanObjectiveRow({
               </span>
             </MetaCell>
           ) : measurement?.method === "WeightedMilestones" ? (
-            <MetaCell icon={Milestones} label="Milestones">
+            <MetaCell icon={Milestones} label={t("milestones")}>
               <MilestoneStrip milestones={measurement.milestones} />
             </MetaCell>
           ) : (
-            <MetaCell icon={PercentMeasure} label="Measure">
-              Single percentage
+            <MetaCell icon={PercentMeasure} label={t("measure")}>
+              {t("singlePercentage")}
             </MetaCell>
           )}
 
-          <MetaCell icon={CalendarRange} label="Duration">
+          <MetaCell icon={CalendarRange} label={t("duration")}>
             {cycle ? (
               <CycleWindow start={objective.startDate} end={objective.endDate} cycle={cycle} />
             ) : (
@@ -245,7 +249,7 @@ export function PlanObjectiveRow({
           </MetaCell>
         </dl>
         <div className="shrink-0 text-end">
-          <p className="type-meta text-muted-foreground/70">Weight</p>
+          <p className="type-meta text-muted-foreground/70">{t("weight")}</p>
           <p
             className={cn(
               "mt-1 text-lg font-semibold tabular-nums leading-none",
@@ -274,12 +278,11 @@ export function PlanObjectiveRow({
             {onOpenProgress ? (
               objective.canUpdateProgress ? (
                 <Button variant="outline" size="sm" onClick={onOpenProgress}>
-                  <LineChart className="size-3.5" data-icon="inline-start" />{" "}
-                  Update progress
+                  <LineChart className="size-3.5" data-icon="inline-start" />{t("updateProgress")}
                 </Button>
               ) : (
                 <Button variant="ghost" size="sm" onClick={onOpenProgress}>
-                  View
+                  {t("view2")}
                 </Button>
               )
             ) : null}
@@ -298,6 +301,7 @@ export function PlanObjectiveRow({
  * progress bar the same way. Milestone weights always total 100%, so the total is never stated.
  */
 function MilestoneStrip({ milestones }: { milestones: { weight: number; isCompleted: boolean }[] }) {
+  const t = useTranslations("plan.MilestoneStrip");
   // Completed milestones fill in the objective's colour; open ones stay as track.
   const done = milestones.filter((m) => m.isCompleted).length;
   return (
@@ -315,7 +319,7 @@ function MilestoneStrip({ milestones }: { milestones: { weight: number; isComple
         ))}
       </span>
       <span className="tabular-nums">
-        {done > 0 ? `${done} of ${milestones.length} done` : `${milestones.length} milestone${milestones.length === 1 ? "" : "s"}`}
+        {done > 0 ? t("ofDone", { done, length: milestones.length }) : (milestones.length === 1 ? t("milestone", { length: milestones.length }) : t("milestones", { length: milestones.length }))}
       </span>
     </span>
   );
@@ -336,11 +340,13 @@ function ExecutionState({
   tone: ReturnType<typeof objectiveProgressTone>;
   capped: number;
 }) {
+  const format = useFormat();
+  const t = useTranslations("plan.ExecutionState");
   const measurement = objective.measurement;
   const method = measurement?.method;
   const has = objective.hasProgress;
   const updated = objective.lastProgressAt
-    ? formatDate(objective.lastProgressAt.slice(0, 10))
+    ? format.date(objective.lastProgressAt.slice(0, 10))
     : null;
 
   let label: string;
@@ -350,30 +356,28 @@ function ExecutionState({
     const done =
       measurement?.milestones.filter((m) => m.isCompleted).length ?? 0;
     const schedule = milestoneSchedule(measurement?.milestones ?? []);
-    label = "Milestone progress";
+    label = t("milestoneProgress");
     value = (
       <span className="tabular-nums">
         <span
           className={has ? PROGRESS_TONE_TEXT[tone] : "text-muted-foreground/60"}
         >
-          {done} of {total} milestone{total === 1 ? "" : "s"}{" "}
-          {has ? "completed" : "updated"}
+          {t("ofMilestone", { done, total })}{total === 1 ? "" : t("s")}{" "}
+          {has ? t("completed") : t("updated")}
         </span>
         {schedule.overdue > 0 ? (
           <span className="font-medium text-destructive">
-            {" "}
-            · {schedule.overdue} overdue
+            {t("overdue", { overdue: schedule.overdue })}
           </span>
         ) : schedule.nextDue ? (
           <span className="text-muted-foreground">
-            {" "}
-            · next due {formatMilestoneDue(schedule.nextDue)}
+            {t("nextDue", { nextDue: formatMilestoneDue(schedule.nextDue) })}
           </span>
         ) : null}
       </span>
     );
   } else if (method === "ManualPercentage") {
-    label = "Current progress";
+    label = t("currentProgress");
     value = has ? (
       <span className={cn("tabular-nums", PROGRESS_TONE_TEXT[tone])}>
         {pct(objective.currentPercentage ?? 0)}%
@@ -382,7 +386,7 @@ function ExecutionState({
       <span className="text-muted-foreground/50">—</span>
     );
   } else {
-    label = "Current value";
+    label = t("currentValue");
     value = has ? (
       <span className={cn("tabular-nums", PROGRESS_TONE_TEXT[tone])}>
         {formatMeasureValue(objective.currentActual, measurement?.unit ?? null)}
@@ -429,7 +433,7 @@ function ExecutionState({
       {has ? (
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-sm font-semibold">{value}</span>
-          {updated ? <span className="text-xs text-muted-foreground">Updated {updated}</span> : null}
+          {updated ? <span className="text-xs text-muted-foreground">{t("updated2", { updated })}</span> : null}
         </div>
       ) : null}
     </div>
@@ -482,6 +486,7 @@ function CycleWindow({
   end: string;
   cycle: { startDate: string; endDate: string };
 }) {
+  const format = useFormat();
   const day = (value: string) => new Date(`${value.slice(0, 10)}T00:00:00`).getTime();
   const from = day(cycle.startDate);
   const span = Math.max(day(cycle.endDate) - from, 1);
@@ -497,7 +502,7 @@ function CycleWindow({
     <span className="flex items-center gap-2 tabular-nums" title={label}>
       <span className="sr-only">{label}</span>
       <span className="text-xs text-muted-foreground" aria-hidden>
-        {formatDate(start.slice(0, 10))}
+        {format.date(start.slice(0, 10))}
       </span>
       <span className="relative h-1.5 w-20 shrink-0 rounded-full bg-muted-foreground/10" aria-hidden>
         {/* The window, neutral so it never reads as progress: time already spent is solid, the rest faint. */}
@@ -519,7 +524,7 @@ function CycleWindow({
         ) : null}
       </span>
       <span className="text-xs text-muted-foreground" aria-hidden>
-        {formatDate(end.slice(0, 10))}
+        {format.date(end.slice(0, 10))}
       </span>
     </span>
   );

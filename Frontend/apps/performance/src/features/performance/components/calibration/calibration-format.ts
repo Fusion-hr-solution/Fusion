@@ -5,22 +5,26 @@ import type {
   ReviewPotential,
 } from "@repo/api";
 import type { CalibrationView } from "../../api/use-calibration";
+import { english, type Say } from "@/i18n/say";
 
 export const POTENTIALS: readonly ReviewPotential[] = ["Developing", "Growing", "High"];
 
 /** A flag's facts in words (D-25). The disagreement flag fires only in the top or bottom band, so its attainment says which. */
-export function flagText(flag: CalibrationFlagDto): string {
+const en = english("calibration.format");
+
+export function flagText(flag: CalibrationFlagDto, say: Say = en): string {
   if (flag.kind === "MovedSinceLastCycle") {
-    const levels = Math.abs(flag.moved ?? 0);
-    return `${(flag.moved ?? 0) > 0 ? "Up" : "Down"} ${levels} ${levels === 1 ? "level" : "levels"}${flag.cycle ? ` since ${flag.cycle}` : ""}`;
+    const count = Math.abs(flag.moved ?? 0);
+    const up = (flag.moved ?? 0) > 0;
+    return flag.cycle ? say(up ? "upSince" : "downSince", { count, cycle: flag.cycle }) : say(up ? "up" : "down", { count });
   }
   const share = Math.round(flag.attainment ?? 0);
-  return share < 50 ? `Top rating, ${share}% of objectives` : `Bottom rating, ${share}% of objectives`;
+  return say(share < 50 ? "top" : "bottom", { share });
 }
 
 /** A reviewer's distance from the session average, as the leniency flag says it. */
-export function leniencyText(delta: number): string {
-  return `${Math.abs(delta).toFixed(1)} ${delta >= 0 ? "above" : "below"} the session`;
+export function leniencyText(delta: number, say: Say = en): string {
+  return say(delta >= 0 ? "above" : "below", { delta: Math.abs(delta).toFixed(1) });
 }
 
 export function average(value: number): string {

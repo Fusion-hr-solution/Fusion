@@ -1,14 +1,20 @@
 import type { ReactNode } from "react";
-import type { RatingScaleLevelDto, ReviewPotential } from "@repo/api";
+import type { RatingScaleLevelDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "@repo/ds/lib/dates";
 import { Check, Clock } from "@/lib/icons";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { english, type Say } from "@/i18n/say";
 
 // The slice 4 review language (approved canvas, B-070): stage tracks, count tiles, segment ratings, level cards and dials.
 
 /** A date-only value as the boards say it: "Wed 15 Sept" (the year outside this year). */
-export function dayLabel(value: string | null | undefined): string {
-  return formatDate(value?.slice(0, 10), { weekday: true, fallback: "" });
+/** Review words in English, for helpers outside a translated tree. */
+const en = english("reviews.parts");
+
+export function dayLabel(value: string | null | undefined, locale?: string): string {
+  return formatDate(value?.slice(0, 10), { weekday: true, fallback: "", locale });
 }
 
 /** Whole days from today to a date-only value (negative when past). */
@@ -21,20 +27,15 @@ export function daysFromToday(value: string | null | undefined): number | null {
 }
 
 /** "due in 6 days", "due today", "2 days late". */
-export function dueIn(value: string | null | undefined): string {
+export function dueIn(value: string | null | undefined, say: Say = en): string {
   const days = daysFromToday(value);
   if (days === null) return "";
-  if (days === 0) return "due today";
-  if (days === 1) return "due tomorrow";
-  if (days > 1) return `due in ${days} days`;
-  return days === -1 ? "a day late" : `${-days} days late`;
+  if (days === 0) return say("dueToday");
+  if (days === 1) return say("dueTomorrow");
+  if (days > 1) return say("dueInDays", { count: days });
+  return days === -1 ? say("dayLate") : say("daysLate", { count: -days });
 }
 
-export const POTENTIAL_COPY: Record<ReviewPotential, string> = {
-  Developing: "Growing into the current role",
-  Growing: "Ready for broader scope",
-  High: "Ready for a bigger role now",
-};
 
 export type StepState = "done" | "current" | "late" | "todo";
 export interface Step {
@@ -122,12 +123,13 @@ export function CountTile({
 
 /** A due date as a mark: warning while open, danger once late. */
 export function DueChip({ date, late = false, label }: { date: string | null | undefined; late?: boolean; label?: string }) {
+  const format = useFormat();
   if (!date) return null;
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control-sm px-2 py-0.5 type-meta font-medium tabular-nums",
       late ? "bg-destructive/15 text-destructive" : "bg-warning-subtle text-warning")}>
       <Clock className="size-3.5" aria-hidden />
-      {label ?? dayLabel(date)}
+      {label ?? dayLabel(date, format.locale)}
     </span>
   );
 }
@@ -148,8 +150,9 @@ export function SegmentRating({
   label: string;
   disabled?: boolean;
 }) {
+  const parts = useTranslations("reviews.parts");
   return (
-    <div role={onChange ? "radiogroup" : "img"} aria-label={onChange ? label : `${label}: ${levels.find((l) => l.value === value)?.label ?? "not rated"}`}
+    <div role={onChange ? "radiogroup" : "img"} aria-label={onChange ? label : parts("rated", { label, value: levels.find((l) => l.value === value)?.label ?? parts("notRated") })}
       className="inline-flex items-center gap-0.5 rounded-control bg-inlay p-0.5">
       {levels.map((level) => {
         const selected = value === level.value;
@@ -186,6 +189,7 @@ export function LevelCards({
   label: string;
   disabled?: boolean;
 }) {
+  const t = useTranslations("reviews.LevelCards");
   return (
     <div role="radiogroup" aria-label={label} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${levels.length}, minmax(0, 1fr))` }}>
       {levels.map((level) => {
@@ -198,7 +202,7 @@ export function LevelCards({
               "disabled:cursor-default")}>
             <span className="block type-label tabular-nums">{level.value}</span>
             <span className="block type-meta text-muted-foreground">{level.label}</span>
-            {theirs === level.value ? <span aria-label="Their view" className="absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-info" /> : null}
+            {theirs === level.value ? <span aria-label={t("theirView")} className="absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-info" /> : null}
           </button>
         );
       })}
@@ -208,12 +212,13 @@ export function LevelCards({
 
 /** Objective progress as a small ring with its figure. */
 export function ProgressRing({ value, size = 48, tone }: { value: number | null; size?: number; tone?: "success" | "warning" }) {
+  const t = useTranslations("reviews.ProgressRing");
   const stroke = 4;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const share = Math.max(0, Math.min(100, value ?? 0));
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} aria-label={value === null ? "No progress yet" : `${Math.round(share)}% progress`} role="img">
+    <div className="relative shrink-0" style={{ width: size, height: size }} aria-label={value === null ? t("noProgressYet") : t("progress", { share: Math.round(share) })} role="img">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-muted" />
         {value !== null && share > 0 ? (

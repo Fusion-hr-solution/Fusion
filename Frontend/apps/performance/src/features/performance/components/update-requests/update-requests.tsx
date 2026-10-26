@@ -12,8 +12,9 @@ import { cn } from "@repo/ds/lib/utils";
 import { LineChart, MessageSquare } from "@/lib/icons";
 import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
 import { useUpdateRequestMutations, useUpdateRequests } from "../../api/use-update-requests";
-import { formatDate } from "../../lib";
 import { initials } from "../plan/plan-lib";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 const NOTE_MAX = 500;
 
@@ -34,6 +35,7 @@ export function RequestUpdateDialog({ cycleId, planId, personName, objective, on
   objective?: { id: string; title: string };
   onClose: () => void;
 }) {
+  const t = useTranslations("conversations.RequestUpdateDialog");
   const { request } = useUpdateRequestMutations(cycleId, planId);
   const [note, setNote] = useState("");
 
@@ -41,12 +43,12 @@ export function RequestUpdateDialog({ cycleId, planId, personName, objective, on
     <Dialog open onOpenChange={(open) => { if (!open && !request.isLoading) onClose(); }}>
       <DialogContent className="w-[min(32rem,calc(100vw-2rem))] max-w-none">
         <DialogHeader className="min-w-0">
-          <DialogTitle className="break-words">Ask {personName} for an update</DialogTitle>
-          <DialogDescription className="break-words">{objective ? objective.title : "On the whole plan"}</DialogDescription>
+          <DialogTitle className="break-words">{t("askForAnUpdate", { personName })}</DialogTitle>
+          <DialogDescription className="break-words">{objective ? objective.title : t("onTheWholePlan")}</DialogDescription>
         </DialogHeader>
         <div className="min-w-0">
           <label htmlFor="update-request-note" className="type-label text-foreground">
-            Note <span className="text-muted-foreground">(optional)</span>
+            {t("note")} <span className="text-muted-foreground">{t("optional")}</span>
           </label>
           <div className="relative mt-2">
             <Textarea
@@ -63,18 +65,18 @@ export function RequestUpdateDialog({ cycleId, planId, personName, objective, on
         </div>
         {request.error ? <p className="text-sm text-destructive" role="alert">{request.error.message}</p> : null}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={request.isLoading}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={request.isLoading}>{t("cancel")}</Button>
           <AsyncButton
             pending={request.isLoading}
             onClick={async () => {
               try {
                 await request.mutateAsync({ objectiveId: objective?.id ?? null, note: note.trim() || null });
-                toast.success(`Update requested from ${personName}.`);
+                toast.success(t("updateRequestedFrom", { personName }));
                 onClose();
               } catch { /* shown above */ }
             }}
           >
-            Send request
+            {t("sendRequest")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>
@@ -93,6 +95,8 @@ export function RequestUpdateAction({ cycleId, planId, personName, objective, si
   objective?: { id: string; title: string };
   size?: "sm" | "default";
 }) {
+  const format = useFormat();
+  const t = useTranslations("conversations.RequestUpdateAction");
   const requests = useUpdateRequests(cycleId, planId);
   const { withdraw } = useUpdateRequestMutations(cycleId, planId);
   const [asking, setAsking] = useState(false);
@@ -102,7 +106,7 @@ export function RequestUpdateAction({ cycleId, planId, personName, objective, si
     return (
       <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
         <span>
-          Update requested <time dateTime={open.requestedAt}>{formatDate(open.requestedAt.slice(0, 10))}</time>
+          {t("updateRequested")} <time dateTime={open.requestedAt}>{format.date(open.requestedAt.slice(0, 10))}</time>
         </span>
         <AsyncButton
           variant="ghost"
@@ -113,11 +117,11 @@ export function RequestUpdateAction({ cycleId, planId, personName, objective, si
             try {
               await withdraw.mutateAsync({ requestId: open.id, expectedVersion: open.version });
             } catch (error) {
-              reportPerformanceFailure(error, "Could not withdraw the request.");
+              reportPerformanceFailure(error, t("couldNotWithdrawTheRequest"));
             }
           }}
         >
-          Withdraw
+          {t("withdraw")}
         </AsyncButton>
       </span>
     );
@@ -126,7 +130,7 @@ export function RequestUpdateAction({ cycleId, planId, personName, objective, si
   return (
     <>
       <Button variant="outline" size={size} onClick={() => setAsking(true)} disabled={requests.isLoading}>
-        <MessageSquare className="size-3.5" data-icon="inline-start" /> Request update
+        <MessageSquare className="size-3.5" data-icon="inline-start" /> {t("requestUpdate")}
       </Button>
       {asking ? <RequestUpdateDialog cycleId={cycleId} planId={planId} personName={personName} objective={objective} onClose={() => setAsking(false)} /> : null}
     </>
@@ -138,6 +142,8 @@ export function RequestUpdateAction({ cycleId, planId, personName, objective, si
  * In the record's details it also offers Record progress; in record mode the recorder is right below.
  */
 export function RequestBand({ request, onRecord }: { request: UpdateRequestDto; onRecord?: () => void }) {
+  const format = useFormat();
+  const t = useTranslations("conversations.RequestBand");
   return (
     <div className="flex items-start gap-3 rounded-surface border border-primary-ring bg-primary-tint px-4 py-3.5">
       <Avatar className="size-8 shrink-0">
@@ -145,15 +151,15 @@ export function RequestBand({ request, onRecord }: { request: UpdateRequestDto; 
       </Avatar>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-foreground">
-          <span className="font-semibold">{request.requestedByName} asked for an update</span>
-          <span className="text-muted-foreground"> · <time dateTime={request.requestedAt}>{formatDate(request.requestedAt.slice(0, 10))}</time></span>
+          <span className="font-semibold">{t("askedForAnUpdate", { requestedByName: request.requestedByName })}</span>
+          <span className="text-muted-foreground"> · <time dateTime={request.requestedAt}>{format.date(request.requestedAt.slice(0, 10))}</time></span>
         </p>
         {request.note ? <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground/85">{request.note}</p> : null}
-        <p className="mt-1 text-xs text-muted-foreground">Recording progress answers it.</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t("recordingProgressAnswersIt")}</p>
       </div>
       {onRecord ? (
         <Button size="sm" className="shrink-0" onClick={onRecord}>
-          <LineChart className="size-3.5" data-icon="inline-start" /> Record progress
+          <LineChart className="size-3.5" data-icon="inline-start" /> {t("recordProgress")}
         </Button>
       ) : null}
     </div>
@@ -162,10 +168,12 @@ export function RequestBand({ request, onRecord }: { request: UpdateRequestDto; 
 
 /** On an objective card: the request that concerns it, as a quiet marker beside Update progress. */
 export function ObjectiveRequestMarker({ request }: { request: UpdateRequestDto }) {
+  const format = useFormat();
+  const t = useTranslations("conversations.ObjectiveRequestMarker");
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-tint px-2 py-0.5 text-xs font-medium text-primary-ink ring-1 ring-inset ring-primary-ring">
       <span className="size-1.5 rounded-full bg-primary" aria-hidden />
-      {request.requestedByName.split(/\s+/)[0]} asked · {formatDate(request.requestedAt.slice(0, 10))}
+      {t("asked", { value: (request.requestedByName.split(/\s+/)[0]) ?? "", formatDate: format.date(request.requestedAt.slice(0, 10)) })}
     </span>
   );
 }

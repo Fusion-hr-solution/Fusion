@@ -1,0 +1,147 @@
+{
+  "PerformanceError": {
+    "thisPageCouldntLoad": "This page couldn't load",
+    "goToOverview": "Go to Overview"
+  },
+  "PagesLayout": {
+    "loadingPerformance": "Loading Performance"
+  },
+  "PagesLoading": {
+    "loading": "Loading"
+  },
+  "PerformanceNotFound": {
+    "nothingHere": "Nothing here",
+    "thisAddressDoesntMatchAnything": "This address doesn't match anything in Performance.",
+    "goToOverview": "Go to Overview"
+  },
+  "CompetencyCatalog": {
+    "competencies": "Competencies",
+    "newRoundsCanUseThese": "New rounds can use these competencies. Launched rounds keep the details they started with.",
+    "addCompetency": "Add competency",
+    "competencyName": "Competency name",
+    "name": "Name",
+    "description": "Description",
+    "whatThisCompetencyMeans": "What this competency means",
+    "observableBehaviors": "Observable behaviors",
+    "observableBehaviorsOnePerLine": "Observable behaviors, one per line (optional)",
+    "cancel": "Cancel",
+    "saveCompetency": "Save competency",
+    "editCompetency": "Edit competency",
+    "newCompetency": "New competency",
+    "loadingCompetencies": "Loading competencies…",
+    "archived": "Archived",
+    "usedInALaunchedRound": "Used in a launched round",
+    "edit": "Edit",
+    "archive": "Archive",
+    "competencyArchived": "Competency archived.",
+    "delete": "Delete",
+    "no": "No",
+    "competencies2": "competencies",
+    "activeCompetencies": "active competencies",
+    "yet": "yet.",
+    "showArchived": "Show archived",
+    "deleteThisCompetency": "Delete this competency?",
+    "willBeRemovedFromThe": "“{name}” will be removed from the catalog. This action cannot be undone.",
+    "deleteCompetency": "Delete competency",
+    "competencyDeleted": "Competency deleted.",
+    "couldNotSaveCompetency": "Could not save competency.",
+    "couldNotArchiveCompetency": "Could not archive competency.",
+    "couldNotDeleteCompetency": "Could not delete competency."
+  },
+  "ContentUnavailable": {
+    "temporarilyUnavailable": "Temporarily unavailable",
+    "couldNotBeLoadedBecause": "{subject} could not be loaded because the service is temporarily unavailable. It will recover when the service is back.",
+    "retry": "Retry",
+    "unavailable": "{subject} unavailable"
+  },
+  "CycleContextBar": {
+    "planningBy": "Planning by",
+    "state": {
+      "Draft": "In setup",
+      "Active": "Active",
+      "Closed": "Closed"
+    },
+    "phase": {
+      "Planning": "Planning",
+      "Execution": "Execution",
+      "Review": "Review"
+    }
+  },
+  "PersonPage": {
+    "person": "Person",
+    "openCoreHrRecord": "Open Core HR record",
+    "giveFeedback": "Give feedback"
+  },
+  "PerformanceCycleContext": {
+    "switchCycle": "Switch cycle",
+    "state": {
+      "Draft": "In setup",
+      "Active": "Active",
+      "Closed": "Closed"
+    }
+  },
+  "PerformanceWorkspaceAccessBoundary": {
+    "checkingPerformanceAccess": "Checking Performance access",
+    "performanceIsACustomerWorkspace": "Performance is a customer workspace",
+    "platformAdministrationIsKeptSeparate": "Platform administration is kept separate from customer performance data.",
+    "performanceIsNotAvailableTo": "Performance is not available to Platform Administrators",
+    "useThePlatformControlPlane": "Use the Platform control plane for platform-level administration.",
+    "openPlatform": "Open Platform",
+    "youDontHaveAccessTo": "You don't have access to Performance",
+    "askATenantAdministratorFor": "Ask a tenant administrator for Performance access.",
+    "openFusion": "Open Fusion",
+    "performanceIsNotAvailable": "Performance is not available",
+    "performanceIsNotEnabledFor": "Performance is not enabled for this tenant."
+  },
+  "failure": {
+    "stale": "This changed since you opened it",
+    "unavailable": "This record is not available",
+    "generic": "Could not complete this action."
+  },
+  "words": {
+    "method": {
+      "ManualPercentage": "Manual percentage",
+      "NumericTarget": "Numeric target",
+      "WeightedMilestones": "Weighted milestones"
+    },
+    "milestone": {
+      "StrategicDirectionPublished": "Direction published",
+      "PopulationConfirmed": "Population confirmed",
+      "PlanningOpened": "Planning opened",
+      "PlanningCompleted": "Planning completed",
+      "PerformanceEndReached": "Performance end",
+      "ClosureReady": "Closure ready"
+    },
+    "issue": {
+      "InactiveEmployment": "Employment is not active as of {date}.",
+      "NoPrimaryAssignment": "No active primary assignment as of {date}.",
+      "MissingManager": "A valid manager is required for plan reviews.",
+      "InactiveManager": "The assigned manager is not active as of {date}."
+    },
+    "milestones": "{count, plural, one {# milestone} other {# milestones}}",
+    "planState": {
+      "Draft": "Draft",
+      "Submitted": "Awaiting decision",
+      "Approved": "Approved"
+    },
+    "companyStrategy": "Company strategy",
+    "organizational": "Organizational",
+    "direction": "Direction"
+  },
+  "nav": {
+    "overview": "Overview",
+    "myPlan": "My Plan",
+    "myTeam": "My Team",
+    "oneOnOnes": "1:1s",
+    "feedback": "Feedback",
+    "reviews": "Reviews",
+    "direction": "Organization direction",
+    "administration": "Administration",
+    "cycle": "Cycle",
+    "settings": "Settings"
+  },
+  "metadata": {
+    "title": "Performance — Fusion",
+    "description": "Performance workspace"
+  }
+}

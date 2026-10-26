@@ -22,9 +22,10 @@ import { Switch } from "@repo/ds/components/ui/switch";
 import { Input } from "@repo/ds/components/ui/input";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDate } from "@/features/performance/lib";
 import { computeOrgStates } from "./population-model";
 import { setupStepHref } from "../setup-readiness";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 const APPLY_DEBOUNCE_MS = 250;
 const INDENT = 26;
@@ -49,6 +50,7 @@ export function OrgScopePicker({
   matchedCount: number | null;
   onChange: (selections: OrgUnitSelectionInput[]) => void;
 }) {
+  const t = useTranslations("cycleSetup.OrgScopePicker");
   const hierarchy = useOrgHierarchy(true, asOf);
   const roots = useMemo(() => hierarchy.data?.roots ?? [], [hierarchy.data]);
   // An empty tree on the cycle date may only mean the structure takes effect later; check today's.
@@ -202,8 +204,8 @@ export function OrgScopePicker({
                 className="grid size-6 place-items-center rounded-control-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label={
                   isCollapsed
-                    ? `Expand ${node.unit.name}`
-                    : `Collapse ${node.unit.name}`
+                    ? t("expand", { name: node.unit.name })
+                    : t("collapse", { name: node.unit.name })
                 }
                 aria-expanded={!isCollapsed}
               >
@@ -256,7 +258,7 @@ export function OrgScopePicker({
           {state?.inherited ? (
             <span className="hidden shrink-0 items-center gap-1.5 rounded-control border border-border px-2.5 py-1 type-meta text-muted-foreground sm:flex">
               <Network className="size-3.5" aria-hidden />
-              Inherited via parent
+              {t("inheritedViaParent")}
             </span>
           ) : state?.selected && hasChildren ? (
             <label className="flex shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-primary/35 py-1 ps-1 pe-1 sm:ps-3.5">
@@ -268,14 +270,14 @@ export function OrgScopePicker({
                     : "text-muted-foreground"
                 )}
               >
-                Include sub-units
+                {t("includeSubUnits")}
               </span>
               <Switch
                 checked={state.includeDescendants}
                 onCheckedChange={(value) =>
                   setIncludeDescendants(node.unit.id, value)
                 }
-                aria-label={`Include sub-units of ${node.unit.name}`}
+                aria-label={t("includeSubUnitsOf", { name: node.unit.name })}
               />
             </label>
           ) : null}
@@ -293,25 +295,25 @@ export function OrgScopePicker({
       <div>
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div>
-            <h3 className="type-section-title text-foreground">Organization units</h3>
+            <h3 className="type-section-title text-foreground">{t("organizationUnits")}</h3>
             <p className="mt-0.5 type-body-secondary text-muted-foreground">
-              Select the organization units to include in this population.
+              {t("selectTheOrganizationUnitsTo")}
             </p>
           </div>
           <div className="flex w-full items-center divide-x divide-border rounded-surface border border-border py-2 type-body-secondary tabular-nums text-muted-foreground sm:w-auto">
             <span className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-2.5 sm:flex-none sm:px-3.5">
               <Network className="size-4 text-primary-ink" aria-hidden />
               <span className="font-semibold text-foreground">{selectedList.length}</span>
-              {selectedList.length === 1 ? "unit" : "units"}
-              <span className="-ms-1 hidden sm:inline">selected</span>
+              {selectedList.length === 1 ? t("unit") : t("units")}
+              <span className="-ms-1 hidden sm:inline">{t("selected")}</span>
             </span>
             <span className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-2.5 sm:flex-none sm:px-3.5">
               <Users2 className="size-4" aria-hidden />
               <span className="font-semibold text-foreground">
                 {matchedCount === null ? "—" : matchedCount}
               </span>
-              {matchedCount === 1 ? "person" : "people"}
-              <span className="-ms-1 hidden sm:inline">matched</span>
+              {matchedCount === 1 ? t("person") : t("people")}
+              <span className="-ms-1 hidden sm:inline">{t("matched")}</span>
             </span>
           </div>
         </div>
@@ -323,12 +325,12 @@ export function OrgScopePicker({
           <Input
             value={term}
             onChange={(event) => setTerm(event.target.value)}
-            placeholder="Search organization units..."
+            placeholder={t("searchOrganizationUnits")}
             className="h-11 ps-10"
           />
         </div>
         {hiddenSelections.length > 0 ? (
-          <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Selected units out of view">
+          <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label={t("selectedUnitsOutOfView")}>
             {hiddenSelections.map((selection) => (
               <li
                 key={selection.orgUnitId}
@@ -339,7 +341,7 @@ export function OrgScopePicker({
                   type="button"
                   onClick={() => toggleUnit(selection.orgUnitId)}
                   className="grid size-5 place-items-center rounded-detail hover:bg-primary/15"
-                  aria-label={`Remove ${names.get(selection.orgUnitId) ?? "unit"} from scope`}
+                  aria-label={t("removeFromScope", { value: names.get(selection.orgUnitId) ?? "unit" })}
                 >
                   <X className="size-3" />
                 </button>
@@ -351,7 +353,7 @@ export function OrgScopePicker({
 
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-surface border border-border p-1.5">
         {hierarchy.isLoading || (roots.length === 0 && current.isLoading) ? (
-          <div className="py-1" aria-busy aria-label="Loading organization units">
+          <div className="py-1" aria-busy aria-label={t("loadingOrganizationUnits")}>
             {[0, 1, 2, 2, 1, 2].map((depth, index) => (
               <div
                 key={index}
@@ -375,7 +377,7 @@ export function OrgScopePicker({
           <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
             <Search className="size-5 text-muted-foreground" aria-hidden />
             <p className="type-body-secondary text-muted-foreground">
-              No units match &ldquo;{term}&rdquo;.
+              {t("noUnitsMatch", { term })}
             </p>
           </div>
         ) : (
@@ -407,27 +409,29 @@ function Guides({ depth }: { depth: number }) {
 }
 
 function EmptyTree({ cycleId, asOf, startsOn }: { cycleId: string; asOf: string; startsOn: string | null }) {
+  const format = useFormat();
+  const t = useTranslations("cycleSetup.EmptyTree");
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
       <Building2 className="size-6 text-muted-foreground" aria-hidden />
       {startsOn ? (
         <>
           <p className="type-label text-foreground">
-            Your organization structure starts on {formatDate(startsOn)}
+            {t("yourOrganizationStructureStartsOn", { startsOn: format.date(startsOn) })}
           </p>
           <p className="type-body-secondary max-w-xs text-muted-foreground">
-            This cycle starts on {formatDate(asOf)}, before any units exist.
+            {t("thisCycleStartsOnBefore", { asOf: format.date(asOf) })}
           </p>
           <Link
             href={setupStepHref("details", cycleId)}
             className="type-label mt-1 text-primary-ink underline-offset-4 hover:underline"
           >
-            Change cycle dates
+            {t("changeCycleDates")}
           </Link>
         </>
       ) : (
         <p className="type-body-secondary text-muted-foreground">
-          No organization units exist yet.
+          {t("noOrganizationUnitsExistYet")}
         </p>
       )}
     </div>
@@ -435,18 +439,19 @@ function EmptyTree({ cycleId, asOf, startsOn }: { cycleId: string; asOf: string;
 }
 
 function TreeError({ onRetry }: { onRetry: () => void }) {
+  const t = useTranslations("cycleSetup.TreeError");
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
       <AlertCircle className="size-6 text-destructive" aria-hidden />
       <p className="type-body-secondary text-muted-foreground">
-        Couldn&rsquo;t load organization units.
+        {t("couldntLoadOrganizationUnits")}
       </p>
       <button
         type="button"
         onClick={onRetry}
         className="type-label text-primary-ink underline-offset-4 hover:underline"
       >
-        Try again
+        {t("tryAgain")}
       </button>
     </div>
   );

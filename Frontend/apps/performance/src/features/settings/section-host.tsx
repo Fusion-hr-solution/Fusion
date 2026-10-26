@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import type { FusionSettingsSection } from "@repo/api";
 import { useSettingsSections } from "@repo/api/query";
 import { PageError, SettingsPage } from "@repo/ds/shell";
@@ -19,7 +19,6 @@ export function PerformanceSettingsSectionHost({
   render: (section: FusionSettingsSection) => ReactNode;
 }) {
   const t = useTranslations("settings");
-  const locale = useLocale();
   const performanceSettingsLabel = usePerformanceSettingsLabel();
   const sections = useSettingsSections("performance");
   const section = sections.data?.find((candidate) => candidate.id === id);
@@ -31,19 +30,12 @@ export function PerformanceSettingsSectionHost({
 
   if (sections.isError) {
     return (
-      <div lang={locale} className="contents">
-        <SettingsPage title={performanceSettingsLabel(id)}>
-          <PageError title={t("didNotLoad")} onRetry={() => void sections.refetch()} />
-        </SettingsPage>
-      </div>
+      <SettingsPage title={performanceSettingsLabel(id)}>
+        <PageError title={t("didNotLoad")} onRetry={() => void sections.refetch()} />
+      </SettingsPage>
     );
   }
-  // Translated sections mark their language: Performance's other screens are still English (phase 3).
-  return (
-    <div lang={locale} className="contents">
-      {section ? render(section) : <SettingsPage title={performanceSettingsLabel(id)} loading />}
-    </div>
-  );
+  return section ? render(section) : <SettingsPage title={performanceSettingsLabel(id)} loading />;
 }
 
 /** `/performance/settings` opens the person's first Performance section (Rating scale for a settings holder). */

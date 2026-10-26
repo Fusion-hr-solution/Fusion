@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import type { MeasurementDto, ObjectiveProgressSource } from "@repo/api";
-import { formatDateRange } from "@repo/ds/lib/dates";
 import { MilestoneDue } from "../../measurement/milestone-due";
 import { TargetRange } from "../../plan/target-range";
-import { MEASUREMENT_METHOD_LABEL, pct } from "../../plan/plan-lib";
+import { pct } from "../../plan/plan-lib";
 import { measureLabel, type ObjectiveRecord } from "../objective-record-model";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
 
 /** One property of the objective: a quiet label and its value, rows separated by hairlines. */
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -17,22 +19,25 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function MeasureFacts({ measurement, progressSource }: { measurement: MeasurementDto | null; progressSource?: ObjectiveProgressSource }) {
-  if (progressSource === "Calculated") return <Fact label="Measured by">Contributing objectives</Fact>;
+  const t = useTranslations("objective.MeasureFacts");
+  const words = useSay("common.words");
+  const model = useSay("objective.model");
+  if (progressSource === "Calculated") return <Fact label={t("measuredBy")}>{t("contributingObjectives")}</Fact>;
   const milestones = measurement?.method === "WeightedMilestones" ? measurement.milestones : null;
   return (
     <>
-      <Fact label="Measured by">
-        {measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "–"}
+      <Fact label={t("measuredBy")}>
+        {measurement ? words(`method.${measurement.method}`) : "–"}
         {milestones ? <span className="type-meta text-muted-foreground"> · {milestones.length}</span> : null}
       </Fact>
       {measurement?.method === "NumericTarget" ? (
-        <Fact label="Target">
+        <Fact label={t("target")}>
           <span className="inline-flex items-center gap-1.5 tabular-nums">
             <TargetRange baseline={measurement.baseline} target={measurement.target} unit={measurement.unit} direction={measurement.direction} />
           </span>
         </Fact>
       ) : measurement?.method === "ManualPercentage" ? (
-        <Fact label="Measure">{measureLabel(measurement)}</Fact>
+        <Fact label={t("measure")}>{measureLabel(measurement, model)}</Fact>
       ) : null}
     </>
   );
@@ -67,8 +72,9 @@ export function MeasurementSection({
   progressSource?: ObjectiveProgressSource;
   showMilestones?: boolean;
 }) {
+  const t = useTranslations("objective.MeasurementSection");
   return (
-    <section aria-label="Measurement">
+    <section aria-label={t("measurement")}>
       <dl className="divide-y divide-border">
         <MeasureFacts measurement={measurement} progressSource={progressSource} />
       </dl>
@@ -83,12 +89,14 @@ export function MeasurementSection({
  * per fact.
  */
 export function ObjectiveFactsSection({ record }: { record: ObjectiveRecord }) {
+  const format = useFormat();
+  const t = useTranslations("objective.ObjectiveFactsSection");
   return (
-    <section aria-label="About this objective">
+    <section aria-label={t("aboutThisObjective")}>
       <dl className="divide-y divide-border">
         <MeasureFacts measurement={record.measurement} progressSource={record.progressSource} />
-        <Fact label="Runs">{formatDateRange(record.startDate.slice(0, 10), record.endDate.slice(0, 10))}</Fact>
-        {record.planWeight != null ? <Fact label="Weight">{pct(record.planWeight)}% of the plan</Fact> : null}
+        <Fact label={t("runs")}>{format.range(record.startDate.slice(0, 10), record.endDate.slice(0, 10))}</Fact>
+        {record.planWeight != null ? <Fact label={t("weight")}>{t("ofThePlan", { planWeight: pct(record.planWeight) })}</Fact> : null}
       </dl>
       <MilestoneList measurement={record.measurement} />
     </section>

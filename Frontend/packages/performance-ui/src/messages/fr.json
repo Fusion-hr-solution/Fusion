@@ -1,0 +1,124 @@
+{
+  "performanceUi": {
+    "SummarySkeleton": {
+      "loadingPerformance": "Chargement de la performance"
+    },
+    "PersonPerformanceSummary": {
+      "performanceCouldntBeLoaded": "La performance n’a pas pu être chargée.",
+      "tryAgain": "Réessayer",
+      "theresNothingYouCanSee": "Rien de visible ici pour l’instant."
+    },
+    "PraiseCard": {
+      "aColleague": "Un collègue",
+      "from": "de {author} ·",
+      "toYou": "Pour vous",
+      "praised": "{author} a reconnu {recipients}"
+    },
+    "PraiseReactions": {
+      "reactions": "Réactions"
+    },
+    "SummaryOneOnOne": {
+      "next11": "Prochain entretien individuel",
+      "notScheduled": "Non planifié"
+    },
+    "SummaryFeedback": {
+      "feedback": "Feedback",
+      "noFeedbackYet": "Aucun feedback pour l’instant",
+      "aColleague": "Un collègue",
+      "managerOnly": "Manager uniquement"
+    },
+    "SummaryPraise": {
+      "praise": "Reconnaissances",
+      "noPraiseYet": "Aucune reconnaissance pour l’instant"
+    },
+    "SummaryDevelopment": {
+      "development": "Développement",
+      "noDevelopmentGoalsYet": "Aucun objectif de développement pour l’instant",
+      "by": "d’ici le {targetDate}"
+    },
+    "PlanFact": {
+      "noCycleYet": "Pas encore de cycle",
+      "notPartOf": "Ne fait pas partie de {cycleName}",
+      "n1Objective": "1 objectif",
+      "objectives": "{length} objectifs",
+      "atRisk": "{cycle} à risque"
+    },
+    "ReviewStepTrack": {
+      "noReviewInProgress": "Aucune évaluation en cours",
+      "reviewSteps": "Étapes de l’évaluation {reviewRoundName}",
+      "due": ", échéance le {dueDate}"
+    },
+    "ResultsOverTime": {
+      "noReleasedResultsYet": "Aucun résultat publié pour l’instant",
+      "noRating": "Aucune note"
+    },
+    "SummaryGlance": {
+      "plan": "Plan, {cycleName}",
+      "plan2": "Plan",
+      "review": "Vérification",
+      "results": "Résultats",
+      "atAGlance": "En bref"
+    },
+    "SummaryObjectives": {
+      "objectives": "Objectifs",
+      "notPartOf": "Ne fait pas partie de {cycleName}",
+      "noObjectivesSharedYet": "Aucun objectif partagé pour l’instant",
+      "alignedTo": "Aligné sur {alignedTo}",
+      "standalone": "Autonome"
+    },
+    "SummaryReviews": {
+      "due": "Échéance le {dueDate}",
+      "inProgress": "En cours",
+      "finalized": "Finalisée le {finalizedAt}",
+      "finalized2": "Finalisé",
+      "reviews": "Évaluations",
+      "noReviewsYet": "Aucune évaluation pour l’instant"
+    },
+    "words": {
+      "objectiveStatus": {
+        "OnTrack": "En bonne voie",
+        "AtRisk": "À risque",
+        "OffTrack": "Hors trajectoire"
+      },
+      "planStatus": {
+        "NotStarted": "Non commencé",
+        "Draft": "Brouillon",
+        "ReturnedForChanges": "Renvoyé pour modifications",
+        "Submitted": "En attente d’approbation",
+        "Approved": "Approuvé"
+      },
+      "developmentStatus": {
+        "NotStarted": "Non commencé",
+        "InProgress": "En cours",
+        "Done": "Terminé"
+      },
+      "step": {
+        "SelfAssessment": "Auto-évaluation",
+        "ManagerAssessment": "Évaluation de l’évaluateur",
+        "Calibration": "Calibrage",
+        "ReadyToFinalize": "Prête à finaliser",
+        "Finalized": "Finalisé"
+      },
+      "mix": {
+        "onTrack": "{count, plural, one {# en bonne voie} other {# en bonne voie}}",
+        "atRisk": "{count, plural, one {# à risque} other {# à risque}}",
+        "offTrack": "{count, plural, one {# en difficulté} other {# en difficulté}}",
+        "notReported": "{count} non communiqués"
+      },
+      "aColleague": "Un collègue",
+      "namesAnd": "{first} et {last}",
+      "justNow": "À l’instant",
+      "minutesAgo": "il y a {count} min",
+      "hoursAgo": "il y a {count} h",
+      "yesterday": "Hier",
+      "closed": "Clôturé",
+      "noRating": "Aucune note",
+      "open11s": "Ouvrir les entretiens individuels",
+      "overdue11": "Entretien individuel en retard",
+      "openFeedback": "Ouvrir les feedbacks",
+      "seeAllPraise": "Voir toutes les reconnaissances",
+      "openDevelopment": "Ouvrir le développement",
+      "openPlan": "Ouvrir le plan"
+    }
+  }
+}

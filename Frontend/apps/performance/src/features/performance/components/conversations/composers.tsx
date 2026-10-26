@@ -19,7 +19,8 @@ import { localDate } from "../one-on-ones/one-on-one-lib";
 import { ColleaguePicker, ColleaguesPicker, type PickedColleague } from "./colleague-picker";
 import { firstName } from "./conversation-parts";
 import { REACTION_ICONS } from "./reaction-icons";
-import { formatCount } from "@repo/ds/lib/numbers";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 export const FEEDBACK_MAX = 2_000;
 export const QUESTION_MAX = 300;
@@ -59,7 +60,8 @@ function Field({ label, htmlFor, meta, children }: { label: string; htmlFor?: st
 }
 
 function Count({ value, max }: { value: string; max: number }) {
-  return <span className="type-meta tabular-nums text-muted-foreground">{formatCount(value.length)} / {formatCount(max)}</span>;
+  const format = useFormat();
+  return <span className="type-meta tabular-nums text-muted-foreground">{format.count(value.length)} / {format.count(max)}</span>;
 }
 
 const CHIP = "inline-flex h-8 items-center gap-1.5 rounded-control border px-3 type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -92,10 +94,11 @@ function ObjectiveChoices({ ownerId, value, onChange }: { ownerId: string; value
 
 /** What it's about, as one choice among the owner's objectives, the company values, or nothing specific. */
 function SubjectPicker({ ownerId, value, onChange }: { ownerId: string | null; value: Subject; onChange: (subject: Subject) => void }) {
+  const t = useTranslations("conversations.SubjectPicker");
   const values = useCompanyValues();
   const toneOf = useValueTones();
   return (
-    <div role="radiogroup" aria-label="About" className="flex flex-wrap gap-2">
+    <div role="radiogroup" aria-label={t("about")} className="flex flex-wrap gap-2">
       {ownerId ? <ObjectiveChoices ownerId={ownerId} value={value} onChange={onChange} /> : null}
       {(values.data ?? []).map((v) => {
         const on = value.kind === "competency" && value.id === v.id;
@@ -120,7 +123,7 @@ function SubjectPicker({ ownerId, value, onChange }: { ownerId: string | null; v
         onClick={() => onChange(NOTHING)}
         className={cn(CHIP, value.kind === "none" ? "border-foreground/30 bg-inlay text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
       >
-        Nothing specific
+        {t("nothingSpecific")}
       </button>
     </div>
   );
@@ -128,28 +131,29 @@ function SubjectPicker({ ownerId, value, onChange }: { ownerId: string | null; v
 
 /** Who reads it, as two choices with the people in them. */
 function VisibilityChoice({ value, onChange, receiver }: { value: FeedbackVisibility; onChange: (value: FeedbackVisibility) => void; receiver: PickedColleague | null }) {
-  const name = receiver ? firstName(receiver.displayName) : "They";
+  const t = useTranslations("conversations.VisibilityChoice");
+  const name = receiver ? firstName(receiver.displayName) : null;
   const options: { value: FeedbackVisibility; title: string; people: ReactNode; who: string }[] = [
     {
       value: "Shared",
-      title: "Shared",
+      title: t("shared"),
       people: (
         <span className="flex items-center">
           {receiver ? <PersonInitials name={receiver.displayName} size="xs" className="ring-2 ring-popover" /> : null}
           <span className={cn("grid size-6 place-items-center rounded-full bg-inlay ring-2 ring-popover", receiver && "-ms-1.5")}><Users className="size-3.5 text-muted-foreground" /></span>
         </span>
       ),
-      who: `${name} and their manager`,
+      who: t("sharedWho", { name: name ?? t("they") }),
     },
     {
       value: "ManagerOnly",
-      title: "Manager only",
+      title: t("managerOnly"),
       people: <span className="grid size-6 place-items-center rounded-full bg-inlay"><Lock className="size-3.5 text-muted-foreground" /></span>,
-      who: `Only ${name === "They" ? "their" : `${name}'s`} manager`,
+      who: name ? t("managerOnlyWho", { name }) : t("managerOnlyWhoAnon"),
     },
   ];
   return (
-    <div role="radiogroup" aria-label="Who reads it" className="grid gap-2 sm:grid-cols-2">
+    <div role="radiogroup" aria-label={t("whoReadsIt")} className="grid gap-2 sm:grid-cols-2">
       {options.map((option) => {
         const on = value === option.value;
         return (
@@ -201,6 +205,7 @@ export function FeedbackComposer({
   objective?: FixedObjective;
   onClose: () => void;
 }) {
+  const t = useTranslations("conversations.FeedbackComposer");
   const { user } = useAuth();
   const give = useGiveFeedback();
   const [id] = useState(newClientId);
@@ -215,7 +220,7 @@ export function FeedbackComposer({
     <Dialog open onOpenChange={(open) => { if (!open && !give.isLoading) onClose(); }}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[min(40rem,calc(100vw-2rem))] max-w-none sm:max-w-none gap-0 overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="type-meta text-muted-foreground">Give feedback</DialogTitle>
+          <DialogTitle className="type-meta text-muted-foreground">{t("giveFeedback")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 px-6 pt-4 pb-6">
           {receiver && !changing ? (
@@ -225,10 +230,10 @@ export function FeedbackComposer({
                 <p className="truncate type-section-title text-foreground">{receiver.displayName}</p>
                 {receiver.subtitle ? <p className="truncate type-meta text-muted-foreground">{receiver.subtitle}</p> : null}
               </div>
-              {fixedReceiver ? null : <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>Change</Button>}
+              {fixedReceiver ? null : <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>{t("change")}</Button>}
             </div>
           ) : (
-            <Field label="To" htmlFor="feedback-to">
+            <Field label={t("to")} htmlFor="feedback-to">
               <ColleaguePicker
                 id="feedback-to"
                 value={receiver}
@@ -241,10 +246,10 @@ export function FeedbackComposer({
               />
             </Field>
           )}
-          <Field label="About">
+          <Field label={t("about")}>
             {objective ? <FixedSubject objective={objective} /> : <SubjectPicker ownerId={receiver?.employeeId ?? null} value={subject} onChange={setSubject} />}
           </Field>
-          <Field label="Feedback" htmlFor="feedback-message" meta={<Count value={message} max={FEEDBACK_MAX} />}>
+          <Field label={t("feedback")} htmlFor="feedback-message" meta={<Count value={message} max={FEEDBACK_MAX} />}>
             <Textarea
               id="feedback-message"
               voice="narrative"
@@ -254,17 +259,17 @@ export function FeedbackComposer({
               onChange={(event) => setMessage(event.target.value)}
             />
           </Field>
-          <Field label="Who reads it">
+          <Field label={t("whoReadsIt")}>
             <VisibilityChoice value={visibility} onChange={setVisibility} receiver={receiver} />
           </Field>
           {give.error ? <p className="type-body text-destructive" role="alert">{give.error.message}</p> : null}
         </div>
         <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-popover px-6 py-4">
           <span className="flex items-center gap-1.5 type-meta text-muted-foreground">
-            <Lock className="size-3.5" aria-hidden /> Can&apos;t be changed once sent
+            <Lock className="size-3.5" aria-hidden /> {t("cantBeChangedOnceSent")}
           </span>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose} disabled={give.isLoading}>Cancel</Button>
+            <Button variant="ghost" onClick={onClose} disabled={give.isLoading}>{t("cancel")}</Button>
             <AsyncButton
               pending={give.isLoading}
               disabled={!ready}
@@ -278,13 +283,13 @@ export function FeedbackComposer({
                     message: message.trim(),
                     ...subjectFields(subject, objective),
                   });
-                  toast.success(`Feedback sent to ${receiver.displayName}.`);
+                  toast.success(t("feedbackSentTo", { displayName: receiver.displayName }));
                   onClose();
                 } catch { /* shown above */ }
               }}
             >
               <Send className="size-4" data-icon="inline-start" />
-              {receiver ? `Send to ${firstName(receiver.displayName)}` : "Send feedback"}
+              {receiver ? t("sendTo", { displayName: firstName(receiver.displayName) }) : t("sendFeedback")}
             </AsyncButton>
           </div>
         </div>
@@ -295,6 +300,7 @@ export function FeedbackComposer({
 
 /** Ask 1–5 colleagues one question by a date (D-13), about one of your objectives, a value, or nothing specific. */
 export function RequestComposer({ objective, onClose, onSent }: { objective?: FixedObjective; onClose: () => void; onSent?: (id: string) => void }) {
+  const t = useTranslations("conversations.RequestComposer");
   const { user } = useAuth();
   const ask = useAskForFeedback();
   const [id] = useState(newClientId);
@@ -310,33 +316,33 @@ export function RequestComposer({ objective, onClose, onSent }: { objective?: Fi
     <Dialog open onOpenChange={(open) => { if (!open && !ask.isLoading) onClose(); }}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[min(40rem,calc(100vw-2rem))] max-w-none sm:max-w-none gap-0 overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="type-meta text-muted-foreground">Ask for feedback</DialogTitle>
+          <DialogTitle className="type-meta text-muted-foreground">{t("askForFeedback")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 px-6 pt-4 pb-6">
-          <Field label="Your question" htmlFor="request-question" meta={<Count value={question} max={QUESTION_MAX} />}>
+          <Field label={t("yourQuestion")} htmlFor="request-question" meta={<Count value={question} max={QUESTION_MAX} />}>
             <Textarea
               id="request-question"
               voice="narrative"
               className="min-h-20 resize-none"
               maxLength={QUESTION_MAX}
               value={question}
-              placeholder={objective ? `How is "${objective.title}" landing?` : undefined}
+              placeholder={objective ? t("howIsLanding", { title: objective.title }) : undefined}
               onChange={(event) => setQuestion(event.target.value)}
             />
           </Field>
-          <Field label="Ask" htmlFor="request-people" meta={<span className="type-meta tabular-nums text-muted-foreground">{people.length} / {MAX_INVITEES}</span>}>
+          <Field label={t("ask")} htmlFor="request-people" meta={<span className="type-meta tabular-nums text-muted-foreground">{people.length} / {MAX_INVITEES}</span>}>
             <ColleaguesPicker id="request-people" value={people} onChange={setPeople} max={MAX_INVITEES} exclude={user?.employeeId ? [user.employeeId] : []} />
           </Field>
-          <Field label="About">
+          <Field label={t("about")}>
             {objective ? <FixedSubject objective={objective} /> : <SubjectPicker ownerId={user?.employeeId ?? null} value={subject} onChange={setSubject} />}
           </Field>
-          <Field label="Answer by" htmlFor="request-due">
+          <Field label={t("answerBy")} htmlFor="request-due">
             <DatePicker id="request-due" value={dueDate} min={localDate(new Date())} onChange={setDueDate} className="w-48" />
           </Field>
           {ask.error ? <p className="type-body text-destructive" role="alert">{ask.error.message}</p> : null}
         </div>
         <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-popover px-6 py-4">
-          <Button variant="ghost" onClick={onClose} disabled={ask.isLoading}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose} disabled={ask.isLoading}>{t("cancel")}</Button>
           <AsyncButton
             pending={ask.isLoading}
             disabled={!ready}
@@ -349,14 +355,14 @@ export function RequestComposer({ objective, onClose, onSent }: { objective?: Fi
                   dueDate,
                   ...subjectFields(subject, objective),
                 });
-                toast.success(`Asked ${people.length} colleague${people.length === 1 ? "" : "s"}.`);
+                toast.success((people.length === 1 ? t("askedColleague", { length: people.length }) : t("askedColleagues", { length: people.length })));
                 onClose();
                 onSent?.(request.id);
               } catch { /* shown above */ }
             }}
           >
             <Send className="size-4" data-icon="inline-start" />
-            {people.length > 1 ? `Ask ${people.length} colleagues` : "Send request"}
+            {people.length > 1 ? t("askColleagues", { length: people.length }) : t("sendRequest")}
           </AsyncButton>
         </div>
       </DialogContent>
@@ -369,6 +375,7 @@ export function RequestComposer({ objective, onClose, onSent }: { objective?: Fi
  * see it while it's written.
  */
 export function PraiseComposer({ initialValue, onClose }: { initialValue?: string; onClose: () => void }) {
+  const t = useTranslations("conversations.PraiseComposer");
   const { user } = useAuth();
   const give = useGivePraise();
   const values = useCompanyValues();
@@ -385,7 +392,7 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
     author: { id: user?.employeeId ?? "", name: user?.fullName ?? null },
     recipients: people.length > 0 ? people.map((p) => ({ id: p.employeeId, name: p.displayName })) : [{ id: "", name: "Who you praise" }],
     value: chosen ?? { id: "none", name: "A company value" },
-    message: message.trim() || "What they did, in your words.",
+    message: message.trim() || t("whatTheyDidInYour"),
     givenAt: new Date().toISOString(),
     reactions: [],
     canDelete: false,
@@ -396,13 +403,13 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[min(60rem,calc(100vw-2rem))] max-w-none sm:max-w-none gap-0 overflow-y-auto p-0 md:grid md:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6 p-6">
           <DialogHeader>
-            <DialogTitle className="type-meta text-muted-foreground">Give praise</DialogTitle>
+            <DialogTitle className="type-meta text-muted-foreground">{t("givePraise")}</DialogTitle>
           </DialogHeader>
-          <Field label="Who" htmlFor="praise-people" meta={<span className="type-meta tabular-nums text-muted-foreground">{people.length} / {MAX_RECIPIENTS}</span>}>
+          <Field label={t("who")} htmlFor="praise-people" meta={<span className="type-meta tabular-nums text-muted-foreground">{people.length} / {MAX_RECIPIENTS}</span>}>
             <ColleaguesPicker id="praise-people" value={people} onChange={setPeople} max={MAX_RECIPIENTS} exclude={user?.employeeId ? [user.employeeId] : []} />
           </Field>
-          <Field label="For">
-            <div role="radiogroup" aria-label="Value" className="grid gap-2 sm:grid-cols-2">
+          <Field label={t("for")}>
+            <div role="radiogroup" aria-label={t("value")} className="grid gap-2 sm:grid-cols-2">
               {(values.data ?? []).map((v) => {
                 const on = value === v.id;
                 return (
@@ -424,7 +431,7 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
               })}
             </div>
           </Field>
-          <Field label="What they did" htmlFor="praise-message" meta={<Count value={message} max={PRAISE_MAX} />}>
+          <Field label={t("whatTheyDid")} htmlFor="praise-message" meta={<Count value={message} max={PRAISE_MAX} />}>
             <Textarea
               id="praise-message"
               voice="narrative"
@@ -437,12 +444,12 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
           {give.error ? <p className="type-body text-destructive" role="alert">{give.error.message}</p> : null}
         </div>
         <div className="flex flex-col gap-4 border-t border-border p-6 md:border-t-0 md:border-s">
-          <p className="type-meta text-muted-foreground">Everyone will see</p>
+          <p className="type-meta text-muted-foreground">{t("everyoneWillSee")}</p>
           <div aria-hidden className={cn(!ready && "opacity-80")}>
             <PraiseCard praise={preview} reactionIcons={REACTION_ICONS} reading />
           </div>
           <div className="mt-auto flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={onClose} disabled={give.isLoading}>Cancel</Button>
+            <Button variant="ghost" onClick={onClose} disabled={give.isLoading}>{t("cancel")}</Button>
             <AsyncButton
               pending={give.isLoading}
               disabled={!ready}
@@ -450,13 +457,13 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
                 if (!value) return;
                 try {
                   await give.mutateAsync({ id, recipientEmployeeIds: people.map((p) => p.employeeId), competencyId: value, message: message.trim() });
-                  toast.success("Praise shared.");
+                  toast.success(t("praiseShared"));
                   onClose();
                 } catch { /* shown on the left */ }
               }}
             >
               <Star className="size-4" data-icon="inline-start" />
-              {people.length > 1 ? `Praise ${people.length} people` : "Give praise"}
+              {people.length > 1 ? t("praisePeople", { length: people.length }) : t("givePraise")}
             </AsyncButton>
           </div>
         </div>

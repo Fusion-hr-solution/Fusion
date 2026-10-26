@@ -1,5 +1,6 @@
-import type { OverviewYearDto, YearDateDto } from "@repo/api";
+import type { OverviewYearDto } from "@repo/api";
 import { daysFromToday, formatDate, formatDateRange } from "@repo/ds/lib/dates";
+import { english, type Say } from "@/i18n/say";
 
 /**
  * Overview is one server projection (performance-overview): the year, then rows in a fixed order, each with its
@@ -12,16 +13,17 @@ export function appHref(href: string): string {
   return href === BASE ? "/" : href.startsWith(`${BASE}/`) || href.startsWith(`${BASE}?`) ? href.slice(BASE.length) : href;
 }
 
-export const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+/** Overview's own words in English, for helpers called outside a translated tree. */
+const en = english("overview.model");
 
 /** "Sat 31 Oct" (the year outside this year). */
-export function day(iso: string): string {
-  return formatDate(iso.slice(0, 10), { weekday: true });
+export function day(iso: string, locale?: string): string {
+  return formatDate(iso.slice(0, 10), { weekday: true, locale });
 }
 
 /** "1 Oct – 31 Oct". */
-export function dayRange(start: string, end: string): string {
-  return formatDateRange(start, end, { omitYear: true });
+export function dayRange(start: string, end: string, locale?: string): string {
+  return formatDateRange(start, end, { omitYear: true, locale });
 }
 
 /** Whole days from today to an ISO date or instant (negative once past). */
@@ -30,61 +32,48 @@ export function daysFrom(iso: string, now: Date = new Date()): number {
 }
 
 /** "today", "yesterday", "6 days ago". */
-export function ago(iso: string, now: Date = new Date()): string {
+export function ago(iso: string, now: Date = new Date(), say: Say = en): string {
   const days = -daysFrom(iso, now);
-  return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+  return days <= 0 ? say("today") : days === 1 ? say("yesterday") : say("daysAgo", { count: days });
 }
 
 export const firstName = (name: string | null | undefined) => name?.trim().split(/\s+/)[0] ?? "";
 
-const DATE_LABEL: Record<YearDateDto["kind"], string> = {
-  "plans-due": "Plans due",
-  "self-due": "Self-assessment due",
-  "peers-due": "Peer input due",
-  "reviews-due": "Your reviews are due",
-  "managers-due": "Manager reviews due",
-  "cycle-end": "Year ends",
-  "cycle-start": "Planned start",
-};
 
 /** The year band's heading: the phase and what's left of it, and the next date in words. */
-export function yearHeadline(year: OverviewYearDto, cycleName: string): { phase: string; left: string | null; next: string | null } {
+export function yearHeadline(year: OverviewYearDto, cycleName: string, say: Say = en, locale?: string): { phase: string; left: string | null; next: string | null } {
+  const day_ = (iso: string) => day(iso, locale);
   if (year.state === "Closed") {
-    return { phase: `${cycleName} is closed`, left: null, next: year.closedAt ? `Closed ${day(year.closedAt)}` : null };
+    return { phase: say("closedPhase", { cycleName }), left: null, next: year.closedAt ? say("closedOn", { day: day_(year.closedAt) }) : null };
   }
   if (year.state === "Draft") {
     const planning = year.dates.find((d) => d.kind === "plans-due");
     return {
-      phase: "Draft",
+      phase: say("draft"),
       left: null,
-      next: `Planned start ${day(year.start)}${planning ? ` · planning by ${day(planning.date)}` : ""}`,
+      next: planning ? say("plannedStartPlanning", { day: day_(year.start), planning: day_(planning.date) }) : say("plannedStart", { day: day_(year.start) }),
     };
   }
   // A manager-review date that has passed with reviews still late is the administrator's news.
   const lateManagers = year.dates.find((d) => d.kind === "managers-due" && daysFrom(d.date) < 0 && (d.count ?? 0) > 0);
   const next = lateManagers
-    ? `Manager reviews were due ${day(lateManagers.date)} · ${lateManagers.count} late`
+    ? say("managersLate", { day: day_(lateManagers.date), count: lateManagers.count ?? 0 })
     : year.next
-      ? `${DATE_LABEL[year.next.kind]} ${day(year.next.date)}`
+      ? say("nextDate", { label: say(`date.${year.next.kind}`), day: day_(year.next.date) })
       : null;
-  const left = year.daysLeft === null ? null : year.daysLeft === 0 ? "today" : plural(year.daysLeft, "day") + " left";
-  return { phase: year.currentPhase ?? "", left, next };
+  const left = year.daysLeft === null ? null : year.daysLeft === 0 ? say("leftToday") : say("daysLeft", { count: year.daysLeft });
+  return { phase: year.currentPhase ? say(`phase.${year.currentPhase}`) : "", left, next };
 }
 
-/** Plan state words for chips and rows. */
-export const PLAN_WORD: Record<string, string> = {
-  NotStarted: "Not started",
-  Draft: "Drafting",
-  ReturnedForChanges: "Returned",
-  Submitted: "Submitted",
-  Approved: "Approved",
-};
+const PLAN_STATES = ["NotStarted", "Draft", "ReturnedForChanges", "Submitted", "Approved"];
+const REVIEW_STAGES = ["ready", "readyPeers", "peersToApprove", "selfAssessment", "submitted"];
 
-/** Review stage words for the reviews-you-write chips. */
-export const REVIEW_CHIP: Record<string, string> = {
-  ready: "Ready",
-  readyPeers: "Ready · peers to approve",
-  peersToApprove: "Peers to approve",
-  selfAssessment: "Writing their own",
-  submitted: "Submitted",
-};
+/** A plan state's word for chips and rows; an unknown one as sent. */
+export function planWord(state: string, say: Say = en): string {
+  return PLAN_STATES.includes(state) ? say(`plan.${state}`) : state;
+}
+
+/** A review stage's word for the reviews-you-write chips; an unknown one as sent. */
+export function reviewChip(stage: string, say: Say = en): string {
+  return REVIEW_STAGES.includes(stage) ? say(`review.${stage}`) : stage;
+}

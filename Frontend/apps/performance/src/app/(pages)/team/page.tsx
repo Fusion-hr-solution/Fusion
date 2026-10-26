@@ -20,6 +20,9 @@ import {
 import { TeamResultsPanel, TeamSummary, teamSubtitle } from "@/features/performance/components/team/team-summary";
 import { useCurrentCycle, useTeamResults, useYourPeople } from "@/features/performance/api/use-performance";
 import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * My Team: the people the user is the recorded reviewer of in the selected Cycle, grouped by what needs them in
@@ -27,6 +30,10 @@ import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
  * Team objectives follow while plans are made and executed.
  */
 export default function MyTeamPage() {
+  const t = useTranslations("team.MyTeamPage");
+  const peopleWords = useSay("team.people");
+  const summaryWords = useSay("team.summary");
+  const format = useFormat();
   const context = useWorkspaceContext();
   const canReview = context.data?.destinations.team ?? false;
   // The organization-direction link is offered only to actors who can enter that workspace.
@@ -49,19 +56,19 @@ export default function MyTeamPage() {
   }, [filterHidden, peopleQuery.filter]);
 
   if (context.isLoading || detail.isLoading) return <TeamPageSkeleton />;
-  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
-  if (detail.error) return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject={t("performanceWorkspace")} />;
+  if (detail.error) return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject={t("theCycle")} />;
   if (!canReview || !cycle) return <NoReports cycleName={cycle?.name ?? null} />;
 
-  const lead = cycle ? leadAction(cycle.id, people.data) : null;
+  const lead = cycle ? leadAction(cycle.id, people.data, peopleWords) : null;
   const showObjectives = phase === "Planning" || phase === "Execution";
 
   return (
     <PageContainer width="wide">
       <PerformancePageHeading
-        title="My Team"
+        title={t("myTeam")}
         size="display"
-        description={people.data ? teamSubtitle(people.data) : undefined}
+        description={people.data ? teamSubtitle(people.data, summaryWords, format.locale) : undefined}
         actions={
           lead ? (
             <Button asChild>
@@ -85,16 +92,17 @@ export default function MyTeamPage() {
 
 /** An old link or bookmark without responsibility in this cycle: say so and lead back to Overview. */
 function NoReports({ cycleName }: { cycleName: string | null }) {
+  const t = useTranslations("team.NoReports");
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title="My Team" size="display" />
+      <PerformancePageHeading title={t("myTeam")} size="display" />
       <div className="mt-8 flex flex-col items-center rounded-surface bg-card px-6 py-16 text-center ring-1 ring-inset ring-border">
         <Users className="size-8 text-muted-foreground" aria-hidden />
         <p className="mt-3 type-section-title text-foreground">
-          {cycleName ? `No one reports to you in ${cycleName}` : "No one reports to you"}
+          {cycleName ? t("noOneReportsToYou", { cycleName }) : t("noOneReportsToYou2")}
         </p>
         <Button asChild variant="outline" className="mt-5">
-          <Link href="/">Go to Overview</Link>
+          <Link href="/">{t("goToOverview")}</Link>
         </Button>
       </div>
     </PageContainer>
@@ -103,9 +111,10 @@ function NoReports({ cycleName }: { cycleName: string | null }) {
 
 /** Shape-matched page loading: display title, the phase facts and the roster. */
 function TeamPageSkeleton() {
+  const t = useTranslations("team.TeamPageSkeleton");
   return (
     <PageContainer width="wide">
-      <div role="status" aria-label="Loading My Team">
+      <div role="status" aria-label={t("loadingMyTeam")}>
         <Skeleton className="h-9 w-72 max-w-full" />
         <Skeleton className="mt-2 h-4 w-48" />
         <div className="mt-8 space-y-8">

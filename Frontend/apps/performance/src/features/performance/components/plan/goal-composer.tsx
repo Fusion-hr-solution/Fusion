@@ -62,6 +62,8 @@ import {
   milestoneRows,
 } from "../coach/coach-model";
 import { useAutoCoach, useObjectiveCoach } from "../coach/use-objective-coach";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 2000;
@@ -105,6 +107,7 @@ export function PlanGoalComposer({
     request: Omit<AddPlanObjectiveRequest, "expectedVersion">
   ) => Promise<void>;
 }) {
+  const tr = useTranslations("plan.PlanGoalComposer");
   const isEdit = Boolean(objective);
 
   const [mode, setMode] = useState<AlignMode>("aligned");
@@ -249,20 +252,20 @@ export function PlanGoalComposer({
 
   const disabledReason = !valid
     ? title.trim() === ""
-      ? "Add a title first"
+      ? tr("addATitleFirst")
       : !alignValid
-        ? "Choose the objective this aligns to"
+        ? tr("chooseTheObjectiveThisAligns")
         : !measurementValid
           ? method === null
-            ? "Choose how progress is measured"
+            ? tr("chooseHowProgressIsMeasured")
             : method === "WeightedMilestones"
-              ? "Give each milestone a weight totalling 100%"
-              : "Set a baseline, target, and unit for the measure"
+              ? tr("giveEachMilestoneAWeight")
+              : tr("setABaselineTargetAnd")
           : !milestoneDatesValid
-            ? "Move milestone due dates inside the objective's dates"
+            ? tr("moveMilestoneDueDatesInside")
             : weightNum <= 0
-              ? "Give this objective a plan weight"
-              : "Plan weight can be at most 100%"
+              ? tr("giveThisObjectiveAPlan")
+              : tr("planWeightCanBeAt")
     : undefined;
 
   // Allocation context — the plan before this objective (edit mode already excludes its own weight).
@@ -372,7 +375,7 @@ export function PlanGoalComposer({
       else await onCreate(request);
       onOpenChange(false);
     } catch (error) {
-      reportPerformanceFailure(error, "Could not save the objective.");
+      reportPerformanceFailure(error, tr("couldNotSaveTheObjective"));
     } finally {
       setSubmitting(false);
     }
@@ -386,7 +389,7 @@ export function PlanGoalComposer({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-3">
               <DialogTitle>
-                {isEdit ? "Edit objective" : "Add objective"}
+                {isEdit ? tr("editObjective") : tr("addObjective")}
               </DialogTitle>
               {/* The objective's window — a real range picker beside the title. It defaults to the
                   inherited window (aligned parent's, or the cycle's) and stays bounded to the cycle. */}
@@ -408,13 +411,13 @@ export function PlanGoalComposer({
                 {pct(existing)}%
               </span>
               <span className="type-meta text-muted-foreground">
-                allocated
+                {tr("allocated")}
               </span>
             </div>
             <div
               className="h-1.5 w-16 overflow-hidden rounded-full bg-muted"
               role="img"
-              aria-label={`${pct(existing)} percent of plan weight allocated`}
+              aria-label={tr("percentOfPlanWeightAllocated", { existing: pct(existing) })}
             >
               <span
                 className="block h-full rounded-full bg-primary"
@@ -422,7 +425,7 @@ export function PlanGoalComposer({
               />
             </div>
             <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-              {pct(remaining)}% left
+              {tr("left", { remaining: pct(remaining) })}
             </span>
           </div>
         </div>
@@ -433,25 +436,25 @@ export function PlanGoalComposer({
             {/* 1. Alignment */}
             <ObjectiveComposerSection
               n={1}
-              title="Alignment"
-              hint="Choose how this objective connects to organizational direction."
+              title={tr("alignment")}
+              hint={tr("chooseHowThisObjectiveConnects")}
             >
               <div className="grid gap-3 sm:grid-cols-2">
                 <ChoiceTile
                   active={mode === "aligned"}
                   icon={Target}
-                  title="Aligned to direction"
-                  detail="Align this objective to an existing organizational objective."
+                  title={tr("alignedToDirection")}
+                  detail={tr("alignThisObjectiveToAn")}
                   onClick={() => setMode("aligned")}
                 />
                 <ChoiceTile
                   active={mode === "standalone"}
                   icon={UserRound}
-                  title="Standalone role objective"
+                  title={tr("standaloneRoleObjective")}
                   detail={
                     standaloneAllowed
-                      ? "Create an objective focused on your role and responsibilities."
-                      : "Not permitted this cycle — every objective must align to direction."
+                      ? tr("createAnObjectiveFocusedOn")
+                      : tr("notPermittedThisCycleEvery")
                   }
                   disabled={!standaloneAllowed}
                   tone="info"
@@ -462,7 +465,7 @@ export function PlanGoalComposer({
               {mode === "aligned" ? (
                 targets.length === 0 ? (
                   <p className="rounded-surface border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
-                    No published organizational objectives to align to yet.
+                    {tr("noPublishedOrganizationalObjectivesTo")}
                   </p>
                 ) : (
                   <CoachField
@@ -488,14 +491,14 @@ export function PlanGoalComposer({
                       }}
                     >
                       <SelectTrigger
-                        aria-label="Select organizational objective"
+                        aria-label={tr("selectOrganizationalObjective")}
                         className="h-auto w-full items-center whitespace-normal py-2.5 text-start data-[size=default]:h-auto [&>svg]:self-center"
                       >
                         {selectedTarget ? (
                           <TargetSummary target={selectedTarget} />
                         ) : (
                           <span className="text-muted-foreground">
-                            Choose an organizational objective
+                            {tr("chooseAnOrganizationalObjective")}
                           </span>
                         )}
                       </SelectTrigger>
@@ -506,7 +509,7 @@ export function PlanGoalComposer({
                       >
                         {targetGroups.company.length > 0 ? (
                           <SelectGroup>
-                            <SelectLabel>Company strategy</SelectLabel>
+                            <SelectLabel>{tr("companyStrategy")}</SelectLabel>
                             {targetGroups.company.map((t) => (
                               <TargetOption key={t.id} target={t} />
                             ))}
@@ -514,7 +517,7 @@ export function PlanGoalComposer({
                         ) : null}
                         {targetGroups.organizational.length > 0 ? (
                           <SelectGroup>
-                            <SelectLabel>Organizational</SelectLabel>
+                            <SelectLabel>{tr("organizational")}</SelectLabel>
                             {targetGroups.organizational.map((t) => (
                               <TargetOption key={t.id} target={t} />
                             ))}
@@ -542,7 +545,7 @@ export function PlanGoalComposer({
             {/* 2. Objective definition */}
             <ObjectiveComposerSection
               n={2}
-              title="Objective definition"
+              title={tr("objectiveDefinition")}
               action={
                 coach.enabled ? (
                   <CoachTrigger
@@ -555,7 +558,7 @@ export function PlanGoalComposer({
               <div className="space-y-1.5">
                 <div className="flex items-baseline justify-between">
                   <Label htmlFor="pg-title">
-                    Title <span className="text-destructive">*</span>
+                    {tr("title")} <span className="text-destructive">*</span>
                     {aiFilled.title ? <AiSuggestedTag /> : null}
                   </Label>
                   <span className="text-xs tabular-nums text-muted-foreground">
@@ -582,7 +585,7 @@ export function PlanGoalComposer({
                       setTitle(e.target.value);
                       setAiFilled((current) => ({ ...current, title: false }));
                     }}
-                    placeholder="Enter a clear and specific objective title"
+                    placeholder={tr("enterAClearAndSpecific")}
                     autoFocus
                   />
                 </CoachField>
@@ -594,9 +597,9 @@ export function PlanGoalComposer({
               <div className="space-y-1.5">
                 <div className="flex items-baseline justify-between">
                   <Label htmlFor="pg-desc">
-                    Description{" "}
+                    {tr("description")}
                     <span className="font-normal text-muted-foreground">
-                      (optional)
+                      {tr("optional")}
                     </span>
                   </Label>
                   <span className="text-xs tabular-nums text-muted-foreground">
@@ -609,7 +612,7 @@ export function PlanGoalComposer({
                   maxLength={DESCRIPTION_MAX}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  placeholder="Describe what success looks like, key outcomes, and why this objective is important."
+                  placeholder={tr("describeWhatSuccessLooksLike")}
                 />
               </div>
             </ObjectiveComposerSection>
@@ -618,8 +621,8 @@ export function PlanGoalComposer({
                 milestone editors slot in here in their own pass and stay unavailable until then. */}
             <ObjectiveComposerSection
               n={3}
-              title="Measurement"
-              hint="How will you measure progress on this objective?"
+              title={tr("measurement")}
+              hint={tr("howWillYouMeasureProgress")}
               action={aiFilled.measure ? <AiSuggestedTag /> : undefined}
             >
               {coach.enabled && suggestions?.measure ? (
@@ -655,8 +658,8 @@ export function PlanGoalComposer({
             {/* 4. Plan weight */}
             <ObjectiveComposerSection
               n={4}
-              title="Plan weight"
-              hint="Assign the weight of this objective in your overall plan."
+              title={tr("planWeight")}
+              hint={tr("assignTheWeightOfThis")}
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div className="flex shrink-0 items-center gap-2">
@@ -667,7 +670,7 @@ export function PlanGoalComposer({
                       setWeight(String(clamp(weightNum - 5, 0, 100)))
                     }
                     disabled={weightNum <= 0}
-                    aria-label="Decrease weight by 5"
+                    aria-label={tr("decreaseWeightBy5")}
                   >
                     <Minus className="size-4" />
                   </Button>
@@ -682,7 +685,7 @@ export function PlanGoalComposer({
                       onChange={(e) => setWeight(e.target.value)}
                       className="pe-7 text-end tabular-nums"
                       placeholder="0"
-                      aria-label="Plan weight percent"
+                      aria-label={tr("planWeightPercent")}
                     />
                     <span className="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                       %
@@ -695,7 +698,7 @@ export function PlanGoalComposer({
                       setWeight(String(clamp(weightNum + 5, 0, 100)))
                     }
                     disabled={weightNum >= 100}
-                    aria-label="Increase weight by 5"
+                    aria-label={tr("increaseWeightBy5")}
                   >
                     <Plus className="size-4" />
                   </Button>
@@ -726,11 +729,10 @@ export function PlanGoalComposer({
                     <span className="text-muted-foreground">
                       <span className="font-medium tabular-nums text-foreground">
                         {pct(existing)}%
-                      </span>{" "}
-                      in your other objectives
+                      </span>{tr("inYourOtherObjectives")}
                     </span>
                     <span className={cn("font-medium", totalTone)}>
-                      Plan total{" "}
+                      {tr("planTotal")}
                       <span className="tabular-nums">{pct(total)}%</span>
                     </span>
                   </div>
@@ -750,7 +752,7 @@ export function PlanGoalComposer({
             onClick={() => onOpenChange(false)}
             disabled={submitting}
           >
-            Cancel
+            {tr("cancel")}
           </Button>
           <AsyncButton
             pending={submitting}
@@ -759,10 +761,10 @@ export function PlanGoalComposer({
             title={disabledReason}
           >
             {isEdit ? (
-              "Save changes"
+              tr("saveChanges")
             ) : (
               <>
-                Add objective <Plus className="size-4" data-icon="inline-end" />
+                {tr("addObjective")} <Plus className="size-4" data-icon="inline-end" />
               </>
             )}
           </AsyncButton>
@@ -857,10 +859,12 @@ function ChoiceTile({
 // ── Selected organizational objective (rich trigger content) ─────────────────────────
 
 function TargetSummary({ target }: { target: AlignmentTargetDto }) {
+  const t = useTranslations("plan.TargetSummary");
+  const words = useSay("common.words");
   const scope =
     target.ownershipScope === "Company"
-      ? "Company strategy"
-      : (target.orgUnitName ?? "Organizational");
+      ? t("companyStrategy")
+      : (target.orgUnitName ?? words("organizational"));
   const lineage = lineageLabel(target);
   return (
     <span className="flex min-w-0 flex-col gap-0.5">

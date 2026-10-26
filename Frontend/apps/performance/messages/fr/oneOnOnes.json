@@ -1,0 +1,260 @@
+{
+  "NotesEditor": {
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "notSaved": "Non enregistré",
+    "onlyYouSeeThis": "Visible par vous seul",
+    "startWriting": "Commencer à écrire",
+    "theseNotesChangedWhileYou": "Ces notes ont changé pendant votre modification.",
+    "keepMyVersion": "Garder ma version",
+    "useTheirs": "Utiliser la leur",
+    "trySavingAgain": "Réessayer d’enregistrer",
+    "empty": "(vide)"
+  },
+  "RhythmScale": {
+    "today": "Aujourd’hui"
+  },
+  "RhythmStrip": {
+    "heldMissedInTheLast": "{label} : {held} tenus, {missed} manqués ces six dernières semaines"
+  },
+  "OneOnOnesWorkspace": {
+    "your11s": "Vos entretiens individuels"
+  },
+  "Workspace": {
+    "n11s": "Entretiens individuels",
+    "youHaveNoManagerOr": "Vous n’avez ni manager ni collaborateurs directs dans Core HR.",
+    "yourReportingLineCouldntBe": "Votre ligne hiérarchique n’a pas pu être chargée. Réessayez dans un instant.",
+    "yourTeam": "Votre équipe",
+    "withYourManager": "Avec votre manager",
+    "yourReportingLineCouldntBe2": "Votre ligne hiérarchique n’a pas pu être chargée : rien de nouveau ne peut démarrer tant qu’elle ne l’est pas.",
+    "notMeetingYet": "Pas encore d’entretiens",
+    "noManagerInCoreHr": "Aucun manager dans Core HR",
+    "actionsYouOwe": "Actions que vous devez{value}",
+    "thisWeek": "Cette semaine"
+  },
+  "NextUp": {
+    "nextUp": "Prochain · {howSoon}",
+    "open11": "Ouvrir l’entretien",
+    "onTheAgenda": "À l’ordre du jour",
+    "nothingYet": "Rien pour l’instant",
+    "more": "+{value} de plus",
+    "sinceYouMet": "Depuis votre dernier entretien · {lastMetAt}",
+    "readyToDiscuss": "Prêt à être discuté",
+    "nothingNew": "Rien de nouveau",
+    "action": "{overdueActions} action",
+    "s": "s",
+    "overdue": "en retard",
+    "yourManager": "votre manager",
+    "since": {
+      "Objective": "{count, plural, one {# objectif à risque} other {# objectifs à risque}}",
+      "UpdateRequest": "{count, plural, one {# mise à jour demandée} other {# mises à jour demandées}}",
+      "Feedback": "{count} feedback",
+      "Praise": "{count} reconnaissance(s)"
+    }
+  },
+  "RhythmTable": {
+    "person": "Auteur",
+    "next": "Suivant"
+  },
+  "RhythmRow": {
+    "overdue": "· {overdueActions} en retard",
+    "open": "· {openActions} ouvertes",
+    "n11sWith": "Entretiens individuels avec {displayName}",
+    "notSet": "Non renseigné"
+  },
+  "StartRow": {
+    "notMeetingYet": "Pas encore d’entretiens",
+    "start11s": "Démarrer les entretiens individuels"
+  },
+  "EndedLine": {
+    "ended": "Terminé",
+    "ended2": "· terminé le {endedAt}",
+    "showHistory": "Afficher l’historique"
+  },
+  "ManagerCard": {
+    "notScheduled": "Non planifié",
+    "onTheAgenda": "{agendaCount} à l’ordre du jour"
+  },
+  "OwedActions": {
+    "nothingOpen": "Rien d’ouvert",
+    "n11With": "Entretien individuel avec {displayName}",
+    "overdue": "En retard",
+    "more": "+{value} de plus"
+  },
+  "ThisWeek": {
+    "yourManager": "Votre manager",
+    "onTheAgenda": "{agendaCount} à l’ordre du jour",
+    "nothingOnTheAgendaYet": "Rien à l’ordre du jour pour l’instant"
+  },
+  "OneOnOnesSkeleton": {
+    "loadingYour11s": "Chargement de vos entretiens individuels"
+  },
+  "SeriesRecord": {
+    "this11": "Cet entretien"
+  },
+  "SeriesView": {
+    "n11With": "Entretien individuel avec {displayName}",
+    "someoneLeftTheCompanyYou": "Quelqu’un a quitté l’entreprise · vous vous rencontriez {toLowerCase}, {startedAt} – {value}",
+    "theReportingLineChangedYou": "La ligne hiérarchique a changé · vous vous rencontriez {toLowerCase}, {startedAt} – {value}",
+    "ended": "Terminé",
+    "reschedule": "Reprogrammer",
+    "completeMeeting": "Terminer l’entretien",
+    "earlierMeetings": "Entretiens précédents",
+    "since": "{value} depuis le {startedAt}"
+  },
+  "MeetingTrack": {
+    "notHeld": "Non tenu",
+    "ended": "Terminé",
+    "meetings": "Entretiens",
+    "point": "{length} point",
+    "points": "{length} points"
+  },
+  "UpcomingMeeting": {
+    "talkingPoints": "Points à aborder",
+    "fromSYear": "De l’année de {reportFirstName}",
+    "fromYourYear": "De votre année",
+    "actions": "Actions",
+    "notes": "Notes"
+  },
+  "TalkingPoints": {
+    "nothingOnTheAgenda": "Rien à l’ordre du jour",
+    "addedBy": "Ajouté par {value}",
+    "remove": "Retirer {text}",
+    "talkedAbout": "Abordé : {text}",
+    "addATalkingPoint": "Ajouter un point à aborder",
+    "add": "Ajouter"
+  },
+  "Suggestions": {
+    "add": "Ajouter",
+    "addToTheTalkingPoints": "Ajouter {label} aux points à aborder"
+  },
+  "Actions": {
+    "noActions": "Aucune action",
+    "done": "Fait : {text}",
+    "from": "Du {createdInMeetingAt}",
+    "overdue": "En retard",
+    "due": "Échéance",
+    "newAction": "Nouvelle action",
+    "addAnAction": "Ajouter une action",
+    "owner": "Responsable",
+    "dueDate": "Échéance",
+    "add": "Ajouter"
+  },
+  "MeetingNotes": {
+    "sharedWith": "Partagé avec {value}",
+    "onlyYou": "Vous seul"
+  },
+  "History": {
+    "lastMeeting": "Dernier entretien",
+    "noMeetingWasHeld": "Aucun entretien n’a eu lieu.",
+    "earlierMeetings": "Entretiens précédents",
+    "meetings": "Entretiens"
+  },
+  "EarlierMeetings": {
+    "notHeld": "Non tenu",
+    "noTalkingPoints": "Aucun point à aborder",
+    "missed": "Manqué",
+    "talkingPoints": "{count, plural, one {+# point à aborder} other {+# points à aborder}}",
+    "actions": "{count, plural, one {# action} other {# actions}}",
+    "notes": "notes"
+  },
+  "MeetingDetail": {
+    "talkedAbout": "Abordé",
+    "noTalkingPoints": "Aucun point à aborder",
+    "notReached": "Non abordé",
+    "actions": "Actions",
+    "notes": "Notes",
+    "none": "Aucune",
+    "onlyYou": "Vous seul"
+  },
+  "MeetingNotesStacked": {
+    "sharedWith": "Partagé avec {value}",
+    "onlyYou": "Vous seul"
+  },
+  "SeriesSidebar": {
+    "meetingsHeld": "entretiens tenus",
+    "actionsDone": "actions faites",
+    "overTheSeries": "Sur la série",
+    "objective": "{length} objectif",
+    "s": "s",
+    "atRisk": "{atRisk} à risque",
+    "noneAtRisk": "Aucun à risque",
+    "open": "Ouvrir",
+    "their": "son",
+    "your": "votre",
+    "plan": "plan",
+    "noPlanInTheCurrent": "Aucun plan dans le cycle en cours",
+    "year": "{value} an{value2}",
+    "recognition": "Reconnaissance",
+    "howOften": "Fréquence",
+    "heldOf": "{held} tenus sur {meetings} ·",
+    "since": "depuis le {startedAt}",
+    "rhythm": "Rythme",
+    "unshared": {
+      "NotStarted": "Pas encore de plan",
+      "Draft": "Plan en brouillon",
+      "ReturnedForChanges": "Plan renvoyé pour modifications",
+      "Submitted": "Plan en attente d’approbation",
+      "Approved": "Aucun objectif"
+    }
+  },
+  "RescheduleDialog": {
+    "moveTheNextMeeting": "Déplacer le prochain entretien",
+    "date": "Date",
+    "time": "Heure",
+    "cancel": "Annuler",
+    "moveMeeting": "Déplacer l’entretien"
+  },
+  "SeriesSkeleton": {
+    "loadingThis11": "Chargement de cet entretien"
+  },
+  "StartForm": {
+    "howOften": "Fréquence",
+    "firstMeeting": "Premier entretien",
+    "time": "Heure",
+    "firstAgenda": "Premier ordre du jour",
+    "picked": "{value} choisis",
+    "putOnTheFirstAgenda": "Mettre {label} au premier ordre du jour",
+    "remove": "Retirer {text}",
+    "addYourOwnTalkingPoint": "Ajouter votre propre point à aborder",
+    "addYourOwn": "Ajouter le vôtre",
+    "add": "Ajouter",
+    "cancel": "Annuler",
+    "start11s": "Démarrer les entretiens individuels"
+  },
+  "StartWithManager": {
+    "n11sWith": "Entretiens individuels avec {displayName}",
+    "yourManager": "Votre manager"
+  },
+  "StartOneOnOnesDialog": {
+    "n11sWith": "Entretiens individuels avec {displayName}"
+  },
+  "lib": {
+    "cadence": {
+      "Weekly": "Hebdomadaire",
+      "EveryTwoWeeks": "Toutes les deux semaines",
+      "Monthly": "Mensuel"
+    },
+    "then": {
+      "Weekly": "Puis chaque semaine",
+      "EveryTwoWeeks": "Puis toutes les deux semaines",
+      "Monthly": "Puis chaque mois"
+    },
+    "source": {
+      "Objective": "Objectif",
+      "UpdateRequest": "Mise à jour demandée",
+      "Feedback": "Feedback",
+      "Praise": "Reconnaissances"
+    },
+    "todayAt": "Aujourd’hui {time}",
+    "tomorrowAt": "Demain {time}",
+    "dayAt": "{day} · {time}",
+    "today": "Aujourd’hui",
+    "tomorrow": "Demain",
+    "overdue": "en retard",
+    "inMinutes": "dans {count} min",
+    "inHours": "{count, plural, one {dans # heure} other {dans # heures}}",
+    "tomorrowSoon": "demain",
+    "inDays": "{count, plural, one {dans # jour} other {dans # jours}}"
+  }
+}

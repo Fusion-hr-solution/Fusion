@@ -10,6 +10,8 @@ import { PersonInitials } from "@repo/performance-ui";
 import { Check, Eye, Lock, FileCheck2, Users } from "@/lib/icons";
 import { useCalibrationFinalizePreview, type useCalibrationMutations } from "../../api/use-calibration";
 import { flagText } from "./calibration-format";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 type Mutations = ReturnType<typeof useCalibrationMutations>;
 
@@ -22,6 +24,8 @@ export function FinalizeDialog({ session, roundId, open, mutations, onClose, onO
   onClose: () => void;
   onOpenPerson: (reviewId: string) => void;
 }) {
+  const t = useTranslations("calibration.FinalizeDialog");
+  const say = useSay("calibration.format");
   const preview = useCalibrationFinalizePreview(roundId, open);
   const data = preview.data;
   const changed = data ? data.ratingsUp + data.ratingsDown : 0;
@@ -29,19 +33,19 @@ export function FinalizeDialog({ session, roundId, open, mutations, onClose, onO
     <Dialog open={open} onOpenChange={(next) => { if (!next && !mutations.finalize.isLoading) onClose(); }}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="type-page-title">Finalize calibration</DialogTitle>
-          <DialogDescription>{session.reviewRoundName}{data ? ` · ${data.people} people` : ""}</DialogDescription>
+          <DialogTitle className="type-page-title">{t("finalizeCalibration")}</DialogTitle>
+          <DialogDescription>{session.reviewRoundName}{data ? " " + t("people", { people: data.people }) : ""}</DialogDescription>
         </DialogHeader>
         {!data ? (
-          <div className="space-y-3" role="status" aria-label="Loading">
+          <div className="space-y-3" role="status" aria-label={t("loading")}>
             {preview.error ? <p className="text-sm text-destructive" role="alert">{preview.error.message}</p> : <Skeleton className="h-24 rounded-surface" />}
           </div>
         ) : (
           <div className="space-y-5">
             <div className="grid grid-cols-3 gap-2.5">
-              <Fact label="Ratings changed" value={changed} detail={`${data.ratingsDown} down · ${data.ratingsUp} up`} />
-              <Fact label="Potential changed" value={data.potentialUp + data.potentialDown} detail={`${data.potentialUp} up · ${data.potentialDown} down`} />
-              <Fact label="Not discussed" value={data.notDiscussed} detail={`${data.flaggedNotDiscussed.length} flagged`} />
+              <Fact label={t("ratingsChanged")} value={changed} detail={t("downUp", { ratingsDown: data.ratingsDown, ratingsUp: data.ratingsUp })} />
+              <Fact label={t("potentialChanged")} value={data.potentialUp + data.potentialDown} detail={t("upDown", { potentialUp: data.potentialUp, potentialDown: data.potentialDown })} />
+              <Fact label={t("notDiscussed")} value={data.notDiscussed} detail={t("flagged", { length: data.flaggedNotDiscussed.length })} />
             </div>
             {data.flaggedNotDiscussed.length > 0 ? (
               <ul className="divide-y divide-border rounded-surface bg-card">
@@ -50,34 +54,34 @@ export function FinalizeDialog({ session, roundId, open, mutations, onClose, onO
                     <PersonInitials name={person.name} size="md" />
                     <span className="min-w-0 flex-1">
                       <span className="block type-label text-foreground">{person.name}</span>
-                      <span className="block type-meta text-muted-foreground">{person.flags.map(flagText).join(" · ")} · not discussed</span>
+                      <span className="block type-meta text-muted-foreground">{t("notDiscussed2", { join: person.flags.map((flag) => flagText(flag, say)).join(" · ") })}</span>
                     </span>
-                    <Button size="sm" variant="outline" onClick={() => { onClose(); onOpenPerson(person.reviewId); }}>Open</Button>
+                    <Button size="sm" variant="outline" onClick={() => { onClose(); onOpenPerson(person.reviewId); }}>{t("open")}</Button>
                   </li>
                 ))}
               </ul>
             ) : null}
             <div className="space-y-3">
-              <p className="type-label text-foreground">When you finalize</p>
-              <Next icon={Lock}>Ratings and potential lock. The session can&apos;t be reopened.</Next>
-              <Next icon={FileCheck2}>{data.people} reviews move to <b>Ready to release</b>.</Next>
-              <Next icon={Users}>The {data.reviewers} managers see their people&apos;s final ratings, and the reason for each of the {changed} changes.</Next>
-              <Next icon={Eye}>Employees see nothing until you release results from the round.</Next>
+              <p className="type-label text-foreground">{t("whenYouFinalize")}</p>
+              <Next icon={Lock}>{t("ratingsAndPotentialLockThe")}</Next>
+              <Next icon={FileCheck2}>{t("reviewsMoveTo", { people: data.people })} <b>{t("readyToRelease")}</b>.</Next>
+              <Next icon={Users}>{t("theManagersSeeTheirPeoples", { reviewers: data.reviewers, changed })}</Next>
+              <Next icon={Eye}>{t("employeesSeeNothingUntilYou")}</Next>
             </div>
             {mutations.finalize.error ? <p className="text-sm text-destructive" role="alert">{mutations.finalize.error.message}</p> : null}
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={mutations.finalize.isLoading}>Keep discussing</Button>
+          <Button variant="outline" onClick={onClose} disabled={mutations.finalize.isLoading}>{t("keepDiscussing")}</Button>
           <AsyncButton pending={mutations.finalize.isLoading} disabled={!data || data.outstanding > 0}
             onClick={async () => {
               try {
                 await mutations.finalize.mutateAsync(session.version);
-                toast.success("Calibration finalized.");
+                toast.success(t("calibrationFinalized"));
                 onClose();
               } catch { /* shown above */ }
             }}>
-            <Check className="size-4" aria-hidden />Finalize
+            <Check className="size-4" aria-hidden />{t("finalize")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>

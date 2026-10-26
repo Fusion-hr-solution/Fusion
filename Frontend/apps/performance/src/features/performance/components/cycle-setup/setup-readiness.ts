@@ -8,11 +8,8 @@ import { withCycle } from "@/lib/performance-routes";
  */
 export type SetupStep = "details" | "population" | "review";
 
-export const SETUP_STEPS: { key: SetupStep; label: string; caption: string }[] = [
-  { key: "details", label: "Cycle details", caption: "Name and timeline" },
-  { key: "population", label: "Population", caption: "Select participants" },
-  { key: "review", label: "Review & launch", caption: "Confirm and activate" },
-];
+/** The steps in order; their names are `cycleSetup.steps.<key>` in the catalogue. */
+export const SETUP_STEPS: { key: SetupStep }[] = [{ key: "details" }, { key: "population" }, { key: "review" }];
 
 export interface SetupState {
   hasDraft: boolean;

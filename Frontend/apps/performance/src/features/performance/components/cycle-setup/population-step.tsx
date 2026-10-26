@@ -31,6 +31,8 @@ import { PersonDetailDrawer } from "./population/person-detail-drawer";
 import {
   selectionToRequest,
 } from "./population/population-model";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * Step 2 — Population. One workspace over the existing population domain: choose the scope, let
@@ -39,6 +41,8 @@ import {
  * wholesale PUT with cache write-through) and the confirm/reconfirm transition.
  */
 export function PopulationStep({ cycleId }: { cycleId: string }) {
+  const t = useTranslations("cycleSetup.PopulationStep");
+  const words = useSay("common.words");
   const router = useRouter();
   const population = usePopulation(cycleId);
   const { set, confirm } = usePopulationMutations(cycleId);
@@ -63,9 +67,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
       if (!selection) return;
       set
         .mutateAsync({ ...selectionToRequest(selection), ...patch, expectedVersion: selection.version })
-        .catch((error) =>
-          toast.error(error instanceof Error ? error.message : errorMessage)
-        );
+        .catch((error) => reportPerformanceFailure(error, errorMessage));
     },
     [selection, set]
   );
@@ -73,18 +75,18 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
   const onSetMode = useCallback(
     (mode: PopulationMode) => {
       if (!selection || selection.mode === mode) return;
-      applyOptimistic({ mode }, "Could not change the scope.");
+      applyOptimistic({ mode }, t("couldNotChangeScope"));
     },
-    [selection, applyOptimistic]
+    [selection, applyOptimistic, t]
   );
 
   const onApplyOrgSelections = useCallback(
     (orgUnitSelections: OrgUnitSelectionInput[]) =>
       applyOptimistic(
         { mode: "ByScope", orgUnitSelections },
-        "Could not update the organization scope."
+        t("couldNotUpdateScope")
       ),
-    [applyOptimistic]
+    [applyOptimistic, t]
   );
 
   const onAddInclusions = useCallback(
@@ -107,10 +109,10 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
       if (!selection) return;
       applyOptimistic(
         { inclusions: selection.inclusions.filter((id) => id !== employeeId) },
-        "Could not remove the employee."
+        t("couldNotRemove")
       );
     },
-    [selection, applyOptimistic]
+    [selection, applyOptimistic, t]
   );
 
   const onRestore = useCallback(
@@ -122,10 +124,10 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
             (exclusion) => exclusion.employeeId !== candidate.employeeId
           ),
         },
-        "Could not restore the employee."
+        t("couldNotRestore")
       );
     },
-    [selection, applyOptimistic]
+    [selection, applyOptimistic, t]
   );
 
   const onExcludeMany = useCallback(
@@ -202,7 +204,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
       <ContentUnavailable
         error={population.error}
         onRetry={population.refetch}
-        subject="The population"
+        subject={t("thePopulation")}
       />
     );
   }
@@ -223,10 +225,9 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
       <PopulationHero />
 
       <div>
-        <h1 className="type-page-title text-foreground">Population</h1>
+        <h1 className="type-page-title text-foreground">{t("population")}</h1>
         <p className="mt-1 type-body-secondary text-muted-foreground">
-          Select who will participate. Fusion validates eligibility and reviewer
-          coverage.
+          {t("selectWhoWillParticipateFusion")}
         </p>
       </div>
 
@@ -275,11 +276,10 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
             >
               <span className="inline-flex items-center gap-2 type-label text-emerald-600 dark:text-emerald-400">
                 <CircleCheck className="size-4" aria-hidden />
-                Population confirmed
+                {t("populationConfirmed2")}
               </span>
               <span className="type-meta text-muted-foreground">
-                {data.readyCount} participants · {data.reviewerReadyCount}{" "}
-                reviewers resolved
+                {t("participantsReviewersResolved", { readyCount: data.readyCount, reviewerReadyCount: data.reviewerReadyCount })}
               </span>
             </div>
           ) : hasNoScope ? (
@@ -287,7 +287,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
               id={footerMessageId}
               className="type-body-secondary text-muted-foreground"
             >
-              Select an organization unit to continue.
+              {t("selectAnOrganizationUnitTo")}
             </span>
           ) : !canConfirm && data.needsAttentionCount > 0 ? (
             <span
@@ -295,15 +295,14 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
               className="type-label text-amber-600 dark:text-amber-400"
             >
               {data.needsAttentionCount}{" "}
-              {data.needsAttentionCount === 1 ? "issue" : "issues"} must be
-              resolved before confirmation.
+              {data.needsAttentionCount === 1 ? t("issue") : t("issues")} {t("mustBeResolvedBeforeConfirmation")}
             </span>
           ) : data.readyCount === 0 ? (
             <span
               id={footerMessageId}
               className="type-body-secondary text-muted-foreground"
             >
-              At least one eligible participant is required.
+              {t("atLeastOneEligibleParticipant")}
             </span>
           ) : hasConfirmedOnce ? (
             <div
@@ -311,11 +310,10 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
               className="flex flex-col items-center gap-0.5"
             >
               <span className="inline-flex items-center gap-2 type-label text-amber-600 dark:text-amber-400">
-                Population changed. Confirm it again to continue.
+                {t("populationChangedConfirmItAgain")}
               </span>
               <span className="type-meta text-muted-foreground">
-                {data.readyCount} participants · {data.reviewerReadyCount}{" "}
-                reviewers resolved
+                {t("participantsReviewersResolved", { readyCount: data.readyCount, reviewerReadyCount: data.reviewerReadyCount })}
               </span>
             </div>
           ) : (
@@ -323,8 +321,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
               id={footerMessageId}
               className="type-body-secondary text-muted-foreground"
             >
-              {data.readyCount} participants · {data.reviewerReadyCount}{" "}
-              reviewers resolved
+              {t("participantsReviewersResolved", { readyCount: data.readyCount, reviewerReadyCount: data.reviewerReadyCount })}
             </span>
           )
         }
@@ -334,7 +331,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
             pending={false}
             onClick={() => router.push(setupStepHref("review", cycleId))}
           >
-            Continue
+            {t("continue")}
             <ArrowRight className="size-4" data-icon="inline-end" />
           </AsyncButton>
         ) : (
@@ -346,20 +343,20 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
               try {
                 await confirm.mutateAsync(selection.version);
                 setHasConfirmedOnce(true);
-                toast.success("Population confirmed.");
+                toast.success(t("populationConfirmed"));
               } catch (error) {
-                reportPerformanceFailure(error, "Could not confirm the population.");
+                reportPerformanceFailure(error, t("couldNotConfirmThePopulation"));
               }
             }}
           >
-            {hasConfirmedOnce ? "Re-confirm population" : "Confirm population"}
+            {hasConfirmedOnce ? t("reConfirmPopulation") : t("confirmPopulation")}
           </AsyncButton>
         )}
       </SetupStepFooter>
 
       <ExcludeDialog
         name={excludeTarget?.displayName ?? null}
-        defaultReason={excludeTarget ? issueReason(excludeTarget, selection.eligibilityDate) : undefined}
+        defaultReason={excludeTarget ? issueReason(excludeTarget, selection.eligibilityDate, words) : undefined}
         open={excludeTarget !== null}
         onOpenChange={(open) => {
           if (!open) setExcludeTarget(null);

@@ -13,6 +13,7 @@ import { FeedbackComposer } from "../conversations/composers";
 import { useState } from "react";
 import { PerformancePageHeading } from "../performance-page-heading";
 import { useRecentRecord } from "@repo/api/react";
+import { useTranslations } from "next-intl";
 
 const BASE_PATH = "/performance";
 
@@ -30,6 +31,7 @@ export const renderPerformanceLink: RenderSummaryLink = ({ href, className, chil
 
 /** One person inside Performance (D-32): their summary, with a way to their Core HR record. */
 export function PersonPage({ employeeId }: { employeeId: string }) {
+  const t = useTranslations("common.PersonPage");
   const { user } = useAuth();
   const router = useRouter();
   const react = useReactToPraise();
@@ -47,21 +49,21 @@ export function PersonPage({ employeeId }: { employeeId: string }) {
     <PageContainer width="wide">
       {person ? (
         <PerformancePageHeading
-          title={person.displayName ?? "Person"}
+          title={person.displayName ?? t("person")}
           description={context.length ? context.join(", ") : undefined}
           actions={
             <>
               {coreRecord ? (
                 <Button asChild variant="outline">
-                  <a href={coreRecord}>Open Core HR record</a>
+                  <a href={coreRecord}>{t("openCoreHrRecord")}</a>
                 </Button>
               ) : null}
-              {person.relation !== "Self" ? <Button onClick={() => setGiving(true)}>Give feedback</Button> : null}
+              {person.relation !== "Self" ? <Button onClick={() => setGiving(true)}>{t("giveFeedback")}</Button> : null}
             </>
           }
         />
       ) : summary.error ? (
-        <PerformancePageHeading title="Person" />
+        <PerformancePageHeading title={t("person")} />
       ) : (
         <div className="mb-4 space-y-2" aria-hidden>
           <Skeleton className="h-8 w-56" />

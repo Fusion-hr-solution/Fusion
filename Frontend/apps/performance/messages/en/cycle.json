@@ -1,0 +1,188 @@
+{
+  "CyclePage": {
+    "administrationOnly": "Administration only",
+    "cycleAdministrationIsAvailableTo": "Cycle administration is available to performance administrators.",
+    "performanceWorkspace": "Performance workspace",
+    "theCycle": "The Cycle",
+    "closed": "Closed",
+    "status": "Status",
+    "insights": "Insights",
+    "cycleViews": "Cycle views",
+    "closureReadiness": "Closure readiness",
+    "phase": {
+      "Planning": "Planning",
+      "Execution": "Execution",
+      "Review": "Review"
+    }
+  },
+  "CloseCycleAction": {
+    "closeCycle": "Close cycle",
+    "close": "Close {name}?",
+    "planningProgressAndEvidenceStop": "Planning, progress and evidence stop. The Cycle stays readable as history.",
+    "approvedPlans": "Approved plans",
+    "of": "{approvedCount} of {participantCount}",
+    "ends": "Ends",
+    "whyCloseBefore": "Why close before {endDate}?",
+    "reasonRecordedForThe1": "Reason recorded for the 1 participant without an approved plan",
+    "reasonRecordedForTheParticipants": "Reason recorded for the {unresolved} participants without an approved plan",
+    "cancel": "Cancel",
+    "isClosed": "{name} is closed.",
+    "couldNotCloseTheCycle": "Could not close the Cycle."
+  },
+  "ClosureSection": {
+    "closedWithExceptions": "Closed with exceptions",
+    "closedWithEveryPlanApproved": "Closed with every plan approved",
+    "withoutAnApprovedPlan": "Without an approved plan",
+    "ofApproved": "{approvedCount} of {participantCount} approved",
+    "closedEarly": "Closed early ·",
+    "everyParticipantHasAnApproved": "Every participant has an approved plan.",
+    "standing": {
+      "NotStarted": "Not started",
+      "Draft": "Draft",
+      "ReturnedForChanges": "Returned",
+      "Submitted": "Awaiting decision",
+      "Approved": "Approved"
+    }
+  },
+  "CycleInsights": {
+    "insights": "Insights",
+    "final": "Final",
+    "asOf": "As of {asOf}"
+  },
+  "UnitFilter": {
+    "unit": "Unit",
+    "theWholeOrganization": "The whole organization"
+  },
+  "FactStrip": {
+    "resultsReleased": "Results released",
+    "notReleasedYet": "Not released yet",
+    "acknowledged": "Acknowledged",
+    "notYet": "{value} not yet",
+    "managerReviewsOnTime": "Manager reviews on time",
+    "changedInCalibration": "Changed in calibration",
+    "raisedLowered": "{value} raised · {value2} lowered",
+    "plansApproved": "Plans approved",
+    "neverApproved": "{neverApproved} never approved",
+    "updatedInTheLast30": "Updated in the last 30 days",
+    "withoutAnUpdate": "{withoutRecentUpdate} without an update",
+    "atRiskOrOffTrack": "At risk or off track",
+    "atRiskOffTrack": "{atRisk} at risk · {offTrack} off track",
+    "alignedToCompanyDirection": "Aligned to company direction",
+    "participants": "Participants",
+    "personCount": "{count, plural, one {# person} other {# people}}",
+    "objectiveCount": "{count, plural, one {# objective} other {# objectives}}",
+    "of": "of {total}",
+    "lateAfter": "{late} after {day}",
+    "theDueDate": "the due date",
+    "rating": "{count, plural, one {rating} other {ratings}}",
+    "ofObjectives": "of {objectives}",
+    "alignedOf": "{aligned} of {total}"
+  },
+  "StatusBar": {
+    "onTrackAtRiskOff": "{onTrack} on track, {atRisk} at risk, {offTrack} off track, {noStatus} no status yet"
+  },
+  "ByUnit": {
+    "unit": "Unit",
+    "people": "People",
+    "managerReviewsOnTime": "Manager reviews on time",
+    "acknowledged": "Acknowledged",
+    "calibration": "Calibration",
+    "plansApproved": "Plans approved",
+    "updatedInTheLast30": "Updated in the last 30 days",
+    "objectiveStatusAsOwnersSet": "Objective status, as owners set it",
+    "aligned": "Aligned",
+    "allOf": "All of {scopeName}",
+    "allUnits": "All units",
+    "peopleIn": "{people} people in {name}",
+    "of": "{value} of {value2}",
+    "late": "· {late} late",
+    "managerReviewsLateIn": "Manager reviews late in {name}",
+    "notAcknowledgedIn": "Not acknowledged in {name}",
+    "ratedIn": "Rated {value} in {name}",
+    "raisedIn": "Raised in {name}",
+    "loweredIn": "Lowered in {name}",
+    "of2": "{plansApproved} of {people}",
+    "plansNotApprovedIn": "Plans not approved in {name}",
+    "notUpdatedIn": "Not updated in {name}",
+    "atRiskOrOff": "at risk or off",
+    "of3": "· of {value}",
+    "atRiskOrOffTrack": "At risk or off track in {name}",
+    "byUnit": "By unit",
+    "finalRatingsAfterCalibrationPeople": "Final ratings after calibration · people at each level",
+    "onTrack": "On track",
+    "atRisk": "At risk",
+    "offTrack": "Off track",
+    "noStatusYet": "No status yet"
+  },
+  "CompanyDirection": {
+    "companyObjective": "Company objective",
+    "owner": "Owner",
+    "alignedObjectives": "Aligned objectives",
+    "unitsContributing": "Units contributing",
+    "progress": "Progress",
+    "of": "{unitsContributing} of {units}",
+    "notAlignedToAnyCompany": "Not aligned to any company objective",
+    "companyDirection": "Company direction"
+  },
+  "ByManager": {
+    "manager": "Manager",
+    "people": "People",
+    "lateManagerReviews": "Late manager reviews",
+    "acknowledged": "Acknowledged",
+    "after": "{late} after",
+    "theDueDate": "the due date",
+    "lateReviewsBy": "Late reviews by {name}",
+    "allOnTime": "All on time",
+    "of": "{acknowledged} of {released}",
+    "notAcknowledgedFor": "Not acknowledged for {name}",
+    "ofManagersMostLateFirst": "{length} of {length2} managers, most late first",
+    "showFewer": "Show fewer",
+    "showAll": "Show all {length}",
+    "byManager": "By manager"
+  },
+  "PeopleDrawer": {
+    "loadingPeople": "Loading people",
+    "noOne": "No one",
+    "pageOf": "Page {page} of {pages}",
+    "previous": "Previous",
+    "next": "Next",
+    "rated": "Rated {level}",
+    "manager": "Manager {managerName}"
+  },
+  "InsightsSkeleton": {
+    "loadingInsights": "Loading Insights"
+  },
+  "metric": {
+    "people": "People",
+    "plans-approved": "Plans approved",
+    "plans-not-approved": "Plans not approved",
+    "updated": "Updated in the last 30 days",
+    "not-updated": "No update in 30 days",
+    "at-risk-or-off-track": "Objectives at risk or off track",
+    "reviews": "Reviews",
+    "on-time": "Manager reviews on time",
+    "late": "Manager reviews late",
+    "released": "Results released",
+    "acknowledged": "Acknowledged",
+    "not-acknowledged": "Not acknowledged",
+    "level": "Rated",
+    "raised": "Raised in calibration",
+    "lowered": "Lowered in calibration"
+  },
+  "facts": {
+    "submitted": "Submitted {day}",
+    "notSubmitted": "Not submitted",
+    "due": "Due {day}",
+    "released": "Released {day}",
+    "acknowledged": "Acknowledged {day}",
+    "rated": "Rated {level}",
+    "noPlan": "No plan",
+    "plan": {
+      "Draft": "Plan draft",
+      "ReturnedForChanges": "Plan returned",
+      "Submitted": "Plan submitted",
+      "Approved": "Plan approved"
+    },
+    "updated": "Updated {day}"
+  }
+}

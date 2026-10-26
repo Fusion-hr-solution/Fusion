@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OverviewYearDto } from "@repo/api";
-import { appHref, day, plural, yearHeadline } from "./overview-model";
+import { appHref, day, yearHeadline } from "./overview-model";
 import { formatDate } from "@repo/ds/lib/dates";
 
 const planning: OverviewYearDto = {
@@ -47,8 +47,6 @@ describe("yearHeadline", () => {
 
 describe("wording", () => {
   it("counts in plain words", () => {
-    expect(plural(1, "plan")).toBe("1 plan");
-    expect(plural(3, "person", "people")).toBe("3 people");
     expect(day("2026-10-31")).toBe(formatDate("2026-10-31", { weekday: true }));
   });
 });

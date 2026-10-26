@@ -43,6 +43,8 @@ import { DevelopmentSection } from "./development-section";
 import { ChangeRequestDraft, ChangeRequestOutcome, useChangeRequestDrafts, useLeaveGuard } from "./change-requests";
 import { PlanSurfaceSkeleton } from "./plan-skeleton";
 import { initials } from "./plan-lib";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * The reviewer's view of a submitted Plan — the same Plan resource an employee authors, opened by its
@@ -53,25 +55,26 @@ import { initials } from "./plan-lib";
  * (server-authorized via `canDecide`). Deciding transitions the real Plan and refreshes it in place.
  */
 export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: string }) {
+  const t = useTranslations("plan.PlanReview");
   const detail = usePlanDetail(cycle.id, planId);
   const targetsQuery = useAlignmentTargets(cycle.id);
   // Change requests are drafted on the cards and sent with Return; leaving first asks (D-09).
   const drafts = useChangeRequestDrafts();
-  useLeaveGuard(drafts.list.length > 0);
+  useLeaveGuard(drafts.list.length > 0, useTranslations("plan")("leaveGuard"));
 
   if (detail.isLoading) return <PlanSurfaceSkeleton />;
   if (performanceFailure(detail.error).unavailable) {
-    return <PagePermissionNotice title="Plan unavailable" />;
+    return <PagePermissionNotice title={t("planUnavailable")} />;
   }
 
   if (detail.error || !detail.data) {
-    return <PageError title="Plan unavailable" description={detail.error?.message} onRetry={detail.refetch} />;
+    return <PageError title={t("planUnavailable")} description={detail.error?.message} onRetry={detail.refetch} />;
   }
 
   const plan = detail.data;
   const targets = targetsQuery.data ?? [];
 
-  const firstName = plan.employee.name?.trim().split(/\s+/)[0] ?? "the employee";
+  const firstName = plan.employee.name?.trim().split(/\s+/)[0] ?? t("theEmployee");
 
   return (
     <div className="space-y-8">
@@ -115,10 +118,11 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
 
 /** The lifecycle badge as the reviewer reads it: submitted plans await, then resolve to approved/returned. */
 function ReviewStateBadge({ plan }: { plan: EmployeePlanDto }) {
+  const t = useTranslations("plan.ReviewStateBadge");
   if (plan.state === "Approved") {
     return (
       <StatusBadge tone="success" dot>
-        Approved
+        {t("approved")}
       </StatusBadge>
     );
   }
@@ -126,13 +130,13 @@ function ReviewStateBadge({ plan }: { plan: EmployeePlanDto }) {
   if (returned) {
     return (
       <StatusBadge tone="warning" dot>
-        Returned
+        {t("returned")}
       </StatusBadge>
     );
   }
   return (
     <StatusBadge tone="warning" dot>
-      Submitted
+      {t("submitted")}
     </StatusBadge>
   );
 }
@@ -143,6 +147,7 @@ function ReviewStateBadge({ plan }: { plan: EmployeePlanDto }) {
  * page's primary actions.
  */
 function ReviewHeading({ plan, actions }: { plan: EmployeePlanDto; actions?: ReactNode }) {
+  const t = useTranslations("plan.ReviewHeading");
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-3.5">
@@ -151,7 +156,7 @@ function ReviewHeading({ plan, actions }: { plan: EmployeePlanDto; actions?: Rea
         </Avatar>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="type-page-title text-foreground">{plan.employee.name ?? "Employee"}</h1>
+            <h1 className="type-page-title text-foreground">{plan.employee.name ?? t("employee")}</h1>
             <ReviewStateBadge plan={plan} />
           </div>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
@@ -169,7 +174,7 @@ function ReviewHeading({ plan, actions }: { plan: EmployeePlanDto; actions?: Rea
             {plan.state === "Approved" ? (
               <span className="inline-flex items-center gap-1.5">
                 <LineChart className="size-3.5" aria-hidden />
-                Tracking execution
+                {t("trackingExecution")}
               </span>
             ) : null}
           </p>
@@ -201,6 +206,8 @@ function ObjectiveLedgerReadOnly({
   cycle: CycleSummaryDto;
   drafts: ReturnType<typeof useChangeRequestDrafts>;
 }) {
+  const t = useTranslations("plan.ObjectiveLedgerReadOnly");
+  const words = useSay("common.words");
   // A resubmitted plan answers its latest return, objective by objective.
   const answered = plan.state === "Submitted" ? latestReturn(plan)?.changeRequests ?? [] : [];
   // The reviewer opens the same objective record the employee does; what it offers (progress history,
@@ -213,18 +220,18 @@ function ObjectiveLedgerReadOnly({
     for (const target of targets) {
       map.set(
         target.title,
-        target.ownershipScope === "Company" ? "Company strategy" : target.orgUnitName ?? "Organizational"
+        target.ownershipScope === "Company" ? words("companyStrategy") : target.orgUnitName ?? words("organizational")
       );
     }
     return map;
-  }, [targets]);
+  }, [targets, words]);
 
   const scopeFor = (objective: PlanObjectiveDto) =>
     objective.isAligned ? scopeByTitle.get(objective.directionPath.at(-1) ?? "") : undefined;
 
   return (
     <PlanSection
-      label="Objectives"
+      label={t("objectives")}
       count={plan.objectives.length}
       // Weights are settled at 100% once the plan is locked; the strip only guides drafting.
       summary={plan.isLocked ? undefined : <PlanWeightStrip segments={plan.objectives.map((o) => ({ weight: o.planWeight ?? 0, aligned: o.isAligned }))} />}
@@ -291,6 +298,7 @@ export function ReviewDecision({
   firstName: string;
   drafts: ReturnType<typeof useChangeRequestDrafts>;
 }) {
+  const t = useTranslations("plan.ReviewDecision");
   const mutations = usePlanReviewMutations(cycleId, planId);
   const [returnOpen, setReturnOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -300,8 +308,8 @@ export function ReviewDecision({
   const requests = drafts.list;
   // A return needs a note, at least one change on an objective, or both (D-09).
   const canReturn = feedback.trim().length > 0 || requests.length > 0;
-  const titleOf = (objectiveId: string) => plan.objectives.find((o) => o.id === objectiveId)?.title ?? "Objective";
-  const returnLabel = requests.length > 0 ? `Return with ${requests.length} change${requests.length === 1 ? "" : "s"}` : "Return plan";
+  const titleOf = (objectiveId: string) => plan.objectives.find((o) => o.id === objectiveId)?.title ?? t("objective");
+  const returnLabel = requests.length > 0 ? (requests.length === 1 ? t("returnWithChange", { length: requests.length }) : t("returnWithChanges", { length: requests.length })) : t("returnPlan");
 
   return (
     <>
@@ -315,14 +323,14 @@ export function ReviewDecision({
       >
         <DialogTrigger asChild>
           <Button variant="outline">
-            <RotateCcw className="size-4" data-icon="inline-start" /> {requests.length > 0 ? returnLabel : "Request changes"}
+            <RotateCcw className="size-4" data-icon="inline-start" /> {requests.length > 0 ? returnLabel : t("requestChanges")}
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Request changes</DialogTitle>
+            <DialogTitle>{t("requestChanges")}</DialogTitle>
             <DialogDescription>
-              The whole plan reopens for {firstName} to revise and resubmit.
+              {t("theWholePlanReopensFor", { firstName })}
             </DialogDescription>
           </DialogHeader>
           {requests.length > 0 ? (
@@ -336,17 +344,17 @@ export function ReviewDecision({
             </ul>
           ) : null}
           <Textarea
-            aria-label={requests.length > 0 ? "A note for the whole plan (optional)" : `What should ${firstName} change?`}
+            aria-label={requests.length > 0 ? t("aNoteForTheWhole") : t("whatShouldChange", { firstName })}
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
             rows={3}
             className="min-h-20"
-            placeholder={requests.length > 0 ? "A note for the whole plan (optional)" : `What should ${firstName} change?`}
+            placeholder={requests.length > 0 ? t("aNoteForTheWhole") : t("whatShouldChange", { firstName })}
             autoFocus
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setReturnOpen(false)} disabled={returning}>
-              Cancel
+              {t("cancel")}
             </Button>
             <AsyncButton
               pending={returning}
@@ -358,13 +366,13 @@ export function ReviewDecision({
                     changeRequests: requests,
                     expectedVersion: plan.version,
                   });
-                  toast.success(`Plan returned to ${firstName} for changes.`);
+                  toast.success(t("planReturnedToForChanges", { firstName }));
                   setReturnOpen(false);
                   setFeedback("");
                   drafts.clear();
                 } catch (error) {
                   if (performanceFailure(error).refresh) setReturnOpen(false);
-                  reportPerformanceFailure(error, "Could not return the plan.");
+                  reportPerformanceFailure(error, t("couldNotReturnThePlan"));
                 }
               }}
             >
@@ -377,36 +385,34 @@ export function ReviewDecision({
       <AlertDialog open={approveOpen} onOpenChange={(o) => { if (!approving) setApproveOpen(o); }}>
         <AlertDialogTrigger asChild>
           <Button>
-            <Check className="size-4" data-icon="inline-start" /> Approve plan
+            <Check className="size-4" data-icon="inline-start" /> {t("approvePlan")}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve this plan?</AlertDialogTitle>
+            <AlertDialogTitle>{t("approveThisPlan")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Approving <span className="font-medium text-foreground">locks {firstName}&apos;s plan</span> as
-              the agreed baseline for{" "}
-              <span className="font-medium text-foreground">{plan.cycleName}</span>. It{" "}
-              <span className="font-medium text-foreground">can&apos;t be edited afterward</span> without an
-              administrator.
+              {t("approving")} <span className="font-medium text-foreground">{t("locksSPlan", { firstName })}</span> {t("asTheAgreedBaselineFor")}
+              <span className="font-medium text-foreground">{plan.cycleName}</span>{t("it")}
+              <span className="font-medium text-foreground">{t("cantBeEditedAfterward")}</span> {t("withoutAnAdministrator")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={approving}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={approving}>{t("cancel")}</AlertDialogCancel>
             <AsyncButton
               pending={approving}
               onClick={async () => {
                 try {
                   await mutations.approve.mutateAsync(plan.version);
-                  toast.success("Plan approved and locked.");
+                  toast.success(t("planApprovedAndLocked"));
                   setApproveOpen(false);
                 } catch (error) {
                   if (performanceFailure(error).refresh) setApproveOpen(false);
-                  reportPerformanceFailure(error, "Could not approve the plan.");
+                  reportPerformanceFailure(error, t("couldNotApproveThePlan"));
                 }
               }}
             >
-              <Check className="size-4" data-icon="inline-start" /> Approve plan
+              <Check className="size-4" data-icon="inline-start" /> {t("approvePlan")}
             </AsyncButton>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -432,6 +438,7 @@ function ExceptionalApproval({
   firstName: string;
   reviewerName: string | null;
 }) {
+  const t = useTranslations("plan.ExceptionalApproval");
   const mutations = usePlanReviewMutations(cycleId, planId);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -448,29 +455,29 @@ function ExceptionalApproval({
     >
       <DialogTrigger asChild>
         <Button variant="ghost">
-          <ShieldCheck className="size-4" data-icon="inline-start" /> Approve as administrator
+          <ShieldCheck className="size-4" data-icon="inline-start" /> {t("approveAsAdministrator")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Approve {firstName}&apos;s plan as administrator</DialogTitle>
+          <DialogTitle>{t("approveSPlanAsAdministrator", { firstName })}</DialogTitle>
           <DialogDescription>
-            {reviewerName ? `${reviewerName} remains the plan's reviewer. ` : ""}This approval is recorded as yours, with your reason.
+            {reviewerName ? t("remainsThePlansReviewer", { reviewerName }) + " " : ""}{t("thisApprovalIsRecordedAs")}
           </DialogDescription>
         </DialogHeader>
         <Textarea
-          aria-label="Reason for approving on the reviewer's behalf"
+          aria-label={t("reasonForApprovingOnThe")}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
           className="min-h-20"
-          placeholder="Why the reviewer can't decide"
+          placeholder={t("whyTheReviewerCantDecide")}
           maxLength={1000}
           autoFocus
         />
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
-            Cancel
+            {t("cancel")}
           </Button>
           <AsyncButton
             pending={pending}
@@ -478,16 +485,16 @@ function ExceptionalApproval({
             onClick={async () => {
               try {
                 await mutations.exceptionalApprove.mutateAsync({ reason: reason.trim(), expectedVersion: plan.version });
-                toast.success("Plan approved by administration.");
+                toast.success(t("planApprovedByAdministration"));
                 setOpen(false);
                 setReason("");
               } catch (error) {
                 if (performanceFailure(error).refresh) setOpen(false);
-                reportPerformanceFailure(error, "Could not approve the plan.");
+                reportPerformanceFailure(error, t("couldNotApproveThePlan"));
               }
             }}
           >
-            <ShieldCheck className="size-4" data-icon="inline-start" /> Approve plan
+            <ShieldCheck className="size-4" data-icon="inline-start" /> {t("approvePlan")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>

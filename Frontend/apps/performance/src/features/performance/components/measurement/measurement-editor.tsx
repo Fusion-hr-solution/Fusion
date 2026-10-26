@@ -15,6 +15,7 @@ import {
 } from "@repo/ds/components/ui/combobox";
 import { cn } from "@repo/ds/lib/utils";
 import { MilestoneEditor, type MilestoneRow } from "./milestone-editor";
+import { useTranslations } from "next-intl";
 
 /** The three direct ways an objective's progress can be measured — canonical type from `@repo/api`. */
 export type { MeasurementMethod };
@@ -81,28 +82,29 @@ export function MeasurementEditor({
   minDate: string;
   maxDate: string;
 }) {
+  const t = useTranslations("progress.MeasurementEditor");
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <MethodTile
           active={method === "ManualPercentage"}
           icon={Percent}
-          title="Manual percentage"
-          detail="Update progress as a percentage throughout the cycle."
+          title={t("manualPercentage")}
+          detail={t("updateProgressAsAPercentage")}
           onClick={() => onMethodChange("ManualPercentage")}
         />
         <MethodTile
           active={method === "NumericTarget"}
           icon={LineChart}
-          title="Numeric target"
-          detail="Define a target with a numeric start and end value."
+          title={t("numericTarget")}
+          detail={t("defineATargetWithA")}
           onClick={() => onMethodChange("NumericTarget")}
         />
         <MethodTile
           active={method === "WeightedMilestones"}
           icon={Flag}
-          title="Weighted milestones"
-          detail="Break the objective into milestones with assigned weights."
+          title={t("weightedMilestones")}
+          detail={t("breakTheObjectiveIntoMilestones")}
           onClick={() => onMethodChange("WeightedMilestones")}
         />
       </div>
@@ -110,7 +112,7 @@ export function MeasurementEditor({
       {method === "ManualPercentage" ? (
         <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
           <Info className="size-4 shrink-0" aria-hidden />
-          You&rsquo;ll update progress as a percentage during the cycle.
+          {t("youllUpdateProgressAsA")}
         </div>
       ) : null}
 
@@ -223,17 +225,18 @@ function NumericTargetEditor({
   onUnit: (v: string) => void;
   onDirection: (v: ImprovementDirection) => void;
 }) {
+  const t = useTranslations("progress.NumericTargetEditor");
   const error = numericInvalid
-    ? "Enter a number — put a label like M€ or % in the Unit field."
+    ? t("enterANumberPutA")
     : sameValue
-      ? "Baseline and target must differ."
+      ? t("baselineAndTargetMustDiffer")
       : null;
   return (
     <div className="space-y-3 rounded-surface border border-border/70 p-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <NumericField
           id="me-baseline"
-          label="Baseline"
+          label={t("baseline")}
           value={baseline}
           placeholder="42"
           invalid={numericInvalid || sameValue}
@@ -241,7 +244,7 @@ function NumericTargetEditor({
         />
         <NumericField
           id="me-target"
-          label="Target"
+          label={t("target")}
           value={target}
           placeholder="70"
           invalid={numericInvalid || sameValue}
@@ -249,23 +252,23 @@ function NumericTargetEditor({
         />
         <div className="space-y-1.5">
           <Label htmlFor="me-unit">
-            Unit <span className="text-destructive">*</span>
+            {t("unit")} <span className="text-destructive">*</span>
           </Label>
           <UnitCombobox value={unit} onChange={onUnit} />
         </div>
         <div className="space-y-1.5">
-          <Label>Direction</Label>
+          <Label>{t("direction")}</Label>
           <div className="grid grid-cols-2 gap-1 rounded-control border border-border p-0.5">
             <DirectionOption
               active={direction === "Increase"}
               icon={TrendingUp}
-              label="Increase"
+              label={t("increase")}
               onClick={() => onDirection("Increase")}
             />
             <DirectionOption
               active={direction === "Decrease"}
               icon={TrendingDown}
-              label="Decrease"
+              label={t("decrease")}
               onClick={() => onDirection("Decrease")}
             />
           </div>
@@ -284,6 +287,7 @@ function UnitCombobox({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations("progress.UnitCombobox");
   const [open, setOpen] = useState(false);
   return (
     <Autocomplete
@@ -299,9 +303,9 @@ function UnitCombobox({
       open={open}
       onOpenChange={setOpen}
     >
-      <ComboboxInput id="me-unit" placeholder="Percent (%)" className="w-full" />
+      <ComboboxInput id="me-unit" placeholder={t("percent")} className="w-full" />
       <ComboboxContent className="pointer-events-auto">
-        <ComboboxEmpty>Uses “{value.trim()}” as a custom unit.</ComboboxEmpty>
+        <ComboboxEmpty>{t("usesAsACustomUnit", { trim: value.trim() })}</ComboboxEmpty>
         {/* Function child: Base UI filters `items` by the input and renders only the matches,
             which is also what registers each item for highlight and click/keyboard selection. */}
         <ComboboxList>

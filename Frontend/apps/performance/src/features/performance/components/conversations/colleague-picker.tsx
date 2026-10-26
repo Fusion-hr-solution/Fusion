@@ -8,6 +8,7 @@ import { EntityPicker, type EntityOption } from "@repo/ds/components/ui/entity-p
 import { User, X } from "@/lib/icons";
 import { useDirectory } from "../../api/use-conversations";
 import { initials } from "../plan/plan-lib";
+import { useTranslations } from "next-intl";
 
 export interface PickedColleague {
   employeeId: string;
@@ -54,6 +55,7 @@ export function ColleaguePicker({
   placeholder?: string;
   id?: string;
 }) {
+  const t = useTranslations("conversations.ColleaguePicker");
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState("");
   const debounced = useDebounced(term);
@@ -90,9 +92,9 @@ export function ColleaguePicker({
         loading={directory.isLoading && typed.length >= 2}
         placeholder={placeholder}
         placeholderIcon={<User className="size-3.5" aria-hidden />}
-        searchPlaceholder="Type at least two letters of a name"
-        emptyLabel={directory.error ? "Colleagues couldn't be loaded. Try again." : typed.length < 2 ? "Type a name to search" : `No colleagues match “${typed}”`}
-        hint="Type a name to search"
+        searchPlaceholder={t("typeAtLeastTwoLetters")}
+        emptyLabel={directory.error ? t("colleaguesCouldntBeLoadedTry") : typed.length < 2 ? t("typeANameToSearch") : t("noColleaguesMatch", { typed })}
+        hint={t("typeANameToSearch")}
       />
     </div>
   );
@@ -112,6 +114,7 @@ export function ColleaguesPicker({
   exclude?: readonly string[];
   id?: string;
 }) {
+  const t = useTranslations("conversations.ColleaguesPicker");
   const chosen = value.map((p) => p.employeeId);
   return (
     <div className="space-y-2">
@@ -127,7 +130,7 @@ export function ColleaguesPicker({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label={`Remove ${person.displayName}`}
+                aria-label={t("remove", { displayName: person.displayName })}
                 onClick={() => onChange(value.filter((p) => p.employeeId !== person.employeeId))}
               >
                 <X className="size-4" />
@@ -141,7 +144,7 @@ export function ColleaguesPicker({
           id={id}
           value={null}
           exclude={[...exclude, ...chosen]}
-          placeholder={value.length === 0 ? "Search colleagues" : "Add another"}
+          placeholder={value.length === 0 ? t("searchColleagues") : t("addAnother")}
           onChange={(person) => onChange([...value, person])}
         />
       ) : null}

@@ -3,8 +3,10 @@
 import { useAuth } from "@repo/auth";
 import { Check } from "@/lib/icons";
 import type { EmployeePlanDto } from "@repo/api";
-import { formatDate } from "../../lib";
+
 import { PlanBannerMark } from "./plan-banner";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * The approved, locked plan stated once — the same Status content whether the plan's owner or its reviewer reads
@@ -25,6 +27,8 @@ export function PlanApprovedStatus({
   /** The plan owner's first name — used only in the reviewer's sentence. */
   subjectFirstName?: string;
 }) {
+  const format = useFormat();
+  const t = useTranslations("plan.PlanApprovedStatus");
   const approval = [...plan.history]
     .reverse()
     .find((h) => h.kind === "Approved" || h.kind === "ApprovedExceptionally");
@@ -33,17 +37,17 @@ export function PlanApprovedStatus({
   // Only a normal approval can fall back to the reviewer's name: an administrative approval must never
   // read as the reviewer's (an administrator may have no employee record, so no resolved name).
   const approver = approval?.actorName ?? (administrative ? null : plan.responsibleManager?.name) ?? null;
-  const approvedOn = plan.approvedAt ? formatDate(plan.approvedAt.slice(0, 10)) : null;
+  const approvedOn = plan.approvedAt ? format.date(plan.approvedAt.slice(0, 10)) : null;
   const approvedByViewer = Boolean(user?.employeeId && approval?.actorEmployeeId === user.employeeId);
   const whose = subjectFirstName ? `${subjectFirstName}'s` : "this";
   const by = administrative
-    ? approver ? `${approver} approved it as administrator` : "Approved by administration"
-    : `Approved by ${approver}`;
+    ? approver ? t("approvedItAsAdministrator", { approver }) : t("approvedByAdministration")
+    : t("approvedBy", { approver: approver ?? "" });
 
   const detail =
     perspective === "reviewer"
       ? approvedByViewer
-        ? `You approved ${whose} plan${administrative ? " as administrator" : ""}`
+        ? (administrative ? t("youApprovedPlanAsAdministrator", { whose }) : t("youApprovedPlan", { whose }))
         : approver || administrative
           ? by
           : ""
@@ -58,7 +62,7 @@ export function PlanApprovedStatus({
         </PlanBannerMark>
         <div className="min-w-0">
           <p className="flex flex-wrap items-baseline gap-x-2 font-semibold tracking-tight text-foreground">
-            Approved &amp; locked
+            {t("approvedLocked")}
             {approvedOn && plan.approvedAt ? (
               <time dateTime={plan.approvedAt} className="text-xs font-normal tabular-nums text-muted-foreground">
                 {approvedOn}

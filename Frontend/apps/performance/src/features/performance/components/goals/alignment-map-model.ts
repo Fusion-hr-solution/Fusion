@@ -1,5 +1,5 @@
 import type { AlignmentMapDto, AlignmentMapNodeDto, ObjectiveStatus, PersonalAlignmentDto } from "@repo/api";
-import { OBJECTIVE_STATUS_LABEL } from "@repo/performance-ui";
+import { english, type Say } from "@/i18n/say";
 
 /**
  * The alignment map as a tree the chart can lay out: published direction (company → units at any
@@ -133,34 +133,35 @@ function descendantCount(model: AlignmentMapModel, id: string): number {
 }
 
 /** Unreported is never "on track" (D-05): the map says so in the words the rest of Performance uses. */
-export function statusLabel(status: ObjectiveStatus | null): string {
-  return status ? OBJECTIVE_STATUS_LABEL[status] : "Not reported";
+const en = english("goals.map");
+
+export function statusLabel(status: ObjectiveStatus | null, say: Say = en): string {
+  return status ? say(`status.${status}`) : say("notReported");
 }
 
-export function progressLabel(node: Pick<AlignmentMapNodeDto, "hasProgress" | "progress">): string {
-  return node.hasProgress ? `${Math.round(node.progress)}%` : "No progress yet";
+export function progressLabel(node: Pick<AlignmentMapNodeDto, "hasProgress" | "progress">, say: Say = en): string {
+  return node.hasProgress ? say("percent", { value: Math.round(node.progress) }) : say("noProgress");
 }
 
-export function scopeLabel(node: AlignmentMapNodeDto): string {
-  if (node.kind === "Company") return "Company";
-  if (node.kind === "Personal") return node.isOwn ? "Your objective" : (node.ownerName ?? "Personal objective");
-  return node.orgUnitName ?? "Unit";
+export function scopeLabel(node: AlignmentMapNodeDto, say: Say = en): string {
+  if (node.kind === "Company") return say("company");
+  if (node.kind === "Personal") return node.isOwn ? say("yourObjective") : (node.ownerName ?? say("personalObjective"));
+  return node.orgUnitName ?? say("unit");
 }
 
 /** What a screen reader hears for a node: "Talent Pod objective, Grow talent, At risk, 40%". */
-export function nodeAccessibleName(node: AlignmentMapNodeDto): string {
-  const scope = node.kind === "Company" ? "Company objective" : node.kind === "Personal" ? scopeLabel(node) : `${scopeLabel(node)} objective`;
-  return `${scope}, ${node.title}, ${statusLabel(node.status)}, ${progressLabel(node)}`;
+export function nodeAccessibleName(node: AlignmentMapNodeDto, say: Say = en): string {
+  const scope = node.kind === "Company" ? say("companyObjective") : node.kind === "Personal" ? scopeLabel(node, say) : say("unitObjective", { scope: scopeLabel(node, say) });
+  return say("accessible", { scope, title: node.title, status: statusLabel(node.status, say), progress: progressLabel(node, say) });
 }
 
 /** "6 personal objectives: 4 on track, 1 at risk, 1 not reported". */
-export function personalSummary(counts: PersonalAlignmentDto): string {
+export function personalSummary(counts: PersonalAlignmentDto, say: Say = en): string {
   const parts = [
-    counts.onTrack ? `${counts.onTrack} on track` : null,
-    counts.atRisk ? `${counts.atRisk} at risk` : null,
-    counts.offTrack ? `${counts.offTrack} off track` : null,
-    counts.noStatus ? `${counts.noStatus} not reported` : null,
+    counts.onTrack ? say("onTrack", { count: counts.onTrack }) : null,
+    counts.atRisk ? say("atRisk", { count: counts.atRisk }) : null,
+    counts.offTrack ? say("offTrack", { count: counts.offTrack }) : null,
+    counts.noStatus ? say("noStatus", { count: counts.noStatus }) : null,
   ].filter(Boolean);
-  const noun = counts.total === 1 ? "personal objective" : "personal objectives";
-  return `${counts.total} ${noun}${parts.length ? `: ${parts.join(", ")}` : ""}`;
+  return parts.length ? say("personalWithParts", { count: counts.total, parts: parts.join(", ") }) : say("personal", { count: counts.total });
 }

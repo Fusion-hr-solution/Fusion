@@ -6,6 +6,7 @@ import { Button } from "@repo/ds/components/ui/button";
 import { Textarea } from "@repo/ds/components/ui/textarea";
 import { cn } from "@repo/ds/lib/utils";
 import { Lock } from "@/lib/icons";
+import { useTranslations } from "next-intl";
 
 export const NOTES_MAX = 10_000;
 const IDLE_MS = 800;
@@ -38,6 +39,7 @@ export function NotesEditor({
   /** Saves and resolves to the revision the server now holds. */
   save: (text: string, expectedRevision: number) => Promise<number>;
 }) {
+  const t = useTranslations("oneOnOnes.NotesEditor");
   const [value, setValue] = useState(text);
   const [base, setBase] = useState({ text, revision });
   const [state, setState] = useState<SaveState>("idle");
@@ -94,7 +96,7 @@ export function NotesEditor({
           {label}
         </label>
         <span className="type-meta text-muted-foreground" aria-live="polite">
-          {state === "saving" ? "Saving…" : state === "saved" && !dirty ? "Saved" : state === "error" ? "Not saved" : ""}
+          {state === "saving" ? t("saving") : state === "saved" && !dirty ? t("saved") : state === "error" ? t("notSaved") : ""}
         </span>
       </div>
       <Textarea
@@ -106,16 +108,16 @@ export function NotesEditor({
         onBlur={() => {
           if (writable && state !== "conflict") void flush();
         }}
-        placeholder={writable ? (isPrivate ? "Only you see this" : "Start writing") : undefined}
+        placeholder={writable ? (isPrivate ? t("onlyYouSeeThis") : t("startWriting")) : undefined}
         voice={reading ? "narrative" : "system"}
         className="min-h-36 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
       />
       {state === "conflict" && theirs ? (
         <div role="alert" className="space-y-3 rounded-control border border-warning/40 p-3">
-          <p className="type-body text-foreground">These notes changed while you were editing.</p>
-          <p className="type-body-secondary line-clamp-4 whitespace-pre-wrap text-muted-foreground">{theirs.text || "(empty)"}</p>
+          <p className="type-body text-foreground">{t("theseNotesChangedWhileYou")}</p>
+          <p className="type-body-secondary line-clamp-4 whitespace-pre-wrap text-muted-foreground">{theirs.text || t("empty")}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => void flush(value, theirs.revision)}>Keep my version</Button>
+            <Button size="sm" onClick={() => void flush(value, theirs.revision)}>{t("keepMyVersion")}</Button>
             <Button
               size="sm"
               variant="outline"
@@ -126,14 +128,14 @@ export function NotesEditor({
                 setState("idle");
               }}
             >
-              Use theirs
+              {t("useTheirs")}
             </Button>
           </div>
         </div>
       ) : null}
       {state === "error" ? (
         <Button size="sm" variant="outline" className="self-start" onClick={() => void flush()}>
-          Try saving again
+          {t("trySavingAgain")}
         </Button>
       ) : null}
     </div>

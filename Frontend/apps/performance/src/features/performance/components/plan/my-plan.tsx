@@ -41,7 +41,6 @@ import {
   useMyPlan,
   usePlanMutations,
 } from "../../api/use-performance";
-import { formatDateTime } from "../../lib";
 import { directionFromTargets } from "./plan-direction";
 import { PlanGoalComposer } from "./goal-composer";
 import { useObjectiveRecord } from "../objective-record/use-objective-record";
@@ -52,6 +51,9 @@ import { PlanDocument, PlanSection, PlanWeightStrip } from "./plan-layout";
 import { PlanRail, activeReturn } from "./plan-rail";
 import { DevelopmentSection } from "./development-section";
 import { OwnerChangeRequest } from "./change-requests";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * The employee's Plan as a document with a properties sidebar (see `plan-layout.tsx`). The page heading
@@ -65,6 +67,8 @@ export function MyPlan({
   cycle: CycleSummaryDto;
   heading: (actions?: ReactNode) => ReactNode;
 }) {
+  const t = useTranslations("plan.MyPlan");
+  const words = useSay("common.words");
   const cycleId = cycle.id;
   const state = useMyPlan(cycleId);
   const targetsQuery = useAlignmentTargets(cycleId, state.data?.participatesInCycle ?? false);
@@ -85,14 +89,14 @@ export function MyPlan({
     );
   }
   if (performanceFailure(state.error).unavailable) {
-    return <PagePermissionNotice title="Plan unavailable" />;
+    return <PagePermissionNotice title={t("planUnavailable")} />;
   }
 
   if (state.error || !state.data) {
     return (
       <>
         {heading()}
-        <PageError title="Plan unavailable" description={state.error?.message} onRetry={state.refetch} />
+        <PageError title={t("planUnavailable")} description={state.error?.message} onRetry={state.refetch} />
       </>
     );
   }
@@ -104,7 +108,7 @@ export function MyPlan({
       <>
         {heading()}
         <p className="max-w-md text-sm text-muted-foreground">
-          You are not part of this Cycle. When your organization adds you, your plan opens here.
+          {t("youAreNotPartOf")}
         </p>
       </>
     );
@@ -139,12 +143,12 @@ export function MyPlan({
         // server-side before the objective is added.
         const currentPlan = plan ?? await mutations.create.mutateAsync(cycle.version);
         await mutations.addObjective.mutateAsync({ request, expectedVersion: currentPlan.version });
-        toast.success("Objective added.");
+        toast.success(t("objectiveAdded"));
       }}
       onUpdate={async (request: Omit<AddPlanObjectiveRequest, "expectedVersion">) => {
         if (!composer.objective) return;
         await mutations.updateObjective.mutateAsync({ objectiveId: composer.objective.id, request, expectedVersion: plan!.version });
-        toast.success("Objective updated.");
+        toast.success(t("objectiveUpdated"));
       }}
     />
   ) : null;
@@ -153,7 +157,7 @@ export function MyPlan({
   // there is no separate empty-Draft screen. The CTA opens the composer, and adding the first
   // objective creates the plan and reveals the authoring surface in the same place.
   if (!hasObjectives) {
-    const directionLevels = directionFromTargets(targets, plan?.orgUnitName ?? preview?.orgUnitName);
+    const directionLevels = directionFromTargets(targets, plan?.orgUnitName ?? preview?.orgUnitName, words);
     return (
       <>
         {heading()}
@@ -212,10 +216,10 @@ export function MyPlan({
       onSubmit={async () => {
         try {
           await mutations.submit.mutateAsync(plan.version);
-          toast.success(returned ? "Plan resubmitted for review." : "Plan submitted for review.");
+          toast.success(returned ? t("resubmitted") : t("submitted"));
           return true;
         } catch (error) {
-          reportPerformanceFailure(error, "Could not submit your plan.");
+          reportPerformanceFailure(error, t("couldNotSubmitYourPlan"));
           return false;
         }
       }}
@@ -244,7 +248,7 @@ export function MyPlan({
                       await mutations.addressChangeRequest.mutateAsync({ requestId, reply, expectedVersion: plan.version });
                       return true;
                     } catch (error) {
-                      reportPerformanceFailure(error, "Could not mark the change addressed.");
+                      reportPerformanceFailure(error, t("couldNotMarkTheChange"));
                       return false;
                     }
                   }}
@@ -254,7 +258,7 @@ export function MyPlan({
                     try {
                       await mutations.removeObjective.mutateAsync({ objectiveId: id, expectedVersion: plan.version });
                     } catch (error) {
-                      reportPerformanceFailure(error, "Could not remove the objective.");
+                      reportPerformanceFailure(error, t("couldNotRemoveTheObjective"));
                     }
                   }}
                 />
@@ -296,6 +300,8 @@ function ObjectiveLedger({
   onEdit: (objective: PlanObjectiveDto) => void;
   onRemove: (objectiveId: string) => void;
 }) {
+  const t = useTranslations("plan.ObjectiveLedger");
+  const words = useSay("common.words");
   // The objective record: the eye opens it, Update progress opens it in its record task, and an
   // objective's alignment opens the direction it supports — all addressed in this plan's own Cycle.
   const record = useObjectiveRecord();
@@ -305,17 +311,17 @@ function ObjectiveLedger({
   const scopeByTitle = useMemo(() => {
     const map = new Map<string, string>();
     for (const target of targets) {
-      map.set(target.title, target.ownershipScope === "Company" ? "Company strategy" : target.orgUnitName ?? "Organizational");
+      map.set(target.title, target.ownershipScope === "Company" ? words("companyStrategy") : target.orgUnitName ?? words("organizational"));
     }
     return map;
-  }, [targets]);
+  }, [targets, words]);
 
   const scopeFor = (objective: PlanObjectiveDto) =>
     objective.isAligned ? scopeByTitle.get(objective.directionPath.at(-1) ?? "") : undefined;
 
   return (
     <PlanSection
-      label="Objectives"
+      label={t("objectives")}
       count={plan.objectives.length}
       // Weights are settled at 100% once the plan is locked; the strip only guides drafting.
       summary={plan.isLocked ? undefined : <PlanWeightStrip segments={plan.objectives.map((o) => ({ weight: o.planWeight ?? 0, aligned: o.isAligned }))} />}
@@ -326,7 +332,7 @@ function ObjectiveLedger({
             onClick={onAdd}
             className="bg-foreground text-background hover:bg-foreground/90"
           >
-            <Plus className="size-4" data-icon="inline-start" /> Add objective
+            <Plus className="size-4" data-icon="inline-start" /> {t("addObjective")}
           </Button>
         ) : null
       }
@@ -334,7 +340,7 @@ function ObjectiveLedger({
 
       {plan.objectives.length === 0 ? (
         <div className="rounded-surface border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
-          No objectives yet. Add the first one to start building your plan.
+          {t("noObjectivesYetAddThe")}
         </div>
       ) : (
         <div className="space-y-3">
@@ -360,7 +366,7 @@ function ObjectiveLedger({
                 return returned && asked ? (
                   <OwnerChangeRequest
                     request={asked}
-                    reviewerName={returned.actorName ?? "Your reviewer"}
+                    reviewerName={returned.actorName ?? t("yourReviewer")}
                     decidedAt={returned.decidedAt}
                     canAddress={plan.canAuthor}
                     onAddress={(reply) => onAddress(asked.id, reply)}
@@ -398,41 +404,42 @@ function SubmitPlanAction({
   lastSavedAt: string;
   onSubmit: () => Promise<boolean>;
 }) {
+  const format = useFormat();
+  const t = useTranslations("plan.SubmitPlanAction");
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const reviewer = reviewerName ?? "your reviewer";
+  const reviewer = reviewerName ?? t("yourReviewer");
   return (
     <>
       <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex">
         <Check className="size-3.5 text-success" aria-hidden />
-        Saved {formatDateTime(lastSavedAt)}
+        {t("saved", { lastSavedAt: format.dateTime(lastSavedAt) })}
       </span>
       <AlertDialog open={confirmOpen} onOpenChange={(o) => { if (!submitting) setConfirmOpen(o); }}>
         <AlertDialogTrigger asChild>
           <Button disabled={!canSubmit}>
-            <Send className="size-4" data-icon="inline-start" /> {resubmit ? "Resubmit plan" : "Submit plan"}
+            <Send className="size-4" data-icon="inline-start" /> {resubmit ? t("resubmitPlan") : t("submitPlan")}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{resubmit ? "Resubmit your plan?" : "Submit your plan?"}</AlertDialogTitle>
+            <AlertDialogTitle>{resubmit ? t("resubmitYourPlan") : t("submitYourPlan")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Your{" "}
+              {t("your")}
               <span className="font-medium text-foreground">
-                {objectiveCount} objective{objectiveCount === 1 ? "" : "s"}
-              </span>{" "}
-              go to <span className="font-medium text-foreground">{reviewer}</span>. You{" "}
-              <span className="font-medium text-foreground">can&apos;t edit them</span> while the plan is in review.
+                {t("objective", { objectiveCount })}{objectiveCount === 1 ? "" : t("s")}
+              </span>{t("goTo")} <span className="font-medium text-foreground">{reviewer}</span>{t("you")}
+              <span className="font-medium text-foreground">{t("cantEditThem")}</span> {t("whileThePlanIsIn")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={submitting}>Keep editing</AlertDialogCancel>
+            <AlertDialogCancel disabled={submitting}>{t("keepEditing")}</AlertDialogCancel>
             <AsyncButton
               pending={submitting}
               onClick={async () => {
                 if (await onSubmit()) setConfirmOpen(false);
               }}
             >
-              <Send className="size-4" data-icon="inline-start" /> {resubmit ? "Resubmit" : "Submit"}
+              <Send className="size-4" data-icon="inline-start" /> {resubmit ? t("resubmit") : t("submit")}
             </AsyncButton>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -455,15 +462,16 @@ function PlanNotStarted({
   cycleName: string;
   onStart: () => void;
 }) {
+  const t = useTranslations("plan.PlanNotStarted");
   return (
-    <PlanSection label="Objectives">
+    <PlanSection label={t("objectives")}>
       <div className="flex flex-col items-center rounded-surface border border-border bg-card px-6 py-12 text-center">
         <PlanIllustration />
         <h2 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">
-          Create your {cycleName} plan
+          {t("createYourPlan", { cycleName })}
         </h2>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          Define your objectives and align them to your team.
+          {t("defineYourObjectivesAndAlign")}
         </p>
 
         <ul className="mt-8 grid w-full max-w-3xl gap-5 text-start sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border">
@@ -472,14 +480,14 @@ function PlanNotStarted({
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-inlay text-muted-foreground">
                 <Icon className="size-4" aria-hidden />
               </span>
-              <p className="text-sm font-semibold text-foreground">{title}</p>
+              <p className="text-sm font-semibold text-foreground">{t(`pillars.${title}`)}</p>
             </li>
           ))}
         </ul>
 
         <Button size="lg" onClick={onStart} className="mt-8">
           <Plus data-icon="inline-start" aria-hidden />
-          Start my plan
+          {t("startMyPlan")}
         </Button>
       </div>
     </PlanSection>
@@ -487,9 +495,9 @@ function PlanNotStarted({
 }
 
 const PLAN_PILLARS = [
-  { icon: Target, title: "Set meaningful objectives" },
-  { icon: Share2, title: "Align to your team" },
-  { icon: BarChart3, title: "Track progress" },
+  { icon: Target, title: "set" },
+  { icon: Share2, title: "align" },
+  { icon: BarChart3, title: "track" },
 ] as const;
 
 /** A plan document with a target, linked from you to your team by dotted amber connectors. */

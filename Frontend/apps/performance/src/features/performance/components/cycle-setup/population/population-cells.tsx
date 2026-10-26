@@ -5,9 +5,11 @@ import type { PopulationCandidateDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { cn } from "@repo/ds/lib/utils";
 import { candidateStatus, initials, reviewerView } from "./population-model";
+import { useTranslations } from "next-intl";
 
 /** Name + role, with an avatar monogram — the identity column shared across the roster tables. */
 export function EmployeeCell({ candidate }: { candidate: PopulationCandidateDto }) {
+  const t = useTranslations("cycleSetup.EmployeeCell");
   return (
     <div className="flex min-w-0 items-center gap-3">
       <Avatar className="size-9 shrink-0">
@@ -17,7 +19,7 @@ export function EmployeeCell({ candidate }: { candidate: PopulationCandidateDto 
         <p className="type-label truncate text-foreground">{candidate.displayName}</p>
         <p className="type-meta truncate text-muted-foreground">{candidate.jobTitle ?? "—"}</p>
         {candidate.byExplicitInclusion ? (
-          <p className="type-meta text-primary/90">Added individually</p>
+          <p className="type-meta text-primary/90">{t("addedIndividually")}</p>
         ) : null}
       </div>
     </div>
@@ -26,20 +28,22 @@ export function EmployeeCell({ candidate }: { candidate: PopulationCandidateDto 
 
 /** Org unit (with its parent path element if we ever carry one) — quiet secondary column. */
 export function OrgCell({ candidate }: { candidate: PopulationCandidateDto }) {
+  const t = useTranslations("cycleSetup.OrgCell");
   if (!candidate.orgUnitName) {
-    return <span className="type-body-secondary text-muted-foreground">No unit</span>;
+    return <span className="type-body-secondary text-muted-foreground">{t("noUnit")}</span>;
   }
   return <span className="type-body-secondary text-foreground">{candidate.orgUnitName}</span>;
 }
 
 /** Reviewer identity, dimming/flagging an inactive manager and naming an unresolved one. */
 export function ReviewerCell({ candidate }: { candidate: PopulationCandidateDto }) {
+  const t = useTranslations("cycleSetup.ReviewerCell");
   const reviewer = reviewerView(candidate);
   if (reviewer.kind === "unresolved") {
     return (
       <span className="flex items-center gap-2 type-body-secondary text-muted-foreground">
         <CircleUserRound className="size-4 shrink-0 opacity-60" aria-hidden />
-        Not resolved
+        {t("notResolved")}
       </span>
     );
   }
@@ -58,7 +62,7 @@ export function ReviewerCell({ candidate }: { candidate: PopulationCandidateDto 
           {reviewer.name}
         </span>
         {reviewer.kind === "inactive" ? (
-          <span className="type-meta text-amber-500">Inactive</span>
+          <span className="type-meta text-amber-500">{t("inactive")}</span>
         ) : null}
       </span>
     </span>
@@ -67,13 +71,14 @@ export function ReviewerCell({ candidate }: { candidate: PopulationCandidateDto 
 
 /** The roster status — a coloured dot + label with a one-line consequence beneath it. */
 export function StatusCell({ candidate }: { candidate: PopulationCandidateDto }) {
+  const t = useTranslations("cycleSetup.StatusCell");
   const status = candidateStatus(candidate);
   const config =
     status === "ready"
-      ? { dot: "bg-emerald-500", label: "Ready", caption: "Can participate", label_class: "text-foreground" }
+      ? { dot: "bg-emerald-500", label: t("ready"), caption: t("canParticipate"), label_class: "text-foreground" }
       : status === "attention"
-        ? { dot: "bg-amber-500", label: "Needs attention", caption: "Resolve or exclude", label_class: "text-foreground" }
-        : { dot: "bg-muted-foreground/60", label: "Excluded", caption: "Won't participate", label_class: "text-muted-foreground" };
+        ? { dot: "bg-amber-500", label: t("needsAttention"), caption: t("resolveOrExclude"), label_class: "text-foreground" }
+        : { dot: "bg-muted-foreground/60", label: t("excluded"), caption: t("wontParticipate"), label_class: "text-muted-foreground" };
   return (
     <div>
       <span className="flex items-center gap-2">

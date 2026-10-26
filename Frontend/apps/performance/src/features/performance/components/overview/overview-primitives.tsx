@@ -7,6 +7,7 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import { PersonInitials } from "@repo/performance-ui";
 import { appHref } from "./overview-model";
+import { useTranslations } from "next-intl";
 
 /**
  * One Overview row: a label column (what it is about, a short fact and where its workspace is) and the facts beside
@@ -98,9 +99,10 @@ export const N = ({ children }: { children: ReactNode }) => <b className="font-s
 
 /** Up to six people as chips with their state, those who need the viewer marked. Never a roster. */
 export function Chips({ chips, word }: { chips: OverviewChipDto[]; word: (chip: OverviewChipDto) => string }) {
+  const t = useTranslations("overview.Chips");
   if (chips.length === 0) return null;
   return (
-    <ul className="mt-4 flex flex-wrap gap-2" aria-label="People">
+    <ul className="mt-4 flex flex-wrap gap-2" aria-label={t("people")}>
       {chips.map((chip) => {
         const body = (
           <>
@@ -187,8 +189,9 @@ export function SegmentBar({ segments, label }: { segments: { count: number; cla
 
 /** A path of steps (where a review or a setup stands). */
 export function StepsStrip({ steps }: { steps: { label: string; detail?: string | null; state: "done" | "current" | "upcoming" }[] }) {
+  const t = useTranslations("overview.StepsStrip");
   return (
-    <ol className="mt-5 flex items-start" aria-label="Where this stands">
+    <ol className="mt-5 flex items-start" aria-label={t("whereThisStands")}>
       {steps.map((step, index) => (
         <li key={`${step.label}-${index}`} className="relative min-w-0 flex-1 pe-3">
           {index < steps.length - 1 ? (

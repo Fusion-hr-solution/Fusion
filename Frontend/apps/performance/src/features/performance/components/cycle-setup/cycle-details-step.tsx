@@ -16,11 +16,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@repo/ds/components/ui/
 import { Label } from "@repo/ds/components/ui/label";
 import { AsyncButton } from "@repo/ds/shell";
 import { useCreateCycle, useSettings, useUpdateCycle } from "@/features/performance/api/use-performance";
-import { formatDate } from "@/features/performance/lib";
 import { SetupStepFooter } from "./setup-step-footer";
 import { CycleTimeline } from "./cycle-timeline";
 import { useSetupShell } from "./setup-shell-context";
 import { setupStepHref } from "./setup-readiness";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 const DESCRIPTION_MAX = 500;
 const DAY = 86_400_000;
@@ -63,6 +64,8 @@ function Required() {
  * on return) and advances to Population; "Save and exit" persists and leaves the flow.
  */
 export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) {
+  const format = useFormat();
+  const t = useTranslations("cycleSetup.CycleDetailsStep");
   const router = useRouter();
   const shell = useSetupShell();
   const draft = detail?.cycle.state === "Draft" ? detail.cycle : null;
@@ -133,7 +136,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
       const cycleId = await persist();
       router.push(setupStepHref("population", cycleId));
     } catch (error) {
-      reportPerformanceFailure(error, "Could not save the Cycle.");
+      reportPerformanceFailure(error, t("couldNotSaveTheCycle"));
       setSubmitting(false);
     }
   }
@@ -143,14 +146,14 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
     try {
       if (valid) {
         await persist();
-        toast.success("Cycle setup saved.");
+        toast.success(t("cycleSetupSaved"));
       }
     } catch (error) {
-      reportPerformanceFailure(error, "Could not save the Cycle.");
+      reportPerformanceFailure(error, t("couldNotSaveTheCycle"));
       return;
     }
     router.push("/");
-  }, [valid, persist, router]);
+  }, [valid, persist, router, t]);
 
   useEffect(() => {
     shell.setExitHandler(saveAndExit);
@@ -182,27 +185,27 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* main form card */}
         <section className="flex flex-col rounded-surface border border-border bg-card p-6 lg:p-8">
-          <CardTitle icon={FileText} title="Cycle details" caption="Give your performance cycle a clear name and timeline." />
+          <CardTitle icon={FileText} title={t("cycleDetails")} caption={t("giveYourPerformanceCycleA")} />
 
           <div className="mt-7 space-y-6">
             <Field
               htmlFor="cycle-name"
-              label={<>Cycle name <Required /></>}
-              hint="This name will be used across Fusion to identify the cycle."
+              label={<>{t("cycleName")} <Required /></>}
+              hint={t("thisNameWillBeUsed")}
             >
               <Input
                 id="cycle-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Performance 2026"
+                placeholder={t("performance2026")}
                 className="h-11"
                 autoFocus
               />
             </Field>
             <Field
               htmlFor="cycle-description"
-              label={<>Description <span className="ms-1 font-normal text-muted-foreground">(optional)</span></>}
-              hint="Add a brief description to provide context for this cycle."
+              label={<>{t("description")} <span className="ms-1 font-normal text-muted-foreground">{t("optional")}</span></>}
+              hint={t("addABriefDescriptionTo")}
               aside={
                 <span className="type-meta tabular-nums text-muted-foreground">
                   {description.length}/{DESCRIPTION_MAX}
@@ -216,25 +219,25 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
                 onChange={(event) => setDescription(event.target.value)}
                 rows={2}
                 className="resize-none"
-                placeholder="What this cycle is for…"
+                placeholder={t("whatThisCycleIsFor")}
               />
             </Field>
           </div>
 
           <div className="mt-8 border-t border-border/70 pt-7">
-            <CardTitle icon={CalendarDays} title="Timeline" caption="Set the cycle dates and planning deadline." />
+            <CardTitle icon={CalendarDays} title={t("timeline")} caption={t("setTheCycleDatesAnd")} />
 
             <div className="mt-6 grid gap-6 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
               <Field
                 htmlFor="cycle-dates"
-                label={<>Cycle dates <Required /></>}
-                hint="The start and end dates for this performance cycle."
+                label={<>{t("cycleDates")} <Required /></>}
+                hint={t("theStartAndEndDates")}
               >
                 <Popover>
                   <DateTrigger id="cycle-dates" empty={!startDate}>
                     {startDate
-                      ? `${formatDate(startDate)} – ${endDate ? formatDate(endDate) : "…"}`
-                      : "Pick start and end dates"}
+                      ? `${format.date(startDate)} – ${endDate ? format.date(endDate) : "…"}`
+                      : t("pickStartAndEndDates")}
                   </DateTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
@@ -255,12 +258,12 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
               </Field>
               <Field
                 htmlFor="cycle-deadline"
-                label={<>Planning deadline <Required /></>}
-                hint="The last day to complete planning."
+                label={<>{t("planningDeadline")} <Required /></>}
+                hint={t("theLastDayToComplete")}
               >
                 <Popover open={deadlineOpen} onOpenChange={setDeadlineOpen}>
                   <DateTrigger id="cycle-deadline" empty={!planningDeadline}>
-                    {planningDeadline ? formatDate(planningDeadline) : "Pick a date"}
+                    {planningDeadline ? format.date(planningDeadline) : t("pickADate")}
                   </DateTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
@@ -284,41 +287,41 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
             </div>
 
             {datesInvalid ? (
-              <p className="mt-3 text-sm text-destructive">The end date must be after the start date.</p>
+              <p className="mt-3 text-sm text-destructive">{t("theEndDateMustBe")}</p>
             ) : null}
           </div>
         </section>
 
         {/* live summary aside */}
         <aside className="flex flex-col rounded-surface border border-border bg-card p-6 lg:p-7">
-          <CardTitle icon={Clock} title="At a glance" caption="Key details for this performance cycle." compact />
+          <CardTitle icon={Clock} title={t("atAGlance")} caption={t("keyDetailsForThisPerformance")} compact />
 
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <Metric value={span ? span.value : "—"} unit={span?.unit} icon={Clock} label="Cycle length" />
+            <Metric value={span ? span.value : "—"} unit={span?.unit} icon={Clock} label={t("cycleLength")} />
             <Metric
               value={planningWindow ?? "—"}
               unit={planningWindow !== null ? "days to plan" : undefined}
               icon={CalendarDays}
-              label="Planning window"
+              label={t("planningWindow")}
             />
           </div>
 
           <div className="mt-6 border-t border-border/70 pt-5">
-            <h3 className="type-panel-title text-foreground">Timeline</h3>
+            <h3 className="type-panel-title text-foreground">{t("timeline")}</h3>
             <div className="mt-2">
               <CycleTimeline
                 startDate={startDate}
                 endDate={endDate}
-                marker={{ date: planningDeadline, label: "Planning deadline" }}
+                marker={{ date: planningDeadline, label: t("planningDeadline") }}
               />
             </div>
           </div>
 
           <div className="mt-auto border-t border-border/70 pt-5">
-            <p className="type-meta text-muted-foreground">Up next</p>
+            <p className="type-meta text-muted-foreground">{t("upNext")}</p>
             <ul className="mt-3 space-y-2.5">
-              <UpNext icon={Users} step={2} label="Population" caption="Choose who takes part" />
-              <UpNext icon={Flag} step={3} label="Review & launch" caption="Confirm and go live" />
+              <UpNext icon={Users} step={2} label={t("population")} caption={t("chooseWhoTakesPart")} />
+              <UpNext icon={Flag} step={3} label={t("reviewLaunch")} caption={t("confirmAndGoLive")} />
             </ul>
           </div>
         </aside>
@@ -326,7 +329,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
 
       <SetupStepFooter cancelHref="/">
         <AsyncButton pending={submitting} disabled={!valid} onClick={submit}>
-          Next
+          {t("next")}
           <ArrowRight className="size-4" data-icon="inline-end" />
         </AsyncButton>
       </SetupStepFooter>

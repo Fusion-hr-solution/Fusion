@@ -10,6 +10,7 @@ import { cn } from "@repo/ds/lib/utils";
 import { ArrowRight, FeedbackIcon, FileText, Lock, OneOnOnes, RefreshCw, RotateCcw, Sparkles, Star, Target, Users, X } from "@/lib/icons";
 import { useReviewsApi } from "../../api/use-review-work";
 import { useWorkspaceContext } from "../../api/use-workspace";
+import { useTranslations } from "next-intl";
 
 type DraftState =
   | { kind: "idle" }
@@ -52,9 +53,7 @@ const KIND_ICON: Record<string, typeof Target> = {
   objective: Target, evidence: FileText, feedback: FeedbackIcon, praise: Star, "one-on-one": OneOnOnes, "private-note": Lock, peer: Users,
 };
 
-const KIND_WORDS: Record<string, string> = {
-  objective: "objectives", evidence: "evidence", feedback: "feedback", praise: "praise", "one-on-one": "1:1 notes", "private-note": "your private notes", peer: "peer input",
-};
+const KINDS = ["objective", "evidence", "feedback", "praise", "one-on-one", "private-note", "peer"];
 
 /**
  * Boards 12, 13 and 16. `lens` decides the voice of the copy: the manager drafts about the person, the person starts
@@ -70,23 +69,24 @@ export function ReviewDraftBlock({ reviewId, kind = "Summary", questionId, lens,
   onInsert: (text: string) => void;
   className?: string;
 }) {
+  const t = useTranslations("reviews.ReviewDraftBlock");
   const { available, state, setState, run } = useReviewDraft(reviewId, kind, questionId);
   if (!available) return null;
-  const title = lens === "self" ? "Start from your year" : kind === "Question" ? "Draft an answer" : `Draft from ${subject}'s year`;
+  const title = lens === "self" ? t("startFromYourYear") : kind === "Question" ? t("draftAnAnswer") : t("draftFromSYear", { subject });
 
   if (state.kind === "idle") {
     return (
       <Button type="button" variant="ghost" size="sm" className={cn("h-8 gap-1.5 px-2 text-primary-ink hover:text-primary-ink", className)} onClick={() => void run()}>
-        <Sparkles className="size-3.5" aria-hidden />{kind === "Question" ? "Draft" : title}
+        <Sparkles className="size-3.5" aria-hidden />{kind === "Question" ? t("draft") : title}
       </Button>
     );
   }
   if (state.kind === "inserted") {
     return (
       <p className={cn("flex items-center gap-2 type-meta text-muted-foreground", className)} role="status">
-        <Sparkles className="size-3.5 text-primary-ink" aria-hidden />Inserted. It&apos;s yours to edit.
+        <Sparkles className="size-3.5 text-primary-ink" aria-hidden />{t("insertedItsYoursToEdit")}
         <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={() => { onInsert(state.previous); setState({ kind: "idle" }); }}>
-          <RotateCcw className="size-3.5" aria-hidden />Undo
+          <RotateCcw className="size-3.5" aria-hidden />{t("undo")}
         </Button>
       </p>
     );
@@ -103,17 +103,17 @@ export function ReviewDraftBlock({ reviewId, kind = "Summary", questionId, lens,
         <div className="min-w-0 flex-1">
           <p className="type-label text-foreground">{title}</p>
           <p className="type-meta text-muted-foreground">
-            {state.kind === "ready" ? `${state.draft.sourceCount} ${lens === "self" ? "sources you can see" : "sources"}`
-              : state.kind === "abstained" ? "Too little to draft from yet" : "Drafting"}
+            {state.kind === "ready" ? (lens === "self" ? t("sourcesYouCanSee", { count: state.draft.sourceCount }) : t("sources", { count: state.draft.sourceCount }))
+              : state.kind === "abstained" ? t("tooLittleToDraftFrom") : t("drafting")}
           </p>
         </div>
         {state.kind === "ready" ? (
-          <Button type="button" variant="ghost" size="sm" onClick={() => void run()}><RefreshCw className="size-3.5" aria-hidden />Regenerate</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => void run()}><RefreshCw className="size-3.5" aria-hidden />{t("regenerate")}</Button>
         ) : null}
-        <Button type="button" variant="ghost" size="icon-sm" aria-label="Close the draft" onClick={() => setState({ kind: "idle" })}><X className="size-4" aria-hidden /></Button>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label={t("closeTheDraft")} onClick={() => setState({ kind: "idle" })}><X className="size-4" aria-hidden /></Button>
       </div>
       {state.kind === "drafting" ? (
-        <div className="space-y-2 px-4 pb-4" role="status" aria-label="Drafting">
+        <div className="space-y-2 px-4 pb-4" role="status" aria-label={t("drafting")}>
           <Skeleton className="h-4 w-11/12" /><Skeleton className="h-4 w-10/12" /><Skeleton className="h-4 w-8/12" />
         </div>
       ) : null}
@@ -127,6 +127,7 @@ export function ReviewDraftBlock({ reviewId, kind = "Summary", questionId, lens,
 function ReadyDraft({ draft, lens, subject, onDiscard, onInsert }: {
   draft: ReviewDraftDto; lens: "manager" | "self"; subject: string; onDiscard: () => void; onInsert: () => void;
 }) {
+  const t = useTranslations("reviews.ReadyDraft");
   return (
     <>
       <div className="space-y-3 border-t border-border px-4 py-4">
@@ -142,41 +143,42 @@ function ReadyDraft({ draft, lens, subject, onDiscard, onInsert }: {
           {draft.privateSentenceCount > 0 ? (
             <span className="inline-flex items-center gap-1.5 text-warning">
               <Lock className="size-3.5" aria-hidden />
-              {draft.privateSentenceCount} {draft.privateSentenceCount === 1 ? "sentence uses" : "sentences use"} sources {subject} can&apos;t see
+              {draft.privateSentenceCount} {draft.privateSentenceCount === 1 ? t("sentenceUses") : t("sentencesUse")} {t("sourcesCantSee", { subject })}
             </span>
-          ) : sourceKinds(draft)}
+          ) : sourceKinds(draft, (kind) => t(`kind.${kind}` as "kind.peer"))}
         </p>
-        <Button type="button" variant="outline" size="sm" onClick={onDiscard}>Discard</Button>
-        <Button type="button" size="sm" onClick={onInsert}>{lens === "self" ? "Use as my starting point" : "Insert"}</Button>
+        <Button type="button" variant="outline" size="sm" onClick={onDiscard}>{t("discard")}</Button>
+        <Button type="button" size="sm" onClick={onInsert}>{lens === "self" ? t("useAsMyStartingPoint") : t("insert")}</Button>
       </div>
     </>
   );
 }
 
-function sourceKinds(draft: ReviewDraftDto): string {
-  const words = draft.sourceKinds.map((kind) => KIND_WORDS[kind] ?? kind);
+function sourceKinds(draft: ReviewDraftDto, say: (kind: string) => string): string {
+  const words = draft.sourceKinds.map((kind) => (KINDS.includes(kind) ? say(kind) : kind));
   return words.length ? words.join(", ").replace(/^./, (letter) => letter.toUpperCase()) : "";
 }
 
 function SourceChip({ source, subject }: { source: ReviewDraftSourceDto; subject: string }) {
+  const t = useTranslations("reviews.SourceChip");
   const Icon = KIND_ICON[source.kind] ?? FileText;
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button type="button" className={cn("ms-1.5 inline-flex max-w-[16rem] items-center gap-1 rounded-full px-2 py-0.5 align-middle type-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           source.subjectVisible ? "bg-card text-muted-foreground hover:text-foreground" : "border border-dashed border-warning text-warning")}
-          aria-label={`${source.label}${source.subjectVisible ? "" : `, not visible to ${subject}`}`}>
+          aria-label={source.subjectVisible ? source.label : t("notVisible", { label: source.label, subject })}>
           {source.subjectVisible ? <Icon className="size-3 shrink-0" aria-hidden /> : <Lock className="size-3 shrink-0" aria-hidden />}
           <span className="truncate">{source.label}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 space-y-3" align="start">
         <p className="flex items-center gap-2 type-label text-foreground"><Icon className="size-4 text-muted-foreground" aria-hidden />{source.label}</p>
-        {!source.subjectVisible ? <p className="inline-flex items-center gap-1.5 type-meta text-warning"><Lock className="size-3.5" aria-hidden />{subject} can&apos;t see this</p> : null}
+        {!source.subjectVisible ? <p className="inline-flex items-center gap-1.5 type-meta text-warning"><Lock className="size-3.5" aria-hidden />{t("cantSeeThis", { subject })}</p> : null}
         <p className="type-body-secondary text-foreground">{source.excerpt}</p>
         {source.path ? (
           <div className="flex justify-end">
-            <Button asChild variant="ghost" size="sm"><Link href={source.path.replace(/^\/performance/, "")}>Open<ArrowRight className="size-3.5" aria-hidden /></Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href={source.path.replace(/^\/performance/, "")}>{t("open")}<ArrowRight className="size-3.5" aria-hidden /></Link></Button>
           </div>
         ) : null}
       </PopoverContent>

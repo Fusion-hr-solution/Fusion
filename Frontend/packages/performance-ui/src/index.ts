@@ -6,12 +6,13 @@ export type { PersonPerformanceSummaryProps, PersonPerformanceSummaryState } fro
 export { PlanDial, ResultsOverTime, ReviewStepTrack, SummaryGlance } from "./summary-glance";
 export { SummaryObjectives } from "./summary-objectives";
 export { SummaryReviews } from "./summary-reviews";
-export { SummaryDevelopment, DEVELOPMENT_STATUS_LABEL } from "./summary-development";
-export { ObjectiveStatusBadge, OBJECTIVE_STATUS_LABEL, statusMix, describeStatusMix } from "./objective-status";
+export { SummaryDevelopment } from "./summary-development";
+export { ObjectiveStatusBadge, statusMix } from "./objective-status";
+export { usePerformanceWords } from "./use-words";
 export type { StatusMix } from "./objective-status";
 export type { RenderSummaryLink } from "./summary-lib";
-export { PraiseCard, PraiseList, PraiseReactions, praiseTime } from "./praise";
-export { AvatarStack, PersonInitials, initials, joinNames } from "./people";
+export { PraiseCard, PraiseList, PraiseReactions } from "./praise";
+export { AvatarStack, PersonInitials, initials } from "./people";
 export type { PersonInitialsSize } from "./people";
 export { VALUE_TONE, ValueChip, ValueDot, useValueTones, valueTone } from "./values";
 export type { ValueTone } from "./values";

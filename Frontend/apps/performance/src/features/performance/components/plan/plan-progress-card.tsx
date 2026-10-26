@@ -6,6 +6,7 @@ import { AllocationGauge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { SidebarSection } from "./plan-layout";
 import { progressPct } from "./plan-lib";
+import { useTranslations } from "next-intl";
 
 /**
  * The canonical weighted Plan-progress read — one presentation over one calculation (`plan.planProgress`),
@@ -24,12 +25,13 @@ export function PlanProgressCard({
   /** Optional line under the empty state — the owner's nudge to begin; omitted for a manager's read. */
   emptyDescription?: string;
 }) {
+  const t = useTranslations("plan.PlanProgressCard");
   const anyProgress = plan.objectives.some((o) => o.hasProgress);
   const complete = plan.planProgress >= 100;
 
   if (!anyProgress) {
     return (
-      <SidebarSection label="Plan progress">
+      <SidebarSection label={t("planProgress")}>
         <div className="mt-4 flex flex-col items-center text-center">
           <AllocationGauge
             value={0}
@@ -38,7 +40,7 @@ export function PlanProgressCard({
             centerClassName="text-muted-foreground"
             height={160}
           />
-          <p className="mt-4 text-base font-semibold tracking-tight text-foreground">No progress reported yet</p>
+          <p className="mt-4 text-base font-semibold tracking-tight text-foreground">{t("noProgressReportedYet")}</p>
           {emptyDescription ? (
             <p className="mt-1 max-w-[16rem] text-xs leading-relaxed text-muted-foreground">{emptyDescription}</p>
           ) : null}
@@ -49,10 +51,10 @@ export function PlanProgressCard({
   }
 
   return (
-    <SidebarSection label="Plan progress">
+    <SidebarSection label={t("planProgress")}>
       <div className="mt-4 flex flex-col items-center text-center">
         <ObjectiveProgressRing plan={plan} complete={complete} />
-        <p className="mt-3 text-xs text-muted-foreground">Weighted across {plan.objectives.length} objectives</p>
+        <p className="mt-3 text-xs text-muted-foreground">{t("weightedAcrossObjectives", { length: plan.objectives.length })}</p>
         <StatusMixLine plan={plan} />
       </div>
 
@@ -62,14 +64,15 @@ export function PlanProgressCard({
 
 /** How the owners say their objectives are going (D-05), once any has reported: "2 on track · 1 at risk". */
 function StatusMixLine({ plan }: { plan: EmployeePlanDto }) {
+  const t = useTranslations("plan.StatusMixLine");
   const mix = statusMix(plan.objectives.map((o) => o.status));
   if (mix.notReported === plan.objectives.length) return null;
   return (
     <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-      {mix.onTrack > 0 ? <MixItem dot="bg-success" label={`${mix.onTrack} on track`} /> : null}
-      {mix.atRisk > 0 ? <MixItem dot="bg-warning" label={`${mix.atRisk} at risk`} /> : null}
-      {mix.offTrack > 0 ? <MixItem dot="bg-destructive" label={`${mix.offTrack} off track`} /> : null}
-      {mix.notReported > 0 ? <MixItem dot="bg-muted-foreground/40" label={`${mix.notReported} not reported`} /> : null}
+      {mix.onTrack > 0 ? <MixItem dot="bg-success" label={t("onTrack", { onTrack: mix.onTrack })} /> : null}
+      {mix.atRisk > 0 ? <MixItem dot="bg-warning" label={t("atRisk", { atRisk: mix.atRisk })} /> : null}
+      {mix.offTrack > 0 ? <MixItem dot="bg-destructive" label={t("offTrack", { offTrack: mix.offTrack })} /> : null}
+      {mix.notReported > 0 ? <MixItem dot="bg-muted-foreground/40" label={t("notReported", { notReported: mix.notReported })} /> : null}
     </p>
   );
 }
@@ -93,6 +96,7 @@ const GAP = 3; // px of track between adjacent segments
  * coloured by its type, amber when aligned and blue when standalone, matching its row.
  */
 function ObjectiveProgressRing({ plan, complete }: { plan: EmployeePlanDto; complete: boolean }) {
+  const t = useTranslations("plan.ObjectiveProgressRing");
   const r = (RING - STROKE) / 2;
   const c = 2 * Math.PI * r;
   let offset = 0;
@@ -137,7 +141,7 @@ function ObjectiveProgressRing({ plan, complete }: { plan: EmployeePlanDto; comp
         <span className={cn("text-2xl font-semibold leading-none tabular-nums", complete ? "text-success" : "text-foreground")}>
           {progressPct(plan.planProgress)}%
         </span>
-        <span className="mt-1.5 text-xs text-muted-foreground">overall progress</span>
+        <span className="mt-1.5 text-xs text-muted-foreground">{t("overallProgress")}</span>
       </div>
     </div>
   );

@@ -6,7 +6,8 @@ import type { EvidenceDto, ProgressUpdateDto } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
 import { ObjectiveStatusBadge } from "@repo/performance-ui";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDate } from "../../lib";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * The read-only progress timeline for one objective, shared by every surface that reads history (the
@@ -38,6 +39,7 @@ export function ProgressHistoryTimeline({
   /** The file-evidence id currently being fetched, so its row can show progress. */
   openingFileId: string | null;
 }) {
+  const t = useTranslations("progress.ProgressHistoryTimeline");
   return (
     <ol className="mt-4">
       {history.map((entry) => (
@@ -49,15 +51,15 @@ export function ProgressHistoryTimeline({
         <li className="relative flex gap-3">
           <span className="relative z-10 mt-1 size-2.5 shrink-0 rounded-full border-2 border-muted-foreground/30 bg-background" />
           <AsyncButton pending={loadingMore} variant="ghost" size="sm" onClick={onLoadMore} className="-ms-1 -mt-1 text-muted-foreground">
-            <ChevronDown className="size-3.5" data-icon="inline-start" /> Show earlier updates
+            <ChevronDown className="size-3.5" data-icon="inline-start" /> {t("showEarlierUpdates")}
           </AsyncButton>
         </li>
       ) : (
         <li className="relative flex gap-3">
           <span className="relative z-10 mt-1 size-2.5 shrink-0 rounded-full border-2 border-muted-foreground/30" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">No earlier updates</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">This was the first progress update.</p>
+            <p className="text-sm font-medium text-muted-foreground">{t("noEarlierUpdates")}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t("thisWasTheFirstProgress")}</p>
           </div>
         </li>
       )}
@@ -77,6 +79,8 @@ function HistoryRow({
   onOpenFile: (evidenceId: string) => void;
   openingFileId: string | null;
 }) {
+  const format = useFormat();
+  const t = useTranslations("progress.HistoryRow");
   const files = entry.evidence.filter((e) => e.kind === "File");
   const links = entry.evidence.filter((e) => e.kind === "Link");
   const openable = entry.evidence.filter((e) => e.kind === "File" || e.kind === "Link");
@@ -112,16 +116,16 @@ function HistoryRow({
         >
           {/* Date + attachment/note indicators + a chevron when the row expands. */}
           <div className="flex items-start justify-between gap-3">
-            <span className="text-sm font-medium text-foreground">{formatDate(entry.recordedAt.slice(0, 10))}</span>
+            <span className="text-sm font-medium text-foreground">{format.date(entry.recordedAt.slice(0, 10))}</span>
             <div className="flex flex-wrap items-center justify-end gap-1.5">
               {files.length > 0 ? (
-                <Chip icon={<Paperclip className="size-3" aria-hidden />} label={`${files.length} file${files.length === 1 ? "" : "s"}`} />
+                <Chip icon={<Paperclip className="size-3" aria-hidden />} label={(files.length === 1 ? t("file", { length: files.length }) : t("files", { length: files.length }))} />
               ) : null}
               {links.length > 0 ? (
-                <Chip icon={<Link2 className="size-3" aria-hidden />} label={`${links.length} link${links.length === 1 ? "" : "s"}`} />
+                <Chip icon={<Link2 className="size-3" aria-hidden />} label={(links.length === 1 ? t("link", { length: links.length }) : t("links", { length: links.length }))} />
               ) : null}
               {/* Note chip only where the note is not already revealed — avoids restating it beside the open card. */}
-              {entry.contextNote && !isOpen ? <Chip icon={<FileText className="size-3" aria-hidden />} label="Note" /> : null}
+              {entry.contextNote && !isOpen ? <Chip icon={<FileText className="size-3" aria-hidden />} label={t("note")} /> : null}
               {expandable ? (
                 <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} aria-hidden />
               ) : null}
@@ -139,12 +143,12 @@ function HistoryRow({
 
           {completed.length > 0 ? (
             <p className="mt-1.5 text-xs font-medium text-muted-foreground">
-              Completed · {completed.map((change) => change.title ?? "Milestone").join(", ")}
+              {t("completed")} {completed.map((change) => change.title ?? "Milestone").join(", ")}
             </p>
           ) : null}
           {reopened.length > 0 ? (
             <p className="mt-1 text-xs font-medium text-muted-foreground">
-              Reopened · {reopened.map((change) => change.title ?? "Milestone").join(", ")}
+              {t("reopened")} {reopened.map((change) => change.title ?? "Milestone").join(", ")}
             </p>
           ) : null}
 
@@ -174,13 +178,14 @@ function ExpandedDetail({
   onOpenFile: (evidenceId: string) => void;
   openingFileId: string | null;
 }) {
+  const t = useTranslations("progress.ExpandedDetail");
   return (
     <div className="mt-3 space-y-3 rounded-surface border border-border p-3.5">
       {note ? (
         <div className="flex gap-3">
           <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground/70" aria-hidden />
           <div className="min-w-0">
-            <p className="text-xs font-medium text-foreground">Note</p>
+            <p className="text-xs font-medium text-foreground">{t("note")}</p>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{note}</p>
           </div>
         </div>
@@ -188,7 +193,7 @@ function ExpandedDetail({
 
       {evidence.length > 0 ? (
         <div className={cn(note && "border-t border-border/70 pt-3")}>
-          <p className="type-meta text-muted-foreground">Evidence ({evidence.length})</p>
+          <p className="type-meta text-muted-foreground">{t("evidence", { length: evidence.length })}</p>
           <ul className="mt-1 divide-y divide-border/70">
             {evidence.map((item) => (
               <EvidenceRow key={item.id} item={item} onOpenFile={onOpenFile} opening={openingFileId === item.id} />
@@ -210,10 +215,11 @@ function EvidenceRow({
   onOpenFile: (evidenceId: string) => void;
   opening: boolean;
 }) {
+  const t = useTranslations("progress.EvidenceRow");
   const isFile = item.kind === "File";
   const host = !isFile && item.url ? hostname(item.url) : null;
   const meta = isFile ? (item.isRemovedUnderRetention ? null : formatBytes(item.sizeBytes)) : linkPath(item.url);
-  const primary = item.isRemovedUnderRetention ? "Attachment removed under retention policy" : isFile ? item.fileName ?? "Attachment" : host || item.url || "Link";
+  const primary = item.isRemovedUnderRetention ? t("attachmentRemovedUnderRetentionPolicy") : isFile ? item.fileName ?? "Attachment" : host || item.url || "Link";
   // A file downloads only where the server exposed the action (named-detail authorization); a link is its URL.
   const canOpenFile = isFile && !item.isRemovedUnderRetention && Boolean(item.downloadPath);
   const linkHref = !isFile ? item.url : null;
@@ -237,7 +243,7 @@ function EvidenceRow({
       </div>
       {canOpenFile ? (
         <button type="button" onClick={() => onOpenFile(item.id)} disabled={opening} className={openClasses}>
-          {opening ? "Opening" : "Open"}
+          {opening ? t("opening") : t("open")}
           {opening ? (
             <Loader2 className="size-3.5 animate-spin" aria-hidden />
           ) : (
@@ -246,7 +252,7 @@ function EvidenceRow({
         </button>
       ) : linkHref ? (
         <a href={linkHref} target="_blank" rel="noreferrer noopener" className={openClasses}>
-          Open <ExternalLink className="size-3.5" aria-hidden />
+          {t("open")} <ExternalLink className="size-3.5" aria-hidden />
         </a>
       ) : null}
     </li>
@@ -265,6 +271,7 @@ function Chip({ icon, label }: { icon: ReactNode; label: string }) {
 
 /** The signed change from the prior update — green rise, red drop — flagged when it corrects an earlier entry. */
 function DeltaBadge({ delta, correction }: { delta: number; correction: boolean }) {
+  const t = useTranslations("progress.DeltaBadge");
   const rounded = Math.round(delta);
   if (rounded === 0 && !correction) return null;
   const up = rounded > 0;
@@ -276,7 +283,7 @@ function DeltaBadge({ delta, correction }: { delta: number; correction: boolean 
       )}
     >
       <Triangle className={cn("size-2.5 fill-current", !up && "rotate-180")} aria-hidden />
-      {up ? `+${rounded}` : rounded}%{correction ? <span className="ms-1 font-medium opacity-80">· correction</span> : null}
+      {up ? `+${rounded}` : rounded}%{correction ? <span className="ms-1 font-medium opacity-80">{t("correction")}</span> : null}
     </span>
   );
 }

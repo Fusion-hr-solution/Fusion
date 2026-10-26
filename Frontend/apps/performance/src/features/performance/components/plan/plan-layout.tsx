@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@repo/ds/lib/utils";
+import { useTranslations } from "next-intl";
 
 /**
  * The Plan's document + sidebar layout. Objects are framed, columns are not: the main column is a
@@ -56,11 +57,12 @@ export function PlanSection({
  * reads plainly once complete, amber while short, red when over.
  */
 export function PlanWeightStrip({ segments }: { segments: { weight: number; aligned: boolean }[] }) {
+  const t = useTranslations("plan.PlanWeightStrip");
   const total = segments.reduce((sum, s) => sum + s.weight, 0);
   const tone = total === 100 ? "text-foreground" : "text-destructive";
   return (
     <div className="flex items-center gap-2.5">
-      <span className="type-meta text-muted-foreground">Weight</span>
+      <span className="type-meta text-muted-foreground">{t("weight")}</span>
       <div className="flex h-1.5 w-32 gap-0.5 overflow-hidden rounded-full bg-muted" aria-hidden>
         {segments.map((segment, i) => (
           <span
@@ -71,7 +73,7 @@ export function PlanWeightStrip({ segments }: { segments: { weight: number; alig
         ))}
       </div>
       <span className={cn("type-meta font-semibold tabular-nums", tone)}>
-        {Math.round(total)}%<span className="sr-only"> of plan weight allocated</span>
+        {Math.round(total)}%<span className="sr-only"> {t("ofPlanWeightAllocated")}</span>
       </span>
     </div>
   );

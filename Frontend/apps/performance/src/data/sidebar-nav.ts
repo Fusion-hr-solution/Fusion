@@ -8,28 +8,29 @@ import type { ShellNavSection } from "@repo/ds/shell";
  * one's own commitments; My Team is a people leader's work for their team. Entries are
  * capability-gated at render. Organization direction is deliberately absent: it is reached in
  * context (Overview, My Team, any objective record), not as a destination of its own.
+ * Titles and labels are keys of the `common.nav` catalogue; the sidebar words them.
  */
 export const PRIMARY_NAV: ShellNavSection = {
   items: [
-    { label: "Overview", href: "/", icon: LayoutDashboard, exact: true },
-    { label: "My Plan", href: "/plan", icon: UserRoundCheck },
-    { label: "My Team", href: "/team", icon: Users },
+    { label: "overview", href: "/", icon: LayoutDashboard, exact: true },
+    { label: "myPlan", href: "/plan", icon: UserRoundCheck },
+    { label: "myTeam", href: "/team", icon: Users },
     // Conversations belong to people, not cycles (S-02): they keep no cycle in their address.
-    { label: "1:1s", href: "/one-on-ones", icon: OneOnOnes },
-    { label: "Feedback", href: "/feedback", icon: FeedbackIcon },
-    { label: "Reviews", href: "/reviews", icon: FileCheck2 },
+    { label: "oneOnOnes", href: "/one-on-ones", icon: OneOnOnes },
+    { label: "feedback", href: "/feedback", icon: FeedbackIcon },
+    { label: "reviews", href: "/reviews", icon: FileCheck2 },
   ],
 };
 
 /** Routes reached in context rather than from the sidebar; listed so labels still resolve. */
-export const CONTEXTUAL_ROUTES = [{ label: "Organization direction", href: "/goals", icon: GitBranch }];
+export const CONTEXTUAL_ROUTES = [{ label: "direction", href: "/goals", icon: GitBranch }];
 
 /** Administration, kept out of the primary rail: Cycle for cycle administrators, Settings for whoever can view it. */
 export const ADMIN_NAV: ShellNavSection = {
-  title: "Administration",
+  title: "administration",
   items: [
-    { label: "Cycle", href: "/cycle", icon: CalendarRange },
-    { label: "Settings", href: "/settings", icon: Settings },
+    { label: "cycle", href: "/cycle", icon: CalendarRange },
+    { label: "settings", href: "/settings", icon: Settings },
   ],
 };
 

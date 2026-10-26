@@ -4,6 +4,7 @@ import { useId, type ReactNode } from "react";
 import { Minus, Plus, RotateCcw } from "@/lib/icons";
 import { cn } from "@repo/ds/lib/utils";
 import type { DialDomain } from "./value-dial-lib";
+import { useTranslations } from "next-intl";
 
 /**
  * Direct-manipulation entry for a progress value: a large readout with nudge buttons over a rail you
@@ -37,6 +38,7 @@ export function ValueDial({
   /** Objective progress (0..∞ %) a value produces — rides in the handle, and marks the last report. */
   progressOf: (value: number) => number;
 }) {
+  const t = useTranslations("progress.ValueDial");
   const id = useId();
   const restValue = reported ?? domain.valueAt(domain.baselinePos);
   const shown = value ?? restValue;
@@ -75,7 +77,7 @@ export function ValueDial({
           >
             {format(shown)}
           </p>
-          {reported == null ? <p className="mt-2 text-xs text-muted-foreground">Not reported yet</p> : null}
+          {reported == null ? <p className="mt-2 text-xs text-muted-foreground">{t("notReportedYet")}</p> : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {touched ? (
@@ -85,13 +87,13 @@ export function ValueDial({
               className="me-1 inline-flex items-center gap-1 rounded-detail text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <RotateCcw className="size-3.5" aria-hidden />
-              Reset
+              {t("reset")}
             </button>
           ) : null}
-          <NudgeButton label="Decrease" disabled={pos <= 0} onClick={() => set(pos - 1)}>
+          <NudgeButton label={t("decrease")} disabled={pos <= 0} onClick={() => set(pos - 1)}>
             <Minus className="size-4" aria-hidden />
           </NudgeButton>
-          <NudgeButton label="Increase" disabled={pos >= domain.max} onClick={() => set(pos + 1)}>
+          <NudgeButton label={t("increase")} disabled={pos >= domain.max} onClick={() => set(pos + 1)}>
             <Plus className="size-4" aria-hidden />
           </NudgeButton>
         </div>
@@ -111,7 +113,7 @@ export function ValueDial({
               }}
               aria-hidden
             >
-              <span className="font-medium text-foreground/80">Last</span>
+              <span className="font-medium text-foreground/80">{t("last")}</span>
               {format(reported)}
               {/* At rest the handle already shows this %; it joins the tag once the value moves away. */}
               {touched ? (

@@ -31,12 +31,16 @@ import {
 import { PageError, StatusBadge, type StatusTone } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { initials } from "../plan/plan-lib";
-import { formatDateTime, formatRelativeTime } from "../../lib";
+
 import { planHref as canonicalPlanHref, peerListHref, reviewHref, withCycle } from "@/lib/performance-routes";
 import { useDownloadReviewPdf } from "../../api/use-review-work";
 import { RequestUpdateDialog } from "../update-requests/update-requests";
 import { latestRosterActivity } from "./roster-activity";
-import { ago, day, plural } from "../overview/overview-model";
+import { ago, day } from "../overview/overview-model";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
+import { english, type Say } from "@/i18n/say";
 
 /**
  * Your People — the manager's roster for the selected Cycle, served a page at a time. The server owns
@@ -45,39 +49,42 @@ import { ago, day, plural } from "../overview/overview-model";
  * Rows open the record the phase is about: the plan while planning and executing, the review once a round runs.
  */
 
-const STATUS_META: Record<RosterPlanStatus, { label: string; tone: StatusTone; icon: ComponentType<{ className?: string }> }> = {
-  NotStarted: { label: "Not started", tone: "muted", icon: CircleDashed },
-  Draft: { label: "Drafting", tone: "neutral", icon: PencilLine },
-  ReturnedForChanges: { label: "Returned", tone: "info", icon: RotateCcw },
-  Submitted: { label: "Submitted", tone: "warning", icon: Clock },
-  Approved: { label: "Approved", tone: "success", icon: CheckCircle2 },
+/** My Team's roster words in English, for helpers outside a translated tree. */
+const en = english("team.people");
+
+const STATUS_META: Record<RosterPlanStatus, { tone: StatusTone; icon: ComponentType<{ className?: string }> }> = {
+  NotStarted: { tone: "muted", icon: CircleDashed },
+  Draft: { tone: "neutral", icon: PencilLine },
+  ReturnedForChanges: { tone: "info", icon: RotateCcw },
+  Submitted: { tone: "warning", icon: Clock },
+  Approved: { tone: "success", icon: CheckCircle2 },
 };
 
 /** Each phase's groups, in the server's order. */
-export const GROUP_LABEL: Record<TeamPhase, Record<string, string>> = {
-  Planning: { waiting: "Waiting for you", planning: "Still planning", approved: "Approved" },
-  Execution: { needsYou: "Needs you", rest: "The rest" },
-  Review: { ready: "Ready for you", waiting: "Waiting on them", submitted: "Submitted", notInRound: "Not in this round" },
-  Closed: { notAcknowledged: "Not acknowledged yet", acknowledged: "Acknowledged", noResult: "No result" },
+const GROUPS: Record<TeamPhase, readonly string[]> = {
+  Planning: ["waiting", "planning", "approved"],
+  Execution: ["needsYou", "rest"],
+  Review: ["ready", "waiting", "submitted", "notInRound"],
+  Closed: ["notAcknowledged", "acknowledged", "noResult"],
 };
 
-const VIEW_LABEL: Record<Exclude<YourPeopleFilter, "All">, string> = {
-  NeedsReview: "Needs review",
-  Planning: "Planning",
-  Approved: "Approved",
-  NoProgress: "No updates",
-};
+/** A group's name in the phase; an unknown one as sent. */
+export function groupLabel(phase: TeamPhase, group: string, say: Say = en): string {
+  return GROUPS[phase].includes(group) ? say(`group.${phase}.${group}`) : group;
+}
+
+const VIEWS: Exclude<YourPeopleFilter, "All">[] = ["NeedsReview", "Planning", "Approved", "NoProgress"];
 
 // The plan views only mean something while plans are made and executed.
-const ROSTER_FILTERS: DataTableFilterField<TeamRosterMemberDto>[] = [
+const rosterFilters = (say: Say): DataTableFilterField<TeamRosterMemberDto>[] => [
   {
     id: "show",
-    label: "Show",
+    label: say("show"),
     icon: Eye,
     type: "options",
     single: true,
     pinned: true,
-    options: (Object.keys(VIEW_LABEL) as (keyof typeof VIEW_LABEL)[]).map((id) => ({ value: id, label: VIEW_LABEL[id] })),
+    options: VIEWS.map((id) => ({ value: id, label: say(`view.${id}`) })),
   },
 ];
 
@@ -85,8 +92,8 @@ const NO_FILTERS: DataTableFilterField<TeamRosterMemberDto>[] = [];
 
 const toRosterState = (filter: YourPeopleFilter): DataTableFilterState => ({ show: filter === "All" ? undefined : [filter] });
 
-const displayName = (member: TeamRosterMemberDto) => member.employeeName ?? "Employee";
-const first = (member: TeamRosterMemberDto) => displayName(member).split(/\s+/)[0];
+const displayName = (member: TeamRosterMemberDto, say: Say = en) => member.employeeName ?? say("employee");
+const first = (member: TeamRosterMemberDto, say: Say = en) => displayName(member, say).split(/\s+/)[0];
 
 /** Where a row leads: the review once one exists for the phase, otherwise the plan the caller may open. */
 export function rowHref(cycleId: string, phase: TeamPhase, member: TeamRosterMemberDto): string | null {
@@ -128,10 +135,10 @@ function StateLine({ tone, label, detail }: { tone: Tone; label: ReactNode; deta
 
 const column = createDataTableColumnHelper<TeamRosterMemberDto>();
 
-function personColumn(showOrgUnit: boolean) {
-  return column.accessor((m) => displayName(m), {
+function personColumn(showOrgUnit: boolean, say: Say) {
+  return column.accessor((m) => displayName(m, say), {
     id: "person",
-    header: "Person",
+    header: say("col.person"),
     enableSorting: false,
     cell: ({ row }) => {
       const m = row.original;
@@ -149,7 +156,7 @@ function personColumn(showOrgUnit: boolean) {
               onClick={(event) => event.stopPropagation()}
               className="rounded-detail hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {displayName(m)}
+              {displayName(m, say)}
             </Link>
           }
           secondary={context || undefined}
@@ -172,17 +179,20 @@ function personColumn(showOrgUnit: boolean) {
 }
 
 function PlanStateCell({ member }: { member: TeamRosterMemberDto }) {
+  const t = useTranslations("team.PlanStateCell");
+  const words = useSay("team.people");
   const meta = STATUS_META[member.status];
   return (
     <StatusBadge tone={meta.tone}>
       <meta.icon className="size-3.5" aria-hidden />
-      {member.activityKind === "Resubmitted" ? "Resubmitted" : meta.label}
+      {member.activityKind === "Resubmitted" ? t("resubmitted") : words(`status.${member.status}`)}
     </StatusBadge>
   );
 }
 
 /** "3 · weights 100%": how much of the plan is laid out, from the plan's own weights. */
 function ObjectivesCell({ member }: { member: TeamRosterMemberDto }) {
+  const t = useTranslations("team.ObjectivesCell");
   const planning = member.facts?.planning;
   if (!planning || member.status === "NotStarted") return <DataTableCellEmpty />;
   const weight =
@@ -191,32 +201,35 @@ function ObjectivesCell({ member }: { member: TeamRosterMemberDto }) {
       : (member.allocatedWeight ?? 0);
   return (
     <span className="whitespace-nowrap text-sm tabular-nums text-foreground">
-      {planning.objectives} · weights {Math.round(weight)}%
+      {t("weights", { objectives: planning.objectives, weight: Math.round(weight) })}
     </span>
   );
 }
 
 function AlignedCell({ member }: { member: TeamRosterMemberDto }) {
+  const t = useTranslations("team.AlignedCell");
   const planning = member.facts?.planning;
   if (!planning || planning.objectives === 0) return <DataTableCellEmpty />;
   return (
     <span className="text-sm tabular-nums text-foreground">
-      {planning.alignedToTeam} of {planning.objectives}
+      {t("of", { alignedToTeam: planning.alignedToTeam, objectives: planning.objectives })}
     </span>
   );
 }
 
 function ActivityCell({ member }: { member: TeamRosterMemberDto }) {
-  const activity = latestRosterActivity(member);
+  const words = useSay("team.activity");
+  const format = useFormat();
+  const activity = latestRosterActivity(member, words);
   if (!activity) return <DataTableCellEmpty />;
   return (
     <span
       className="block min-w-0 truncate text-sm text-foreground"
-      title={`${activity.label} · ${formatDateTime(activity.at)}${activity.objectiveTitle ? ` · ${activity.objectiveTitle}` : ""}`}
+      title={`${activity.label} · ${format.dateTime(activity.at)}${activity.objectiveTitle ? ` · ${activity.objectiveTitle}` : ""}`}
     >
       {activity.label}{" "}
       <time className="tabular-nums text-muted-foreground" dateTime={activity.at}>
-        {formatRelativeTime(activity.at)}
+        {format.relative(activity.at)}
       </time>
     </span>
   );
@@ -224,6 +237,7 @@ function ActivityCell({ member }: { member: TeamRosterMemberDto }) {
 
 /** The owner-set status mix of an executing plan, one segment per state sized by its count. */
 function StatusMixCell({ member }: { member: TeamRosterMemberDto }) {
+  const t = useTranslations("team.StatusMixCell");
   const status = member.facts?.execution?.status;
   const total = status ? status.onTrack + status.atRisk + status.offTrack + status.noStatus : 0;
   if (!status || total === 0) return <DataTableCellEmpty />;
@@ -233,7 +247,7 @@ function StatusMixCell({ member }: { member: TeamRosterMemberDto }) {
     { count: status.offTrack, className: "bg-destructive" },
     { count: status.noStatus, className: "bg-inlay ring-1 ring-inset ring-border" },
   ].filter((s) => s.count > 0);
-  const label = `${status.onTrack} on track, ${status.atRisk} at risk, ${status.offTrack} off track, ${status.noStatus} no status yet`;
+  const label = t("onTrackAtRiskOff", { onTrack: status.onTrack, atRisk: status.atRisk, offTrack: status.offTrack, noStatus: status.noStatus });
   return (
     <div role="img" aria-label={label} title={label} className="flex h-2 w-24 gap-[3px]">
       {segments.map((s, i) => (
@@ -243,36 +257,38 @@ function StatusMixCell({ member }: { member: TeamRosterMemberDto }) {
   );
 }
 
-function attentionLine(attention: RosterAttentionDto, noStatus: number): { tone: Tone; title: string; detail: string | null } {
-  const since = attention.since ? `since ${day(attention.since)}` : null;
+function attentionLine(attention: RosterAttentionDto, noStatus: number, say: Say = en, locale?: string): { tone: Tone; title: string; detail: string | null } {
+  const since = attention.since ? say("since", { day: day(attention.since, locale) }) : null;
   const reason = attention.reason ? `"${attention.reason}"` : null;
   switch (attention.kind) {
     case "offTrack":
     case "atRisk":
       return {
         tone: attention.kind === "offTrack" ? "off" : "risk",
-        title: `${attention.objectiveTitle ?? "An objective"} · ${attention.kind === "offTrack" ? "off track" : "at risk"}`,
+        title: say(attention.kind === "offTrack" ? "offTrack" : "atRisk", { title: attention.objectiveTitle ?? say("anObjective") }),
         detail: [reason, since].filter(Boolean).join(" · ") || null,
       };
     case "noUpdate":
       return {
         tone: "risk",
-        title: "No update in 30 days",
-        detail: noStatus > 0 ? `${plural(noStatus, "objective")} ${noStatus === 1 ? "has" : "have"} no status yet` : null,
+        title: say("noUpdate"),
+        detail: noStatus > 0 ? say("noStatus", { count: noStatus }) : null,
       };
     case "openRequest":
-      return { tone: "attention", title: "Update requested", detail: [attention.objectiveTitle, since].filter(Boolean).join(" · ") || null };
+      return { tone: "attention", title: say("updateRequested"), detail: [attention.objectiveTitle, since].filter(Boolean).join(" · ") || null };
     case "planWaiting":
-      return { tone: "attention", title: "Plan waiting for your decision", detail: since };
+      return { tone: "attention", title: say("planWaiting"), detail: since };
     case "notApproved":
-      return { tone: "quiet", title: "Plan not approved yet", detail: null };
+      return { tone: "quiet", title: say("notApproved"), detail: null };
   }
 }
 
 function AttentionCell({ member }: { member: TeamRosterMemberDto }) {
   const execution = member.facts?.execution;
+  const words = useSay("team.people");
+  const format = useFormat();
   if (!execution?.attention) return <DataTableCellEmpty />;
-  const line = attentionLine(execution.attention, execution.status.noStatus);
+  const line = attentionLine(execution.attention, execution.status.noStatus, words, format.locale);
   return (
     <div className="min-w-0 py-2">
       <p className={cn("flex items-start gap-2 text-sm", TEXT[line.tone])}>
@@ -301,6 +317,7 @@ function PlanProgressCell({ member }: { member: TeamRosterMemberDto }) {
 }
 
 function LastUpdateCell({ member }: { member: TeamRosterMemberDto }) {
+  const model = useSay("overview.model");
   const execution = member.facts?.execution;
   if (!execution?.lastUpdateAt) return <DataTableCellEmpty />;
   return (
@@ -308,24 +325,26 @@ function LastUpdateCell({ member }: { member: TeamRosterMemberDto }) {
       dateTime={execution.lastUpdateAt}
       className={cn("text-sm tabular-nums", execution.attention?.kind === "noUpdate" ? "text-warning" : "text-foreground")}
     >
-      {ago(execution.lastUpdateAt)}
+      {ago(execution.lastUpdateAt, undefined, model)}
     </time>
   );
 }
 
 function UpdateRequestCell({ member, onRequestUpdate }: { member: TeamRosterMemberDto; onRequestUpdate?: (m: TeamRosterMemberDto) => void }) {
+  const format = useFormat();
+  const t = useTranslations("team.UpdateRequestCell");
   const request = member.updateRequest;
   if (request?.state === "Open") {
     return (
       <span className="text-sm text-foreground">
-        1 open <span className="text-muted-foreground">· asked {day(request.requestedAt)}</span>
+        {t("n1Open")} <span className="text-muted-foreground">{t("asked", { requestedAt: day(request.requestedAt, format.locale) })}</span>
       </span>
     );
   }
   if (member.facts?.execution?.attention?.kind === "noUpdate" && member.canRequestUpdate && onRequestUpdate) {
     return (
       <Button size="sm" variant="outline" onClick={() => onRequestUpdate(member)}>
-        Ask for an update
+        {t("askForAnUpdate")}
       </Button>
     );
   }
@@ -335,33 +354,38 @@ function UpdateRequestCell({ member, onRequestUpdate }: { member: TeamRosterMemb
 type ReviewFacts = NonNullable<RosterPhaseFactsDto["review"]>;
 
 function SelfCell({ review }: { review: ReviewFacts | null | undefined }) {
+  const format = useFormat();
+  const t = useTranslations("team.SelfCell");
   if (!review || review.selfState === "off") return <DataTableCellEmpty />;
   if (review.selfState === "submitted")
-    return <StateLine tone="ok" label="Submitted" detail={review.selfSubmittedAt ? day(review.selfSubmittedAt) : null} />;
-  if (review.selfState === "writing") return <StateLine tone="risk" label="Writing" detail={review.selfDue ? `due ${day(review.selfDue)}` : null} />;
-  return <StateLine tone="quiet" label="Not started" />;
+    return <StateLine tone="ok" label={t("submitted")} detail={review.selfSubmittedAt ? day(review.selfSubmittedAt, format.locale) : null} />;
+  if (review.selfState === "writing") return <StateLine tone="risk" label={t("writing")} detail={review.selfDue ? `due ${day(review.selfDue, format.locale)}` : null} />;
+  return <StateLine tone="quiet" label={t("notStarted")} />;
 }
 
 function PeersCell({ review }: { review: ReviewFacts | null | undefined }) {
+  const t = useTranslations("team.PeersCell");
   if (!review?.peers.enabled) return <DataTableCellEmpty />;
   const { peers } = review;
-  if (peers.waitingForYou) return <StateLine tone="attention" label={`${peers.proposed} proposed, waiting for you`} />;
+  if (peers.waitingForYou) return <StateLine tone="attention" label={t("proposedWaitingForYou", { proposed: peers.proposed })} />;
   if (peers.asked > 0)
     return (
       <span className="text-sm tabular-nums text-foreground">
-        {peers.answered} of {peers.asked} answered
+        {t("ofAnswered", { answered: peers.answered, asked: peers.asked })}
       </span>
     );
-  return <span className="text-sm text-muted-foreground">Not chosen yet</span>;
+  return <span className="text-sm text-muted-foreground">{t("notChosenYet")}</span>;
 }
 
 function YourReviewCell({ member }: { member: TeamRosterMemberDto }) {
+  const format = useFormat();
+  const t = useTranslations("team.YourReviewCell");
   const review = member.facts?.review;
   if (!review) return <DataTableCellEmpty />;
-  if (review.yourReview === "submitted") return <StateLine tone="ok" label="Submitted" />;
+  if (review.yourReview === "submitted") return <StateLine tone="ok" label={t("submitted")} />;
   if (review.yourReview === "draftSaved")
-    return <StateLine tone="quiet" label="Draft saved" detail={review.yourDraftSavedAt ? day(review.yourDraftSavedAt) : null} />;
-  return member.group === "ready" ? <StateLine tone="quiet" label="Not started" /> : <DataTableCellEmpty />;
+    return <StateLine tone="quiet" label={t("draftSaved")} detail={review.yourDraftSavedAt ? day(review.yourDraftSavedAt, format.locale) : null} />;
+  return member.group === "ready" ? <StateLine tone="quiet" label={t("notStarted")} /> : <DataTableCellEmpty />;
 }
 
 function LevelCell({ level, label }: { level: number; label: string }) {
@@ -376,11 +400,12 @@ function LevelCell({ level, label }: { level: number; label: string }) {
 }
 
 function PdfButton({ reviewId, name }: { reviewId: string; name: string }) {
+  const t = useTranslations("team.PdfButton");
   const download = useDownloadReviewPdf();
   return (
     <Button size="sm" variant="ghost" onClick={() => void download(reviewId, `${name}.pdf`)}>
       <Download className="size-4" data-icon="inline-start" aria-hidden />
-      PDF
+      {t("pdf")}
     </Button>
   );
 }
@@ -391,19 +416,21 @@ function phaseColumns(
   phase: TeamPhase,
   cycleId: string,
   showOrgUnit: boolean,
+  say: Say,
+  locale: string | undefined,
   onRequestUpdate?: (member: TeamRosterMemberDto) => void,
 ) {
-  const person = personColumn(showOrgUnit);
+  const person = personColumn(showOrgUnit, say);
   const open = column.display({
     id: "action",
-    header: () => <span className="sr-only">Open</span>,
+    header: () => <span className="sr-only">{say("col.open")}</span>,
     cell: ({ row }) => {
       const m = row.original;
       const href = rowHref(cycleId, phase, m);
       if (phase === "Planning" && m.canReview && href) {
         return (
           <Button size="sm" asChild>
-            <Link href={href}>Review plan</Link>
+            <Link href={href}>{say("reviewPlan")}</Link>
           </Button>
         );
       }
@@ -411,17 +438,17 @@ function phaseColumns(
         if (m.facts?.review?.peers.waitingForYou) {
           return (
             <Button size="sm" variant="outline" asChild>
-              <Link href={withCycle(peerListHref(m.review.reviewId), cycleId)}>Approve peers</Link>
+              <Link href={withCycle(peerListHref(m.review.reviewId), cycleId)}>{say("approvePeers")}</Link>
             </Button>
           );
         }
         return (
           <Button size="sm" asChild>
-            <Link href={withCycle(reviewHref(m.review.reviewId), cycleId)}>Review</Link>
+            <Link href={withCycle(reviewHref(m.review.reviewId), cycleId)}>{say("review")}</Link>
           </Button>
         );
       }
-      if (phase === "Closed" && m.facts?.closed) return <PdfButton reviewId={m.facts.closed.reviewId} name={displayName(m)} />;
+      if (phase === "Closed" && m.facts?.closed) return <PdfButton reviewId={m.facts.closed.reviewId} name={displayName(m, say)} />;
       return href ? <DataTableRowChevron /> : null;
     },
     meta: { align: "end", width: "9rem", hideBelow: "sm", skeleton: <Skeleton className="h-7 w-24" /> },
@@ -433,26 +460,26 @@ function phaseColumns(
         person,
         column.accessor("status", {
           id: "plan",
-          header: "Plan",
+          header: say("col.plan"),
           enableSorting: false,
           cell: ({ row }) => <PlanStateCell member={row.original} />,
           meta: { width: "14%", hideBelow: "sm", skeleton: <Skeleton className="h-5 w-24 rounded-full" /> },
         }),
-        column.display({ id: "objectives", header: "Objectives", cell: ({ row }) => <ObjectivesCell member={row.original} />, meta: { width: "15%", hideBelow: "md", skeleton: SKELETON } }),
-        column.display({ id: "aligned", header: "Aligned to your team", cell: ({ row }) => <AlignedCell member={row.original} />, meta: { width: "15%", hideBelow: "lg", skeleton: SKELETON } }),
-        column.display({ id: "activity", header: "Last activity", cell: ({ row }) => <ActivityCell member={row.original} />, meta: { hideBelow: "lg", skeleton: SKELETON } }),
+        column.display({ id: "objectives", header: say("col.objectives"), cell: ({ row }) => <ObjectivesCell member={row.original} />, meta: { width: "15%", hideBelow: "md", skeleton: SKELETON } }),
+        column.display({ id: "aligned", header: say("col.aligned"), cell: ({ row }) => <AlignedCell member={row.original} />, meta: { width: "15%", hideBelow: "lg", skeleton: SKELETON } }),
+        column.display({ id: "activity", header: say("col.activity"), cell: ({ row }) => <ActivityCell member={row.original} />, meta: { hideBelow: "lg", skeleton: SKELETON } }),
         open,
       ];
     case "Execution":
       return [
         person,
-        column.display({ id: "objectives", header: "Objectives", cell: ({ row }) => <StatusMixCell member={row.original} />, meta: { width: "10rem", hideBelow: "md", skeleton: SKELETON } }),
-        column.display({ id: "attention", header: "Needs attention", cell: ({ row }) => <AttentionCell member={row.original} />, meta: { width: "24%", skeleton: SKELETON } }),
-        column.display({ id: "progress", header: "Plan progress", cell: ({ row }) => <PlanProgressCell member={row.original} />, meta: { width: "12rem", hideBelow: "md", skeleton: SKELETON } }),
-        column.display({ id: "lastUpdate", header: "Last update", cell: ({ row }) => <LastUpdateCell member={row.original} />, meta: { hideBelow: "lg", skeleton: SKELETON } }),
+        column.display({ id: "objectives", header: say("col.objectives"), cell: ({ row }) => <StatusMixCell member={row.original} />, meta: { width: "10rem", hideBelow: "md", skeleton: SKELETON } }),
+        column.display({ id: "attention", header: say("col.attention"), cell: ({ row }) => <AttentionCell member={row.original} />, meta: { width: "24%", skeleton: SKELETON } }),
+        column.display({ id: "progress", header: say("col.progress"), cell: ({ row }) => <PlanProgressCell member={row.original} />, meta: { width: "12rem", hideBelow: "md", skeleton: SKELETON } }),
+        column.display({ id: "lastUpdate", header: say("col.lastUpdate"), cell: ({ row }) => <LastUpdateCell member={row.original} />, meta: { hideBelow: "lg", skeleton: SKELETON } }),
         column.display({
           id: "requests",
-          header: "Update requests",
+          header: say("col.requests"),
           cell: ({ row }) => <UpdateRequestCell member={row.original} onRequestUpdate={onRequestUpdate} />,
           meta: { width: "11rem", hideBelow: "lg", skeleton: SKELETON },
         }),
@@ -461,9 +488,9 @@ function phaseColumns(
     case "Review":
       return [
         person,
-        column.display({ id: "self", header: "Self-assessment", cell: ({ row }) => <SelfCell review={row.original.facts?.review} />, meta: { width: "20%", skeleton: SKELETON } }),
-        column.display({ id: "peers", header: "Peers", cell: ({ row }) => <PeersCell review={row.original.facts?.review} />, meta: { width: "22%", hideBelow: "md", skeleton: SKELETON } }),
-        column.display({ id: "yours", header: "Your review", cell: ({ row }) => <YourReviewCell member={row.original} />, meta: { hideBelow: "md", skeleton: SKELETON } }),
+        column.display({ id: "self", header: say("col.self"), cell: ({ row }) => <SelfCell review={row.original.facts?.review} />, meta: { width: "20%", skeleton: SKELETON } }),
+        column.display({ id: "peers", header: say("col.peers"), cell: ({ row }) => <PeersCell review={row.original.facts?.review} />, meta: { width: "22%", hideBelow: "md", skeleton: SKELETON } }),
+        column.display({ id: "yours", header: say("col.yours"), cell: ({ row }) => <YourReviewCell member={row.original} />, meta: { hideBelow: "md", skeleton: SKELETON } }),
         open,
       ];
     case "Closed":
@@ -471,7 +498,7 @@ function phaseColumns(
         person,
         column.display({
           id: "result",
-          header: "Result",
+          header: say("col.result"),
           cell: ({ row }) => {
             const closed = row.original.facts?.closed;
             return closed ? <LevelCell level={closed.level} label={closed.label} /> : <DataTableCellEmpty />;
@@ -480,14 +507,14 @@ function phaseColumns(
         }),
         column.display({
           id: "yourRating",
-          header: "Your rating",
+          header: say("col.yourRating"),
           cell: ({ row }) => {
             const closed = row.original.facts?.closed;
             if (!closed) return <DataTableCellEmpty />;
             if (closed.yourLevel != null && closed.yourLevel !== closed.level)
               return (
                 <span className="text-sm tabular-nums text-foreground">
-                  {closed.yourLevel} → {closed.level} <span className="text-muted-foreground">in calibration</span>
+                  {closed.yourLevel} → {closed.level} <span className="text-muted-foreground">{say("inCalibration")}</span>
                 </span>
               );
             return <span className="text-sm tabular-nums text-foreground">{closed.level}</span>;
@@ -496,28 +523,28 @@ function phaseColumns(
         }),
         column.display({
           id: "acknowledged",
-          header: "Acknowledged",
+          header: say("col.acknowledged"),
           cell: ({ row }) => {
             const closed = row.original.facts?.closed;
             if (!closed) return <DataTableCellEmpty />;
             return closed.acknowledgedAt ? (
-              <StateLine tone="ok" label={day(closed.acknowledgedAt)} detail={closed.acknowledgedWithComment ? "with a comment" : null} />
+              <StateLine tone="ok" label={day(closed.acknowledgedAt, locale)} detail={closed.acknowledgedWithComment ? say("withComment") : null} />
             ) : (
-              <StateLine tone="quiet" label="Not yet" />
+              <StateLine tone="quiet" label={say("notYet")} />
             );
           },
           meta: { width: "20%", hideBelow: "md", skeleton: SKELETON },
         }),
         column.display({
           id: "development",
-          header: "Development",
+          header: say("col.development"),
           cell: ({ row }) => {
             const closed = row.original.facts?.closed;
             if (!closed) return <DataTableCellEmpty />;
             return closed.openGrowthGoals > 0 ? (
-              <span className="text-sm text-foreground">{plural(closed.openGrowthGoals, "open goal")}</span>
+              <span className="text-sm text-foreground">{say("openGoals", { count: closed.openGrowthGoals })}</span>
             ) : (
-              <span className="text-sm text-muted-foreground">None open</span>
+              <span className="text-sm text-muted-foreground">{say("noneOpen")}</span>
             );
           },
           meta: { hideBelow: "lg", skeleton: SKELETON },
@@ -527,22 +554,22 @@ function phaseColumns(
   }
 }
 
-const SKELETON_COLUMNS = phaseColumns("Planning", "", false);
+const SKELETON_COLUMNS = phaseColumns("Planning", "", false, en, undefined);
 const rosterRowId = (m: TeamRosterMemberDto) => m.employeeId;
 
 export const DEFAULT_PEOPLE_QUERY: YourPeopleQuery = { filter: "All", search: "", page: 1, pageSize: 25 };
 
 /** The header action that starts the most pressing piece of work in the phase, if any. */
-export function leadAction(cycleId: string, data: YourPeoplePageDto | undefined): { href: string; label: string } | null {
+export function leadAction(cycleId: string, data: YourPeoplePageDto | undefined, say: Say = en): { href: string; label: string } | null {
   if (!data) return null;
   if (data.phase === "Planning") {
     const waiting = data.items.find((m) => m.canReview && m.planId);
-    return waiting ? { href: canonicalPlanHref({ cycleId, planId: waiting.planId! }), label: `Review ${first(waiting)}'s plan` } : null;
+    return waiting ? { href: canonicalPlanHref({ cycleId, planId: waiting.planId! }), label: say("reviewPersonPlan", { name: first(waiting, say) ?? "" }) } : null;
   }
   if (data.phase === "Review" && data.summary?.firstReadyReviewId) {
     return {
       href: withCycle(reviewHref(data.summary.firstReadyReviewId), cycleId),
-      label: `Review ${data.summary.firstReadyName?.split(/\s+/)[0] ?? "the next one"}`,
+      label: say("reviewPerson", { name: data.summary.firstReadyName?.split(/\s+/)[0] ?? say("theNextOne") }),
     };
   }
   return null;
@@ -560,6 +587,9 @@ export function YourPeople({
   query: YourPeopleQuery;
   onQueryChange: (query: YourPeopleQuery) => void;
 }) {
+  const t = useTranslations("team.YourPeople");
+  const words = useSay("team.people");
+  const format = useFormat();
   const router = useRouter();
   const data = people.data;
   const members = data?.items;
@@ -567,7 +597,8 @@ export function YourPeople({
   // The org unit only tells people apart when the page spans more than one; otherwise it repeats.
   const showOrgUnit = useMemo(() => new Set(members?.map((m) => m.orgUnitName).filter(Boolean)).size > 1, [members]);
   const [requesting, setRequesting] = useState<TeamRosterMemberDto | null>(null);
-  const columns = useMemo(() => phaseColumns(phase, cycleId, showOrgUnit, setRequesting), [phase, cycleId, showOrgUnit]);
+  const columns = useMemo(() => phaseColumns(phase, cycleId, showOrgUnit, words, format.locale, setRequesting), [phase, cycleId, showOrgUnit, words, format.locale]);
+  const filters = useMemo(() => rosterFilters(words), [words]);
   const counts = useMemo(() => new Map(data?.groups.map((g) => [g.key, g.count])), [data?.groups]);
   // Any change of view or search starts again from the first page.
   const change = (next: Partial<YourPeopleQuery>) => onQueryChange({ ...query, page: 1, ...next });
@@ -575,7 +606,7 @@ export function YourPeople({
     data: members,
     columns,
     getRowId: rosterRowId,
-    filters: phase === "Planning" || phase === "Execution" ? ROSTER_FILTERS : NO_FILTERS,
+    filters: phase === "Planning" || phase === "Execution" ? filters : NO_FILTERS,
     manual: { rowCount: data?.matchCount ?? 0 },
     filterState: toRosterState(query.filter),
     onFilterStateChange: (state) => change({ filter: (state.show as YourPeopleFilter[] | undefined)?.[0] ?? "All" }),
@@ -597,7 +628,7 @@ export function YourPeople({
   });
 
   if (!people.isLoading && (people.error || !data)) {
-    return <PageError title="Your people are unavailable" description={people.error?.message} onRetry={people.refetch} />;
+    return <PageError title={t("yourPeopleAreUnavailable")} description={people.error?.message} onRetry={people.refetch} />;
   }
 
   return (
@@ -607,7 +638,7 @@ export function YourPeople({
         isLoading={people.isLoading}
         rowGroup={(m) => {
           if (!m.group) return null;
-          const label = GROUP_LABEL[phase][m.group] ?? m.group;
+          const label = groupLabel(phase, m.group, words);
           const count = counts.get(m.group);
           return { key: m.group, label: count != null ? `${label} · ${count}` : label };
         }}
@@ -618,7 +649,7 @@ export function YourPeople({
         }}
       />
       {requesting?.planId ? (
-        <RequestUpdateDialog cycleId={cycleId} planId={requesting.planId} personName={displayName(requesting)} onClose={() => setRequesting(null)} />
+        <RequestUpdateDialog cycleId={cycleId} planId={requesting.planId} personName={displayName(requesting, words)} onClose={() => setRequesting(null)} />
       ) : null}
     </>
   );
@@ -626,11 +657,13 @@ export function YourPeople({
 
 /** The roster's loading state: the same table with shimmer rows, so nothing jumps. */
 export function RosterSkeleton() {
+  const words = useSay("team.people");
+  const filters = useMemo(() => rosterFilters(words), [words]);
   const model = useDataTable({
     data: undefined,
     columns: SKELETON_COLUMNS,
     getRowId: rosterRowId,
-    filters: ROSTER_FILTERS,
+    filters,
     manual: { rowCount: 0 },
     onSearchQueryChange: () => {},
   });
@@ -650,14 +683,15 @@ function RosterSection({
   canOpen?: (member: TeamRosterMemberDto) => boolean;
   onOpen?: (member: TeamRosterMemberDto) => void;
 }) {
+  const t = useTranslations("team.RosterSection");
   return (
-    <section id="your-people" aria-label="Your people" className="scroll-mt-6">
+    <section id="your-people" aria-label={t("yourPeople")} className="scroll-mt-6">
       <DataTable
         model={model}
         isLoading={isLoading}
-        searchPlaceholder="Find a person"
-        noun={["person", "people"]}
-        noResults="No people match this view"
+        searchPlaceholder={t("findAPerson")}
+        noun={[t("person"), t("people")]}
+        noResults={t("noPeopleMatchThisView")}
         emptyState={<EmptyRoster />}
         rowGroup={rowGroup}
         onRowClick={onOpen}
@@ -668,10 +702,11 @@ function RosterSection({
 }
 
 function EmptyRoster() {
+  const t = useTranslations("team.EmptyRoster");
   return (
     <>
       <Users className="mx-auto size-8 text-muted-foreground/50" aria-hidden />
-      <p className="mt-3 text-sm font-medium text-foreground">No one reports to you this cycle</p>
+      <p className="mt-3 text-sm font-medium text-foreground">{t("noOneReportsToYou")}</p>
     </>
   );
 }

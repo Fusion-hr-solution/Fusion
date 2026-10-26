@@ -30,6 +30,7 @@ import {
   SETUP_STEPS,
   type SetupStep,
 } from "@/features/performance/components/cycle-setup/setup-readiness";
+import { useTranslations } from "next-intl";
 
 function currentStep(pathname: string): SetupStep {
   const match = SETUP_STEPS.find((step) => pathname.endsWith(`/${step.key}`));
@@ -43,6 +44,7 @@ function currentStep(pathname: string): SetupStep {
  * sent to its durable /cycle surface.
  */
 export default function CycleSetupLayout({ children }: { children: ReactNode }) {
+  const t = useTranslations("cycleSetup.CycleSetupLayout");
   const router = useRouter();
   const pathname = usePathname();
   const context = useWorkspaceContext();
@@ -58,22 +60,22 @@ export default function CycleSetupLayout({ children }: { children: ReactNode }) 
 
   const fallbackExit = useCallback(() => router.push("/"), [router]);
 
-  if (context.isLoading) return <SetupShellSkeleton step={currentStep(pathname)} label="Loading Performance" />;
-  if (context.error && !canAdminister) return <PagePermissionNotice title="Administration only" description="Cycle setup is available to performance administrators." />;
-  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
+  if (context.isLoading) return <SetupShellSkeleton step={currentStep(pathname)} label={t("loadingPerformance")} />;
+  if (context.error && !canAdminister) return <PagePermissionNotice title={t("administrationOnly")} description={t("cycleSetupIsAvailableTo")} />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject={t("performanceWorkspace")} />;
   if (!canAdminister) {
     return (
       <PagePermissionNotice
-        title="Administration only"
-        description="Cycle setup is available to performance administrators."
+        title={t("administrationOnly")}
+        description={t("cycleSetupIsAvailableTo")}
       />
     );
   }
   if (detail.isLoading) return <SetupShellSkeleton step={currentStep(pathname)} />;
   if (detail.error) {
-    return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
+    return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject={t("theCycle")} />;
   }
-  if (establishedCycle) return <SetupShellSkeleton step={currentStep(pathname)} label="Opening Cycle" />;
+  if (establishedCycle) return <SetupShellSkeleton step={currentStep(pathname)} label={t("openingCycle")} />;
 
   const setup = deriveSetupState(detail.data);
   const active = currentStep(pathname);
@@ -102,15 +104,16 @@ export default function CycleSetupLayout({ children }: { children: ReactNode }) 
 }
 
 function SetupHeader({ cycleId, cycleName, cycleVersion }: { cycleId: string | null; cycleName: string | null; cycleVersion: number | null }) {
+  const t = useTranslations("cycleSetup.SetupHeader");
   const shell = useSetupShell();
   return (
     <div className="flex items-center justify-between gap-4">
-      <h1 className="type-page-title text-foreground">Create Performance Cycle</h1>
+      <h1 className="type-page-title text-foreground">{t("createPerformanceCycle")}</h1>
       <div className="flex items-center gap-2">
         {cycleId && cycleVersion !== null ? <DiscardDraft cycleId={cycleId} cycleName={cycleName} version={cycleVersion} /> : null}
         <Button variant="outline" onClick={() => shell.runExit()}>
           <Save className="size-4" data-icon="inline-start" />
-          Save and exit
+          {t("saveAndExit")}
         </Button>
       </div>
     </div>
@@ -119,6 +122,7 @@ function SetupHeader({ cycleId, cycleName, cycleVersion }: { cycleId: string | n
 
 /** Deletes the unused Draft Cycle and its setup, then returns to Overview. */
 function DiscardDraft({ cycleId, cycleName, version }: { cycleId: string; cycleName: string | null; version: number }) {
+  const t = useTranslations("cycleSetup.DiscardDraft");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const discard = useDeleteDraftCycle(cycleId);
@@ -129,34 +133,34 @@ function DiscardDraft({ cycleId, cycleName, version }: { cycleId: string; cycleN
       <AlertDialogTrigger asChild>
         <Button variant="ghost" className="text-muted-foreground">
           <Trash2 className="size-4" data-icon="inline-start" />
-          Discard draft
+          {t("discardDraft")}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Discard {cycleName ?? "this draft"}?</AlertDialogTitle>
+          <AlertDialogTitle>{t("discard")} {cycleName ?? t("thisDraft")}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Its details, population and draft direction are deleted. This can&apos;t be undone.
+            {t("itsDetailsPopulationAndDraft")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>Keep draft</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>{t("keepDraft")}</AlertDialogCancel>
           <AsyncButton
             variant="destructive"
             pending={pending}
             onClick={async () => {
               try {
                 await discard.mutateAsync(version);
-                toast.success(`${cycleName ?? "Draft"} discarded.`);
+                toast.success(t("discarded", { value: cycleName ?? "Draft" }));
                 setOpen(false);
                 router.push("/");
               } catch (error) {
                 if (performanceFailure(error).refresh) setOpen(false);
-                reportPerformanceFailure(error, "Could not discard the draft.");
+                reportPerformanceFailure(error, t("couldNotDiscardTheDraft"));
               }
             }}
           >
-            <Trash2 className="size-4" data-icon="inline-start" /> Discard draft
+            <Trash2 className="size-4" data-icon="inline-start" /> {t("discardDraft")}
           </AsyncButton>
         </AlertDialogFooter>
       </AlertDialogContent>

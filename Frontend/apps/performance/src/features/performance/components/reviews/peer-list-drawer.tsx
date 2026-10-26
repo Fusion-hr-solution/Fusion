@@ -13,6 +13,9 @@ import { useReview } from "../../api/use-reviews";
 import { usePeerCommands, usePeerSuggestions } from "../../api/use-review-work";
 import { ColleaguePicker, type PickedColleague } from "../conversations/colleague-picker";
 import { dayLabel } from "./review-parts";
+import { useTranslations } from "next-intl";
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 type Person = { employeeId: string; displayName: string; detail?: string | null; added?: boolean };
 
@@ -21,6 +24,8 @@ type Person = { employeeId: string; displayName: string; detail?: string | null;
  * remove or add, then approve. Approving sends each colleague the round's peer questions.
  */
 export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.PeerListDrawer");
   const review = useReview(reviewId, open);
   const suggestions = usePeerSuggestions(reviewId, open && Boolean(review.data?.canApprovePeers));
   const { approve } = usePeerCommands(reviewId);
@@ -55,10 +60,10 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
     if (!review.data) return;
     try {
       await approve.mutateAsync({ ids: people.map((p) => p.employeeId), version: review.data.version });
-      toast.success(`${people.length} ${people.length === 1 ? "colleague" : "colleagues"} asked for input.`);
+      toast.success((people.length === 1 ? t("colleagueAskedForInput", { length: people.length }) : t("colleaguesAskedForInput", { length: people.length })));
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "The list couldn't be approved.");
+      reportPerformanceFailure(error, t("theListCouldntBeApproved"));
     }
   };
 
@@ -66,7 +71,7 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-[36rem]">
         {!review.data ? (
-          <div className="space-y-3 p-7" role="status" aria-label="Loading the peer list">
+          <div className="space-y-3 p-7" role="status" aria-label={t("loadingThePeerList")}>
             <Skeleton className="h-10 w-2/3" />
             <Skeleton className="h-48 rounded-surface" />
           </div>
@@ -75,20 +80,20 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
             <div className="flex items-start gap-4 px-7 pt-6 pb-5">
               <PersonInitials name={subject} size="lg" />
               <div className="min-w-0">
-                <p className="type-meta text-muted-foreground">Peers for {subject}&apos;s review</p>
+                <p className="type-meta text-muted-foreground">{t("peersForSReview", { subject })}</p>
                 <SheetTitle className="mt-1 type-page-title text-foreground">
-                  {peers?.nominatedAt ? `${first} asked ${peers.people.length} ${peers.people.length === 1 ? "colleague" : "colleagues"}` : `Choose colleagues for ${first}`}
+                  {peers?.nominatedAt ? (peers.people.length === 1 ? t("askedColleague", { first, length: peers.people.length }) : t("askedColleagues", { first, length: peers.people.length })) : t("chooseColleaguesFor", { first })}
                 </SheetTitle>
                 <SheetDescription className="mt-1 type-meta text-muted-foreground">
-                  {[peers?.nominatedAt ? `Nominated ${dayLabel(peers.nominatedAt.slice(0, 10))}` : null,
-                    review.data.schedule?.peerInputDue ? `they answer by ${dayLabel(review.data.schedule.peerInputDue)}` : null].filter(Boolean).join(" · ")}
+                  {[peers?.nominatedAt ? t("nominated", { dayLabel: dayLabel(peers.nominatedAt.slice(0, 10), format.locale) }) : null,
+                    review.data.schedule?.peerInputDue ? t("theyAnswerBy", { peerInputDue: dayLabel(review.data.schedule.peerInputDue, format.locale) }) : null].filter(Boolean).join(" · ")}
                 </SheetDescription>
               </div>
             </div>
 
             <div className="flex-1 space-y-6 overflow-y-auto px-7 pb-6">
               {peers?.approved ? (
-                <p className="type-body-secondary text-muted-foreground">This list was approved {dayLabel(peers.approvedAt?.slice(0, 10))}.</p>
+                <p className="type-body-secondary text-muted-foreground">{t("thisListWasApproved", { dayLabel: dayLabel(peers.approvedAt?.slice(0, 10), format.locale) })}</p>
               ) : null}
               <ul className="divide-y divide-border rounded-surface bg-card">
                 {people.map((person) => (
@@ -97,14 +102,14 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
                       <PersonInitials name={person.displayName} size="lg" />
                       <div className="min-w-0 flex-1">
                         <p className="type-label text-foreground">{person.displayName}</p>
-                        {person.added ? <p className="type-meta text-muted-foreground">Added by you</p> : person.detail ? <p className="type-meta text-muted-foreground">{person.detail}</p> : null}
+                        {person.added ? <p className="type-meta text-muted-foreground">{t("addedByYou")}</p> : person.detail ? <p className="type-meta text-muted-foreground">{person.detail}</p> : null}
                       </div>
                       {canApprove ? (
                         <>
                           <Button size="sm" variant="outline" onClick={() => setSwapping(swapping === person.employeeId ? null : person.employeeId)}>
-                            <RefreshCw className="size-3.5" aria-hidden />{swapping === person.employeeId ? "Keep" : "Swap"}
+                            <RefreshCw className="size-3.5" aria-hidden />{swapping === person.employeeId ? t("keep") : t("swap")}
                           </Button>
-                          <Button size="icon" variant="ghost" aria-label={`Remove ${person.displayName}`}
+                          <Button size="icon" variant="ghost" aria-label={t("remove", { displayName: person.displayName })}
                             onClick={() => setList((current) => (current ?? []).filter((p) => p.employeeId !== person.employeeId))}>
                             <X className="size-4" aria-hidden />
                           </Button>
@@ -113,7 +118,7 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
                     </div>
                     {swapping === person.employeeId ? (
                       <div className="px-4 pb-3.5">
-                        <ColleaguePicker value={null} exclude={exclude} placeholder={`Who instead of ${person.displayName.split(" ")[0]}?`}
+                        <ColleaguePicker value={null} exclude={exclude} placeholder={t("whoInsteadOf", { value: (person.displayName.split(" ")[0]) ?? "" })}
                           onChange={(picked: PickedColleague) => use({ employeeId: picked.employeeId, displayName: picked.displayName, detail: picked.subtitle })} />
                       </div>
                     ) : null}
@@ -122,13 +127,13 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
                 {canApprove && people.length < 5 ? (
                   <li className="px-4 py-3">
                     {adding ? (
-                      <ColleaguePicker value={null} exclude={exclude} placeholder="Add a colleague"
+                      <ColleaguePicker value={null} exclude={exclude} placeholder={t("addAColleague")}
                         onChange={(picked) => use({ employeeId: picked.employeeId, displayName: picked.displayName, detail: picked.subtitle })} />
                     ) : (
                       <button type="button" onClick={() => setAdding(true)} className="flex w-full items-center gap-3 rounded-control py-1 text-start type-body text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                         <span className="flex size-10 items-center justify-center rounded-full border border-dashed border-border"><Plus className="size-4" aria-hidden /></span>
-                        Add a colleague
-                        <span className="ms-auto type-meta">Up to 5</span>
+                        {t("addAColleague")}
+                        <span className="ms-auto type-meta">{t("upTo5")}</span>
                       </button>
                     )}
                   </li>
@@ -137,7 +142,7 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
 
               {canApprove && offered.length ? (
                 <section aria-labelledby="suggested-heading">
-                  <h3 id="suggested-heading" className="mb-2 type-meta text-muted-foreground">Suggested from {first}&apos;s year</h3>
+                  <h3 id="suggested-heading" className="mb-2 type-meta text-muted-foreground">{t("suggestedFromSYear", { first })}</h3>
                   <ul className="space-y-2">
                     {offered.map((suggestion) => (
                       <li key={suggestion.employeeId} className="flex items-center gap-3">
@@ -145,14 +150,14 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
                         <div className="min-w-0 flex-1">
                           <p className="type-label text-foreground">{suggestion.displayName}</p>
                           <p className="type-meta text-muted-foreground">
-                            {[suggestion.sharedObjective ? "Shared objective" : null,
-                              suggestion.feedbackExchanged ? `${suggestion.feedbackExchanged} feedback exchanged` : null,
-                              suggestion.praiseExchanged ? `${suggestion.praiseExchanged} praise` : null].filter(Boolean).join(" · ")}
+                            {[suggestion.sharedObjective ? t("sharedObjective") : null,
+                              suggestion.feedbackExchanged ? t("feedbackExchanged", { feedbackExchanged: suggestion.feedbackExchanged }) : null,
+                              suggestion.praiseExchanged ? t("praise", { praiseExchanged: suggestion.praiseExchanged }) : null].filter(Boolean).join(" · ")}
                           </p>
                         </div>
                         <Button size="sm" variant="outline" disabled={!swapping && people.length >= 5}
                           onClick={() => use({ employeeId: suggestion.employeeId, displayName: suggestion.displayName, detail: suggestion.jobTitle })}>
-                          <Plus className="size-3.5" aria-hidden />{swapping ? "Use instead" : "Add"}
+                          <Plus className="size-3.5" aria-hidden />{swapping ? t("useInstead") : t("add")}
                         </Button>
                       </li>
                     ))}
@@ -163,10 +168,10 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
 
             {canApprove ? (
               <div className="flex items-center gap-3 border-t border-border bg-popover px-7 py-4">
-                <p className="flex-1 type-meta text-muted-foreground">Approving sends each colleague their questions</p>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>Later</Button>
+                <p className="flex-1 type-meta text-muted-foreground">{t("approvingSendsEachColleagueTheir")}</p>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>{t("later")}</Button>
                 <AsyncButton pending={approve.isLoading} disabled={people.length === 0} onClick={() => void submit()}>
-                  <Check className="size-4" aria-hidden />Approve {people.length} {people.length === 1 ? "colleague" : "colleagues"}
+                  <Check className="size-4" aria-hidden />{t("approve", { length: people.length })} {people.length === 1 ? t("colleague") : t("colleagues")}
                 </AsyncButton>
               </div>
             ) : null}

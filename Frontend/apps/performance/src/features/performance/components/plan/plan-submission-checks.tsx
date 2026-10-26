@@ -7,6 +7,8 @@ import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
 import { SidebarSection } from "./plan-layout";
 import { planChecks } from "./plan-lib";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * Why the plan can or cannot be submitted, drawn from the same readiness facts as the Submit gate.
@@ -15,7 +17,9 @@ import { planChecks } from "./plan-lib";
  * them, actionably, and the passing ones recede. It never hard-codes the valid state.
  */
 export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: PlanReadinessDto; bare?: boolean }) {
-  const checks = planChecks(readiness);
+  const t = useTranslations("plan.PlanSubmissionChecks");
+  const checkWords = useSay("plan.checks");
+  const checks = planChecks(readiness, checkWords);
   const failed = checks.filter((check) => !check.passed);
   const passedCount = checks.length - failed.length;
   const allPassed = failed.length === 0;
@@ -24,7 +28,7 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
 
   const Wrapper = bare ? BareSection : SidebarSection;
   return (
-    <Wrapper label="Submission checks">
+    <Wrapper label={t("submissionChecks")}>
 
       {allPassed ? (
         <>
@@ -35,7 +39,7 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
               </span>
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {passedCount} check{passedCount === 1 ? "" : "s"} passed
+                  {t("check", { passedCount })}{passedCount === 1 ? "" : t("s")} {t("passed")}
                 </p>
               </div>
             </div>
@@ -45,7 +49,7 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
               className="-me-1 shrink-0"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
-              aria-label={open ? "Hide checks" : "View checks"}
+              aria-label={open ? t("hideChecks") : t("viewChecks")}
             >
               <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
             </Button>
@@ -61,8 +65,8 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
       ) : (
         <>
           <p className="mt-3 text-sm font-medium text-foreground">
-            {failed.length} check{failed.length === 1 ? "" : "s"} need
-            {failed.length === 1 ? "s" : ""} attention
+            {t("check2", { length: failed.length })}{failed.length === 1 ? "" : t("s")} {t("need")}
+            {failed.length === 1 ? t("s") : ""} {t("attention")}
           </p>
           <ul className="mt-4 space-y-4">
             {failed.map((check) => (

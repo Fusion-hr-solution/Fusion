@@ -56,7 +56,7 @@ import {
   type PickedOrgUnit,
 } from "@repo/workforce-ui";
 import { useTeamObjectiveWorkspace } from "../../api/use-performance";
-import { formatDate, parseNumeric } from "../../lib";
+import { parseNumeric } from "../../lib";
 import { MeasurementEditor } from "../measurement/measurement-editor";
 import {
   milestoneDatesWithin,
@@ -80,6 +80,8 @@ import {
 } from "../coach/coach-model";
 import { useAutoCoach, useObjectiveCoach } from "../coach/use-objective-coach";
 import type { ComposerAlignmentContext } from "./org-composer-host";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * The Create / Edit Organizational Objective composer — a surface-agnostic modal (modelled on the
@@ -127,6 +129,7 @@ export function OrgObjectiveComposer({
   /** Publishes a persisted draft as organizational direction. */
   onPublish: (objectiveId: string) => Promise<void>;
 }) {
+  const tr = useTranslations("goals.OrgObjectiveComposer");
   const isEdit = Boolean(objective);
   const node = objective?.node;
   const [alignmentMode, setAlignmentMode] = useState<
@@ -303,8 +306,8 @@ export function OrgObjectiveComposer({
     ? null // draft-level requirements are surfaced first
     : weightedIncomplete
       ? weightSum < 100
-        ? `Milestone weights total ${weightSum}% — assign ${100 - weightSum}% more to publish.`
-        : `Milestone weights total ${weightSum}% — remove ${weightSum - 100}% to publish.`
+        ? tr("milestoneWeightsTotalAssignMore", { weightSum, value: 100 - weightSum })
+        : tr("milestoneWeightsTotalRemoveTo", { weightSum, value: weightSum - 100 })
       : null;
   const canPublish = canSaveDraft && publishBlocker === null;
 
@@ -428,10 +431,10 @@ export function OrgObjectiveComposer({
     setBusy("draft");
     try {
       await persist();
-      toast.success("Draft saved.");
+      toast.success(tr("draftSaved"));
       onOpenChange(false);
     } catch (error) {
-      reportPerformanceFailure(error, "Could not save the draft.");
+      reportPerformanceFailure(error, tr("couldNotSaveTheDraft"));
       setBusy(null);
     }
   }
@@ -442,7 +445,7 @@ export function OrgObjectiveComposer({
     try {
       objectiveId = await persist();
     } catch (error) {
-      reportPerformanceFailure(error, "Could not save the objective.");
+      reportPerformanceFailure(error, tr("couldNotSaveTheObjective"));
       setBusy(null);
       return;
     }
@@ -459,7 +462,7 @@ export function OrgObjectiveComposer({
       setBusy(null);
       return;
     }
-    toast.success("Team objective published.");
+    toast.success(tr("teamObjectivePublished"));
     onOpenChange(false);
   }
 
@@ -469,7 +472,7 @@ export function OrgObjectiveComposer({
         {/* Header — identity only; the fixed parent context leads the scrolling body. */}
         <div className="border-b border-border px-6 py-5 pe-14">
           <DialogTitle>
-            {isEdit ? "Edit team objective" : "Create team objective"}
+            {isEdit ? tr("editTeamObjective") : tr("createTeamObjective")}
           </DialogTitle>
         </div>
 
@@ -483,7 +486,7 @@ export function OrgObjectiveComposer({
                     className="size-3.5 text-muted-foreground"
                     aria-hidden
                   />
-                  Owning team <span className="text-destructive">*</span>
+                  {tr("owningTeam")} <span className="text-destructive">*</span>
                 </Label>
                 <div className="mt-2">
                   <OrgUnitPicker
@@ -522,9 +525,9 @@ export function OrgObjectiveComposer({
                           <span className="flex min-w-0 flex-col">
                             <span className="type-meta text-muted-foreground">
                               {suggestedParent.ownershipScope === "Company"
-                                ? "Company strategy"
+                                ? tr("companyStrategy")
                                 : (suggestedParent.orgUnitName ??
-                                  "Organizational")}
+                                  tr("organizational"))}
                             </span>
                             <span className="font-medium">
                               {suggestedParent.title}
@@ -550,7 +553,7 @@ export function OrgObjectiveComposer({
             {/* 1. Objective definition */}
             <ObjectiveComposerSection
               n={1}
-              title="Objective definition"
+              title={tr("objectiveDefinition")}
               bodyClassName="space-y-4"
               action={
                 coach.enabled ? (
@@ -563,7 +566,7 @@ export function OrgObjectiveComposer({
             >
               <div className="space-y-1.5">
                 <Label htmlFor="og-title">
-                  Title <span className="text-destructive">*</span>
+                  {tr("title")} <span className="text-destructive">*</span>
                   {aiFilled.title ? <AiSuggestedTag /> : null}
                 </Label>
                 <CoachField
@@ -588,7 +591,7 @@ export function OrgObjectiveComposer({
                       setTitle(event.target.value);
                       setAiFilled((current) => ({ ...current, title: false }));
                     }}
-                    placeholder="Improve talent development execution"
+                    placeholder={tr("improveTalentDevelopmentExecution")}
                     autoFocus
                   />
                 </CoachField>
@@ -598,9 +601,9 @@ export function OrgObjectiveComposer({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="og-desc">
-                  Description{" "}
+                  {tr("description")}
                   <span className="font-normal text-muted-foreground">
-                    (optional)
+                    {tr("optional")}
                   </span>
                 </Label>
                 <Textarea
@@ -608,7 +611,7 @@ export function OrgObjectiveComposer({
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   rows={2}
-                  placeholder="The contribution this objective makes to the direction above."
+                  placeholder={tr("theContributionThisObjectiveMakes")}
                 />
               </div>
             </ObjectiveComposerSection>
@@ -616,7 +619,7 @@ export function OrgObjectiveComposer({
             {/* 2. Scope & accountability — two distinct concepts, shown side by side, plus the window. */}
             <ObjectiveComposerSection
               n={2}
-              title="Scope & accountability"
+              title={tr("scopeAccountability")}
               bodyClassName="space-y-4"
             >
               <div className="grid gap-4 sm:grid-cols-2">
@@ -626,18 +629,18 @@ export function OrgObjectiveComposer({
                       className="size-3.5 text-muted-foreground"
                       aria-hidden
                     />
-                    Organizational scope{" "}
+                    {tr("organizationalScope")}
                     <span className="text-destructive">*</span>
                   </Label>
                   {orgUnit ? (
                     <div className="flex h-8 items-center gap-2 rounded-control border border-border dark:bg-input/30 px-2.5 text-sm">
                       <span className="truncate font-medium">
-                        {orgUnit?.name ?? node?.orgUnitName ?? "Owning unit"}
+                        {orgUnit?.name ?? node?.orgUnitName ?? tr("owningUnit")}
                       </span>
                     </div>
                   ) : (
                     <div className="flex h-8 items-center rounded-control border border-dashed border-border px-2.5 text-sm text-muted-foreground">
-                      Choose the owning team above
+                      {tr("chooseTheOwningTeamAbove")}
                     </div>
                   )}
                 </div>
@@ -647,7 +650,7 @@ export function OrgObjectiveComposer({
                       className="size-3.5 text-muted-foreground"
                       aria-hidden
                     />
-                    Accountable person{" "}
+                    {tr("accountablePerson")}
                     <span className="text-destructive">*</span>
                   </Label>
                   <OwnerPicker
@@ -663,7 +666,7 @@ export function OrgObjectiveComposer({
                   />
                   {!workspace.isLoading && orgUnit && owners.length === 0 ? (
                     <p className="text-xs text-destructive">
-                      This team has no eligible owners for the cycle.
+                      {tr("thisTeamHasNoEligible")}
                     </p>
                   ) : null}
                 </div>
@@ -671,7 +674,7 @@ export function OrgObjectiveComposer({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="og-start">Start</Label>
+                  <Label htmlFor="og-start">{tr("start")}</Label>
                   <DatePicker
                     id="og-start"
                     value={startDate}
@@ -681,7 +684,7 @@ export function OrgObjectiveComposer({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="og-end">End</Label>
+                  <Label htmlFor="og-end">{tr("end")}</Label>
                   <DatePicker
                     id="og-end"
                     value={endDate}
@@ -696,8 +699,8 @@ export function OrgObjectiveComposer({
             {/* 3. Measurement — the progress source, then the shared measurement editor when Direct. */}
             <ObjectiveComposerSection
               n={3}
-              title="Measurement"
-              hint="How will progress on this objective be measured?"
+              title={tr("measurement")}
+              hint={tr("howWillProgressOnThis")}
               bodyClassName="space-y-4"
               action={aiFilled.measure ? <AiSuggestedTag /> : undefined}
             >
@@ -714,15 +717,15 @@ export function OrgObjectiveComposer({
                 <SourceCard
                   active={source === "Direct"}
                   icon={Gauge}
-                  title="Measure directly"
-                  detail="Track this objective with its own business measure."
+                  title={tr("measureDirectly")}
+                  detail={tr("trackThisObjectiveWithIts")}
                   onClick={() => setSource("Direct")}
                 />
                 <SourceCard
                   active={source === "Calculated"}
                   icon={Sigma}
-                  title="Calculate from contributors"
-                  detail="Roll up from published direct child objectives."
+                  title={tr("calculateFromContributors")}
+                  detail={tr("rollUpFromPublishedDirect")}
                   onClick={() => setSource("Calculated")}
                 />
               </div>
@@ -744,15 +747,14 @@ export function OrgObjectiveComposer({
                   milestones={milestones}
                   milestoneWeightSum={weightSum}
                   onMilestonesChange={edited(setMilestones)}
-                  milestoneReadyLabel="Ready to publish"
+                  milestoneReadyLabel={tr("readyToPublish")}
                   minDate={startDate}
                   maxDate={endDate}
                 />
               ) : (
                 <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
                   <Info className="size-4 shrink-0" aria-hidden />
-                  Progress rolls up from the objectives aligned beneath this
-                  one.
+                  {tr("progressRollsUpFromThe")}
                 </div>
               )}
             </ObjectiveComposerSection>
@@ -766,7 +768,7 @@ export function OrgObjectiveComposer({
             onClick={() => onOpenChange(false)}
             disabled={busy !== null}
           >
-            Cancel
+            {tr("cancel")}
           </Button>
           <div className="flex items-center gap-2">
             <Button
@@ -774,14 +776,14 @@ export function OrgObjectiveComposer({
               onClick={handleSaveDraft}
               disabled={!canSaveDraft || busy !== null}
             >
-              {busy === "draft" ? "Saving…" : "Save as draft"}
+              {busy === "draft" ? tr("saving") : tr("saveAsDraft")}
             </Button>
             <Button
               onClick={handlePublish}
               disabled={!canPublish || busy !== null}
               title={publishBlocker ?? undefined}
             >
-              {busy === "publish" ? "Publishing…" : "Publish objective"}
+              {busy === "publish" ? tr("publishing") : tr("publishObjective")}
             </Button>
           </div>
         </div>
@@ -821,6 +823,7 @@ function AlignmentEditor({
     onDismiss: () => void;
   } | null;
 }) {
+  const t = useTranslations("goals.AlignmentEditor");
   return (
     <section
       className="rounded-surface border border-border p-5"
@@ -831,10 +834,10 @@ function AlignmentEditor({
           id="objective-alignment-heading"
           className="type-section-title text-foreground"
         >
-          Alignment
+          {t("alignment")}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Choose the organizational direction this objective supports.
+          {t("chooseTheOrganizationalDirectionThis")}
         </p>
       </div>
       <RadioGroup
@@ -861,10 +864,10 @@ function AlignmentEditor({
           />
           <span>
             <span className="block text-sm font-medium text-foreground">
-              Align to organizational direction
+              {t("alignToOrganizationalDirection")}
             </span>
             <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-              Connect this objective to a published upstream objective.
+              {t("connectThisObjectiveToA")}
             </span>
           </span>
         </label>
@@ -884,11 +887,10 @@ function AlignmentEditor({
           />
           <span>
             <span className="block text-sm font-medium text-foreground">
-              Standalone team objective
+              {t("standaloneTeamObjective")}
             </span>
             <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-              Keep this objective within My Team without an upstream
-              link.
+              {t("keepThisObjectiveWithinMy")}
             </span>
           </span>
         </label>
@@ -897,7 +899,7 @@ function AlignmentEditor({
       {mode === "aligned" ? (
         <div className="mt-4 space-y-1.5">
           <Label>
-            Upstream objective
+            {t("upstreamObjective")}
             {aiFilled ? <AiSuggestedTag /> : null}
           </Label>
           <CoachField
@@ -927,12 +929,11 @@ function AlignmentEditor({
 
       {error ? (
         <p className="mt-3 text-sm text-destructive">
-          Team options could not be loaded. Close and try again.
+          {t("teamOptionsCouldNotBe")}
         </p>
       ) : !loading && targets.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          No published upstream objectives are available. You can still create a
-          standalone objective.
+          {t("noPublishedUpstreamObjectivesAre")}
         </p>
       ) : null}
     </section>
@@ -959,6 +960,8 @@ export function AlignmentTargetPicker({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
+  const format = useFormat();
+  const t = useTranslations("goals.AlignmentTargetPicker");
   const [innerOpen, setInnerOpen] = useState(false);
   const open = openProp ?? innerOpen;
   const setOpen = (next: boolean) => {
@@ -985,7 +988,7 @@ export function AlignmentTargetPicker({
   );
   const groups = new Map<string, AlignmentTargetDto[]>();
   for (const target of organizational) {
-    const key = target.orgUnitName ?? "Organizational direction";
+    const key = target.orgUnitName ?? t("organizationalDirection");
     groups.set(key, [...(groups.get(key) ?? []), target]);
   }
 
@@ -1001,8 +1004,7 @@ export function AlignmentTargetPicker({
           {target.title}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
-          {target.accountablePersonName ?? "No owner"} ·{" "}
-          {formatDate(target.startDate)} to {formatDate(target.endDate)}
+          {target.accountablePersonName ?? t("noOwner")} {t("to", { startDate: format.date(target.startDate), endDate: format.date(target.endDate) })}
         </span>
       </span>
     </ComboboxItem>
@@ -1036,7 +1038,7 @@ export function AlignmentTargetPicker({
         {value === "__standalone__" ? (
           <span className="inline-flex min-w-0 items-center gap-2 text-start font-medium text-info">
             <Waypoints className="size-4 shrink-0" aria-hidden />
-            <span className="truncate">No alignment</span>
+            <span className="truncate">{t("noAlignment")}</span>
           </span>
         ) : selected ? (
           <span className="min-w-0 text-start">
@@ -1045,13 +1047,13 @@ export function AlignmentTargetPicker({
             </span>
             <span className="block truncate text-xs text-muted-foreground">
               {selected.ownershipScope === "Company"
-                ? "Company"
-                : (selected.orgUnitName ?? "Organizational")}
+                ? t("company")
+                : (selected.orgUnitName ?? t("organizational"))}
             </span>
           </span>
         ) : (
           <span className="text-muted-foreground">
-            Choose an upstream objective
+            {t("chooseAnUpstreamObjective")}
           </span>
         )}
       </ComboboxTrigger>
@@ -1069,13 +1071,13 @@ export function AlignmentTargetPicker({
           ))}
           {company.length > 0 ? (
             <ComboboxGroup>
-              <ComboboxLabel>Company</ComboboxLabel>
+              <ComboboxLabel>{t("company")}</ComboboxLabel>
               {company.map(renderTarget)}
             </ComboboxGroup>
           ) : null}
           {includeStandalone ? (
             <ComboboxGroup>
-              <ComboboxLabel>Standalone</ComboboxLabel>
+              <ComboboxLabel>{t("standalone")}</ComboboxLabel>
               <ComboboxItem
                 value="__standalone__"
                 className="items-start rounded-inset py-2"
@@ -1086,10 +1088,10 @@ export function AlignmentTargetPicker({
                 />
                 <span>
                   <span className="block font-medium text-foreground">
-                    No alignment
+                    {t("noAlignment")}
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    Create a team objective without an upstream link.
+                    {t("createATeamObjectiveWithout")}
                   </span>
                 </span>
               </ComboboxItem>
@@ -1114,6 +1116,7 @@ function OwnerPicker({
   loading: boolean;
   disabled: boolean;
 }) {
+  const t = useTranslations("goals.OwnerPicker");
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
@@ -1122,8 +1125,8 @@ function OwnerPicker({
     : owners;
   const options: EntityOption[] = filtered.map((owner) => ({
     id: owner.id,
-    title: owner.name ?? "Team member",
-    description: "Active team member at cycle start",
+    title: owner.name ?? t("teamMember"),
+    description: t("activeTeamMemberAtCycle"),
     media: (
       <Avatar className="size-6">
         <AvatarFallback className="text-[0.625rem]">
@@ -1167,11 +1170,11 @@ function OwnerPicker({
       }}
       loading={loading}
       disabled={disabled}
-      placeholder="Choose an accountable owner"
+      placeholder={t("chooseAnAccountableOwner")}
       placeholderIcon={<UserRound className="size-3.5" aria-hidden />}
-      searchPlaceholder="Search team members…"
-      emptyLabel="No eligible team members match your search."
-      hint="No eligible team members."
+      searchPlaceholder={t("searchTeamMembers")}
+      emptyLabel={t("noEligibleTeamMembersMatch")}
+      hint={t("noEligibleTeamMembers")}
     />
   );
 }

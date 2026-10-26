@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import type { CycleClosureDto, CycleDetailDto, RosterPlanStatus } from "@repo/api";
+import type { CycleClosureDto, CycleDetailDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   Dialog,
@@ -20,21 +20,17 @@ import { AsyncButton } from "@repo/ds/shell";
 import { Lock } from "@/lib/icons";
 import { useCloseCycle } from "../../api/use-performance";
 import { performanceFailure, reportPerformanceFailure } from "../../api/performance-failure";
-import { formatDate } from "../../lib";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
-const STANDING_LABEL: Record<RosterPlanStatus, string> = {
-  NotStarted: "Not started",
-  Draft: "Draft",
-  ReturnedForChanges: "Returned",
-  Submitted: "Awaiting decision",
-  Approved: "Approved",
-};
 
 /**
  * Closing the Active Cycle. The dialog asks only for what closure genuinely needs: a reason when
  * the end date is still ahead, and a reason recorded against everyone without an approved plan.
  */
 export function CloseCycleAction({ detail, closure }: { detail: CycleDetailDto; closure: CycleClosureDto | undefined }) {
+  const format = useFormat();
+  const t = useTranslations("cycle.CloseCycleAction");
   const [open, setOpen] = useState(false);
   const [earlyReason, setEarlyReason] = useState("");
   const [exceptionReason, setExceptionReason] = useState("");
@@ -60,29 +56,29 @@ export function CloseCycleAction({ detail, closure }: { detail: CycleDetailDto; 
     >
       <DialogTrigger asChild>
         <Button variant="outline">
-          <Lock className="size-4" data-icon="inline-start" /> Close cycle
+          <Lock className="size-4" data-icon="inline-start" /> {t("closeCycle")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Close {detail.cycle.name}?</DialogTitle>
+          <DialogTitle>{t("close", { name: detail.cycle.name })}</DialogTitle>
           <DialogDescription>
-            Planning, progress and evidence stop. The Cycle stays readable as history.
+            {t("planningProgressAndEvidenceStop")}
           </DialogDescription>
         </DialogHeader>
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1">
-          <dt className="type-label text-muted-foreground">Approved plans</dt>
+          <dt className="type-label text-muted-foreground">{t("approvedPlans")}</dt>
           <dd className="type-body tabular-nums text-foreground">
-            {closure.approvedCount} of {closure.participantCount}
+            {t("of", { approvedCount: closure.approvedCount, participantCount: closure.participantCount })}
           </dd>
-          <dt className="type-label text-muted-foreground">Ends</dt>
-          <dd className="type-body text-foreground">{formatDate(closure.endDate)}</dd>
+          <dt className="type-label text-muted-foreground">{t("ends")}</dt>
+          <dd className="type-body text-foreground">{format.date(closure.endDate)}</dd>
         </dl>
 
         {needsEarlyReason ? (
           <div className="space-y-1.5">
-            <Label htmlFor="early-close-reason">Why close before {formatDate(closure.endDate)}?</Label>
+            <Label htmlFor="early-close-reason">{t("whyCloseBefore", { endDate: format.date(closure.endDate) })}</Label>
             <Textarea
               id="early-close-reason"
               value={earlyReason}
@@ -97,8 +93,8 @@ export function CloseCycleAction({ detail, closure }: { detail: CycleDetailDto; 
           <div className="space-y-1.5">
             <Label htmlFor="closure-exception-reason">
               {unresolved === 1
-                ? "Reason recorded for the 1 participant without an approved plan"
-                : `Reason recorded for the ${unresolved} participants without an approved plan`}
+                ? t("reasonRecordedForThe1")
+                : t("reasonRecordedForTheParticipants", { unresolved })}
             </Label>
             <Textarea
               id="closure-exception-reason"
@@ -112,7 +108,7 @@ export function CloseCycleAction({ detail, closure }: { detail: CycleDetailDto; 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
-            Cancel
+            {t("cancel")}
           </Button>
           <AsyncButton
             pending={pending}
@@ -126,15 +122,15 @@ export function CloseCycleAction({ detail, closure }: { detail: CycleDetailDto; 
                   },
                   expectedVersion: detail.cycle.version,
                 });
-                toast.success(`${detail.cycle.name} is closed.`);
+                toast.success(t("isClosed", { name: detail.cycle.name }));
                 setOpen(false);
               } catch (error) {
                 if (performanceFailure(error).refresh) setOpen(false);
-                reportPerformanceFailure(error, "Could not close the Cycle.");
+                reportPerformanceFailure(error, t("couldNotCloseTheCycle"));
               }
             }}
           >
-            <Lock className="size-4" data-icon="inline-start" /> Close cycle
+            <Lock className="size-4" data-icon="inline-start" /> {t("closeCycle")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>
@@ -144,6 +140,7 @@ export function CloseCycleAction({ detail, closure }: { detail: CycleDetailDto; 
 
 /** Who stands between the Cycle and a clean close — or, once closed, who was closed as an exception. */
 export function ClosureSection({ closure, loading }: { closure: CycleClosureDto | undefined; loading: boolean }) {
+  const t = useTranslations("cycle.ClosureSection");
   if (loading) {
     return (
       <section className="space-y-3">
@@ -162,22 +159,22 @@ export function ClosureSection({ closure, loading }: { closure: CycleClosureDto 
     <section className="space-y-4">
       <header className="flex items-baseline justify-between gap-4">
         <h2 className="type-section-title text-foreground">
-          {closed ? (rows.length > 0 ? "Closed with exceptions" : "Closed with every plan approved") : "Without an approved plan"}
+          {closed ? (rows.length > 0 ? t("closedWithExceptions") : t("closedWithEveryPlanApproved")) : t("withoutAnApprovedPlan")}
         </h2>
         <span className="type-body-secondary tabular-nums text-muted-foreground">
-          {closure.approvedCount} of {closure.participantCount} approved
+          {t("ofApproved", { approvedCount: closure.approvedCount, participantCount: closure.participantCount })}
         </span>
       </header>
 
       {closed && closure.earlyCloseReason ? (
         <p className="type-body text-foreground">
-          <span className="text-muted-foreground">Closed early · </span>
+          <span className="text-muted-foreground">{t("closedEarly")} </span>
           {closure.earlyCloseReason}
         </p>
       ) : null}
 
       {rows.length === 0 ? (
-        closed ? null : <p className="type-body-secondary text-muted-foreground">Every participant has an approved plan.</p>
+        closed ? null : <p className="type-body-secondary text-muted-foreground">{t("everyParticipantHasAnApproved")}</p>
       ) : (
         <ul className="divide-y divide-border rounded-surface border border-border bg-card">
           {rows.map((row) => (
@@ -192,7 +189,7 @@ export function ClosureSection({ closure, loading }: { closure: CycleClosureDto 
                 ) : null}
               </div>
               <span className="type-body-secondary text-muted-foreground sm:max-w-[60%] sm:shrink-0 sm:text-end">
-                {closed ? row.exceptionReason : STANDING_LABEL[row.standing]}
+                {closed ? row.exceptionReason : t(`standing.${row.standing}`)}
               </span>
             </li>
           ))}

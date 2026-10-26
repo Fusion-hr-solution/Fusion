@@ -18,14 +18,16 @@ import { AsyncButton } from "@repo/ds/shell";
 import type { PopulationCandidateDto } from "@repo/api";
 import { readinessIssueDetail } from "@/features/performance/lib";
 import { primaryIssue } from "./population-model";
+import { useTranslations } from "next-intl";
+import type { Say } from "@/i18n/say";
 
 const REASON_MAX = 240;
 
 /** The candidate's blocking readiness issue, phrased as an exclusion reason; empty when healthy. */
-export function issueReason(candidate: PopulationCandidateDto, eligibilityDate: string): string {
+export function issueReason(candidate: PopulationCandidateDto, eligibilityDate: string, say?: Say): string {
   const issue = primaryIssue(candidate);
   if (!issue) return "";
-  const detail = readinessIssueDetail(issue.code, eligibilityDate);
+  const detail = readinessIssueDetail(issue.code, eligibilityDate, say);
   return detail ? `${issue.label}: ${detail}` : issue.label;
 }
 
@@ -51,6 +53,7 @@ export function ExcludeDialog({
   onOpenChange: (open: boolean) => void;
   onExclude: (reason: string) => Promise<void>;
 }) {
+  const t = useTranslations("cycleSetup.ExcludeDialog");
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -70,7 +73,7 @@ export function ExcludeDialog({
       await onExclude(trimmed);
       onOpenChange(false);
     } catch (error) {
-      reportPerformanceFailure(error, "Could not exclude this employee.");
+      reportPerformanceFailure(error, t("couldNotExcludeThisEmployee"));
       setPending(false);
     }
   }
@@ -79,16 +82,16 @@ export function ExcludeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Exclude {name ?? "this employee"}?</DialogTitle>
+          <DialogTitle>{t("exclude")} {name ?? t("thisEmployee")}?</DialogTitle>
           <DialogDescription>
-            They will not participate in this cycle. The reason is kept with the exclusion.
+            {t("theyWillNotParticipateIn")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between">
             <Label htmlFor="exclude-reason">
-              Reason <span className="text-destructive" aria-hidden>*</span>
+              {t("reason")} <span className="text-destructive" aria-hidden>*</span>
             </Label>
             <span className="type-meta tabular-nums text-muted-foreground">
               {reason.length}/{REASON_MAX}
@@ -100,17 +103,17 @@ export function ExcludeDialog({
             maxLength={REASON_MAX}
             onChange={(event) => setReason(event.target.value)}
             rows={3}
-            placeholder="e.g. On extended leave for the cycle"
+            placeholder={t("eGOnExtendedLeave")}
             autoFocus
           />
         </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
           <AsyncButton pending={pending} disabled={!trimmed} onClick={submit} variant="destructive">
-            {confirmLabel ?? "Exclude employee"}
+            {confirmLabel ?? t("excludeEmployee")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>

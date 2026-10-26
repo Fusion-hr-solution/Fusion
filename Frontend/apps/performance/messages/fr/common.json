@@ -1,0 +1,147 @@
+{
+  "PerformanceError": {
+    "thisPageCouldntLoad": "Cette page n’a pas pu se charger",
+    "goToOverview": "Aller à la vue d’ensemble"
+  },
+  "PagesLayout": {
+    "loadingPerformance": "Chargement de Performance"
+  },
+  "PagesLoading": {
+    "loading": "Chargement"
+  },
+  "PerformanceNotFound": {
+    "nothingHere": "Rien ici",
+    "thisAddressDoesntMatchAnything": "Cette adresse ne correspond à rien dans Performance.",
+    "goToOverview": "Aller à la vue d’ensemble"
+  },
+  "CompetencyCatalog": {
+    "competencies": "Compétences",
+    "newRoundsCanUseThese": "Les nouvelles campagnes peuvent utiliser ces compétences. Les campagnes lancées gardent les détails de leur lancement.",
+    "addCompetency": "Ajouter une compétence",
+    "competencyName": "Nom de la compétence",
+    "name": "Nom",
+    "description": "Description",
+    "whatThisCompetencyMeans": "Ce que recouvre cette compétence",
+    "observableBehaviors": "Comportements observables",
+    "observableBehaviorsOnePerLine": "Comportements observables, un par ligne (facultatif)",
+    "cancel": "Annuler",
+    "saveCompetency": "Enregistrer la compétence",
+    "editCompetency": "Modifier la compétence",
+    "newCompetency": "Nouvelle compétence",
+    "loadingCompetencies": "Chargement des compétences…",
+    "archived": "Archivée",
+    "usedInALaunchedRound": "Utilisée dans une campagne lancée",
+    "edit": "Modifier",
+    "archive": "Archiver",
+    "competencyArchived": "Compétence archivée.",
+    "delete": "Supprimer",
+    "no": "Non",
+    "competencies2": "compétences",
+    "activeCompetencies": "compétences actives",
+    "yet": "pour l’instant.",
+    "showArchived": "Afficher les archivées",
+    "deleteThisCompetency": "Supprimer cette compétence ?",
+    "willBeRemovedFromThe": "« {name} » sera retirée du catalogue. Cette action est irréversible.",
+    "deleteCompetency": "Supprimer la compétence",
+    "competencyDeleted": "Compétence supprimée.",
+    "couldNotSaveCompetency": "Impossible d’enregistrer la compétence.",
+    "couldNotArchiveCompetency": "Impossible d’archiver la compétence.",
+    "couldNotDeleteCompetency": "Impossible de supprimer la compétence."
+  },
+  "ContentUnavailable": {
+    "temporarilyUnavailable": "Temporairement indisponible",
+    "couldNotBeLoadedBecause": "{subject} n’a pas pu être chargé, car le service est temporairement indisponible. Il reviendra dès que le service sera rétabli.",
+    "retry": "Réessayer",
+    "unavailable": "{subject} indisponible"
+  },
+  "CycleContextBar": {
+    "planningBy": "Planification jusqu’au",
+    "state": {
+      "Draft": "En préparation",
+      "Active": "Actif",
+      "Closed": "Clôturé"
+    },
+    "phase": {
+      "Planning": "Planification",
+      "Execution": "Exécution",
+      "Review": "Vérification"
+    }
+  },
+  "PersonPage": {
+    "person": "Auteur",
+    "openCoreHrRecord": "Ouvrir la fiche Core HR",
+    "giveFeedback": "Donner un feedback"
+  },
+  "PerformanceCycleContext": {
+    "switchCycle": "Changer de cycle",
+    "state": {
+      "Draft": "En préparation",
+      "Active": "Actif",
+      "Closed": "Clôturé"
+    }
+  },
+  "PerformanceWorkspaceAccessBoundary": {
+    "checkingPerformanceAccess": "Vérification de l’accès à Performance",
+    "performanceIsACustomerWorkspace": "Performance est un espace client",
+    "platformAdministrationIsKeptSeparate": "L’administration Platform est séparée des données de performance des clients.",
+    "performanceIsNotAvailableTo": "Performance n’est pas disponible pour les administrateurs Platform",
+    "useThePlatformControlPlane": "Utilisez la console Platform pour l’administration de la plateforme.",
+    "openPlatform": "Ouvrir Platform",
+    "youDontHaveAccessTo": "Vous n’avez pas accès à Performance",
+    "askATenantAdministratorFor": "Demandez l’accès à Performance à un administrateur de l’organisation.",
+    "openFusion": "Ouvrir Fusion",
+    "performanceIsNotAvailable": "Performance n’est pas disponible",
+    "performanceIsNotEnabledFor": "Performance n’est pas activé pour cette organisation."
+  },
+  "failure": {
+    "stale": "Ceci a changé depuis que vous l’avez ouvert",
+    "unavailable": "Cet enregistrement n’est pas disponible",
+    "generic": "Impossible d’effectuer cette action."
+  },
+  "words": {
+    "method": {
+      "ManualPercentage": "Pourcentage manuel",
+      "NumericTarget": "Cible chiffrée",
+      "WeightedMilestones": "Jalons pondérés"
+    },
+    "milestone": {
+      "StrategicDirectionPublished": "Orientation publiée",
+      "PopulationConfirmed": "Population confirmée",
+      "PlanningOpened": "Planification ouverte",
+      "PlanningCompleted": "Planification terminée",
+      "PerformanceEndReached": "Fin de la période de performance",
+      "ClosureReady": "Clôture possible"
+    },
+    "issue": {
+      "InactiveEmployment": "Le contrat n’est pas actif au {date}.",
+      "NoPrimaryAssignment": "Aucune affectation principale active au {date}.",
+      "MissingManager": "Un manager valide est requis pour la revue des plans.",
+      "InactiveManager": "Le manager affecté n’est pas actif au {date}."
+    },
+    "milestones": "{count, plural, one {# jalon} other {# jalons}}",
+    "planState": {
+      "Draft": "Brouillon",
+      "Submitted": "En attente de décision",
+      "Approved": "Approuvé"
+    },
+    "companyStrategy": "Stratégie de l’entreprise",
+    "organizational": "Organisationnel",
+    "direction": "Orientation"
+  },
+  "nav": {
+    "overview": "Vue d’ensemble",
+    "myPlan": "Mon plan",
+    "myTeam": "Mon équipe",
+    "oneOnOnes": "Entretiens individuels",
+    "feedback": "Feedback",
+    "reviews": "Évaluations",
+    "direction": "Orientation de l’organisation",
+    "administration": "Administration",
+    "cycle": "Cycle",
+    "settings": "Paramètres"
+  },
+  "metadata": {
+    "title": "Performance — Fusion",
+    "description": "Espace Performance"
+  }
+}

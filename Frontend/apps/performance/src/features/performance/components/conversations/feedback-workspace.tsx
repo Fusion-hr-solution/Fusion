@@ -22,7 +22,7 @@ import {
   usePraisePage,
   usePraiseSummary,
 } from "../../api/use-conversations";
-import { formatDate } from "../../lib";
+
 import { formatDay } from "../one-on-ones/one-on-one-lib";
 import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
@@ -31,14 +31,11 @@ import { FeedbackComposer, PraiseComposer, RequestComposer, type FixedObjective 
 import { ByMonth, DueBlock, SubjectChip, firstName } from "./conversation-parts";
 import { FeedbackDrawer, PraiseDrawer } from "./drawers";
 import { REACTION_ICONS } from "./reaction-icons";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 type Tab = "received" | "given" | "requests" | "praise" | "team";
-const TABS: readonly { value: Tab; label: string }[] = [
-  { value: "received", label: "Received" },
-  { value: "given", label: "Given" },
-  { value: "requests", label: "Requests" },
-  { value: "praise", label: "Praise" },
-];
+const TABS: readonly { value: Tab }[] = [{ value: "received" }, { value: "given" }, { value: "requests" }, { value: "praise" }];
 
 type Composing = { kind: "feedback" } | { kind: "request"; objective?: FixedObjective } | { kind: "praise"; value?: string } | null;
 
@@ -48,6 +45,7 @@ type Composing = { kind: "feedback" } | { kind: "request"; objective?: FixedObje
  * what's asked of you; Praise is a wall. Feedback and praise open in drawers; nothing here follows the cycle.
  */
 export function FeedbackWorkspace() {
+  const tr = useTranslations("conversations.FeedbackWorkspace");
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -60,7 +58,7 @@ export function FeedbackWorkspace() {
   const managesPeople = (oneOnOnes.data?.reports.length ?? 0) + (oneOnOnes.data?.startWithReports.length ?? 0) > 0;
   const toAnswer = summary.data?.toAnswer ?? 0;
   // Feedback about a manager's people is its own tab, beside theirs, for those who manage people.
-  const tabs = managesPeople ? [...TABS, { value: "team" as const, label: "Your team" }] : TABS;
+  const tabs = managesPeople ? [...TABS, { value: "team" as const }] : TABS;
   const tab: Tab = requestedTab === "team" && !managesPeople ? "received" : (requestedTab ?? (praiseId ? "praise" : "received"));
 
   const update = (next: Record<string, string | null>) => {
@@ -78,23 +76,23 @@ export function FeedbackWorkspace() {
   return (
     <PageContainer width="wide">
       <PerformancePageHeading
-        title="Feedback"
+        title={tr("feedback")}
         actions={
           <>
-            <Button variant="outline" onClick={() => ask()}>Ask for feedback</Button>
+            <Button variant="outline" onClick={() => ask()}>{tr("askForFeedback")}</Button>
             <Button onClick={() => setComposing({ kind: "feedback" })}>
-              <Send className="size-4" data-icon="inline-start" /> Give feedback
+              <Send className="size-4" data-icon="inline-start" /> {tr("giveFeedback")}
             </Button>
           </>
         }
       />
       <Tabs value={tab} onValueChange={(value) => update({ tab: value, feedback: null, praise: null })} className="mt-4">
-        <TabsList aria-label="Feedback">
+        <TabsList aria-label={tr("feedback")}>
           {tabs.map((t) => (
             <TabsTrigger key={t.value} value={t.value} className="gap-1.5 px-3">
-              {t.label}
+              {tr(`tabs.${t.value}`)}
               {t.value === "requests" && toAnswer > 0 ? (
-                <span className="type-meta font-semibold tabular-nums text-primary-ink" aria-label={`${toAnswer} to answer`}>{toAnswer}</span>
+                <span className="type-meta font-semibold tabular-nums text-primary-ink" aria-label={tr("toAnswer", { toAnswer })}>{toAnswer}</span>
               ) : null}
             </TabsTrigger>
           ))}
@@ -109,9 +107,9 @@ export function FeedbackWorkspace() {
             onAnswer={() => update({ tab: "requests" })}
           />
         ) : tab === "team" ? (
-          <FeedbackFeed view="team" onOpen={(id) => update({ feedback: id })} empty={<EmptyLine text="No feedback about your team yet" />} />
+          <FeedbackFeed view="team" onOpen={(id) => update({ feedback: id })} empty={<EmptyLine text={tr("noFeedbackAboutYourTeam")} />} />
         ) : tab === "given" ? (
-          <FeedbackFeed view="given" onOpen={(id) => update({ feedback: id })} empty={<EmptyLine text="You haven't given feedback yet" />} />
+          <FeedbackFeed view="given" onOpen={(id) => update({ feedback: id })} empty={<EmptyLine text={tr("youHaventGivenFeedbackYet")} />} />
         ) : tab === "requests" ? (
           <RequestsTab />
         ) : (
@@ -157,6 +155,7 @@ function ReceivedTab({
   onAsk: (objective?: FixedObjective) => void;
   onAnswer: () => void;
 }) {
+  const t = useTranslations("conversations.ReceivedTab");
   const askFirst = summary?.askAbout[0];
   const empty = askFirst ? (
     <div className="flex flex-wrap items-center gap-4 rounded-surface bg-card px-5 py-4">
@@ -164,15 +163,15 @@ function ReceivedTab({
         <MessageSquare className="size-4" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="type-label text-foreground">No feedback yet</p>
-        <p className="truncate type-meta text-muted-foreground">Ask about {askFirst.title}</p>
+        <p className="type-label text-foreground">{t("noFeedbackYet")}</p>
+        <p className="truncate type-meta text-muted-foreground">{t("askAbout", { title: askFirst.title })}</p>
       </div>
       <Button size="sm" onClick={() => onAsk({ cycleId: askFirst.cycleId, objectiveId: askFirst.objectiveId, title: askFirst.title })}>
-        Ask for feedback
+        {t("askForFeedback")}
       </Button>
     </div>
   ) : (
-    <EmptyLine text="No feedback yet" action={<Button size="sm" variant="outline" onClick={() => onAsk()}>Ask for feedback</Button>} />
+    <EmptyLine text={t("noFeedbackYet")} action={<Button size="sm" variant="outline" onClick={() => onAsk()}>{t("askForFeedback")}</Button>} />
   );
 
   return (
@@ -188,16 +187,17 @@ function ReceivedTab({
 
 /** The year in feedback at a glance: how much, from whom, about what, and what's waiting on you. */
 function ReceivedBand({ summary, onAnswer }: { summary: FeedbackSummaryDto; onAnswer: () => void }) {
+  const t = useTranslations("conversations.ReceivedBand");
   const toneOf = useValueTones();
   const total = summary.subjects.reduce((sum, s) => sum + s.count, 0) || 1;
   const fill = (s: FeedbackSummaryDto["subjects"][number]) =>
     s.kind === "Competency" && s.competencyId ? VALUE_TONE[toneOf(s.competencyId)].fill : s.kind === "Objective" ? "bg-primary" : "bg-muted-foreground/40";
   return (
-    <section aria-label="Your feedback at a glance" className="grid items-center gap-6 rounded-surface bg-card p-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-10 md:px-6">
+    <section aria-label={t("yourFeedbackAtAGlance")} className="grid items-center gap-6 rounded-surface bg-card p-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-10 md:px-6">
       <div className="flex items-center gap-4">
         <span className="type-display tabular-nums text-foreground">{summary.received}</span>
         <div className="space-y-1.5">
-          <p className="type-meta text-muted-foreground">from {summary.fromCount} colleague{summary.fromCount === 1 ? "" : "s"}</p>
+          <p className="type-meta text-muted-foreground">{t("fromColleague", { fromCount: summary.fromCount })}{summary.fromCount === 1 ? "" : t("s")}</p>
           <AvatarStack names={summary.from.map((p) => p.name)} size="xs" max={5} />
         </div>
       </div>
@@ -212,7 +212,7 @@ function ReceivedBand({ summary, onAnswer }: { summary: FeedbackSummaryDto; onAn
           {summary.subjects.slice(0, 5).map((s) => (
             <li key={`${s.kind}-${s.objectiveId ?? s.competencyId ?? "none"}`} className="flex min-w-0 items-center gap-1.5 type-meta text-muted-foreground">
               <span aria-hidden className={cn("size-2 shrink-0 rounded-full", fill(s))} />
-              <span className="max-w-56 truncate">{s.label ?? "Nothing specific"}</span>
+              <span className="max-w-56 truncate">{s.label ?? t("nothingSpecific")}</span>
               <span className="tabular-nums">{s.count}</span>
             </li>
           ))}
@@ -224,8 +224,8 @@ function ReceivedBand({ summary, onAnswer }: { summary: FeedbackSummaryDto; onAn
             <MessageSquare className="size-4" />
           </span>
           <span>
-            <span className="block type-label text-foreground">{summary.toAnswer} to answer</span>
-            <span className="block type-meta text-muted-foreground">Requests waiting on you</span>
+            <span className="block type-label text-foreground">{t("toAnswer", { toAnswer: summary.toAnswer })}</span>
+            <span className="block type-meta text-muted-foreground">{t("requestsWaitingOnYou")}</span>
           </span>
           <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground" aria-hidden />
         </button>
@@ -235,11 +235,12 @@ function ReceivedBand({ summary, onAnswer }: { summary: FeedbackSummaryDto; onAn
 }
 
 function ReceivedSidebar({ summary, onAsk }: { summary: FeedbackSummaryDto; onAsk: (objective: FixedObjective) => void }) {
+  const t = useTranslations("conversations.ReceivedSidebar");
   const praise = usePraiseSummary();
   return (
     <>
       {summary.askAbout.length > 0 ? (
-        <SidebarSection label="Ask about">
+        <SidebarSection label={t("askAbout")}>
           <ul className="mt-3.5 space-y-2">
             {summary.askAbout.map((objective) => (
               <li key={objective.objectiveId} className="flex items-center gap-3 rounded-surface bg-card px-4 py-3">
@@ -255,27 +256,27 @@ function ReceivedSidebar({ summary, onAsk }: { summary: FeedbackSummaryDto; onAs
                 <span className="min-w-0 flex-1">
                   <span className="block truncate type-label text-foreground">{objective.title}</span>
                   <span className="block type-meta text-muted-foreground">
-                    {objective.feedback === 0 ? "No feedback yet" : `${objective.feedback} piece${objective.feedback === 1 ? "" : "s"} of feedback`}
+                    {objective.feedback === 0 ? t("noFeedbackYet") : (objective.feedback === 1 ? t("pieceOfFeedback", { feedback: objective.feedback }) : t("piecesOfFeedback", { feedback: objective.feedback }))}
                   </span>
                 </span>
                 <Button size="sm" variant="outline" onClick={() => onAsk({ cycleId: objective.cycleId, objectiveId: objective.objectiveId, title: objective.title })}>
-                  Ask
+                  {t("ask")}
                 </Button>
               </li>
             ))}
           </ul>
         </SidebarSection>
       ) : null}
-      {summary.given > 0 || (praise.data?.given ?? 0) > 0 ? <SidebarSection label="Given by you">
+      {summary.given > 0 || (praise.data?.given ?? 0) > 0 ? <SidebarSection label={t("givenByYou")}>
         <div className="mt-3.5 flex gap-8">
           <div>
             <p className="type-metric text-foreground">{summary.given}</p>
-            <p className="type-meta text-muted-foreground">feedback</p>
+            <p className="type-meta text-muted-foreground">{t("feedback")}</p>
           </div>
           {praise.data ? (
             <div>
               <p className="type-metric text-foreground">{praise.data.given}</p>
-              <p className="type-meta text-muted-foreground">praise</p>
+              <p className="type-meta text-muted-foreground">{t("praise")}</p>
             </div>
           ) : null}
         </div>
@@ -316,14 +317,15 @@ function FeedbackPage({
   empty: ReactNode;
   onMore?: (next: string) => void;
 }) {
+  const t = useTranslations("conversations.FeedbackPage");
   const page = useFeedbackList({ view, before, limit: 50 });
-  if (page.error) return <ContentUnavailable error={page.error} onRetry={page.refetch} subject="Feedback" />;
+  if (page.error) return <ContentUnavailable error={page.error} onRetry={page.refetch} subject={t("feedback")} />;
   if (!page.data) return <FeedSkeleton />;
   if (page.data.items.length === 0) return <>{empty}</>;
   return (
     <>
       <ByMonth items={page.data.items} at={(f) => f.sentAt} render={(f) => <FeedbackCard key={f.id} feedback={f} view={view} onOpen={onOpen} />} />
-      {page.data.next && onMore ? <Button variant="ghost" size="sm" onClick={() => onMore(page.data!.next!)}>Show older</Button> : null}
+      {page.data.next && onMore ? <Button variant="ghost" size="sm" onClick={() => onMore(page.data!.next!)}>{t("showOlder")}</Button> : null}
     </>
   );
 }
@@ -341,6 +343,8 @@ export function FeedbackCard({
   /** Where the list is already about one subject (an objective's record). */
   hideSubject?: boolean;
 }) {
+  const format = useFormat();
+  const t = useTranslations("conversations.FeedbackCard");
   const person = view === "given" ? feedback.receiver : feedback.author;
   const subject = hideSubject ? null : feedback.subject;
   return (
@@ -356,25 +360,25 @@ export function FeedbackCard({
             <span className="block truncate type-label text-foreground">
               {view === "team" ? (
                 <>
-                  {feedback.author.name} <span className="text-muted-foreground">to</span> {feedback.receiver.name}
+                  {feedback.author.name} <span className="text-muted-foreground">{t("to")}</span> {feedback.receiver.name}
                 </>
               ) : view === "given" ? (
                 <>
-                  <span className="text-muted-foreground">To</span> {feedback.receiver.name}
+                  <span className="text-muted-foreground">{t("to2")}</span> {feedback.receiver.name}
                 </>
               ) : (
-                feedback.author.name ?? "A colleague"
+                feedback.author.name ?? t("aColleague")
               )}
             </span>
-            <span className="block type-meta text-muted-foreground">{formatDay(feedback.sentAt)}</span>
+            <span className="block type-meta text-muted-foreground">{formatDay(feedback.sentAt, format.locale)}</span>
           </span>
-          {feedback.visibility === "ManagerOnly" ? <StatusBadge tone="neutral">Manager only</StatusBadge> : null}
+          {feedback.visibility === "ManagerOnly" ? <StatusBadge tone="neutral">{t("managerOnly")}</StatusBadge> : null}
           {subject ? <SubjectChip subject={subject} className="hidden max-w-60 sm:inline-flex" /> : null}
         </span>
         <span className="block type-narrative line-clamp-4 text-foreground">{feedback.message}</span>
         {subject ? <SubjectChip subject={subject} className="sm:hidden" /> : null}
         {feedback.requestQuestion ? (
-          <span className="block truncate type-meta text-muted-foreground">Answer to &ldquo;{feedback.requestQuestion}&rdquo;</span>
+          <span className="block truncate type-meta text-muted-foreground">{t("answerTo", { requestQuestion: feedback.requestQuestion })}</span>
         ) : null}
       </button>
     </li>
@@ -384,8 +388,9 @@ export function FeedbackCard({
 // ── Requests ───────────────────────────────────────────────────────────────────
 
 function RequestsTab() {
+  const t = useTranslations("conversations.RequestsTab");
   const requests = useFeedbackRequests();
-  if (requests.error) return <ContentUnavailable error={requests.error} onRetry={requests.refetch} subject="Feedback requests" />;
+  if (requests.error) return <ContentUnavailable error={requests.error} onRetry={requests.refetch} subject={t("feedbackRequests")} />;
   if (!requests.data) return <FeedSkeleton />;
   const waiting = requests.data.toAnswer.filter((r) => r.state === "Open" && r.myStatus === "Waiting");
   const mineOpen = requests.data.mine.filter((r) => r.state === "Open");
@@ -398,10 +403,10 @@ function RequestsTab() {
   return (
     <div className="max-w-4xl space-y-10">
       <section aria-labelledby="asked-of-you">
-        <h2 id="asked-of-you" className="mb-4 type-section-title text-foreground">Asked of you</h2>
+        <h2 id="asked-of-you" className="mb-4 type-section-title text-foreground">{t("askedOfYou")}</h2>
         {waiting.length === 0 ? (
           <p className="type-body-secondary text-muted-foreground">
-            Nothing to answer{lastAnswered ? ` · last answered for ${lastAnswered.requester.name}` : ""}
+            {t("nothingToAnswer")}{lastAnswered ? " " + t("lastAnsweredFor", { name: lastAnswered.requester.name ?? "" }) : ""}
           </p>
         ) : (
           <ul className="space-y-3">{waiting.map((row) => <AskedOfYou key={row.id} row={row} />)}</ul>
@@ -411,11 +416,11 @@ function RequestsTab() {
       <section aria-labelledby="your-requests">
         <div className="mb-4 flex items-baseline justify-between gap-4">
           <h2 id="your-requests" className="flex items-baseline gap-2 type-section-title text-foreground">
-            Yours {mineOpen.length > 0 ? <span className="type-meta tabular-nums text-muted-foreground">{mineOpen.length} open</span> : null}
+            {t("yours")} {mineOpen.length > 0 ? <span className="type-meta tabular-nums text-muted-foreground">{t("open", { length: mineOpen.length })}</span> : null}
           </h2>
         </div>
         {mineOpen.length === 0 ? (
-          <p className="type-body-secondary text-muted-foreground">No open requests</p>
+          <p className="type-body-secondary text-muted-foreground">{t("noOpenRequests")}</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-surface bg-card">{mineOpen.map((row) => <YourRequest key={row.id} row={row} />)}</ul>
         )}
@@ -424,20 +429,20 @@ function RequestsTab() {
       {closed.length > 0 ? (
         <section aria-labelledby="closed-requests">
           <h2 id="closed-requests" className="mb-3 flex items-baseline gap-2 type-subsection-title text-muted-foreground">
-            Closed <span className="type-meta tabular-nums">{closed.length}</span>
+            {t("closed")} <span className="type-meta tabular-nums">{closed.length}</span>
           </h2>
           <ul className="space-y-2">
             {closed.map(({ row, asked }) => (
               <li key={row.id}>
                 <Link href={`/feedback/requests/${row.id}`} className="group flex items-center gap-3 rounded-control bg-inlay px-4 py-3 hover:bg-inlay/70">
                   <span className="min-w-0 flex-1 truncate type-body text-foreground">
-                    {asked ? <span className="text-muted-foreground">{firstName(row.requester.name)} asked: </span> : null}
+                    {asked ? <span className="text-muted-foreground">{t("asked", { name: firstName(row.requester.name) })} </span> : null}
                     {row.question}
                   </span>
                   <span className="shrink-0 type-meta tabular-nums text-muted-foreground">
                     {asked
-                      ? row.myStatus === "Answered" ? "Answered" : row.myStatus === "Declined" ? "Declined" : "Closed"
-                      : `${row.answered} answer${row.answered === 1 ? "" : "s"}`}
+                      ? row.myStatus === "Answered" ? t("answered") : row.myStatus === "Declined" ? t("declined") : t("closed")
+                      : (row.answered === 1 ? t("answer", { answered: row.answered }) : t("answers", { answered: row.answered }))}
                   </span>
                   <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground" aria-hidden />
                 </Link>
@@ -452,19 +457,21 @@ function RequestsTab() {
 
 /** A question asked of you: the clock, who asked, the question in their words, and Answer. */
 function AskedOfYou({ row }: { row: FeedbackRequestRowDto }) {
+  const format = useFormat();
+  const t = useTranslations("conversations.AskedOfYou");
   return (
     <li className="flex flex-wrap items-center gap-5 rounded-surface border border-primary-ring bg-card p-5 sm:flex-nowrap">
       <DueBlock date={row.dueDate} overdue={row.overdue} />
       <div className="min-w-0 flex-1 space-y-2">
         <p className="flex items-center gap-2 type-meta text-muted-foreground">
           <PersonInitials name={row.requester.name} size="xs" />
-          <span><span className="type-label text-foreground">{row.requester.name}</span> asked you · {formatDay(row.requestedAt)}</span>
+          <span><span className="type-label text-foreground">{row.requester.name}</span> {t("askedYou", { requestedAt: formatDay(row.requestedAt, format.locale) })}</span>
         </p>
         <p className="type-narrative text-foreground">{row.question}</p>
         {row.subject ? <SubjectChip subject={row.subject} /> : null}
       </div>
       <Button asChild>
-        <Link href={`/feedback/requests/${row.id}`}>Answer</Link>
+        <Link href={`/feedback/requests/${row.id}`}>{t("answer")}</Link>
       </Button>
     </li>
   );
@@ -472,6 +479,8 @@ function AskedOfYou({ row }: { row: FeedbackRequestRowDto }) {
 
 /** One of your open requests: what you asked, who has answered, and the latest answer. */
 function YourRequest({ row }: { row: FeedbackRequestRowDto }) {
+  const format = useFormat();
+  const t = useTranslations("conversations.YourRequest");
   const invitees = row.invitees ?? [];
   return (
     <li>
@@ -480,7 +489,7 @@ function YourRequest({ row }: { row: FeedbackRequestRowDto }) {
           <div className="flex flex-wrap items-center gap-2">
             {row.subject ? <SubjectChip subject={row.subject} /> : null}
             <span className={cn("type-meta tabular-nums", row.overdue ? "text-destructive" : "text-muted-foreground")}>
-              {row.overdue ? "Overdue" : "Due"} {formatDate(row.dueDate)}
+              {row.overdue ? t("overdue") : t("due")} {format.date(row.dueDate)}
             </span>
           </div>
           <p className="type-label text-foreground">{row.question}</p>
@@ -489,11 +498,11 @@ function YourRequest({ row }: { row: FeedbackRequestRowDto }) {
               <span className="text-foreground">{firstName(row.latestAnswer.author.name)}:</span> &ldquo;{row.latestAnswer.message}&rdquo;
             </p>
           ) : (
-            <p className="type-meta text-muted-foreground">No answers yet</p>
+            <p className="type-meta text-muted-foreground">{t("noAnswersYet")}</p>
           )}
         </div>
         <div className="flex flex-col gap-2.5 md:items-end">
-          <ul className="flex gap-3" aria-label="Asked">
+          <ul className="flex gap-3" aria-label={t("asked")}>
             {invitees.map((invitee) => (
               <li key={invitee.person.id} className="flex flex-col items-center gap-1" title={`${invitee.person.name}: ${invitee.status.toLowerCase()}`}>
                 <PersonInitials
@@ -504,7 +513,7 @@ function YourRequest({ row }: { row: FeedbackRequestRowDto }) {
                     invitee.status === "Answered" ? "ring-success" : invitee.status === "Declined" ? "opacity-50 ring-transparent" : "ring-border",
                   )}
                 />
-                <span className="type-meta text-muted-foreground">{invitee.status === "Answered" ? "Answered" : invitee.status === "Declined" ? "Declined" : "Waiting"}</span>
+                <span className="type-meta text-muted-foreground">{invitee.status === "Answered" ? t("answered") : invitee.status === "Declined" ? t("declined") : t("waiting")}</span>
               </li>
             ))}
           </ul>
@@ -512,7 +521,7 @@ function YourRequest({ row }: { row: FeedbackRequestRowDto }) {
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-inlay" aria-hidden>
               <span className="block h-full rounded-full bg-success" style={{ width: `${row.invited ? (row.answered / row.invited) * 100 : 0}%` }} />
             </div>
-            <span className="type-meta tabular-nums text-muted-foreground">{row.answered} of {row.invited} answered</span>
+            <span className="type-meta tabular-nums text-muted-foreground">{t("ofAnswered", { answered: row.answered, invited: row.invited })}</span>
           </div>
         </div>
       </Link>
@@ -522,11 +531,7 @@ function YourRequest({ row }: { row: FeedbackRequestRowDto }) {
 
 // ── Praise ─────────────────────────────────────────────────────────────────────
 
-const PRAISE_FILTERS: readonly { value: PraiseScope; label: string }[] = [
-  { value: "all", label: "Everyone" },
-  { value: "forMe", label: "For you" },
-  { value: "byMe", label: "By you" },
-];
+const PRAISE_FILTERS: readonly { value: PraiseScope }[] = [{ value: "all" }, { value: "forMe" }, { value: "byMe" }];
 
 function PraiseTab({
   employeeId,
@@ -541,6 +546,7 @@ function PraiseTab({
   onOpen: (id: string) => void;
   onGive: (value?: string) => void;
 }) {
+  const t = useTranslations("conversations.PraiseTab");
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const summary = usePraiseSummary();
   const forMe = summary.data?.received ?? 0;
@@ -549,8 +555,8 @@ function PraiseTab({
       <GivePraiseBar onGive={onGive} />
       <PlanDocument
         main={
-          <section aria-label="Praise">
-            <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Show praise">
+          <section aria-label={t("praise")}>
+            <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label={t("showPraise")}>
               {PRAISE_FILTERS.map((filter) => (
                 <button
                   key={filter.value}
@@ -565,7 +571,7 @@ function PraiseTab({
                     !employeeId && scope === filter.value ? "bg-foreground text-background" : "bg-inlay text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {filter.label}
+                  {t(`filters.${filter.value}`)}
                   {filter.value === "forMe" && forMe > 0 ? <span className="tabular-nums opacity-70">{forMe}</span> : null}
                 </button>
               ))}
@@ -592,36 +598,38 @@ function PraiseTab({
 
 /** Giving praise is one line away: start blank, or from a value. */
 function GivePraiseBar({ onGive }: { onGive: (value?: string) => void }) {
+  const t = useTranslations("conversations.GivePraiseBar");
   const { user } = useAuth();
   const values = useCompanyValues();
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-surface bg-card py-3 pe-3 ps-4">
       <PersonInitials name={user?.fullName} />
       <button type="button" onClick={() => onGive()} className="min-w-40 flex-1 text-start type-body text-muted-foreground hover:text-foreground">
-        Praise a colleague for…
+        {t("praiseAColleagueFor")}
       </button>
       <div className="hidden flex-wrap gap-1.5 lg:flex">
         {(values.data ?? []).slice(0, 3).map((v) => (
-          <button key={v.id} type="button" onClick={() => onGive(v.id)} aria-label={`Praise someone for ${v.name}`} className="rounded-control-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <button key={v.id} type="button" onClick={() => onGive(v.id)} aria-label={t("praiseSomeoneFor", { name: v.name })} className="rounded-control-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <ValueChip value={v} className="cursor-pointer" />
           </button>
         ))}
       </div>
       <Button onClick={() => onGive()}>
-        <Star className="size-4" data-icon="inline-start" /> Give praise
+        <Star className="size-4" data-icon="inline-start" /> {t("givePraise")}
       </Button>
     </div>
   );
 }
 
 function PraiseSidebar({ summary }: { summary: PraiseSummaryDto }) {
+  const t = useTranslations("conversations.PraiseSidebar");
   const toneOf = useValueTones();
   // Each value's share of the window's praise, so three values praised once each read as thirds, not three full bars.
   const total = summary.values.reduce((sum, value) => sum + value.count, 0);
   return (
     <>
       {summary.values.length > 0 ? (
-        <SidebarSection label={`What we celebrate · last ${summary.windowDays} days`}>
+        <SidebarSection label={t("whatWeCelebrateLastDays", { windowDays: summary.windowDays })}>
           <ul className="mt-4 space-y-3.5">
             {summary.values.slice(0, 6).map((value) => (
               <li key={value.id}>
@@ -637,15 +645,15 @@ function PraiseSidebar({ summary }: { summary: PraiseSummaryDto }) {
           </ul>
         </SidebarSection>
       ) : null}
-      <SidebarSection label="Your praise">
+      <SidebarSection label={t("yourPraise")}>
         <div className="mt-3.5 flex gap-8">
           <div>
             <p className="type-metric text-foreground">{summary.received}</p>
-            <p className="type-meta text-muted-foreground">received</p>
+            <p className="type-meta text-muted-foreground">{t("received")}</p>
           </div>
           <div>
             <p className="type-metric text-foreground">{summary.given}</p>
-            <p className="type-meta text-muted-foreground">given</p>
+            <p className="type-meta text-muted-foreground">{t("given")}</p>
           </div>
         </div>
       </SidebarSection>
@@ -666,9 +674,10 @@ function PraisePage({
   onGive: (value?: string) => void;
   onMore?: (next: string) => void;
 }) {
+  const t = useTranslations("conversations.PraisePage");
   const page = usePraisePage(query);
   const react = useReactToPraise();
-  if (page.error) return <ContentUnavailable error={page.error} onRetry={page.refetch} subject="Praise" />;
+  if (page.error) return <ContentUnavailable error={page.error} onRetry={page.refetch} subject={t("praise")} />;
   if (!page.data) return <FeedSkeleton />;
   const everyone = !query.employeeId && (query.scope ?? "all") === "all";
   return (
@@ -685,16 +694,16 @@ function PraisePage({
             everyone ? (
               <div className="flex flex-col items-center gap-3 rounded-surface border border-dashed border-border px-6 py-12 text-center">
                 <span className="grid size-11 place-items-center rounded-control border border-border bg-inlay text-muted-foreground" aria-hidden><Star className="size-5" /></span>
-                <p className="type-label text-foreground">No praise yet</p>
-                <Button size="sm" onClick={() => onGive()}>Give the first</Button>
+                <p className="type-label text-foreground">{t("noPraiseYet")}</p>
+                <Button size="sm" onClick={() => onGive()}>{t("giveTheFirst")}</Button>
               </div>
             ) : (
-              <EmptyLine text={query.scope === "forMe" ? "No praise for you yet" : "You haven't given praise yet"} />
+              <EmptyLine text={query.scope === "forMe" ? t("noPraiseForYouYet") : t("youHaventGivenPraiseYet")} />
             )
           ) : null
         }
       />
-      {page.data.next && onMore ? <Button variant="ghost" size="sm" onClick={() => onMore(page.data!.next!)}>Show older</Button> : null}
+      {page.data.next && onMore ? <Button variant="ghost" size="sm" onClick={() => onMore(page.data!.next!)}>{t("showOlder")}</Button> : null}
     </>
   );
 }

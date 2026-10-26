@@ -5,6 +5,8 @@ import { StatusBadge } from "@repo/ds/shell";
 import { ObjectiveStatusBadge } from "@repo/performance-ui";
 import { ScopeMark } from "../../scope-mark";
 import type { ObjectiveRecord } from "../objective-record-model";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * Who and what an objective is at a glance: its mark, title, kind, state and accountable person. The
@@ -21,6 +23,8 @@ export function ObjectiveSummary({
   titleAs?: ElementType<{ className?: string; children?: ReactNode }>;
   trailing?: ReactNode;
 }) {
+  const t = useTranslations("objective.ObjectiveSummary");
+  const model = useSay("objective.model");
   return (
     <div className="flex items-start gap-3.5">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-(--type-ring) bg-(--type-tint) text-(--type-ink)">
@@ -33,14 +37,14 @@ export function ObjectiveSummary({
           {/* A plan objective's own state is its status; the plan's state is context, said below. */}
           {record.kind === "plan" ? null : (
             <StatusBadge tone={record.status.tone} dot>
-              {record.status.label}
+              {model(`status.${record.status.label}`)}
             </StatusBadge>
           )}
           <ObjectiveStatusBadge status={record.source.status?.value ?? null} />
         </p>
         <p className="mt-1.5 truncate text-xs text-muted-foreground">
-          Accountable · <span className="text-foreground">{record.accountable.name ?? "Unassigned"}</span>
-          {record.kind === "plan" && record.status.label !== "Approved" ? ` · ${record.status.label === "Submitted" ? "plan waiting for approval" : "plan in draft"}` : null}
+          {t("accountable")} <span className="text-foreground">{record.accountable.name ?? t("unassigned")}</span>
+          {record.kind === "plan" && record.status.label !== "Approved" ? ` · ${record.status.label === "Submitted" ? model("planWaiting") : model("planDraft")}` : null}
         </p>
       </div>
       {trailing}

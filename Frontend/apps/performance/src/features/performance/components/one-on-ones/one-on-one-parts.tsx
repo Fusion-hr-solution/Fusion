@@ -3,7 +3,10 @@
 import type { AgendaSourceKind, ObjectiveStatus, OneOnOneBeatDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
 import { MessageSquare, RefreshCw, Star, Target } from "@/lib/icons";
-import { rhythmPosition, rhythmWindow, shortDay, timeBlock } from "./one-on-one-lib";
+import { rhythmPosition, rhythmWindow, shortDay } from "./one-on-one-lib";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useOneOnOneWords } from "./one-on-one-lib";
 
 const SOURCE_ICON: Record<AgendaSourceKind, typeof Target> = {
   Objective: Target,
@@ -12,12 +15,6 @@ const SOURCE_ICON: Record<AgendaSourceKind, typeof Target> = {
   Praise: Star,
 };
 
-export const SOURCE_LABEL: Record<AgendaSourceKind, string> = {
-  Objective: "Objective",
-  UpdateRequest: "Update requested",
-  Feedback: "Feedback",
-  Praise: "Praise",
-};
 
 /**
  * Where a talking point came from, as an icon well: the shape tells sources apart, and only an objective in trouble
@@ -42,7 +39,8 @@ export function SourceWell({ kind, status, size = "md" }: { kind: AgendaSourceKi
 
 /** A meeting time as a block: the day over the time; today's in amber. */
 export function TimeBlock({ iso, size = "md", className }: { iso: string; size?: "sm" | "md" | "lg"; className?: string }) {
-  const { day, time, today } = timeBlock(iso);
+  const w = useOneOnOneWords();
+  const { day, time, today } = w.timeBlock(iso);
   if (size === "sm") {
     return (
       <span
@@ -74,6 +72,8 @@ export function TimeBlock({ iso, size = "md", className }: { iso: string; size?:
 
 /** Week labels over the rhythm strips, with today marked. */
 export function RhythmScale({ className }: { className?: string }) {
+  const format = useFormat();
+  const tr = useTranslations("oneOnOnes.RhythmScale");
   const window = rhythmWindow();
   const day = 86_400_000;
   const ticks = [-42, -28, -14, 0, 14].map((offset) => window.start + (offset + 42) * day);
@@ -85,7 +85,7 @@ export function RhythmScale({ className }: { className?: string }) {
           className={cn("absolute -translate-x-1/2 whitespace-nowrap type-meta", i === 3 ? "font-semibold text-primary-ink" : "text-muted-foreground")}
           style={{ left: `${rhythmPosition(t, window) * 100}%` }}
         >
-          {i === 3 ? "Today" : shortDay(new Date(t))}
+          {i === 3 ? tr("today") : shortDay(new Date(t), format.locale)}
         </span>
       ))}
     </div>
@@ -97,18 +97,20 @@ export function RhythmScale({ className }: { className?: string }) {
  * A next meeting beyond the window sits at the end.
  */
 export function RhythmStrip({ beats, label }: { beats: readonly OneOnOneBeatDto[]; label: string }) {
+  const format = useFormat();
+  const t = useTranslations("oneOnOnes.RhythmStrip");
   const window = rhythmWindow();
   const today = rhythmPosition(Date.now(), window);
   const held = beats.filter((b) => b.state === "Completed").length;
   const missed = beats.filter((b) => b.state === "NotHeld").length;
   return (
-    <div className="relative h-7" role="img" aria-label={`${label}: ${held} held, ${missed} missed in the last six weeks`}>
+    <div className="relative h-7" role="img" aria-label={t("heldMissedInTheLast", { label, held, missed })}>
       <span className="absolute inset-x-0 top-1/2 h-px bg-border" />
       <span className="absolute top-0.5 bottom-0.5 w-px bg-primary/50" style={{ left: `${today * 100}%` }} />
       {beats.map((beat) => (
         <span
           key={`${beat.at}-${beat.state}`}
-          title={`${shortDay(beat.at)}: ${beat.state === "Completed" ? "held" : beat.state === "NotHeld" ? "missed" : "next"}`}
+          title={`${shortDay(beat.at, format.locale)}: ${beat.state === "Completed" ? "held" : beat.state === "NotHeld" ? "missed" : "next"}`}
           className={cn(
             "absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full",
             beat.state === "Completed" && "bg-success",

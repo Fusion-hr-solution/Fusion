@@ -15,7 +15,8 @@ import {
 } from "@/lib/icons";
 import type { CycleDetailDto, PopulationDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDate } from "../../../lib";
+import { useTranslations } from "next-intl";
+import { useFormat, type Format } from "@repo/ds/lib/use-format";
 
 /**
  * The launch rail: the authoritative go/no-go readout beside the summary. Blockers become a list of
@@ -30,7 +31,7 @@ interface Check {
   detail?: string[];
 }
 
-function deriveChecks(detail: CycleDetailDto, population: PopulationDto): Check[] {
+function deriveChecks(detail: CycleDetailDto, population: PopulationDto, t: (key: string, values?: Record<string, string | number>) => string, format: Format): Check[] {
   const c = detail.cycle;
   const datesValid =
     detail.launchReadiness.areas.find((a) => a.key === "details")?.complete ?? true;
@@ -38,20 +39,20 @@ function deriveChecks(detail: CycleDetailDto, population: PopulationDto): Check[
   const reviewersResolved = required === 0 || population.reviewerReadyCount >= required;
 
   return [
-    { ok: c.state === "Draft", label: "Cycle is in draft state" },
-    { ok: !detail.otherActiveCycleExists, label: "No other cycle is active" },
+    { ok: c.state === "Draft", label: t("check.draft") },
+    { ok: !detail.otherActiveCycleExists, label: t("check.noOtherActive") },
     {
       ok: datesValid,
-      label: "Cycle dates are valid",
+      label: t("check.dates"),
       detail: [
-        `${formatDate(c.startDate)} – ${formatDate(c.endDate)}`,
-        `Plans due ${formatDate(c.planningDeadline)}`,
+        format.range(c.startDate, c.endDate),
+        t("check.plansDue", { day: format.date(c.planningDeadline) }),
       ],
     },
     {
       ok: detail.populationConfirmed && reviewersResolved,
-      label: "Population is confirmed",
-      detail: [`${detail.confirmedParticipantCount} participants, all with reviewers`],
+      label: t("check.population"),
+      detail: [t("check.participants", { count: detail.confirmedParticipantCount })],
     },
   ];
 }
@@ -75,32 +76,34 @@ export function LaunchReadinessPanel({
   detail: CycleDetailDto;
   population: PopulationDto;
 }) {
-  const checks = deriveChecks(detail, population);
+  const t = useTranslations("cycleSetup.LaunchReadinessPanel");
+  const format = useFormat();
+  const checks = deriveChecks(detail, population, (key, values) => t(key as never, values as never), format);
   const ready = checks.every((check) => check.ok);
   const failing = checks.filter((check) => !check.ok).length;
 
   const notRequired = [
     {
       icon: Target,
-      label: "Strategic direction",
+      label: t("strategicDirection"),
       detail:
         detail.publishedStrategyCount > 0
-          ? `${detail.publishedStrategyCount} objective${detail.publishedStrategyCount === 1 ? "" : "s"} published`
-          : "Can be created later after launch",
+          ? (detail.publishedStrategyCount === 1 ? t("objectivePublished", { publishedStrategyCount: detail.publishedStrategyCount }) : t("objectivesPublished", { publishedStrategyCount: detail.publishedStrategyCount }))
+          : t("canBeCreatedLaterAfter"),
     },
-    { icon: ClipboardList, label: "Employee plans", detail: "Created as participants begin planning" },
-    { icon: MessageSquare, label: "Communications", detail: "No notifications are sent at launch" },
+    { icon: ClipboardList, label: t("employeePlans"), detail: t("createdAsParticipantsBeginPlanning") },
+    { icon: MessageSquare, label: t("communications"), detail: t("noNotificationsAreSentAt") },
   ];
 
   return (
     <RailCard className="flex flex-1 flex-col">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <RailHeading>Launch readiness</RailHeading>
+          <RailHeading>{t("launchReadiness")}</RailHeading>
           <p className="mt-1 type-meta text-muted-foreground">
             {ready
-              ? "All required conditions are met."
-              : `${failing} required ${failing === 1 ? "condition is" : "conditions are"} not met.`}
+              ? t("allRequiredConditionsAreMet")
+              : (failing === 1 ? t("requiredConditionIsNotMet", { failing }) : t("requiredConditionsAreNotMet", { failing }))}
           </p>
         </div>
         <span
@@ -116,7 +119,7 @@ export function LaunchReadinessPanel({
           ) : (
             <CircleAlert className="size-3.5" aria-hidden />
           )}
-          {ready ? "Ready" : "Not ready"}
+          {ready ? t("ready") : t("notReady")}
         </span>
       </div>
 
@@ -156,7 +159,7 @@ export function LaunchReadinessPanel({
 
       <div className="mt-auto pt-5">
         <div className="border-t border-border/70 pt-5">
-          <p className="type-meta text-muted-foreground">Not required to launch</p>
+          <p className="type-meta text-muted-foreground">{t("notRequiredToLaunch")}</p>
           <ul className="mt-3.5 space-y-3.5">
             {notRequired.map((item) => (
               <li key={item.label} className="flex items-start gap-3">
@@ -176,29 +179,26 @@ export function LaunchReadinessPanel({
   );
 }
 
-const CONSEQUENCES: { icon: typeof Play; label: string; detail: string }[] = [
-  { icon: Play, label: "The cycle goes live", detail: "Participants can begin planning." },
-  { icon: Lock, label: "Details lock", detail: "The cycle and policy can no longer be changed." },
-  {
-    icon: Users2,
-    label: "The roster is fixed",
-    detail: "The confirmed population becomes final.",
-  },
-];
+const CONSEQUENCES = [
+  { icon: Play, key: "live" },
+  { icon: Lock, key: "lock" },
+  { icon: Users2, key: "roster" },
+] as const;
 
 export function LaunchConsequences() {
+  const t = useTranslations("cycleSetup.LaunchConsequences");
   return (
     <RailCard>
-      <RailHeading>What happens when you launch</RailHeading>
+      <RailHeading>{t("whatHappensWhenYouLaunch")}</RailHeading>
       <ul className="mt-5 space-y-4">
         {CONSEQUENCES.map((item) => (
-          <li key={item.label} className="flex items-start gap-3.5">
+          <li key={item.key} className="flex items-start gap-3.5">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink ring-1 ring-inset ring-primary-ring">
               <item.icon className="size-[1.125rem]" aria-hidden />
             </span>
             <span className="min-w-0 pt-0.5">
-              <span className="block type-body font-semibold text-foreground">{item.label}</span>
-              <span className="mt-0.5 block type-meta text-muted-foreground">{item.detail}</span>
+              <span className="block type-body font-semibold text-foreground">{t(`${item.key}.label`)}</span>
+              <span className="mt-0.5 block type-meta text-muted-foreground">{t(`${item.key}.detail`)}</span>
             </span>
           </li>
         ))}

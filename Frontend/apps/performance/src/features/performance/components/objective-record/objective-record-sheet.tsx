@@ -12,6 +12,9 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import type { ObjectiveRecord, RecordSectionId } from "./objective-record-model";
 import { resolveSections } from "./objective-record-model";
+import { useTranslations } from "next-intl";
+import { english, type Say } from "@/i18n/say";
+import { useSay } from "@repo/ds/lib/say";
 
 // The objective's accent, inherited by every accent inside: amber for direction and aligned objectives,
 // blue for a standalone plan objective — the colour its card carries everywhere else.
@@ -58,12 +61,14 @@ export function ObjectiveRecordSheet({
   task?: ReactNode;
   presentation?: "sheet" | "page";
 }) {
+  const t = useTranslations("objective.ObjectiveRecordSheet");
+  const backWords = useSay("objective.back");
   const accent = ACCENT[state.status === "ready" ? state.record.accent : "primary"];
   const { user } = useAuth();
 
   if (presentation === "page") {
     const record = state.status === "ready" ? state.record : null;
-    const back = record ? recordBack(record, user?.employeeId ?? null) : null;
+    const back = record ? recordBack(record, user?.employeeId ?? null, backWords) : null;
     // Document + sidebar: what happens to the objective reads down the main column; what defines it (measure,
     // window, weight) and what you can do sit beside it.
     const main = record ? resolveSections(record).flatMap((row) => (typeof row === "string" ? [row] : [...row])).filter((id) => id !== "facts") : [];
@@ -94,15 +99,15 @@ export function ObjectiveRecordSheet({
               )}
             </>
           ) : state.status === "loading" ? (
-            <div className="max-w-3xl space-y-5" aria-label="Loading objective">
+            <div className="max-w-3xl space-y-5" aria-label={t("loadingObjective")}>
               <Skeleton className="h-12 w-3/4" />
               <Skeleton className="h-32 w-full rounded-surface" />
               <Skeleton className="h-48 w-full rounded-surface" />
             </div>
           ) : (
             <div className="space-y-4 py-12">
-              <h1 className="type-page-title">{state.status === "denied" ? "This objective isn't available to you" : "This objective could not be loaded"}</h1>
-              {state.status === "error" ? <Button variant="outline" onClick={state.onRetry}>Try again</Button> : null}
+              <h1 className="type-page-title">{state.status === "denied" ? t("thisObjectiveIsntAvailableTo") : t("thisObjectiveCouldNotBe")}</h1>
+              {state.status === "error" ? <Button variant="outline" onClick={state.onRetry}>{t("tryAgain")}</Button> : null}
             </div>
           )}
         </article>
@@ -122,7 +127,7 @@ export function ObjectiveRecordSheet({
         {state.status === "ready" ? (
           <>
             <div className="border-b border-border p-5 pe-12">{header(state.record)}</div>
-            <SheetDescription className="sr-only">Objective record for {state.record.title}.</SheetDescription>
+            <SheetDescription className="sr-only">{t("objectiveRecordFor", { title: state.record.title })}</SheetDescription>
             {task ?? (
               <>
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
@@ -148,7 +153,7 @@ export function ObjectiveRecordSheet({
           <RecordLoading />
         ) : (
           <RecordUnavailable
-            title={state.status === "denied" ? "This objective isn't available to you" : "This objective could not be loaded"}
+            title={state.status === "denied" ? t("thisObjectiveIsntAvailableTo") : t("thisObjectiveCouldNotBe")}
             onRetry={state.status === "error" ? state.onRetry : undefined}
           />
         )}
@@ -158,24 +163,25 @@ export function ObjectiveRecordSheet({
 }
 
 /** Where a directly opened record leads back to: the plan it belongs to, else the direction it's part of. */
-function recordBack(record: ObjectiveRecord, viewerEmployeeId: string | null): { href: string; label: string } {
+function recordBack(record: ObjectiveRecord, viewerEmployeeId: string | null, say: Say = english("objective.back")): { href: string; label: string } {
   const plan = record.source.plan;
   if (record.kind === "plan" && plan) {
     const own = viewerEmployeeId !== null && plan.owner.id === viewerEmployeeId;
     return {
       href: own ? withCycle("/plan", record.ref.cycleId) : planHref({ cycleId: record.ref.cycleId, planId: plan.planId }),
-      label: own ? "My Plan" : `${plan.owner.name ?? "Their"}'s plan`,
+      label: own ? say("myPlan") : say("theirPlan", { name: plan.owner.name ?? say("their") }),
     };
   }
-  return { href: withCycle("/goals", record.ref.cycleId), label: "Organization direction" };
+  return { href: withCycle("/goals", record.ref.cycleId), label: say("direction") };
 }
 
 function RecordLoading() {
+  const t = useTranslations("objective.RecordLoading");
   return (
     <>
       <div className="border-b border-border p-5 pe-12">
-        <SheetTitle className="sr-only">Objective</SheetTitle>
-        <SheetDescription className="sr-only">Loading the objective.</SheetDescription>
+        <SheetTitle className="sr-only">{t("objective")}</SheetTitle>
+        <SheetDescription className="sr-only">{t("loadingTheObjective")}</SheetDescription>
         <div className="flex items-start gap-3.5">
           <Skeleton className="size-10 shrink-0 rounded-control" />
           <div className="w-full space-y-2">
@@ -194,13 +200,14 @@ function RecordLoading() {
 }
 
 function RecordUnavailable({ title, onRetry }: { title: string; onRetry?: () => void }) {
+  const t = useTranslations("objective.RecordUnavailable");
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
       <SheetTitle className="text-base">{title}</SheetTitle>
       <SheetDescription className="sr-only">{title}</SheetDescription>
       {onRetry ? (
         <Button variant="outline" size="sm" onClick={onRetry}>
-          Try again
+          {t("tryAgain")}
         </Button>
       ) : null}
     </div>

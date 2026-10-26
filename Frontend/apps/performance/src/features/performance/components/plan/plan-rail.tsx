@@ -5,13 +5,15 @@ import { Check, ChevronDown, Lock } from "@/lib/icons";
 import type { AlignmentTargetDto, EmployeePlanDto, PlanChangeRequestDto, PlanDecisionDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDate, formatDateTime } from "../../lib";
+
 import { PlanApprovedStatus } from "./plan-approved-status";
 import { PlanDirectionSection, PlanReviewerSection, type DirectionLevel } from "./plan-direction";
 import { SidebarSection } from "./plan-layout";
 import { initials } from "./plan-lib";
 import { PlanProgressCard } from "./plan-progress-card";
 import { PlanSubmissionChecks } from "./plan-submission-checks";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * The plan's side panel (D-08): the same four sections, in the same order, in every state and for every
@@ -39,19 +41,20 @@ export function PlanRail({
   directionLevels?: DirectionLevel[];
   subjectFirstName?: string;
 }) {
+  const t = useTranslations("plan.PlanRail");
   return (
     <>
-      <SidebarSection label="Status">
+      <SidebarSection label={t("status")}>
         <div className="mt-4">
           <StatusBody plan={plan} lens={lens} reviewerName={reviewer.name} planningDeadline={planningDeadline} subjectFirstName={subjectFirstName} />
         </div>
       </SidebarSection>
       {plan?.isLocked ? (
-        <PlanProgressCard plan={plan} emptyDescription={lens === "owner" ? "Plan progress begins once you update your objectives." : undefined} />
+        <PlanProgressCard plan={plan} emptyDescription={lens === "owner" ? t("planProgressBeginsOnceYou") : undefined} />
       ) : (
-        <SidebarSection label="Plan progress">
+        <SidebarSection label={t("planProgress")}>
           <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="text-base leading-none" aria-hidden>—</span> Starts once the plan is approved
+            <span className="text-base leading-none" aria-hidden>—</span> {t("startsOnceThePlanIs")}
           </p>
         </SidebarSection>
       )}
@@ -92,34 +95,36 @@ function StatusBody({
   planningDeadline: string;
   subjectFirstName?: string;
 }) {
+  const format = useFormat();
+  const t = useTranslations("plan.StatusBody");
   if (plan?.isLocked) return <PlanApprovedStatus plan={plan} perspective={lens} subjectFirstName={subjectFirstName} />;
 
   const returned = activeReturn(plan);
   const submitted = plan?.state === "Submitted";
-  const reviewer = reviewerName ?? "your reviewer";
-  const who = subjectFirstName ?? "They";
-  const submittedOn = plan?.submittedAt ? formatDate(plan.submittedAt.slice(0, 10)) : null;
+  const reviewer = reviewerName ?? t("yourReviewer");
+  const who = subjectFirstName ?? t("they");
+  const submittedOn = plan?.submittedAt ? format.date(plan.submittedAt.slice(0, 10)) : null;
 
   const steps: StatusStep[] = [
     submitted
-      ? { key: "draft", label: "Submitted", inlineDetail: submittedOn, tone: "done" }
+      ? { key: "draft", label: t("submitted"), inlineDetail: submittedOn, tone: "done" }
       : returned
-        ? { key: "draft", label: "Returned for changes", inlineDetail: formatDate(returned.decidedAt.slice(0, 10)), tone: "returned" }
+        ? { key: "draft", label: t("returnedForChanges"), inlineDetail: format.date(returned.decidedAt.slice(0, 10)), tone: "returned" }
         : {
             key: "draft",
-            label: plan ? "Draft" : "Not started",
-            detail: <>Due <span className="font-medium text-foreground">{formatDate(planningDeadline)}</span></>,
+            label: plan ? t("draft") : t("notStarted"),
+            detail: <>{t("due")} <span className="font-medium text-foreground">{format.date(planningDeadline)}</span></>,
             tone: "current",
           },
     submitted
       ? {
           key: "review",
-          label: "In review",
-          detail: lens === "reviewer" && plan?.canDecide ? "Waiting for your decision" : <><span className="font-medium text-foreground">{reviewer}</span> is reviewing</>,
+          label: t("inReview"),
+          detail: lens === "reviewer" && plan?.canDecide ? t("waitingForYourDecision") : <><span className="font-medium text-foreground">{reviewer}</span> {t("isReviewing")}</>,
           tone: "current",
         }
-      : { key: "review", label: "In review", tone: "upcoming" },
-    { key: "approved", label: "Approved", tone: "upcoming" },
+      : { key: "review", label: t("inReview"), tone: "upcoming" },
+    { key: "approved", label: t("approved"), tone: "upcoming" },
   ];
 
   const resubmission = submitted ? latestReturn(plan) : null;
@@ -141,12 +146,12 @@ function StatusBody({
 
       {submitted && lens === "owner" ? (
         <p className="flex items-start gap-2.5 border-t border-border pt-4 text-sm font-medium text-foreground">
-          <Lock className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden /> Read-only while in review
+          <Lock className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden /> {t("readOnlyWhileInReview")}
         </p>
       ) : null}
 
       {submitted && answered.length > 0 ? (
-        <ResubmissionOutcome requests={answered} who={lens === "owner" ? "You" : who} />
+        <ResubmissionOutcome requests={answered} who={lens === "owner" ? t("you") : who} />
       ) : null}
     </div>
   );
@@ -170,7 +175,9 @@ function ReturnNote({
   subjectFirstName?: string;
   revisedAt: string | null;
 }) {
-  const reviewer = decision.actorName ?? "Your reviewer";
+  const format = useFormat();
+  const t = useTranslations("plan.ReturnNote");
+  const reviewer = decision.actorName ?? t("yourReviewer");
   const total = decision.changeRequests.length;
   const addressed = decision.changeRequests.filter((r) => r.state !== "Open").length;
   return (
@@ -180,9 +187,9 @@ function ReturnNote({
           <AvatarFallback className="text-[0.6875rem]">{initials(reviewer)}</AvatarFallback>
         </Avatar>
         <p className="min-w-0 truncate text-xs text-muted-foreground">
-          <span className="font-medium text-foreground/85">{lens === "reviewer" ? "You" : reviewer}</span>
+          <span className="font-medium text-foreground/85">{lens === "reviewer" ? t("you") : reviewer}</span>
           <span aria-hidden> · </span>
-          <time dateTime={decision.decidedAt} className="tabular-nums">{formatDateTime(decision.decidedAt)}</time>
+          <time dateTime={decision.decidedAt} className="tabular-nums">{format.dateTime(decision.decidedAt)}</time>
         </p>
       </div>
       {decision.feedback ? (
@@ -199,13 +206,13 @@ function ReturnNote({
           )}
         >
           <Check className="size-3.5 shrink-0" aria-hidden />
-          {addressed} of {total} change{total === 1 ? "" : "s"} addressed
-          {lens === "reviewer" && subjectFirstName ? ` by ${subjectFirstName}` : ""}
+          {t("ofChange", { addressed, total })}{total === 1 ? "" : t("s")} {t("addressed")}
+          {lens === "reviewer" && subjectFirstName ? " " + t("by", { subjectFirstName }) : ""}
         </p>
       ) : revisedAt ? (
         <p className="flex items-center gap-2 rounded-control-sm bg-info/10 px-2.5 py-1.5 text-xs font-medium text-info ring-1 ring-inset ring-info/25">
           <Check className="size-3.5 shrink-0" aria-hidden />
-          Revised <time dateTime={revisedAt} className="tabular-nums">{formatDateTime(revisedAt)}</time>
+          {t("revised")} <time dateTime={revisedAt} className="tabular-nums">{format.dateTime(revisedAt)}</time>
         </p>
       ) : null}
     </div>
@@ -214,19 +221,20 @@ function ReturnNote({
 
 /** A resubmitted plan answers its return: how many changes were made, and requests whose objective is gone. */
 function ResubmissionOutcome({ requests, who }: { requests: PlanChangeRequestDto[]; who: string }) {
+  const t = useTranslations("plan.ResubmissionOutcome");
   const removed = requests.filter((r) => r.state === "ObjectiveRemoved");
   const addressed = requests.filter((r) => r.state !== "Open").length;
   return (
     <div className="space-y-3 border-t border-border pt-4">
       <p className="text-sm font-medium text-foreground">
-        {who} addressed {addressed} of {requests.length} change{requests.length === 1 ? "" : "s"}
+        {t("addressedOfChange", { who, addressed, length: requests.length })}{requests.length === 1 ? "" : t("s")}
       </p>
       {removed.length > 0 ? (
         <ul className="space-y-2.5">
           {removed.map((request) => (
             <li key={request.id} className="text-xs">
               <p className="font-medium text-foreground">{request.objectiveTitle}</p>
-              <p className="mt-0.5 text-muted-foreground">Objective removed · &ldquo;{request.text}&rdquo;</p>
+              <p className="mt-0.5 text-muted-foreground">{t("objectiveRemoved", { text: request.text })}</p>
             </li>
           ))}
         </ul>
@@ -312,6 +320,7 @@ function Marker({ tone }: { tone: StepTone }) {
 
 /** Long text held to a short preview that fades out, with a toggle only when it actually overflows. */
 function ClampedText({ text }: { text: string }) {
+  const t = useTranslations("plan.ClampedText");
   const ref = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -350,7 +359,7 @@ function ClampedText({ text }: { text: string }) {
           aria-expanded={expanded}
           className="mt-0.5 inline-flex items-center gap-1 rounded-detail text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {expanded ? "Show less" : "Read more"}
+          {expanded ? t("showLess") : t("readMore")}
           <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} aria-hidden />
         </button>
       ) : null}

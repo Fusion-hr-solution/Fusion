@@ -1,0 +1,188 @@
+{
+  "CyclePage": {
+    "administrationOnly": "Réservé à l’administration",
+    "cycleAdministrationIsAvailableTo": "L’administration du cycle est réservée aux administrateurs de la performance.",
+    "performanceWorkspace": "Espace Performance",
+    "theCycle": "Le cycle",
+    "closed": "Clôturé",
+    "status": "Statut",
+    "insights": "Analyses",
+    "cycleViews": "Vues du cycle",
+    "closureReadiness": "État de préparation à la clôture",
+    "phase": {
+      "Planning": "Planification",
+      "Execution": "Exécution",
+      "Review": "Vérification"
+    }
+  },
+  "CloseCycleAction": {
+    "closeCycle": "Clôturer le cycle",
+    "close": "Clôturer {name} ?",
+    "planningProgressAndEvidenceStop": "La planification, l’avancement et les pièces justificatives s’arrêtent. Le cycle reste consultable comme historique.",
+    "approvedPlans": "Plans approuvés",
+    "of": "{approvedCount} sur {participantCount}",
+    "ends": "Fin",
+    "whyCloseBefore": "Pourquoi clôturer avant le {endDate} ?",
+    "reasonRecordedForThe1": "Raison enregistrée pour le participant sans plan approuvé",
+    "reasonRecordedForTheParticipants": "Raison enregistrée pour les {unresolved} participants sans plan approuvé",
+    "cancel": "Annuler",
+    "isClosed": "{name} est clôturé.",
+    "couldNotCloseTheCycle": "Impossible de clôturer le cycle."
+  },
+  "ClosureSection": {
+    "closedWithExceptions": "Clôturé avec des exceptions",
+    "closedWithEveryPlanApproved": "Clôturé avec tous les plans approuvés",
+    "withoutAnApprovedPlan": "Sans plan approuvé",
+    "ofApproved": "{approvedCount} sur {participantCount} approuvés",
+    "closedEarly": "Clôturé en avance ·",
+    "everyParticipantHasAnApproved": "Chaque participant a un plan approuvé.",
+    "standing": {
+      "NotStarted": "Non commencé",
+      "Draft": "Brouillon",
+      "ReturnedForChanges": "Renvoyé",
+      "Submitted": "En attente de décision",
+      "Approved": "Approuvé"
+    }
+  },
+  "CycleInsights": {
+    "insights": "Analyses",
+    "final": "Finale",
+    "asOf": "Au {asOf}"
+  },
+  "UnitFilter": {
+    "unit": "Unité",
+    "theWholeOrganization": "Toute l’organisation"
+  },
+  "FactStrip": {
+    "resultsReleased": "Résultats publiés",
+    "notReleasedYet": "Pas encore publiés",
+    "acknowledged": "Pris connaissance",
+    "notYet": "{value} pas encore",
+    "managerReviewsOnTime": "Évaluations des managers à temps",
+    "changedInCalibration": "Modifiées en calibrage",
+    "raisedLowered": "{value} relevées · {value2} abaissées",
+    "plansApproved": "Plans approuvés",
+    "neverApproved": "{neverApproved} jamais approuvés",
+    "updatedInTheLast30": "Mis à jour ces 30 derniers jours",
+    "withoutAnUpdate": "{withoutRecentUpdate} sans mise à jour",
+    "atRiskOrOffTrack": "À risque ou hors trajectoire",
+    "atRiskOffTrack": "{atRisk} à risque · {offTrack} hors trajectoire",
+    "alignedToCompanyDirection": "Alignés sur l’orientation de l’entreprise",
+    "participants": "Participants",
+    "personCount": "{count, plural, one {# personne} other {# personnes}}",
+    "objectiveCount": "{count, plural, one {# objectif} other {# objectifs}}",
+    "of": "sur {total}",
+    "lateAfter": "{late} après le {day}",
+    "theDueDate": "l’échéance",
+    "rating": "{count, plural, one {note} other {notes}}",
+    "ofObjectives": "sur {objectives}",
+    "alignedOf": "{aligned} sur {total}"
+  },
+  "StatusBar": {
+    "onTrackAtRiskOff": "{onTrack} en bonne voie, {atRisk} à risque, {offTrack} hors trajectoire, {noStatus} sans statut pour l’instant"
+  },
+  "ByUnit": {
+    "unit": "Unité",
+    "people": "Collaborateurs",
+    "managerReviewsOnTime": "Évaluations des managers à temps",
+    "acknowledged": "Pris connaissance",
+    "calibration": "Calibrage",
+    "plansApproved": "Plans approuvés",
+    "updatedInTheLast30": "Mis à jour ces 30 derniers jours",
+    "objectiveStatusAsOwnersSet": "Statut des objectifs, tel que défini par les responsables",
+    "aligned": "Alignés",
+    "allOf": "Tout {scopeName}",
+    "allUnits": "Toutes les unités",
+    "peopleIn": "{people} personnes dans {name}",
+    "of": "{value} sur {value2}",
+    "late": "· {late} en retard",
+    "managerReviewsLateIn": "Évaluations des managers en retard dans {name}",
+    "notAcknowledgedIn": "Sans prise de connaissance dans {name}",
+    "ratedIn": "Note {value} dans {name}",
+    "raisedIn": "Relevées dans {name}",
+    "loweredIn": "Abaissées dans {name}",
+    "of2": "{plansApproved} sur {people}",
+    "plansNotApprovedIn": "Plans non approuvés dans {name}",
+    "notUpdatedIn": "Non mis à jour dans {name}",
+    "atRiskOrOff": "à risque ou hors trajectoire",
+    "of3": "· sur {value}",
+    "atRiskOrOffTrack": "À risque ou hors trajectoire dans {name}",
+    "byUnit": "Par unité",
+    "finalRatingsAfterCalibrationPeople": "Notes finales après calibrage · personnes à chaque niveau",
+    "onTrack": "En bonne voie",
+    "atRisk": "À risque",
+    "offTrack": "Hors trajectoire",
+    "noStatusYet": "Aucun statut pour l’instant"
+  },
+  "CompanyDirection": {
+    "companyObjective": "Objectif de l’entreprise",
+    "owner": "Responsable",
+    "alignedObjectives": "Objectifs alignés",
+    "unitsContributing": "Unités contributrices",
+    "progress": "Avancement",
+    "of": "{unitsContributing} sur {units}",
+    "notAlignedToAnyCompany": "Aligné sur aucun objectif de l’entreprise",
+    "companyDirection": "Orientation de l’entreprise"
+  },
+  "ByManager": {
+    "manager": "Manager",
+    "people": "Collaborateurs",
+    "lateManagerReviews": "Évaluations des managers en retard",
+    "acknowledged": "Pris connaissance",
+    "after": "{late} après",
+    "theDueDate": "l’échéance",
+    "lateReviewsBy": "Évaluations en retard de {name}",
+    "allOnTime": "Toutes à temps",
+    "of": "{acknowledged} sur {released}",
+    "notAcknowledgedFor": "Sans prise de connaissance pour {name}",
+    "ofManagersMostLateFirst": "{length} managers sur {length2}, les plus en retard d’abord",
+    "showFewer": "Afficher moins",
+    "showAll": "Afficher les {length}",
+    "byManager": "Par manager"
+  },
+  "PeopleDrawer": {
+    "loadingPeople": "Chargement des collaborateurs",
+    "noOne": "Personne",
+    "pageOf": "Page {page} sur {pages}",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "rated": "Note {level}",
+    "manager": "Manager : {managerName}"
+  },
+  "InsightsSkeleton": {
+    "loadingInsights": "Chargement des analyses"
+  },
+  "metric": {
+    "people": "Collaborateurs",
+    "plans-approved": "Plans approuvés",
+    "plans-not-approved": "Plans non approuvés",
+    "updated": "Mis à jour ces 30 derniers jours",
+    "not-updated": "Aucune mise à jour depuis 30 jours",
+    "at-risk-or-off-track": "Objectifs à risque ou hors trajectoire",
+    "reviews": "Évaluations",
+    "on-time": "Évaluations des managers à temps",
+    "late": "Évaluations des managers en retard",
+    "released": "Résultats publiés",
+    "acknowledged": "Pris connaissance",
+    "not-acknowledged": "Sans prise de connaissance",
+    "level": "Notés",
+    "raised": "Relevées en calibrage",
+    "lowered": "Abaissées en calibrage"
+  },
+  "facts": {
+    "submitted": "Soumise le {day}",
+    "notSubmitted": "Non soumise",
+    "due": "Échéance le {day}",
+    "released": "Publiée le {day}",
+    "acknowledged": "Prise de connaissance le {day}",
+    "rated": "Note {level}",
+    "noPlan": "Aucun plan",
+    "plan": {
+      "Draft": "Plan en brouillon",
+      "ReturnedForChanges": "Plan renvoyé",
+      "Submitted": "Plan soumis",
+      "Approved": "Plan approuvé"
+    },
+    "updated": "Mis à jour le {day}"
+  }
+}

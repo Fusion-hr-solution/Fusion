@@ -7,6 +7,7 @@ import type {
   PersonRefDto,
 } from "@repo/api";
 import type { ObjectiveRef } from "./objective-ref";
+import { english, type Say } from "@/i18n/say";
 
 /**
  * The one shape every objective takes inside the record, whatever its scope. It is built from the
@@ -61,7 +62,9 @@ export function mapFocusFor(record: ObjectiveRecord): { focus: string; near: str
   return record.source.node.state === "Published" ? { focus: record.ref.objectiveId, near: null } : null;
 }
 
-export function toObjectiveRecord(detail: GoalDetailDto): ObjectiveRecord {
+const en = english("objective.model");
+
+export function toObjectiveRecord(detail: GoalDetailDto, say: Say = en): ObjectiveRecord {
   const node = detail.node;
   const kind = node.ownershipScope === "Company" ? "company" : node.ownershipScope === "OrgUnit" ? "team" : "plan";
   const isAligned = node.parentObjectiveId != null;
@@ -72,12 +75,12 @@ export function toObjectiveRecord(detail: GoalDetailDto): ObjectiveRecord {
     kind,
     kindLabel:
       kind === "company"
-        ? "Company strategic objective"
+        ? say("kind.company")
         : kind === "team"
-          ? `${node.orgUnitName ?? "Organizational"} objective`
+          ? say("kind.team", { unit: node.orgUnitName ?? say("organizational") })
           : isAligned
-            ? "Aligned objective"
-            : "Standalone role objective",
+            ? say("kind.aligned")
+            : say("kind.standalone"),
     title: node.title,
     description: detail.description,
     accent: kind === "plan" && !isAligned ? "info" : "primary",
@@ -88,7 +91,7 @@ export function toObjectiveRecord(detail: GoalDetailDto): ObjectiveRecord {
           ? { label: "Approved", tone: "success" }
           : planState === "Submitted"
             ? { label: "Submitted", tone: "info" }
-            : { label: "Draft plan", tone: "muted" }
+            : { label: "DraftPlan", tone: "muted" }
         : node.state === "Published"
           ? { label: "Published", tone: "success" }
           : node.state === "Archived" ? { label: "Archived", tone: "muted" } : { label: "Draft", tone: "muted" },
@@ -97,7 +100,7 @@ export function toObjectiveRecord(detail: GoalDetailDto): ObjectiveRecord {
       ? {
           ref: { cycleId: detail.cycleId, objectiveId: detail.parent.id },
           title: detail.parent.title,
-          scopeLabel: directionScopeLabel(detail.parent),
+          scopeLabel: directionScopeLabel(detail.parent, say),
           archived: detail.parent.state === "Archived",
         }
       : null,
@@ -124,8 +127,8 @@ export function toObjectiveRecord(detail: GoalDetailDto): ObjectiveRecord {
 }
 
 /** Where a direction objective sits: company strategy, or the unit that owns it. */
-export function directionScopeLabel(node: Pick<GoalNodeDto, "ownershipScope" | "orgUnitName">): string {
-  return node.ownershipScope === "Company" ? "Company strategy" : (node.orgUnitName ?? "Organizational");
+export function directionScopeLabel(node: Pick<GoalNodeDto, "ownershipScope" | "orgUnitName">, say: Say = en): string {
+  return node.ownershipScope === "Company" ? say("companyStrategy") : (node.orgUnitName ?? say("organizational"));
 }
 
 export type RecordSectionId =
@@ -158,14 +161,14 @@ export function resolveSections(record: ObjectiveRecord): RecordSectionRow[] {
   return rows;
 }
 
-export function measureLabel(measurement: MeasurementDto | null): string {
+export function measureLabel(measurement: MeasurementDto | null, say: Say = en): string {
   if (!measurement) return "—";
   if (measurement.method === "NumericTarget") {
-    if (measurement.unit === "%") return "Percentage";
-    return measurement.unit ? `In ${measurement.unit}` : "Numeric value";
+    if (measurement.unit === "%") return say("measure.percentage");
+    return measurement.unit ? say("measure.in", { unit: measurement.unit }) : say("measure.numeric");
   }
   if (measurement.method === "WeightedMilestones") {
-    return `${measurement.milestones.length} milestone${measurement.milestones.length === 1 ? "" : "s"}`;
+    return say("measure.milestones", { count: measurement.milestones.length });
   }
-  return "Single percentage";
+  return say("measure.single");
 }

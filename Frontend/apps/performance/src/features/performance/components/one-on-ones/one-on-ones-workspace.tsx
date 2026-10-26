@@ -14,10 +14,11 @@ import { useOneOnOne, useOneOnOnes } from "../../api/use-conversations";
 import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
 import { PlanDocument, SidebarSection } from "../plan/plan-layout";
-import { formatDate } from "../../lib";
-import { CADENCE_LABEL, formatDay, howSoon, shortDay, timeBlock } from "./one-on-one-lib";
+import { formatDay, shortDay, useOneOnOneWords } from "./one-on-one-lib";
 import { RhythmScale, RhythmStrip, SourceWell, TimeBlock } from "./one-on-one-parts";
 import { StartOneOnOnesDialog, StartWithManager } from "./start-one-on-ones";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 const WEEK_MS = 7 * 86_400_000;
 
@@ -27,13 +28,15 @@ const WEEK_MS = 7 * 86_400_000;
  * week ahead sit beside it. Someone with no 1:1s yet gets one job: starting them. Not cycle-bound.
  */
 export function OneOnOnesWorkspace() {
+  const t = useTranslations("oneOnOnes.OneOnOnesWorkspace");
   const query = useOneOnOnes();
-  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject="Your 1:1s" />;
+  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject={t("your11s")} />;
   if (!query.data) return <OneOnOnesSkeleton />;
   return <Workspace data={query.data} />;
 }
 
 function Workspace({ data }: { data: OneOnOnesDto }) {
+  const t = useTranslations("oneOnOnes.Workspace");
   const { user } = useAuth();
   const [starting, setStarting] = useState<OneOnOnePersonDto | null>(null);
   const active = [...(data.withManager ? [data.withManager] : []), ...data.reports];
@@ -45,9 +48,9 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
   if (!data.withManager && !data.startWithManager && !hasTeam && data.ended.length === 0) {
     return (
       <PageContainer>
-        <PerformancePageHeading title="1:1s" />
+        <PerformancePageHeading title={t("n11s")} />
         <p className="mt-6 type-body-secondary text-muted-foreground">
-          {data.lineAvailable ? "You have no manager or direct reports in Core HR." : "Your reporting line couldn't be loaded. Try again shortly."}
+          {data.lineAvailable ? t("youHaveNoManagerOr") : t("yourReportingLineCouldntBe")}
         </p>
       </PageContainer>
     );
@@ -65,20 +68,20 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
       ) : null}
 
       {hasTeam ? (
-        <RhythmTable title="Your team" count={data.reports.length + data.startWithReports.length}>
+        <RhythmTable title={t("yourTeam")} count={data.reports.length + data.startWithReports.length}>
           {data.reports.map((row) => <RhythmRow key={row.seriesId} row={row} />)}
           {data.startWithReports.map((option) => (
             <StartRow key={option.with.employeeId} person={option.with} onStart={() => setStarting(option.with)} />
           ))}
         </RhythmTable>
       ) : data.withManager && !heroIsManagerSeries ? (
-        <RhythmTable title="With your manager">
+        <RhythmTable title={t("withYourManager")}>
           <RhythmRow row={data.withManager} />
         </RhythmTable>
       ) : null}
 
       {!data.lineAvailable ? (
-        <p className="type-body-secondary text-muted-foreground">Your reporting line couldn&apos;t be loaded, so nothing new can start until it is.</p>
+        <p className="type-body-secondary text-muted-foreground">{t("yourReportingLineCouldntBe2")}</p>
       ) : null}
       {data.ended.length > 0 ? <EndedLine rows={data.ended} /> : null}
     </div>
@@ -87,7 +90,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
   const sidebar = (
     <>
       {hasTeam && !heroIsManagerSeries ? (
-        <SidebarSection label="With your manager">
+        <SidebarSection label={t("withYourManager")}>
           {data.withManager ? (
             <ManagerCard row={data.withManager} />
           ) : data.startWithManager ? (
@@ -99,20 +102,20 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
               <PersonInitials name={data.startWithManager.with.displayName} size="lg" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate type-label text-foreground">{data.startWithManager.with.displayName}</span>
-                <span className="block type-meta text-muted-foreground">Not meeting yet</span>
+                <span className="block type-meta text-muted-foreground">{t("notMeetingYet")}</span>
               </span>
               <Plus className="size-4 text-muted-foreground" aria-hidden />
             </button>
           ) : (
-            <p className="mt-3 type-body-secondary text-muted-foreground">No manager in Core HR</p>
+            <p className="mt-3 type-body-secondary text-muted-foreground">{t("noManagerInCoreHr")}</p>
           )}
         </SidebarSection>
       ) : null}
-      <SidebarSection label={`Actions you owe${data.myActions.length > 0 ? ` · ${data.myActions.length}` : ""}`}>
+      <SidebarSection label={t("actionsYouOwe", { value: data.myActions.length > 0 ? ` · ${data.myActions.length}` : "" })}>
         <OwedActions actions={data.myActions} />
       </SidebarSection>
       {hasTeam && thisWeek.length > 0 ? (
-        <SidebarSection label="This week">
+        <SidebarSection label={t("thisWeek")}>
           <ThisWeek rows={thisWeek} managerSeriesId={data.withManager?.seriesId ?? null} />
         </SidebarSection>
       ) : null}
@@ -121,7 +124,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title="1:1s" />
+      <PerformancePageHeading title={t("n11s")} />
       <div className="mt-6">
         <PlanDocument main={main} sidebar={data.startWithManager && !hasTeam && !data.withManager ? undefined : sidebar} />
       </div>
@@ -134,17 +137,12 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
 
 const SINCE_ICON: Record<AgendaSourceKind, typeof Target> = { Objective: Target, UpdateRequest: RefreshCw, Feedback: MessageSquare, Praise: Star };
 
-function sinceLabel(kind: AgendaSourceKind, count: number): string {
-  switch (kind) {
-    case "Objective": return `${count} objective${count === 1 ? "" : "s"} at risk`;
-    case "UpdateRequest": return `${count} update${count === 1 ? "" : "s"} requested`;
-    case "Feedback": return `${count} feedback`;
-    case "Praise": return `${count} praise`;
-  }
-}
 
 /** The one conversation that matters now: when, with whom, what's on the agenda and what changed since last time. */
 function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean }) {
+  const w = useOneOnOneWords();
+  const format = useFormat();
+  const t = useTranslations("oneOnOnes.NextUp");
   const series = useOneOnOne(row.seriesId);
   const meeting = series.data?.upcoming ?? null;
   const agenda = meeting?.agenda ?? [];
@@ -158,31 +156,31 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
       <div className="flex flex-wrap items-start gap-5">
         <TimeBlock iso={row.nextMeetingAt!} size="lg" />
         <div className="min-w-0 flex-1">
-          <p className="type-meta text-primary-ink">Next up · {howSoon(row.nextMeetingAt!)}</p>
+          <p className="type-meta text-primary-ink">{t("nextUp", { howSoon: w.howSoon(row.nextMeetingAt!) })}</p>
           <div className="mt-2 flex items-center gap-3">
             <PersonInitials name={row.with.displayName} size="lg" />
             <div className="min-w-0">
               <h2 id="next-up" className="truncate type-section-title text-foreground">{row.with.displayName}</h2>
               <p className="truncate type-meta text-muted-foreground">
-                {[row.with.jobTitle, isManager ? null : "your manager", CADENCE_LABEL[row.cadence].toLowerCase()].filter(Boolean).join(" · ")}
+                {[row.with.jobTitle, isManager ? null : t("yourManager"), w.cadence[row.cadence].toLowerCase()].filter(Boolean).join(" · ")}
               </p>
             </div>
           </div>
         </div>
         <Button asChild>
           <Link href={href}>
-            Open 1:1 <ArrowRight className="size-4" data-icon="inline-end" />
+            {t("open11")} <ArrowRight className="size-4" data-icon="inline-end" />
           </Link>
         </Button>
       </div>
 
       <div className="mt-5 grid gap-6 border-t border-primary-ring pt-5 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <div className="min-w-0">
-          <p className="type-meta text-muted-foreground">On the agenda{row.agendaCount > 0 ? ` · ${row.agendaCount}` : ""}</p>
+          <p className="type-meta text-muted-foreground">{t("onTheAgenda")}{row.agendaCount > 0 ? ` · ${row.agendaCount}` : ""}</p>
           {series.isLoading ? (
             <div className="mt-3 space-y-2"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-5 w-1/2" /></div>
           ) : agenda.length === 0 ? (
-            <p className="mt-3 type-body-secondary text-muted-foreground">Nothing yet</p>
+            <p className="mt-3 type-body-secondary text-muted-foreground">{t("nothingYet")}</p>
           ) : (
             <ul className="mt-3 space-y-2">
               {agenda.slice(0, 3).map((item) => (
@@ -191,22 +189,22 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
                   <span className={cn("min-w-0 truncate type-body", item.discussed ? "text-muted-foreground line-through" : "text-foreground")}>{item.text}</span>
                 </li>
               ))}
-              {agenda.length > 3 ? <li className="ps-9 type-meta text-muted-foreground">+{agenda.length - 3} more</li> : null}
+              {agenda.length > 3 ? <li className="ps-9 type-meta text-muted-foreground">{t("more", { value: agenda.length - 3 })}</li> : null}
             </ul>
           )}
         </div>
         <div className="min-w-0">
-          <p className="type-meta text-muted-foreground">{row.lastMetAt ? `Since you met · ${shortDay(row.lastMetAt)}` : "Ready to discuss"}</p>
+          <p className="type-meta text-muted-foreground">{row.lastMetAt ? t("sinceYouMet", { lastMetAt: shortDay(row.lastMetAt, format.locale) }) : t("readyToDiscuss")}</p>
           {series.isLoading ? (
             <Skeleton className="mt-3 h-7 w-2/3" />
           ) : counts.size === 0 && row.overdueActions === 0 ? (
-            <p className="mt-3 type-body-secondary text-muted-foreground">Nothing new</p>
+            <p className="mt-3 type-body-secondary text-muted-foreground">{t("nothingNew")}</p>
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
               {row.overdueActions > 0 ? (
                 <span className="inline-flex h-7 items-center gap-1.5 rounded-control-sm bg-destructive/12 px-2.5 type-meta font-medium text-destructive">
                   <Flag className="size-3.5" aria-hidden />
-                  {row.overdueActions} action{row.overdueActions === 1 ? "" : "s"} overdue
+                  {t("action", { overdueActions: row.overdueActions })}{row.overdueActions === 1 ? "" : t("s")} {t("overdue")}
                 </span>
               ) : null}
               {[...counts.entries()].map(([kind, count]) => {
@@ -214,7 +212,7 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
                 return (
                   <span key={kind} className="inline-flex h-7 items-center gap-1.5 rounded-control-sm bg-inlay px-2.5 type-meta font-medium text-foreground">
                     <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-                    {sinceLabel(kind, count)}
+                    {t(`since.${kind}`, { count })}
                   </span>
                 );
               })}
@@ -231,6 +229,7 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
 const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_auto_1rem] items-center gap-4 md:grid-cols-[15rem_minmax(0,1fr)_7.5rem_1rem] md:gap-6";
 
 function RhythmTable({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+  const t = useTranslations("oneOnOnes.RhythmTable");
   return (
     <section aria-labelledby={`rhythm-${title}`}>
       <h2 id={`rhythm-${title}`} className="mb-4 flex items-baseline gap-2 type-section-title text-foreground">
@@ -239,9 +238,9 @@ function RhythmTable({ title, count, children }: { title: string; count?: number
       </h2>
       <div className="overflow-hidden rounded-surface bg-card">
         <div className={cn(ROW_GRID, "h-10 bg-inlay px-5")}>
-          <span className="type-meta text-muted-foreground">Person</span>
+          <span className="type-meta text-muted-foreground">{t("person")}</span>
           <RhythmScale className="hidden md:block" />
-          <span className="type-meta text-muted-foreground">Next</span>
+          <span className="type-meta text-muted-foreground">{t("next")}</span>
           <span />
         </div>
         <ul className="divide-y divide-border">{children}</ul>
@@ -251,6 +250,8 @@ function RhythmTable({ title, count, children }: { title: string; count?: number
 }
 
 function RhythmRow({ row }: { row: OneOnOneRowDto }) {
+  const w = useOneOnOneWords();
+  const t = useTranslations("oneOnOnes.RhythmRow");
   return (
     <li>
       <Link href={`/one-on-ones/${row.seriesId}`} className={cn(ROW_GRID, "group min-h-16 px-5 py-3 hover:bg-inlay/50")}>
@@ -259,19 +260,19 @@ function RhythmRow({ row }: { row: OneOnOneRowDto }) {
           <span className="min-w-0">
             <span className="block truncate type-label text-foreground">{row.with.displayName}</span>
             <span className="block truncate type-meta text-muted-foreground">
-              {CADENCE_LABEL[row.cadence]}
+              {w.cadence[row.cadence]}
               {row.overdueActions > 0 ? (
-                <span className="text-destructive"> · {row.overdueActions} overdue</span>
+                <span className="text-destructive"> {t("overdue", { overdueActions: row.overdueActions })}</span>
               ) : row.openActions > 0 ? (
-                ` · ${row.openActions} open`
+                " " + t("open", { openActions: row.openActions })
               ) : null}
             </span>
           </span>
         </span>
         <span className="hidden md:block">
-          <RhythmStrip beats={row.recent} label={`1:1s with ${row.with.displayName}`} />
+          <RhythmStrip beats={row.recent} label={t("n11sWith", { displayName: row.with.displayName })} />
         </span>
-        <span>{row.nextMeetingAt ? <TimeBlock iso={row.nextMeetingAt} size="sm" /> : <span className="type-meta text-muted-foreground">Not set</span>}</span>
+        <span>{row.nextMeetingAt ? <TimeBlock iso={row.nextMeetingAt} size="sm" /> : <span className="type-meta text-muted-foreground">{t("notSet")}</span>}</span>
         <ChevronRight className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden />
       </Link>
     </li>
@@ -279,6 +280,7 @@ function RhythmRow({ row }: { row: OneOnOneRowDto }) {
 }
 
 function StartRow({ person, onStart }: { person: OneOnOnePersonDto; onStart: () => void }) {
+  const t = useTranslations("oneOnOnes.StartRow");
   return (
     <li className={cn(ROW_GRID, "min-h-16 px-5 py-3")}>
       <span className="flex min-w-0 items-center gap-3">
@@ -288,9 +290,9 @@ function StartRow({ person, onStart }: { person: OneOnOnePersonDto; onStart: () 
           {person.jobTitle ? <span className="block truncate type-meta text-muted-foreground">{person.jobTitle}</span> : null}
         </span>
       </span>
-      <span className="hidden type-meta text-muted-foreground md:block">Not meeting yet</span>
+      <span className="hidden type-meta text-muted-foreground md:block">{t("notMeetingYet")}</span>
       <Button size="sm" variant="ghost" onClick={onStart} className="justify-self-start">
-        <Plus className="size-4" data-icon="inline-start" /> Start 1:1s
+        <Plus className="size-4" data-icon="inline-start" /> {t("start11s")}
       </Button>
       <span />
     </li>
@@ -298,17 +300,19 @@ function StartRow({ person, onStart }: { person: OneOnOnePersonDto; onStart: () 
 }
 
 function EndedLine({ rows }: { rows: OneOnOneRowDto[] }) {
+  const format = useFormat();
+  const t = useTranslations("oneOnOnes.EndedLine");
   return (
     <ul className="space-y-1.5">
       {rows.map((row) => (
         <li key={row.seriesId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <StatusBadge tone="muted">Ended</StatusBadge>
+          <StatusBadge tone="muted">{t("ended")}</StatusBadge>
           <span className="type-body-secondary text-muted-foreground">
             {row.with.displayName}
-            {row.endedAt ? ` · ended ${formatDay(row.endedAt)}` : ""}
+            {row.endedAt ? " " + t("ended2", { endedAt: formatDay(row.endedAt, format.locale) }) : ""}
           </span>
           <Link href={`/one-on-ones/${row.seriesId}`} className="type-meta text-foreground hover:underline">
-            Show history
+            {t("showHistory")}
           </Link>
         </li>
       ))}
@@ -319,6 +323,8 @@ function EndedLine({ rows }: { rows: OneOnOneRowDto[] }) {
 // ── Sidebar ────────────────────────────────────────────────────────────────────
 
 function ManagerCard({ row }: { row: OneOnOneRowDto }) {
+  const w = useOneOnOneWords();
+  const t = useTranslations("oneOnOnes.ManagerCard");
   return (
     <>
       <Link href={`/one-on-ones/${row.seriesId}`} className="group mt-3 flex items-center gap-3 rounded-surface bg-card px-4 py-3 hover:bg-inlay/60">
@@ -326,20 +332,22 @@ function ManagerCard({ row }: { row: OneOnOneRowDto }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate type-label text-foreground">{row.with.displayName}</span>
           <span className="block truncate type-meta text-muted-foreground">
-            {row.nextMeetingAt ? `${timeBlock(row.nextMeetingAt).day} ${timeBlock(row.nextMeetingAt).time}` : "Not scheduled"} · {CADENCE_LABEL[row.cadence].toLowerCase()}
+            {row.nextMeetingAt ? `${w.timeBlock(row.nextMeetingAt).day} ${w.timeBlock(row.nextMeetingAt).time}` : t("notScheduled")} · {w.cadence[row.cadence].toLowerCase()}
           </span>
         </span>
         <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground" aria-hidden />
       </Link>
       {row.agendaCount > 0 ? (
-        <p className="mt-2.5 type-meta text-muted-foreground">{row.agendaCount} on the agenda</p>
+        <p className="mt-2.5 type-meta text-muted-foreground">{t("onTheAgenda", { agendaCount: row.agendaCount })}</p>
       ) : null}
     </>
   );
 }
 
 function OwedActions({ actions }: { actions: OneOnOneOwedActionDto[] }) {
-  if (actions.length === 0) return <p className="mt-3 type-body-secondary text-muted-foreground">Nothing open</p>;
+  const format = useFormat();
+  const t = useTranslations("oneOnOnes.OwedActions");
+  if (actions.length === 0) return <p className="mt-3 type-body-secondary text-muted-foreground">{t("nothingOpen")}</p>;
   return (
     <ul className="mt-3.5 space-y-3">
       {actions.slice(0, 5).map((action) => (
@@ -348,25 +356,27 @@ function OwedActions({ actions }: { actions: OneOnOneOwedActionDto[] }) {
             <span className="mt-0.5 size-4 shrink-0 rounded-detail border border-input" aria-hidden />
             <span className="min-w-0 flex-1">
               <span className="block type-body text-foreground group-hover:underline">{action.text}</span>
-              <span className="block type-meta text-muted-foreground">1:1 with {action.with.displayName}</span>
+              <span className="block type-meta text-muted-foreground">{t("n11With", { displayName: action.with.displayName })}</span>
             </span>
             {action.dueDate ? (
-              <StatusBadge tone={action.overdue ? "danger" : "neutral"}>{action.overdue ? "Overdue" : formatDate(action.dueDate)}</StatusBadge>
+              <StatusBadge tone={action.overdue ? "danger" : "neutral"}>{action.overdue ? t("overdue") : format.date(action.dueDate)}</StatusBadge>
             ) : null}
           </Link>
         </li>
       ))}
-      {actions.length > 5 ? <li className="type-meta text-muted-foreground">+{actions.length - 5} more</li> : null}
+      {actions.length > 5 ? <li className="type-meta text-muted-foreground">{t("more", { value: actions.length - 5 })}</li> : null}
     </ul>
   );
 }
 
 function ThisWeek({ rows, managerSeriesId }: { rows: OneOnOneRowDto[]; managerSeriesId: string | null }) {
+  const w = useOneOnOneWords();
+  const t = useTranslations("oneOnOnes.ThisWeek");
   const sorted = [...rows].sort((a, b) => a.nextMeetingAt!.localeCompare(b.nextMeetingAt!));
   return (
     <ol className="mt-4">
       {sorted.map((row, index) => {
-        const { day, time, today } = timeBlock(row.nextMeetingAt!);
+        const { day, time, today } = w.timeBlock(row.nextMeetingAt!);
         const last = index === sorted.length - 1;
         return (
           <li key={row.seriesId} className="grid grid-cols-[4.5rem_1rem_minmax(0,1fr)] gap-3">
@@ -381,7 +391,7 @@ function ThisWeek({ rows, managerSeriesId }: { rows: OneOnOneRowDto[]; managerSe
             <Link href={`/one-on-ones/${row.seriesId}`} className={cn("min-w-0 hover:underline", last ? "" : "pb-4")}>
               <span className="block truncate type-label text-foreground">{row.with.displayName}</span>
               <span className="block type-meta text-muted-foreground">
-                {row.seriesId === managerSeriesId ? "Your manager" : row.agendaCount > 0 ? `${row.agendaCount} on the agenda` : "Nothing on the agenda yet"}
+                {row.seriesId === managerSeriesId ? t("yourManager") : row.agendaCount > 0 ? t("onTheAgenda", { agendaCount: row.agendaCount }) : t("nothingOnTheAgendaYet")}
               </span>
             </Link>
           </li>
@@ -392,9 +402,10 @@ function ThisWeek({ rows, managerSeriesId }: { rows: OneOnOneRowDto[]; managerSe
 }
 
 function OneOnOnesSkeleton() {
+  const t = useTranslations("oneOnOnes.OneOnOnesSkeleton");
   return (
     <PageContainer width="wide">
-      <div role="status" aria-label="Loading your 1:1s">
+      <div role="status" aria-label={t("loadingYour11s")}>
         <Skeleton className="h-9 w-24" />
         <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_21rem]">
           <div className="space-y-10">

@@ -1,4 +1,5 @@
 import type { GoalNodeDto, ObjectiveLifecycleState } from "@repo/api";
+import { english, type Say } from "@/i18n/say";
 
 export interface GoalGraph {
   byId: Map<string, GoalNodeDto>;
@@ -43,16 +44,12 @@ export const STATE_TONE: Record<ObjectiveLifecycleState, "neutral" | "info" | "s
   Archived: "muted",
 };
 
-export const STATE_LABEL: Record<ObjectiveLifecycleState, string> = {
-  Draft: "Draft",
-  Published: "Published",
-  Archived: "Archived",
-};
+const en = english("goals.lib");
 
-export function scopeLabel(node: GoalNodeDto): string {
-  if (node.ownershipScope === "Company") return "Company";
-  if (node.ownershipScope === "OrgUnit") return node.orgUnitName ?? "Organization unit";
-  return "Employee";
+export function scopeLabel(node: GoalNodeDto, say: Say = en): string {
+  if (node.ownershipScope === "Company") return say("company");
+  if (node.ownershipScope === "OrgUnit") return node.orgUnitName ?? say("orgUnit");
+  return say("employee");
 }
 
 export function initials(name: string | null): string {

@@ -5,6 +5,7 @@ import { ScopeMark } from "../../scope-mark";
 import type { ObjectiveRef } from "../objective-ref";
 import { mapFocusFor, type ObjectiveRecord } from "../objective-record-model";
 import { RecordSection } from "./record-primitives";
+import { useTranslations } from "next-intl";
 
 /**
  * The direction this objective supports. The parent opens in the same record, so walking up the
@@ -18,6 +19,7 @@ export function AlignmentSection({
   record: ObjectiveRecord;
   onOpen: (ref: ObjectiveRef) => void;
 }) {
+  const t = useTranslations("objective.AlignmentSection");
   const parent = record.parent;
   const focus = mapFocusFor(record);
   if (!parent && !focus) return null;
@@ -27,12 +29,12 @@ export function AlignmentSection({
       className="inline-flex items-center gap-1.5 rounded-control-sm text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <MapView className="size-3.5" aria-hidden />
-      View on map
+      {t("viewOnMap")}
     </Link>
   ) : undefined;
-  if (!parent) return <RecordSection label="Alignment" action={mapLink}>{null}</RecordSection>;
+  if (!parent) return <RecordSection label={t("alignment")} action={mapLink}>{null}</RecordSection>;
   return (
-    <RecordSection label="Supports" action={mapLink}>
+    <RecordSection label={t("supports")} action={mapLink}>
       <button
         type="button"
         onClick={() => onOpen(parent.ref)}
@@ -43,7 +45,7 @@ export function AlignmentSection({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium tracking-tight text-foreground">{parent.title}</span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">{parent.scopeLabel}{parent.archived ? " · Archived" : ""}</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">{parent.scopeLabel}{parent.archived ? " " + t("archived") : ""}</span>
         </span>
         <ChevronRight
           className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"

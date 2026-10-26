@@ -1,0 +1,182 @@
+{
+  "ObjectiveEditor": {
+    "addATitleFirst": "Add a title first",
+    "chooseAnAccountablePerson": "Choose an accountable person",
+    "theEndDateMustBe": "The end date must be after the start date",
+    "keepTheDatesWithinThe": "Keep the dates within the cycle period",
+    "moveMilestoneDueDatesInside": "Move milestone due dates inside the objective's dates",
+    "setABaselineTargetAnd": "Set a baseline, target, and unit for the measure",
+    "giveEachMilestoneAWeight": "Give each milestone a weight totalling 100%",
+    "completeTheMeasurement": "Complete the measurement",
+    "milestone": "{named} milestone · {weightSum}%",
+    "milestones": "{named} milestones · {weightSum}%",
+    "manualPercentage": "Manual percentage",
+    "editStrategicObjective": "Edit strategic objective",
+    "newStrategicObjective": "New strategic objective",
+    "title": "Title",
+    "growRecurringRevenue": "Grow recurring revenue",
+    "description": "Description",
+    "optional": "(optional)",
+    "theOutcomeThisDirectionCommits": "The outcome this direction commits the company to.",
+    "objective": "Objective",
+    "accountablePerson": "Accountable person",
+    "accountability": "Accountability",
+    "start": "Start",
+    "end": "End",
+    "timeline": "Timeline",
+    "outcome": "Outcome",
+    "measurement": "Measurement",
+    "howWillProgressOnThis": "How will progress on this objective be measured?",
+    "cancel": "Cancel",
+    "saveDraft": "Save draft",
+    "publishDirection": "Publish direction",
+    "saveObjective": "Save objective",
+    "addToDirection": "Add to direction",
+    "couldNotSaveTheObjective": "Could not save the objective."
+  },
+  "RecordProgressMode": {
+    "backToObjectiveDetails": "Back to objective details",
+    "recordProgress": "Record progress",
+    "loadingProgress": "Loading progress",
+    "progressUnavailable": "Progress unavailable",
+    "cancel": "Cancel"
+  },
+  "ObjectiveRecordSheet": {
+    "loadingObjective": "Loading objective",
+    "thisObjectiveIsntAvailableTo": "This objective isn't available to you",
+    "thisObjectiveCouldNotBe": "This objective could not be loaded",
+    "tryAgain": "Try again",
+    "objectiveRecordFor": "Objective record for {title}."
+  },
+  "RecordLoading": {
+    "objective": "Objective",
+    "loadingTheObjective": "Loading the objective."
+  },
+  "RecordUnavailable": {
+    "tryAgain": "Try again"
+  },
+  "RecordActions": {
+    "edit": "Edit",
+    "remove": "Remove",
+    "draftObjectiveRemoved": "Draft objective removed.",
+    "archive": "Archive",
+    "archiving": "Archiving…",
+    "objectiveArchived": "Objective archived.",
+    "openInOrganizationDirection": "Open in organization direction",
+    "publish": "Publish",
+    "theObjectiveCouldNotBe": "The objective could not be removed.",
+    "theObjectiveCouldNotBe2": "The objective could not be archived.",
+    "theObjectiveCouldNotBe3": "The objective could not be published.",
+    "publishedCompany": "Published as company direction.",
+    "publishedOrg": "Published as organizational direction."
+  },
+  "AlignedChildrenSection": {
+    "unassigned": "Unassigned",
+    "planObjectives": "Plan objectives",
+    "alignedObjectives": "Aligned objectives · {value}"
+  },
+  "AlignmentSection": {
+    "viewOnMap": "View on map",
+    "alignment": "Alignment",
+    "archived": "· Archived",
+    "supports": "Supports"
+  },
+  "ContributionSection": {
+    "baselineLocked": "Baseline locked",
+    "contributionBaseline": "Contribution baseline",
+    "noAlignedObjectivesContributeYet": "No aligned objectives contribute yet.",
+    "contributionOf": "Contribution of {title}",
+    "fullyAllocated": "Fully allocated",
+    "toAssign": "{value}% to assign",
+    "over": "{value}% over",
+    "save": "Save",
+    "contributionSaved": "Contribution saved.",
+    "lockBaseline": "Lock baseline",
+    "everyContributingObjectiveMustBe": "Every contributing objective must be published first",
+    "contributionBaselineLocked": "Contribution baseline locked.",
+    "couldNotSave": "Could not save.",
+    "couldNotLock": "Could not lock."
+  },
+  "DescriptionSection": {
+    "description": "Description"
+  },
+  "FeedbackSection": {
+    "askForFeedbackOnThis": "Ask for feedback on this",
+    "giveFeedback": "Give feedback",
+    "noFeedbackAboutThisObjective": "No feedback about this objective yet",
+    "feedback": "Feedback · {length}",
+    "feedback2": "Feedback"
+  },
+  "MeasureFacts": {
+    "contributingObjectives": "Contributing objectives",
+    "measuredBy": "Measured by",
+    "target": "Target",
+    "measure": "Measure"
+  },
+  "MeasurementSection": {
+    "measurement": "Measurement"
+  },
+  "ObjectiveFactsSection": {
+    "runs": "Runs",
+    "ofThePlan": "{planWeight}% of the plan",
+    "weight": "Weight",
+    "aboutThisObjective": "About this objective"
+  },
+  "ProgressSection": {
+    "ofMilestoneCompletedOfTotal": "{length} of {length} milestone completed · {derived}% of total weight",
+    "ofMilestonesCompletedOfTotal": "{length} of {length} milestones completed · {derived}% of total weight",
+    "ofContributingWeightReported": "{coverage}% of contributing weight reported",
+    "noProgressReportedYet": "No progress reported yet",
+    "currentProgress": "Current progress",
+    "recordProgress": "Record progress",
+    "noUpdatesRecordedYet": "No updates recorded yet",
+    "progressHistory": "Progress history",
+    "updated": "Updated {formatDate}"
+  },
+  "StatusSection": {
+    "theReviewer": "the reviewer",
+    "reported": "Reported",
+    "whatsInTheWay": "What's in the way",
+    "acknowledgedBy": "Acknowledged by",
+    "acknowledge": "Acknowledge",
+    "howItsGoing": "How it's going",
+    "couldNotAcknowledgeTheStatus": "Could not acknowledge the status."
+  },
+  "ObjectiveSummary": {
+    "accountable": "Accountable ·",
+    "unassigned": "Unassigned"
+  },
+  "model": {
+    "kind": {
+      "company": "Company strategic objective",
+      "team": "{unit} objective",
+      "aligned": "Aligned objective",
+      "standalone": "Standalone role objective"
+    },
+    "organizational": "Organizational",
+    "companyStrategy": "Company strategy",
+    "status": {
+      "Approved": "Approved",
+      "Submitted": "Submitted",
+      "DraftPlan": "Draft plan",
+      "Published": "Published",
+      "Archived": "Archived",
+      "Draft": "Draft"
+    },
+    "measure": {
+      "percentage": "Percentage",
+      "in": "In {unit}",
+      "numeric": "Numeric value",
+      "milestones": "{count, plural, one {# milestone} other {# milestones}}",
+      "single": "Single percentage"
+    },
+    "planWaiting": "plan waiting for approval",
+    "planDraft": "plan in draft"
+  },
+  "back": {
+    "myPlan": "My Plan",
+    "theirPlan": "{name}’s plan",
+    "their": "Their",
+    "direction": "Organization direction"
+  }
+}

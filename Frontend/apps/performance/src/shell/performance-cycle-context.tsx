@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import type { CycleSummaryDto } from "@repo/api";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -13,11 +12,11 @@ import { Check, ChevronsUpDown } from "@/lib/icons";
 import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { useCurrentCycle } from "@/features/performance/api/use-performance";
 import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
-import { formatDateRange } from "@/features/performance/lib";
+
 import { isCycleAddress, withCycle } from "@/lib/performance-routes";
 import { CYCLE_FREE_ROUTES } from "@/data/sidebar-nav";
-
-const STATE_LABEL: Record<CycleSummaryDto["state"], string> = { Draft: "In setup", Active: "Active", Closed: "Closed" };
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * The top-bar binding of the Cycle context: which Cycle the workspace is showing, and — when the caller
@@ -26,6 +25,8 @@ const STATE_LABEL: Record<CycleSummaryDto["state"], string> = { Draft: "In setup
  * belong to the page body; here they simply render nothing.
  */
 export function PerformanceCycleContext() {
+  const format = useFormat();
+  const t = useTranslations("common.PerformanceCycleContext");
   const router = useRouter();
   const pathname = usePathname();
   const detail = useCurrentCycle();
@@ -56,7 +57,7 @@ export function PerformanceCycleContext() {
       <DropdownMenu>
         <DropdownMenuTrigger
           className="inline-flex size-7 shrink-0 items-center justify-center rounded-control text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Switch cycle"
+          aria-label={t("switchCycle")}
         >
           <ChevronsUpDown className="size-4" aria-hidden />
         </DropdownMenuTrigger>
@@ -67,7 +68,7 @@ export function PerformanceCycleContext() {
               <span className="min-w-0">
                 <span className="block truncate text-foreground">{option.name}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {STATE_LABEL[option.state]} · {formatDateRange(option.startDate, option.endDate)}
+                  {t(`state.${option.state}`)} · {format.range(option.startDate, option.endDate)}
                 </span>
               </span>
             </DropdownMenuItem>

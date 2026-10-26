@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Check } from "@/lib/icons";
 import { cn } from "@repo/ds/lib/utils";
 import { SETUP_STEPS, setupStepHref, type SetupStep } from "./setup-readiness";
+import { useTranslations } from "next-intl";
 
 interface StepView {
   complete: boolean;
@@ -24,6 +25,7 @@ export function CycleSetupStepper({
   state: Record<SetupStep, StepView>;
   cycleId: string | null;
 }) {
+  const t = useTranslations("cycleSetup.steps");
   return (
     <ol className="mx-auto flex max-w-5xl items-start">
       {SETUP_STEPS.map((step, index) => {
@@ -53,7 +55,7 @@ export function CycleSetupStepper({
               {navigable ? (
                 <Link
                   href={setupStepHref(step.key, cycleId)}
-                  aria-label={step.label}
+                  aria-label={t(`${step.key}.label`)}
                   className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   {node}
@@ -79,9 +81,9 @@ export function CycleSetupStepper({
                   isCurrent || view.complete ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {step.label}
+                {t(`${step.key}.label`)}
               </div>
-              <div className="type-meta mt-0.5 text-muted-foreground">{step.caption}</div>
+              <div className="type-meta mt-0.5 text-muted-foreground">{t(`${step.key}.caption`)}</div>
             </div>
           </li>
         );

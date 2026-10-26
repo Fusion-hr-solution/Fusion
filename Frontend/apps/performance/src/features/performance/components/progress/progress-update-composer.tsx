@@ -13,6 +13,7 @@ import { EvidenceUploader } from "./evidence-uploader";
 import { num, numericProgress, pct } from "./progress-lib";
 import { ValueDial } from "./value-dial";
 import { numericDomain, percentDomain } from "./value-dial-lib";
+import { useTranslations } from "next-intl";
 
 type UploadFn = (file: File) => Promise<{ uploadId: string; fileName: string; contentType: string; sizeBytes: number }>;
 
@@ -74,6 +75,7 @@ function ValueForm({
   onValidityChange: (valid: boolean) => void;
   onRecorded: () => void;
 }) {
+  const t = useTranslations("progress.ValueForm");
   const isNumeric = progress.method === "NumericTarget";
   // Plain entry stays only as the fallback for a numeric target with no usable scale (missing or equal
   // baseline/target); everything else is set on the dial.
@@ -120,7 +122,7 @@ function ValueForm({
       });
       onRecorded();
     } catch (error) {
-      reportPerformanceFailure(error, "Could not record progress.");
+      reportPerformanceFailure(error, t("couldNotRecordProgress"));
     }
   }
 
@@ -139,14 +141,14 @@ function ValueForm({
     >
       {domain ? (
         <ValueDial
-          label={isNumeric ? "New value" : "Completion"}
+          label={isNumeric ? t("newValue") : t("completion")}
           domain={domain}
           value={dialValue}
           reported={reported}
           onChange={setDialValue}
           format={unitSuffix}
-          startLabel={isNumeric ? "Baseline" : ""}
-          targetLabel={isNumeric ? "Target" : undefined}
+          startLabel={isNumeric ? t("baseline") : ""}
+          targetLabel={isNumeric ? t("target") : undefined}
           progressOf={(v) =>
             isNumeric && progress.baseline != null && progress.target != null
               ? numericProgress(progress.baseline, progress.target, v)
@@ -155,7 +157,7 @@ function ValueForm({
         />
       ) : (
         <div className="space-y-2">
-          <Label htmlFor="pv-value">{`Current value${unit ? ` (${unit})` : ""}`}</Label>
+          <Label htmlFor="pv-value">{t("currentValue", { value: unit ? ` (${unit})` : "" })}</Label>
           <NumberField
             id="pv-value"
             value={value}
@@ -168,7 +170,7 @@ function ValueForm({
       )}
 
       <StatusPicker value={status} onChange={setStatus} disabled={submitting} />
-      <NoteField value={note} onChange={setNote} required={noteRequired} risky={risky} hint={decreased && !risky ? "This lowers the last reported value — add a short note." : undefined} />
+      <NoteField value={note} onChange={setNote} required={noteRequired} risky={risky} hint={decreased && !risky ? t("thisLowersTheLastReported") : undefined} />
       <EvidenceField items={evidence} onChange={setEvidence} upload={upload} />
     </form>
   );
@@ -193,6 +195,7 @@ function MilestoneForm({
   onValidityChange: (valid: boolean) => void;
   onRecorded: () => void;
 }) {
+  const t = useTranslations("progress.MilestoneForm");
   // Pending selection begins from the agreed truth; Record progress commits only what changed.
   const initial = useMemo(
     () => Object.fromEntries(progress.milestones.map((m) => [m.id, m.isCompleted])),
@@ -229,7 +232,7 @@ function MilestoneForm({
       });
       onRecorded();
     } catch (error) {
-      reportPerformanceFailure(error, "Could not update the milestones.");
+      reportPerformanceFailure(error, t("couldNotUpdateTheMilestones"));
     }
   }
 
@@ -245,13 +248,13 @@ function MilestoneForm({
       <div className="rounded-surface border border-border bg-popover p-4 dark:bg-card">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="type-meta text-muted-foreground">Milestones</p>
+            <p className="type-meta text-muted-foreground">{t("milestones")}</p>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              <span className="text-2xl font-semibold tabular-nums text-foreground">{completedCount}</span> of {total} complete
+              <span className="text-2xl font-semibold tabular-nums text-foreground">{completedCount}</span> {t("ofComplete", { total })}
             </p>
           </div>
           {changes.length > 0 ? (
-            <span className="text-xs tabular-nums text-muted-foreground">was {wasCompleted} of {total}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">{t("wasOf", { wasCompleted, total })}</span>
           ) : null}
         </div>
         <ul className="mt-3 space-y-0.5">
@@ -276,7 +279,7 @@ function MilestoneForm({
                 <span className={cn("min-w-0 flex-1 text-sm text-foreground", change && "font-medium")}>{m.title}</span>
                 <MilestoneDue milestone={m} />
                 {change ? (
-                  <span className={cn("shrink-0 text-xs font-semibold", change === "New" ? "text-primary-ink" : "text-warning")}>{change}</span>
+                  <span className={cn("shrink-0 text-xs font-semibold", change === "New" ? "text-primary-ink" : "text-warning")}>{change === "New" ? t("new") : t("reopened")}</span>
                 ) : (
                   <span className="w-9 shrink-0 text-end text-xs font-medium tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
                 )}
@@ -287,7 +290,7 @@ function MilestoneForm({
       </div>
 
       <StatusPicker value={status} onChange={setStatus} disabled={submitting} />
-      <NoteField value={note} onChange={setNote} required={noteRequired} risky={risky} hint={reopening && !risky ? "Reopening a completed milestone — add a short note." : undefined} />
+      <NoteField value={note} onChange={setNote} required={noteRequired} risky={risky} hint={reopening && !risky ? t("reopeningACompletedMilestoneAdd") : undefined} />
       <EvidenceField items={evidence} onChange={setEvidence} upload={upload} />
     </form>
   );
@@ -297,18 +300,19 @@ function MilestoneForm({
 
 const isRisky = (status: ObjectiveStatus | null) => status === "AtRisk" || status === "OffTrack";
 
-const STATUS_OPTIONS: { value: ObjectiveStatus; label: string; mark: string; selected: string }[] = [
-  { value: "OnTrack", label: "On track", mark: "bg-success-subtle text-success", selected: "border-success bg-success-subtle/40 ring-success/30" },
-  { value: "AtRisk", label: "At risk", mark: "bg-primary text-primary-foreground", selected: "border-primary bg-primary-tint ring-primary-ring" },
-  { value: "OffTrack", label: "Off track", mark: "bg-destructive/12 text-destructive", selected: "border-destructive bg-destructive/10 ring-destructive/30" },
+const STATUS_OPTIONS: { value: ObjectiveStatus; mark: string; selected: string }[] = [
+  { value: "OnTrack", mark: "bg-success-subtle text-success", selected: "border-success bg-success-subtle/40 ring-success/30" },
+  { value: "AtRisk", mark: "bg-primary text-primary-foreground", selected: "border-primary bg-primary-tint ring-primary-ring" },
+  { value: "OffTrack", mark: "bg-destructive/12 text-destructive", selected: "border-destructive bg-destructive/10 ring-destructive/30" },
 ];
 
 /** "How it's going": the owner's status as three tiles (PlanDrawer board). Required with every check-in. */
 function StatusPicker({ value, onChange, disabled }: { value: ObjectiveStatus | null; onChange: (value: ObjectiveStatus) => void; disabled?: boolean }) {
+  const t = useTranslations("progress.StatusPicker");
   return (
     <fieldset>
-      <legend className="text-sm font-semibold text-foreground">How it&apos;s going</legend>
-      <div role="radiogroup" aria-label="How it's going" className="mt-2.5 grid grid-cols-3 gap-2.5">
+      <legend className="text-sm font-semibold text-foreground">{t("howItsGoing")}</legend>
+      <div role="radiogroup" aria-label={t("howItsGoing")} className="mt-2.5 grid grid-cols-3 gap-2.5">
         {STATUS_OPTIONS.map((option) => {
           const on = value === option.value;
           return (
@@ -327,7 +331,7 @@ function StatusPicker({ value, onChange, disabled }: { value: ObjectiveStatus | 
               <span className={cn("flex size-7 items-center justify-center rounded-control-sm", option.mark)} aria-hidden>
                 {option.value === "OnTrack" ? <Check className="size-3.5" /> : option.value === "AtRisk" ? <span className="text-sm font-bold leading-none">!</span> : <X className="size-3.5" />}
               </span>
-              {option.label}
+              {t(option.value)}
             </button>
           );
         })}
@@ -365,6 +369,7 @@ function NumberField({
    *  to 65 as it is typed. Raw numeric values keep their precision (integer stays off). */
   integer?: boolean;
 }) {
+  const t = useTranslations("progress.NumberField");
   const ref = useRef<HTMLInputElement>(null);
 
   // Snap a numeric string into [min, max] (and to a whole number when integer); empty and partial entries
@@ -422,7 +427,7 @@ function NumberField({
       <div className="flex w-9 shrink-0 flex-col border-s border-input">
         <button
           type="button"
-          aria-label="Increase"
+          aria-label={t("increase")}
           onClick={() => step(1)}
           className="flex flex-1 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
@@ -430,7 +435,7 @@ function NumberField({
         </button>
         <button
           type="button"
-          aria-label="Decrease"
+          aria-label={t("decrease")}
           onClick={() => step(-1)}
           className="flex flex-1 items-center justify-center border-t border-input text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
@@ -456,6 +461,7 @@ export function DerivedCard({
   subtitle?: string;
   label?: string;
 }) {
+  const t = useTranslations("progress.DerivedCard");
   const complete = derived >= 100;
   const clamped = Math.max(0, Math.min(100, derived));
   return (
@@ -468,7 +474,7 @@ export function DerivedCard({
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
           <span className={cn("block h-full rounded-full", complete ? "bg-success" : "bg-[var(--type-accent,var(--primary))]")} style={{ width: `${clamped}%` }} />
         </div>
-        {from != null ? <span className="shrink-0 text-xs text-muted-foreground tabular-nums">from {Math.round(from)}%</span> : null}
+        {from != null ? <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{t("from", { from: Math.round(from) })}</span> : null}
       </div>
       {subtitle ? <p className="mt-2 text-xs text-muted-foreground">{subtitle}</p> : null}
     </div>
@@ -489,11 +495,12 @@ function NoteField({
   risky?: boolean;
   hint?: string;
 }) {
+  const t = useTranslations("progress.NoteField");
   return (
     <div className="space-y-2">
       <Label htmlFor="pv-note">
-        {risky ? "What's in the way" : "Add a note"}{" "}
-        {risky ? null : required ? <span className="text-destructive">(required)</span> : <span className="text-muted-foreground">(optional)</span>}
+        {risky ? t("whatsInTheWay") : t("addANote")}{" "}
+        {risky ? null : required ? <span className="text-destructive">{t("required")}</span> : <span className="text-muted-foreground">{t("optional")}</span>}
       </Label>
       <div className="relative">
         <Textarea
@@ -502,7 +509,7 @@ function NoteField({
           onChange={(e) => onChange(e.target.value.slice(0, NOTE_MAX))}
           rows={3}
           maxLength={NOTE_MAX}
-          placeholder={risky ? undefined : "e.g. Key activities completed, outcomes, or context…"}
+          placeholder={risky ? undefined : t("eGKeyActivitiesCompleted")}
           className="resize-none pb-6"
         />
         <span className="pointer-events-none absolute bottom-2 inset-e-3 text-[0.6875rem] tabular-nums text-muted-foreground/70">
@@ -524,9 +531,10 @@ function EvidenceField({
   onChange: (items: EvidenceInput[]) => void;
   upload: UploadFn;
 }) {
+  const t = useTranslations("progress.EvidenceField");
   return (
     <div className="space-y-2">
-      <Label>Add evidence <span className="text-muted-foreground">(optional)</span></Label>
+      <Label>{t("addEvidence")} <span className="text-muted-foreground">{t("optional")}</span></Label>
       <EvidenceUploader items={items} onChange={onChange} upload={upload} />
     </div>
   );

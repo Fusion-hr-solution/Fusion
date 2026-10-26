@@ -1,11 +1,12 @@
-import type { OneOnOneCadence } from "@repo/api";
+import type { AgendaSourceKind, OneOnOneCadence } from "@repo/api";
 import { formatDate, formatDateParts } from "@repo/ds/lib/dates";
+import { useMemo } from "react";
+import { useSay } from "@repo/ds/lib/say";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { english, type Say } from "@/i18n/say";
 
-export const CADENCE_LABEL: Record<OneOnOneCadence, string> = {
-  Weekly: "Weekly",
-  EveryTwoWeeks: "Every two weeks",
-  Monthly: "Monthly",
-};
+/** 1:1 words in English, for helpers outside a translated tree. */
+const en = english("oneOnOnes.lib");
 
 export const CADENCES: readonly OneOnOneCadence[] = ["Weekly", "EveryTwoWeeks", "Monthly"];
 
@@ -14,20 +15,20 @@ function sameDay(a: Date, b: Date) {
 }
 
 /** "Today 14:00", "Tomorrow 10:00", then "Tue 21 Oct · 10:00": a meeting time reads by how near it is. */
-export function meetingTime(iso: string, now: Date = new Date()): string {
+export function meetingTime(iso: string, now: Date = new Date(), say: Say = en, locale?: string): string {
   const at = new Date(iso);
-  const time = formatDateParts(at, { hour: "2-digit", minute: "2-digit" });
+  const time = formatDateParts(at, { hour: "2-digit", minute: "2-digit" }, undefined, locale);
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
-  if (sameDay(at, now)) return `Today ${time}`;
-  if (sameDay(at, tomorrow)) return `Tomorrow ${time}`;
+  if (sameDay(at, now)) return say("todayAt", { time });
+  if (sameDay(at, tomorrow)) return say("tomorrowAt", { time });
   const day = formatDateParts(at, {
     weekday: "short",
     day: "numeric",
     month: "short",
     ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
-  });
-  return `${day} · ${time}`;
+  }, undefined, locale);
+  return say("dayAt", { day, time });
 }
 
 /** The long form for a heading: "Tuesday 21 October, 10:00". */
@@ -74,8 +75,8 @@ export function defaultFirstMeeting(now: Date = new Date()): { date: string; tim
 }
 
 /** The local day of an instant ("17 Oct", "17 Oct 2025"). */
-export function formatDay(iso: string | null | undefined): string {
-  return formatDate(iso, { fallback: "" });
+export function formatDay(iso: string | null | undefined, locale?: string): string {
+  return formatDate(iso, { fallback: "", locale });
 }
 
 /** The next `count` meetings after `fromIso` on a series' rhythm, as the server schedules them. */
@@ -91,42 +92,59 @@ export function nextOccurrences(fromIso: string, cadence: OneOnOneCadence, count
 }
 
 /** A meeting time as a block: "Today" over "14:00", a weekday this week, else the date. */
-export function timeBlock(iso: string, now: Date = new Date()): { day: string; time: string; today: boolean } {
+export function timeBlock(iso: string, now: Date = new Date(), say: Say = en, locale?: string): { day: string; time: string; today: boolean } {
   const at = new Date(iso);
-  const time = formatDateParts(at, { hour: "2-digit", minute: "2-digit" });
+  const time = formatDateParts(at, { hour: "2-digit", minute: "2-digit" }, undefined, locale);
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
   const days = (at.getTime() - now.getTime()) / 86_400_000;
   const day = sameDay(at, now)
-    ? "Today"
+    ? say("today")
     : sameDay(at, tomorrow)
-      ? "Tomorrow"
+      ? say("tomorrow")
       : days > 0 && days < 6
-        ? formatDateParts(at, { weekday: "short" })
-        : formatDateParts(at, { day: "numeric", month: "short" });
+        ? formatDateParts(at, { weekday: "short" }, undefined, locale)
+        : formatDateParts(at, { day: "numeric", month: "short" }, undefined, locale);
   return { day, time, today: sameDay(at, now) || at.getTime() < now.getTime() };
 }
 
 /** "in 2 hours", "tomorrow", "in 5 days": how far off the next meeting is. */
-export function howSoon(iso: string, now: Date = new Date()): string {
+export function howSoon(iso: string, now: Date = new Date(), say: Say = en): string {
   const at = new Date(iso);
   const minutes = Math.round((at.getTime() - now.getTime()) / 60_000);
-  if (minutes < 0) return "overdue";
-  if (minutes < 60) return `in ${Math.max(minutes, 1)} min`;
+  if (minutes < 0) return say("overdue");
+  if (minutes < 60) return say("inMinutes", { count: Math.max(minutes, 1) });
   if (sameDay(at, now)) {
     const hours = Math.round(minutes / 60);
-    return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+    return say("inHours", { count: hours });
   }
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
-  if (sameDay(at, tomorrow)) return "tomorrow";
+  if (sameDay(at, tomorrow)) return say("tomorrowSoon");
   const days = Math.round((new Date(at).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / 86_400_000);
-  return `in ${days} days`;
+  return say("inDays", { count: days });
+}
+
+/** The 1:1 words and meeting times in the person's language: cadences, agenda sources, and the time helpers above. */
+export function useOneOnOneWords() {
+  const say = useSay("oneOnOnes.lib");
+  const { locale } = useFormat();
+  return useMemo(() => {
+    const byCadence = (prefix: string) => Object.fromEntries(CADENCES.map((c) => [c, say(`${prefix}.${c}`)])) as Record<OneOnOneCadence, string>;
+    return {
+      cadence: byCadence("cadence"),
+      then: byCadence("then"),
+      source: Object.fromEntries((["Objective", "UpdateRequest", "Feedback", "Praise"] as const).map((k) => [k, say(`source.${k}`)])) as Record<AgendaSourceKind, string>,
+      meetingTime: (iso: string) => meetingTime(iso, new Date(), say, locale),
+      timeBlock: (iso: string) => timeBlock(iso, new Date(), say, locale),
+      howSoon: (iso: string) => howSoon(iso, new Date(), say),
+    };
+  }, [say, locale]);
 }
 
 /** "17 Oct", the short day used inside rows; the year shows outside this year, so a past date never reads as coming. */
-export function shortDay(iso: string | Date): string {
-  return formatDate(iso);
+export function shortDay(iso: string | Date, locale?: string): string {
+  return formatDate(iso, { locale });
 }
 
 /** The rhythm window the workspace draws: six weeks back (what the server sends), three weeks ahead. */

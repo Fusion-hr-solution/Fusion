@@ -1,6 +1,8 @@
 import type React from "react";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDate } from "@/features/performance/lib";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useTranslations } from "next-intl";
+
 
 /** Where the deadline marker may sit, in % of the track — keeps its label clear of start/end. */
 const DEADLINE_MIN = 24;
@@ -18,8 +20,8 @@ export function CycleTimeline({
   startDate,
   endDate,
   marker,
-  startLabel = "Cycle starts",
-  endLabel = "Cycle ends",
+  startLabel,
+  endLabel,
   orientation = "horizontal",
   accent = "var(--primary)",
   compact = false,
@@ -36,6 +38,9 @@ export function CycleTimeline({
   /** Tighter rhythm for dense surfaces such as a detail drawer. */
   compact?: boolean;
 }) {
+  const t = useTranslations("cycleSetup.CycleTimeline");
+  startLabel ??= t("starts");
+  endLabel ??= t("ends");
   const accentStyle = { "--timeline-accent": accent, "--tl-y": compact ? "2.125rem" : "3.25rem", "--tl-gap": compact ? "0.875rem" : "1.25rem", "--tl-below": compact ? "3.25rem" : "4.25rem", "--tl-lg": compact ? "0px" : "0.125rem", "--tl-lh": compact ? "1.1" : "1.25" } as React.CSSProperties;
   const s = startDate ? Date.parse(startDate) : NaN;
   const e = endDate ? Date.parse(endDate) : NaN;
@@ -142,13 +147,14 @@ function Label({
   label: string;
   alignEnd?: boolean;
 }) {
+  const format = useFormat();
   return (
     <div
       style={{ left, transform: alignEnd ? "translateX(-100%)" : "translateX(0.5rem)" }}
       className={cn("absolute whitespace-nowrap leading-tight", alignEnd ? "text-end" : "text-start", className)}
     >
       <div className={cn("text-[0.8125rem] font-semibold leading-(--tl-lh) tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
-        {date ? formatDate(date) : "—"}
+        {date ? format.date(date) : "—"}
       </div>
       <div className="mt-(--tl-lg) text-xs leading-(--tl-lh) text-muted-foreground">{label}</div>
     </div>
@@ -171,10 +177,11 @@ function VNode({ top, filled, ring }: { top: string; filled?: boolean; ring?: bo
 }
 
 function VLabel({ top, date, label }: { top: string; date: string; label: string }) {
+  const format = useFormat();
   return (
     <div style={{ top }} className="absolute inset-s-7 -translate-y-1/2 whitespace-nowrap leading-tight">
       <div className={cn("text-[0.8125rem] font-semibold leading-(--tl-lh) tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
-        {date ? formatDate(date) : "—"}
+        {date ? format.date(date) : "—"}
       </div>
       <div className="mt-(--tl-lg) text-xs leading-(--tl-lh) text-muted-foreground">{label}</div>
     </div>

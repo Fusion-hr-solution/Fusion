@@ -16,9 +16,11 @@ import type {
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDate } from "@/features/performance/lib";
+
 import { OrgScopePicker } from "./org-scope-picker";
 import { initials } from "./population-model";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * Layer 1 — how the population is chosen. Two strong tiles carry the mode; choosing "Selected
@@ -53,6 +55,8 @@ export function PopulationScope({
   onInspectInclusion: (candidate: PopulationCandidateDto) => void;
   onOpenInclusionSheet: () => void;
 }) {
+  const format = useFormat();
+  const t = useTranslations("cycleSetup.PopulationScope");
   const byScope = mode === "ByScope";
 
   return (
@@ -64,10 +68,10 @@ export function PopulationScope({
           </span>
           <div>
             <h2 className="type-section-title text-foreground">
-              Population scope
+              {t("populationScope")}
             </h2>
             <p className="type-meta text-muted-foreground">
-              Choose how to select participants.
+              {t("chooseHowToSelectParticipants")}
             </p>
           </div>
         </div>
@@ -77,10 +81,10 @@ export function PopulationScope({
             aria-hidden
           />
           <span className="type-meta text-muted-foreground">
-            Eligibility date
+            {t("eligibilityDate")}
           </span>
           <span className="type-label tabular-nums text-foreground">
-            {formatDate(eligibilityDate)}
+            {format.date(eligibilityDate)}
           </span>
         </span>
       </div>
@@ -90,16 +94,16 @@ export function PopulationScope({
           selected={!byScope}
           onClick={() => onSetMode("AllActive")}
           icon={<UsersRound className="size-5" strokeWidth={1.75} />}
-          title="All active employees"
-          description={`Everyone eligible across ${tenantName ?? "the organization"}.`}
+          title={t("allActiveEmployees")}
+          description={t("everyoneEligibleAcross", { value: tenantName ?? "the organization" })}
           recommended
         />
         <ScopeTile
           selected={byScope}
           onClick={() => onSetMode("ByScope")}
           icon={<Network className="size-5" strokeWidth={1.75} />}
-          title="Selected organization units"
-          description="Choose specific units and optionally their sub-units."
+          title={t("selectedOrganizationUnits")}
+          description={t("chooseSpecificUnitsAndOptionally")}
         />
       </div>
 
@@ -122,14 +126,14 @@ export function PopulationScope({
               </span>
               <div className="min-w-0">
                 <p className="type-label text-foreground">
-                  {byScope ? "Population exceptions" : "Saved scope additions"}
+                  {byScope ? t("populationExceptions") : t("savedScopeAdditions")}
                 </p>
                 <p className="type-meta text-muted-foreground">
                   {!byScope
-                    ? "These additions are retained if you return to selected organization units."
+                    ? t("theseAdditionsAreRetainedIf")
                     : inclusions.length > 0
-                      ? `${inclusions.length} specific ${inclusions.length === 1 ? "employee" : "employees"} added`
-                      : "Add specific employees outside the selected organization scope."}
+                      ? (inclusions.length === 1 ? t("specificEmployeeAdded", { length: inclusions.length }) : t("specificEmployeesAdded", { length: inclusions.length }))
+                      : t("addSpecificEmployeesOutsideThe")}
                 </p>
               </div>
             </div>
@@ -140,7 +144,7 @@ export function PopulationScope({
                 onClick={onOpenInclusionSheet}
               >
                 <Plus className="size-4" data-icon="inline-start" />
-                Add specific employees
+                {t("addSpecificEmployees")}
               </Button>
             ) : null}
           </div>
@@ -175,7 +179,7 @@ export function PopulationScope({
                     type="button"
                     onClick={() => onRemoveInclusion(candidate.employeeId)}
                     className="flex size-7 shrink-0 items-center justify-center rounded-control-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label={`Remove ${candidate.displayName}`}
+                    aria-label={t("remove", { displayName: candidate.displayName })}
                   >
                     <X className="size-4" />
                   </button>
@@ -204,6 +208,7 @@ function ScopeTile({
   description: string;
   recommended?: boolean;
 }) {
+  const t = useTranslations("cycleSetup.ScopeTile");
   return (
     <button
       type="button"
@@ -242,7 +247,7 @@ function ScopeTile({
           <span className="type-body font-semibold text-foreground">{title}</span>
           {recommended ? (
             <span className="rounded-control bg-primary-tint px-2 py-0.5 type-meta font-medium text-primary-ink">
-              Recommended
+              {t("recommended")}
             </span>
           ) : null}
         </span>

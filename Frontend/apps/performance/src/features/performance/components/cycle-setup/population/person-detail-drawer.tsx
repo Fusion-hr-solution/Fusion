@@ -16,6 +16,8 @@ import { cn } from "@repo/ds/lib/utils";
 import { readinessIssueDetail } from "@/features/performance/lib";
 import { candidateStatus, initials, reviewerView } from "./population-model";
 import { coreProfileHref } from "./population-model";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * A quiet inspector for one person — identity, how they entered the population, their org and
@@ -36,6 +38,8 @@ export function PersonDetailDrawer({
   onExclude: (candidate: PopulationCandidateDto) => void;
   onRestore: (candidate: PopulationCandidateDto) => void;
 }) {
+  const t = useTranslations("cycleSetup.PersonDetailDrawer");
+  const words = useSay("common.words");
   const reviewer = candidate ? reviewerView(candidate) : null;
   const status = candidate ? candidateStatus(candidate) : "ready";
 
@@ -58,56 +62,57 @@ export function PersonDetailDrawer({
                 </div>
                 <div className="ms-auto">
                   {status === "ready" ? (
-                    <StatusBadge tone="success" dot>Ready</StatusBadge>
+                    <StatusBadge tone="success" dot>{t("ready")}</StatusBadge>
                   ) : status === "attention" ? (
-                    <StatusBadge tone="warning" dot>Needs attention</StatusBadge>
+                    <StatusBadge tone="warning" dot>{t("needsAttention")}</StatusBadge>
                   ) : (
-                    <StatusBadge tone="muted">Excluded</StatusBadge>
+                    <StatusBadge tone="muted">{t("excluded")}</StatusBadge>
                   )}
                 </div>
               </div>
             </SheetHeader>
 
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
-              <Field label="Population">
-                {candidate.byExplicitInclusion ? "Added individually" : "Included by workforce scope"}
+              <Field label={t("population")}>
+                {candidate.byExplicitInclusion ? t("addedIndividually") : t("includedByWorkforceScope")}
               </Field>
 
-              <Field label="Organization">{candidate.orgUnitName ?? "No unit on record"}</Field>
+              <Field label={t("organization")}>{candidate.orgUnitName ?? t("noUnitOnRecord")}</Field>
 
-              <Field label="Reviewer">
+              <Field label={t("reviewer")}>
                 {reviewer && reviewer.kind !== "unresolved" ? (
                   <span className="flex items-center gap-2">
                     {reviewer.name}
                     {reviewer.kind === "inactive" ? (
-                      <span className="type-meta text-amber-500">Inactive</span>
+                      <span className="type-meta text-amber-500">{t("inactive")}</span>
                     ) : null}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">Not resolved</span>
+                  <span className="text-muted-foreground">{t("notResolved")}</span>
                 )}
               </Field>
 
               {candidate.isExcluded ? (
-                <Field label="Exclusion reason">
+                <Field label={t("exclusionReason")}>
                   {candidate.exclusionReason ?? "—"}
                 </Field>
               ) : null}
 
               <div>
-                <p className="type-meta text-muted-foreground">Eligibility</p>
+                <p className="type-meta text-muted-foreground">{t("eligibility")}</p>
                 <ul className="mt-2 space-y-2">
-                  <Check_ ok={!has("InactiveEmployment")} label="Active employment" />
-                  <Check_ ok={!has("NoPrimaryAssignment")} label="Primary assignment" />
+                  <Check_ ok={!has("InactiveEmployment")} label={t("activeEmployment")} />
+                  <Check_ ok={!has("NoPrimaryAssignment")} label={t("primaryAssignment")} />
                   <Check_
                     ok={candidate.hasValidReviewer}
-                    label="Reviewer resolved"
+                    label={t("reviewerResolved")}
                     detail={
                       candidate.hasValidReviewer
                         ? undefined
                         : readinessIssueDetail(
                             has("InactiveManager") ? "InactiveManager" : "MissingManager",
-                            eligibilityDate
+                            eligibilityDate,
+                            words
                           )
                     }
                   />
@@ -118,17 +123,17 @@ export function PersonDetailDrawer({
             <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-4">
               <Button variant="outline" size="sm" asChild>
                 <a href={coreProfileHref(candidate.employeeId)} target="_blank" rel="noopener noreferrer">
-                  View in Core
+                  {t("viewInCore")}
                   <ExternalLink className="size-3.5" data-icon="inline-end" />
                 </a>
               </Button>
               {candidate.isExcluded ? (
                 <Button variant="ghost" size="sm" onClick={() => onRestore(candidate)}>
-                  Restore to population
+                  {t("restoreToPopulation")}
                 </Button>
               ) : (
                 <Button variant="destructive" size="sm" onClick={() => onExclude(candidate)}>
-                  Exclude from cycle
+                  {t("excludeFromCycle")}
                 </Button>
               )}
             </div>

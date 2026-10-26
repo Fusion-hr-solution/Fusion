@@ -15,12 +15,14 @@ import {
   buildPerformanceCallbackUrl,
   resolvePerformanceWorkspaceAccessState,
 } from "./performance-workspace-access";
+import { useTranslations } from "next-intl";
 
 export function PerformanceWorkspaceAccessBoundary({
   children,
 }: {
   children: ReactNode;
 }) {
+  const t = useTranslations("common.PerformanceWorkspaceAccessBoundary");
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -47,22 +49,22 @@ export function PerformanceWorkspaceAccessBoundary({
   }, [pathname, searchParams, state]);
 
   if (state === "loading" || state === "sign-in-required") {
-    return <PageSkeleton rows={4} label="Checking Performance access" />;
+    return <PageSkeleton rows={4} label={t("checkingPerformanceAccess")} />;
   }
 
   if (state === "forbidden") {
     return (
       <PageContainer className="space-y-6">
         <PageHeader
-          title="Performance is a customer workspace"
-          description="Platform administration is kept separate from customer performance data."
+          title={t("performanceIsACustomerWorkspace")}
+          description={t("platformAdministrationIsKeptSeparate")}
         />
         <PagePermissionNotice
-          title="Performance is not available to Platform Administrators"
-          description="Use the Platform control plane for platform-level administration."
+          title={t("performanceIsNotAvailableTo")}
+          description={t("useThePlatformControlPlane")}
           action={
             <Button asChild>
-              <a href={buildShellUrl("/platform").toString()}>Open Platform</a>
+              <a href={buildShellUrl("/platform").toString()}>{t("openPlatform")}</a>
             </Button>
           }
         />
@@ -74,12 +76,12 @@ export function PerformanceWorkspaceAccessBoundary({
     return (
       <PageContainer>
         <PagePermissionNotice
-          title="You don't have access to Performance"
+          title={t("youDontHaveAccessTo")}
           headingLevel={1}
-          description="Ask a tenant administrator for Performance access."
+          description={t("askATenantAdministratorFor")}
           action={
             <Button asChild variant="outline">
-              <a href={buildShellUrl("/").toString()}>Open Fusion</a>
+              <a href={buildShellUrl("/").toString()}>{t("openFusion")}</a>
             </Button>
           }
         />
@@ -91,12 +93,12 @@ export function PerformanceWorkspaceAccessBoundary({
     return (
       <PageContainer>
         <PagePermissionNotice
-          title="Performance is not available"
+          title={t("performanceIsNotAvailable")}
           headingLevel={1}
-          description="Performance is not enabled for this tenant."
+          description={t("performanceIsNotEnabledFor")}
           action={
             <Button asChild variant="outline">
-              <a href={buildShellUrl("/").toString()}>Open Fusion</a>
+              <a href={buildShellUrl("/").toString()}>{t("openFusion")}</a>
             </Button>
           }
         />

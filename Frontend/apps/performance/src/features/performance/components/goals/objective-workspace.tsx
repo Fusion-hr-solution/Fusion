@@ -38,7 +38,6 @@ import {
   buildGoalGraph,
   initials,
   pathTo,
-  STATE_LABEL,
   STATE_TONE,
 } from "./goals-lib";
 import {
@@ -47,6 +46,9 @@ import {
   type ObjectiveBlock,
   type UnitContext,
 } from "./working-context-lib";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
+import type { Say } from "@/i18n/say";
 
 /**
  * The single Organization Goals workspace. One grammar serves every actor: a broad/administration
@@ -105,6 +107,8 @@ export function ObjectiveWorkspace({
   onEditCompany: (objectiveId: string) => void;
   onPublishCompany: (objectiveId: string) => void;
 }) {
+  const t = useTranslations("goals.ObjectiveWorkspace");
+  const lib = useSay("goals.lib");
   const composition = useMemo(
     () => resolveWorkspace(overview.nodes, { focusId, ownUnit, broad }),
     [overview.nodes, focusId, ownUnit, broad]
@@ -209,8 +213,8 @@ export function ObjectiveWorkspace({
       <ContextHeader
         eyebrow={
           composition.unit.isOwnUnit
-            ? belongingLabel(composition.unit.type)
-            : "Working scope"
+            ? belongingLabel(composition.unit.type, lib)
+            : t("workingScope")
         }
         title={composition.unit.name}
         memberCount={
@@ -297,6 +301,7 @@ function ObjectiveBlockView({
   tree: TreeControls;
   actions: SubjectActions;
 }) {
+  const t = useTranslations("goals.ObjectiveBlockView");
   const directParent = block.ancestors.at(-1) ?? null;
   const higherAncestors = block.ancestors.slice(0, -1);
   const children = tree.childrenByParent.get(block.node.id) ?? [];
@@ -328,10 +333,10 @@ function ObjectiveBlockView({
 
       <div className="mt-5">
         <GroupHeader
-          label={isCompany ? "Organizational alignment" : "Aligned objectives"}
+          label={isCompany ? t("organizationalAlignment") : t("alignedObjectives")}
           description={
             isCompany
-              ? "These organizational objectives support the company's strategic direction."
+              ? t("theseOrganizationalObjectivesSupportThe")
               : undefined
           }
           count={children.length}
@@ -385,18 +390,20 @@ function SubjectCard({
   orgName: string | null;
   actions: SubjectActions;
 }) {
+  const t = useTranslations("goals.SubjectCard");
+  const lib = useSay("goals.lib");
   const detail = useGoal(actions.cycleId, node.id);
   const description = detail.data?.description?.trim() || null;
   const isCompany = emphasis === "company";
   const own = emphasis === "own";
 
   const eyebrow = isCompany
-    ? companyEyebrow(orgName)
+    ? companyEyebrow(orgName, lib)
     : own
-      ? `${node.orgUnitName ?? "Your unit"} objective`
+      ? t("objective", { value: node.orgUnitName ?? "Your unit" })
       : node.ownershipScope === "Company"
-        ? companyEyebrow(orgName)
-        : `${node.orgUnitName ?? "Organizational"} objective`;
+        ? companyEyebrow(orgName, lib)
+        : t("objective", { value: node.orgUnitName ?? "Organizational" });
 
   return (
     <div
@@ -431,7 +438,7 @@ function SubjectCard({
               {eyebrow}
             </p>
             <StatusBadge tone={STATE_TONE[node.state]} dot>
-              {STATE_LABEL[node.state]}
+              {lib(`state.${node.state}`)}
             </StatusBadge>
           </div>
           <button
@@ -455,7 +462,7 @@ function SubjectCard({
 
       <div className="mt-5 border-t border-border/60 pt-4">
         <dl className="flex flex-wrap gap-x-10 gap-y-4">
-          <Fact label="Accountable">
+          <Fact label={t("accountable")}>
             <PersonLine name={node.accountablePersonName} />
           </Fact>
           <MeasurementFact node={node} />
@@ -476,6 +483,7 @@ function SubjectMenu({
   emphasis: SubjectEmphasis;
   actions: SubjectActions;
 }) {
+  const t = useTranslations("goals.SubjectMenu");
   const isCompany = emphasis === "company" || node.ownershipScope === "Company";
   const isDraft = node.state === "Draft";
   const canManage = isCompany ? actions.canManageCompany : actions.canAuthor;
@@ -489,27 +497,26 @@ function SubjectMenu({
           variant="ghost"
           size="icon-sm"
           className="shrink-0"
-          aria-label="Objective actions"
+          aria-label={t("objectiveActions")}
         >
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => actions.onInspect(node.id)}>
-          <Eye className="size-3.5" data-icon="inline-start" /> View details
+          <Eye className="size-3.5" data-icon="inline-start" /> {t("viewDetails")}
         </DropdownMenuItem>
         {isCompany ? (
           canManage && isDraft ? (
             <>
               <DropdownMenuItem onSelect={() => actions.onEditCompany(node.id)}>
-                <Pencil className="size-3.5" data-icon="inline-start" /> Edit
+                <Pencil className="size-3.5" data-icon="inline-start" /> {t("edit")}
               </DropdownMenuItem>
               {isDraft ? (
                 <DropdownMenuItem
                   onSelect={() => actions.onPublishCompany(node.id)}
                 >
-                  <Send className="size-3.5" data-icon="inline-start" /> Publish
-                  direction
+                  <Send className="size-3.5" data-icon="inline-start" /> {t("publishDirection")}
                 </DropdownMenuItem>
               ) : null}
             </>
@@ -517,8 +524,7 @@ function SubjectMenu({
         ) : canManage && isDraft ? (
           <>
             <DropdownMenuItem onSelect={() => actions.onResumeDraft(node.id)}>
-              <Pencil className="size-3.5" data-icon="inline-start" /> Resume
-              editing
+              <Pencil className="size-3.5" data-icon="inline-start" /> {t("resumeEditing")}
             </DropdownMenuItem>
             {node.childCount === 0 ? (
               <>
@@ -527,8 +533,7 @@ function SubjectMenu({
                   variant="destructive"
                   onSelect={() => actions.onDelete(node.id)}
                 >
-                  <Trash2 className="size-3.5" data-icon="inline-start" />{" "}
-                  Remove draft
+                  <Trash2 className="size-3.5" data-icon="inline-start" />{t("removeDraft")}
                 </DropdownMenuItem>
               </>
             ) : null}
@@ -555,13 +560,15 @@ function DirectionStrip({
   orgName: string | null;
   onInspect: (id: string) => void;
 }) {
+  const t = useTranslations("goals.DirectionStrip");
+  const lib = useSay("goals.lib");
   const eyebrow =
     node.ownershipScope === "Company"
-      ? companyEyebrow(orgName)
-      : `${node.orgUnitName ?? "Organizational"} objective`;
+      ? companyEyebrow(orgName, lib)
+      : t("objective", { value: node.orgUnitName ?? "Organizational" });
   return (
     <div className="rounded-surface border border-border bg-card p-3.5 sm:p-4">
-      <p className="type-meta mb-1.5 text-muted-foreground/80">Aligned to</p>
+      <p className="type-meta mb-1.5 text-muted-foreground/80">{t("alignedTo")}</p>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span
           aria-hidden
@@ -583,7 +590,7 @@ function DirectionStrip({
         </div>
         <div className="ms-auto flex flex-wrap items-center gap-x-4 gap-y-1.5">
           <StatusBadge tone={STATE_TONE[node.state]} dot>
-            {STATE_LABEL[node.state]}
+            {lib(`state.${node.state}`)}
           </StatusBadge>
           <PersonLine name={node.accountablePersonName} compact />
         </div>
@@ -717,6 +724,8 @@ function ObjectiveRow({
   depth: number;
   tree: TreeControls;
 }) {
+  const t = useTranslations("goals.ObjectiveRow");
+  const lib = useSay("goals.lib");
   const detail = useGoal(tree.cycleId, node.id);
   const description = detail.data?.description?.trim() || null;
   const isDraft = node.state === "Draft";
@@ -742,7 +751,7 @@ function ObjectiveRow({
         <button
           type="button"
           onClick={() => tree.onInspect(node.id)}
-          aria-label="Open objective"
+          aria-label={t("openObjective")}
           className={cn(
             "flex shrink-0 items-center justify-center border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             nested ? "size-8 rounded-control" : "size-10 rounded-control",
@@ -771,7 +780,7 @@ function ObjectiveRow({
               </span>
             </button>
             <StatusBadge tone={STATE_TONE[node.state]} dot>
-              {STATE_LABEL[node.state]}
+              {lib(`state.${node.state}`)}
             </StatusBadge>
           </div>
           {description ? (
@@ -786,7 +795,7 @@ function ObjectiveRow({
                 aria-hidden
               />
               <span className="truncate font-medium text-foreground/80">
-                {node.orgUnitName ?? "Organizational unit"}
+                {node.orgUnitName ?? t("organizationalUnit")}
               </span>
             </span>
             {node.measurementSummary?.trim() ? (
@@ -817,7 +826,7 @@ function ObjectiveRow({
               <p className="max-w-[9rem] truncate text-xs font-medium text-foreground">
                 {node.accountablePersonName}
               </p>
-              <p className="type-meta text-muted-foreground/70">Accountable</p>
+              <p className="type-meta text-muted-foreground/70">{t("accountable")}</p>
             </div>
           </div>
         ) : null}
@@ -831,7 +840,7 @@ function ObjectiveRow({
               className="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="tabular-nums">{node.childCount}</span>
-              <span>child {node.childCount === 1 ? "objective" : "objectives"}</span>
+              <span>{t("child")} {node.childCount === 1 ? t("objective") : t("objectives")}</span>
               {open ? (
                 <ChevronDown className="size-3.5" aria-hidden />
               ) : (
@@ -862,6 +871,7 @@ function RowMenu({
   canAdd: boolean;
   tree: TreeControls;
 }) {
+  const t = useTranslations("goals.RowMenu");
   const isDraft = node.state === "Draft";
   return (
     <DropdownMenu>
@@ -870,26 +880,24 @@ function RowMenu({
           variant="ghost"
           size="icon-sm"
           className="shrink-0"
-          aria-label="Objective actions"
+          aria-label={t("objectiveActions")}
         >
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => tree.onInspect(node.id)}>
-          <Eye className="size-3.5" data-icon="inline-start" /> View details
+          <Eye className="size-3.5" data-icon="inline-start" /> {t("viewDetails")}
         </DropdownMenuItem>
         {canAdd ? (
           <DropdownMenuItem onSelect={() => tree.onCreate(node.id, null)}>
-            <Plus className="size-3.5" data-icon="inline-start" /> Add aligned
-            objective
+            <Plus className="size-3.5" data-icon="inline-start" /> {t("addAlignedObjective")}
           </DropdownMenuItem>
         ) : null}
         {canManage && isDraft ? (
           <>
             <DropdownMenuItem onSelect={() => tree.onResumeDraft(node.id)}>
-              <Pencil className="size-3.5" data-icon="inline-start" /> Resume
-              editing
+              <Pencil className="size-3.5" data-icon="inline-start" /> {t("resumeEditing")}
             </DropdownMenuItem>
             {node.childCount === 0 ? (
               <>
@@ -898,8 +906,7 @@ function RowMenu({
                   variant="destructive"
                   onSelect={() => tree.onDelete(node.id)}
                 >
-                  <Trash2 className="size-3.5" data-icon="inline-start" />{" "}
-                  Remove draft
+                  <Trash2 className="size-3.5" data-icon="inline-start" />{t("removeDraft")}
                 </DropdownMenuItem>
               </>
             ) : null}
@@ -911,13 +918,14 @@ function RowMenu({
 }
 
 function AddAligned({ onClick }: { onClick: () => void }) {
+  const t = useTranslations("goals.AddAligned");
   return (
     <button
       type="button"
       onClick={onClick}
       className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-sm font-medium text-primary-ink transition-colors hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Plus className="size-4" aria-hidden /> Add aligned objective
+      <Plus className="size-4" aria-hidden /> {t("addAlignedObjective")}
     </button>
   );
 }
@@ -937,6 +945,7 @@ function GroupHeader({
   onToggle: () => void;
   prominent?: boolean;
 }) {
+  const t = useTranslations("goals.GroupHeader");
   return (
     <div
       className={cn(
@@ -969,7 +978,7 @@ function GroupHeader({
         aria-expanded={open}
       >
         <span className="tabular-nums text-foreground/80">{count}</span>
-        <span>direct {count === 1 ? "objective" : "objectives"}</span>
+        <span>{t("direct")} {count === 1 ? t("objective") : t("objectives")}</span>
         {open ? (
           <ChevronDown className="size-3.5" aria-hidden />
         ) : (
@@ -981,12 +990,13 @@ function GroupHeader({
 }
 
 function EmptyChildren({ isCompany }: { isCompany: boolean }) {
+  const t = useTranslations("goals.EmptyChildren");
   return (
     <div className="flex items-center gap-2.5 rounded-surface border border-dashed border-border px-4 py-3.5 text-sm text-muted-foreground">
       <ScopeMark className="size-5 shrink-0 text-muted-foreground/50" muted />
       {isCompany
-        ? "No aligned child objectives yet."
-        : "No downstream objectives yet."}
+        ? t("noAlignedChildObjectivesYet")
+        : t("noDownstreamObjectivesYet")}
     </div>
   );
 }
@@ -1006,6 +1016,7 @@ function ContextHeader({
   title: string;
   memberCount?: number | null;
 }) {
+  const t = useTranslations("goals.ContextHeader");
   return (
     <section className="flex items-center gap-4 rounded-surface border border-border bg-section p-4 sm:px-5">
       <span
@@ -1022,8 +1033,7 @@ function ContextHeader({
           </h2>
           {memberCount != null ? (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-              <span className="tabular-nums">{memberCount}</span> directly
-              assigned
+              <span className="tabular-nums">{memberCount}</span> {t("directlyAssigned")}
             </span>
           ) : null}
         </div>
@@ -1033,14 +1043,14 @@ function ContextHeader({
 }
 
 /** "Your team" / "Your department" / … from the unit type, falling back to "Your organization". */
-function belongingLabel(type: string | null | undefined): string {
+function belongingLabel(type: string | null | undefined, say: Say): string {
   const t = type?.trim();
-  return t ? `Your ${t.toLowerCase()}` : "Your organization";
+  return t ? say("yourUnit", { type: t.toLowerCase() }) : say("yourOrganization");
 }
 
 /** The eyebrow attributing a company strategic objective, using the org's own name when known. */
-function companyEyebrow(orgName: string | null): string {
-  return orgName ? `${orgName} strategic objective` : "Company objective";
+function companyEyebrow(orgName: string | null, say: Say): string {
+  return orgName ? say("orgStrategic", { orgName }) : say("companyObjective");
 }
 
 /**
@@ -1049,6 +1059,7 @@ function companyEyebrow(orgName: string | null): string {
  * navigator: a leader stays anchored to their own scope.
  */
 function LineageChips({ ancestors }: { ancestors: GoalNodeDto[] }) {
+  const lib = useSay("goals.lib");
   const ordered = [...ancestors].reverse();
   return (
     <div className="mb-3 inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 rounded-control border border-border/70 bg-inlay px-2.5 py-1.5 text-xs text-muted-foreground">
@@ -1069,7 +1080,7 @@ function LineageChips({ ancestors }: { ancestors: GoalNodeDto[] }) {
           ) : null}
           <span className="inline-flex min-w-0 items-baseline gap-1">
             <span className="shrink-0 text-muted-foreground/70">
-              {ancestorScopeLabel(node)}
+              {ancestorScopeLabel(node, lib)}
             </span>
             <span aria-hidden className="shrink-0 text-muted-foreground/30">
               /
@@ -1084,11 +1095,11 @@ function LineageChips({ ancestors }: { ancestors: GoalNodeDto[] }) {
   );
 }
 
-function ancestorScopeLabel(node: GoalNodeDto): string {
-  if (node.ownershipScope === "Company") return "Company strategy";
+function ancestorScopeLabel(node: GoalNodeDto, say: Say): string {
+  if (node.ownershipScope === "Company") return say("companyStrategy");
   if (node.ownershipScope === "Employee")
-    return node.orgUnitName ?? "Individual";
-  return node.orgUnitName ?? "Organizational";
+    return node.orgUnitName ?? say("individual");
+  return node.orgUnitName ?? say("organizational");
 }
 
 /** The focused-mode top navigator: back to the default context, then the full path to the subject. */
@@ -1099,18 +1110,19 @@ function FocusTrail({
   block: ObjectiveBlock;
   onFocus: (id: string | null) => void;
 }) {
+  const t = useTranslations("goals.FocusTrail");
   const trail = [...block.ancestors, block.node];
   return (
     <nav
       className="flex flex-wrap items-center gap-1 text-sm"
-      aria-label="Direction path"
+      aria-label={t("directionPath")}
     >
       <button
         type="button"
         onClick={() => onFocus(null)}
         className="inline-flex items-center gap-1.5 rounded-control px-2 py-1 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <Building2 className="size-3.5" aria-hidden /> Direction
+        <Building2 className="size-3.5" aria-hidden /> {t("direction")}
       </button>
       {trail.map((node, index) => {
         const isLast = index === trail.length - 1;
@@ -1157,6 +1169,7 @@ function EmptyUnitContext({
   onInspect: (id: string) => void;
   onCreate: (parentId: string, orgUnitId: string | null) => void;
 }) {
+  const t = useTranslations("goals.EmptyUnitContext");
   const [selectedId, setSelectedId] = useState(candidates[0]?.node.id ?? "");
   const selected =
     candidates.find((c) => c.node.id === selectedId) ?? candidates[0]!;
@@ -1188,10 +1201,10 @@ function EmptyUnitContext({
       <div className="rounded-surface border border-dashed border-border px-6 py-8 text-center">
         <ScopeMark className="mx-auto size-12 text-foreground/70" />
         <p className="mt-3 text-base font-semibold tracking-tight text-foreground">
-          No objective for {unit.name} yet
+          {t("noObjectiveForYet", { name: unit.name })}
         </p>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-          Define an objective aligned to{" "}
+          {t("defineAnObjectiveAlignedTo")}
           <span className="font-medium text-foreground">
             “{directParent.title}”
           </span>
@@ -1202,8 +1215,7 @@ function EmptyUnitContext({
             className="mt-5"
             onClick={() => onCreate(directParent.id, unit.orgUnitId)}
           >
-            <Plus className="size-4" data-icon="inline-start" /> Create
-            objective for {unit.name}
+            <Plus className="size-4" data-icon="inline-start" /> {t("createObjectiveFor", { name: unit.name })}
           </Button>
         ) : null}
       </div>
@@ -1220,10 +1232,11 @@ function DirectionSelector({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
+  const t = useTranslations("goals.DirectionSelector");
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span className="type-meta me-1 text-muted-foreground">
-        Align under
+        {t("alignUnder")}
       </span>
       {directions.map((direction) => {
         const active = direction.id === selectedId;
@@ -1257,6 +1270,7 @@ function NoPublishedDirection({
   canReachSetup: boolean;
   onCreateCompany: () => void;
 }) {
+  const t = useTranslations("goals.NoPublishedDirection");
   return (
     <div className="space-y-9">
       <section className="overflow-hidden rounded-surface border border-border bg-card shadow-raised">
@@ -1267,20 +1281,20 @@ function NoPublishedDirection({
             </div>
 
             <div className="min-w-0">
-              <p className="type-meta text-muted-foreground">Company direction</p>
+              <p className="type-meta text-muted-foreground">{t("companyDirection")}</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                Establish company direction
+                {t("establishCompanyDirection")}
               </h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-                Define the strategic objective that organizational goals will align to during this cycle.
+                {t("defineTheStrategicObjectiveThat")}
               </p>
               {canCreateCompany ? (
                 <Button className="mt-6" onClick={onCreateCompany}>
-                  <Plus className="size-4" data-icon="inline-start" /> Create company objective
+                  <Plus className="size-4" data-icon="inline-start" /> {t("createCompanyObjective")}
                 </Button>
               ) : canReachSetup ? (
                 <Button variant="outline" className="mt-6" asChild>
-                  <Link href="/cycle">Go to Cycle setup</Link>
+                  <Link href="/cycle">{t("goToCycleSetup")}</Link>
                 </Button>
               ) : null}
             </div>
@@ -1289,18 +1303,18 @@ function NoPublishedDirection({
           <div className="grid content-center gap-5 border-s border-border ps-6 sm:ps-8 lg:ps-10">
             <DirectionValue
               icon={BarChart3}
-              title="Set the strategic direction"
-              description="Define the company's focus for the performance cycle."
+              title={t("setTheStrategicDirection")}
+              description={t("defineTheCompanysFocusFor")}
             />
             <DirectionValue
               icon={UsersRound}
-              title="Enable organizational alignment"
-              description="Help teams align their goals to what matters most."
+              title={t("enableOrganizationalAlignment")}
+              description={t("helpTeamsAlignTheirGoals")}
             />
             <DirectionValue
               icon={Target}
-              title="Create shared focus"
-              description="Make the organization's priorities clear across the cycle."
+              title={t("createSharedFocus")}
+              description={t("makeTheOrganizationsPrioritiesClear")}
             />
           </div>
         </div>
@@ -1311,9 +1325,9 @@ function NoPublishedDirection({
         <span className="absolute inset-s-2 top-0 size-3 rounded-full border-2 border-primary bg-background sm:inset-s-4.5" aria-hidden />
 
         <div>
-          <h2 className="type-section-title text-foreground">Organizational alignment</h2>
+          <h2 className="type-section-title text-foreground">{t("organizationalAlignment")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Organizational objectives will appear here once company direction has been established.
+            {t("organizationalObjectivesWillAppearHere")}
           </p>
         </div>
 
@@ -1323,10 +1337,10 @@ function NoPublishedDirection({
               <Network className="size-6" aria-hidden />
             </div>
             <p className="mt-5 text-base font-semibold tracking-tight text-foreground">
-              Aligned objectives will appear here
+              {t("alignedObjectivesWillAppearHere")}
             </p>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-              Once you create the company objective, you can add organizational objectives that support the strategic direction.
+              {t("onceYouCreateTheCompany")}
             </p>
           </div>
         </div>
@@ -1406,6 +1420,7 @@ function PersonLine({
   name: string | null;
   compact?: boolean;
 }) {
+  const t = useTranslations("goals.PersonLine");
   return (
     <span
       className={cn(
@@ -1418,17 +1433,18 @@ function PersonLine({
           {initials(name)}
         </AvatarFallback>
       </Avatar>
-      <span className="truncate">{name ?? "Unassigned"}</span>
+      <span className="truncate">{name ?? t("unassigned")}</span>
     </span>
   );
 }
 
 function MeasurementFact({ node }: { node: GoalNodeDto }) {
+  const t = useTranslations("goals.MeasurementFact");
   const summary = node.measurementSummary?.trim();
   if (!summary) return null;
   const Icon = node.progressSource === "Calculated" ? Layers : Gauge;
   return (
-    <Fact label="Measurement">
+    <Fact label={t("measurement")}>
       <span className="flex items-center gap-1.5 text-sm font-medium tabular-nums text-foreground">
         <Icon className="size-4 text-muted-foreground" aria-hidden />
         {summary}
@@ -1451,10 +1467,11 @@ function ProgressFact({
   spacious?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("goals.ProgressFact");
   const value = node.hasProgress ? Math.round(node.derivedProgress) : null;
   const calculated = node.progressSource === "Calculated";
-  const label = calculated ? "Calculated progress" : "Progress";
-  const emptyLabel = node.state === "Draft" ? "—" : "Not started";
+  const label = calculated ? t("calculatedProgress") : t("progress");
+  const emptyLabel = node.state === "Draft" ? "—" : t("notStarted");
   const content = (
     <div
       className={cn("flex items-center gap-2", className)}

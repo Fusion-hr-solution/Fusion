@@ -42,10 +42,12 @@ import {
 } from "@/features/performance/api/use-performance";
 import { useWorkforceMe } from "@/features/performance/api/use-workforce-me";
 import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
+import { useTranslations } from "next-intl";
 
 function MapSkeleton() {
+  const t = useTranslations("goals.MapSkeleton");
   return (
-    <div className="grid h-full min-h-[420px] place-items-center rounded-surface border border-border bg-section" aria-label="Loading the alignment map">
+    <div className="grid h-full min-h-[420px] place-items-center rounded-surface border border-border bg-section" aria-label={t("loadingTheAlignmentMap")}>
       <div className="space-y-6">
         <Skeleton className="mx-auto h-28 w-64 rounded-surface" />
         <div className="flex gap-8">
@@ -63,14 +65,16 @@ const AlignmentMap = dynamic(() => import("@/features/performance/components/goa
 });
 
 export default function GoalsPage() {
+  const t = useTranslations("goals.GoalsPage");
   return (
-    <Suspense fallback={<PageSkeleton rows={4} label="Loading goals" />}>
+    <Suspense fallback={<PageSkeleton rows={4} label={t("loadingGoals")} />}>
       <GoalsWorkspace />
     </Suspense>
   );
 }
 
 function GoalsWorkspace() {
+  const t = useTranslations("goals.GoalsWorkspace");
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -173,24 +177,24 @@ function GoalsWorkspace() {
   };
 
   if (context.isLoading)
-    return <PageSkeleton rows={4} label="Loading Performance" />;
+    return <PageSkeleton rows={4} label={t("loadingPerformance")} />;
   if (context.error)
-    return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
-  if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle" />;
+    return <ContentUnavailable error={context.error} onRetry={context.refetch} subject={t("performanceWorkspace")} />;
+  if (detail.isLoading) return <PageSkeleton rows={4} label={t("loadingCycle")} />;
   if (detail.error)
     return (
       <ContentUnavailable
         error={detail.error}
         onRetry={detail.refetch}
-        subject="The Cycle"
+        subject={t("theCycle")}
       />
     );
   if (!cycle) {
     return (
       <PageContainer>
         <PagePermissionNotice
-          title="No Cycle yet"
-          description="Organization direction opens once a Performance Cycle exists."
+          title={t("noCycleYet")}
+          description={t("organizationDirectionOpensOnceA")}
         />
       </PageContainer>
     );
@@ -210,7 +214,7 @@ function GoalsWorkspace() {
       const version = goals.data?.nodes.find((node) => node.id === objectiveId)?.version;
       if (version === undefined) throw new Error("Refresh this objective before making changes.");
       await goalMutations.remove.mutateAsync({ objectiveId, expectedVersion: version });
-      toast.success("Draft objective removed.");
+      toast.success(t("draftObjectiveRemoved"));
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -225,7 +229,7 @@ function GoalsWorkspace() {
       const version = goals.data?.nodes.find((node) => node.id === objectiveId)?.version;
       if (version === undefined) throw new Error("Refresh this objective before making changes.");
       await strategyMutations.publish.mutateAsync({ objectiveId, expectedVersion: version });
-      toast.success("Published as company direction.");
+      toast.success(t("publishedAsCompanyDirection"));
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -245,24 +249,24 @@ function GoalsWorkspace() {
       onValueChange={(value) => {
         if (value === "map" || value === "list") replaceContext({ view: value });
       }}
-      aria-label="Organization direction view"
+      aria-label={t("organizationDirectionView")}
       className="rounded-control border bg-inlay p-0.5"
     >
       <ToggleGroupItem
         value="map"
-        aria-label="Map view"
+        aria-label={t("mapView")}
         className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
       >
         <MapView className="size-4" />
-        Map
+        {t("map")}
       </ToggleGroupItem>
       <ToggleGroupItem
         value="list"
-        aria-label="List view"
+        aria-label={t("listView")}
         className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
       >
         <ListView className="size-4" />
-        List
+        {t("list")}
       </ToggleGroupItem>
     </ToggleGroup>
   ) : null;
@@ -283,8 +287,7 @@ function GoalsWorkspace() {
           size="sm"
           onClick={() => setCompanyComposer({ mode: "create" })}
         >
-          <Plus className="size-4" data-icon="inline-start" /> Create company
-          objective
+          <Plus className="size-4" data-icon="inline-start" /> {t("createCompanyObjective")}
         </Button>
       ) : null}
     </>
@@ -295,8 +298,8 @@ function GoalsWorkspace() {
   return (
     <PageContainer width="wide">
       <PerformancePageHeading
-        title="Organization direction"
-        back={{ href: "/", label: "Overview" }}
+        title={t("organizationDirection")}
+        back={{ href: "/", label: t("overview") }}
         actions={actions}
       />
 
@@ -308,15 +311,15 @@ function GoalsWorkspace() {
             <ContentUnavailable
               error={map.error ?? new Error("The alignment map did not load.")}
               onRetry={map.refetch}
-              subject="The alignment map"
+              subject={t("theAlignmentMap")}
             />
           ) : !hasDirection ? (
             <div className="grid h-full place-items-center rounded-surface border border-dashed border-border bg-section px-6 text-center">
               <div className="space-y-3">
-                <p className="text-sm font-medium text-foreground">No published direction for this cycle</p>
+                <p className="text-sm font-medium text-foreground">{t("noPublishedDirectionForThis")}</p>
                 {canList ? (
                   <Button size="sm" variant="outline" onClick={() => replaceContext({ view: "list" })}>
-                    Open the list
+                    {t("openTheList")}
                   </Button>
                 ) : null}
               </div>
@@ -331,10 +334,10 @@ function GoalsWorkspace() {
           )}
         </div>
       ) : goals.isLoading || meResolving ? (
-        <PageSkeleton rows={4} label="Loading goals" />
+        <PageSkeleton rows={4} label={t("loadingGoals")} />
       ) : goals.error || !overview ? (
         <PageError
-          title="Organization direction unavailable"
+          title={t("organizationDirectionUnavailable")}
           description={goals.error?.message}
           onRetry={goals.refetch}
         />

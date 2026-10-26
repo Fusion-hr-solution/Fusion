@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { PRAISE_REACTIONS, PRAISE_REACTION_LABEL, type PraiseDto, type PraiseReactionKind } from "@repo/api";
 import { cn } from "@repo/ds";
-import { AvatarStack, joinNames } from "./people";
+import { AvatarStack } from "./people";
 import { ValueChip } from "./values";
-import { formatDateParts } from "@repo/ds/lib/dates";
+import { useTranslations } from "next-intl";
+import { usePerformanceWords } from "./use-words";
 
-export { initials, joinNames } from "./people";
+export { initials } from "./people";
 
 /** The host's glyph per reaction: Performance passes its Hugeicons, the shell and Core HR their Lucide icons. */
 export type PraiseReactionIcons = Record<PraiseReactionKind, ReactNode>;
@@ -25,44 +26,33 @@ export interface PraiseCardProps {
   viewerEmployeeId?: string | null;
 }
 
-/** "2 h ago", "Yesterday", then a short date: recent praise reads as recent. */
-export function praiseTime(iso: string, now: Date = new Date()): string {
-  const at = new Date(iso);
-  const minutes = Math.round((now.getTime() - at.getTime()) / 60_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24 && at.getDate() === now.getDate()) return `${hours} h ago`;
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (at.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return formatDateParts(at, { day: "numeric", month: "short", ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }) });
-}
 
 /**
  * One praise, led by the people praised: their faces and names, then who gave it and when, the message, the value
  * in its own hue, and the reactions. In a list the message clamps and opens the drawer for the rest.
  */
 export function PraiseCard({ praise, reactionIcons, onReact, onOpen, pendingReaction, reading = false, viewerEmployeeId }: PraiseCardProps) {
+  const t = useTranslations("performanceUi.PraiseCard");
+  const words = usePerformanceWords();
   const toViewer = Boolean(viewerEmployeeId) && praise.recipients.some((r) => r.id === viewerEmployeeId);
-  const recipients = joinNames(praise.recipients.map((r) => r.name));
-  const author = praise.author.name ?? "A colleague";
+  const recipients = words.joinNames(praise.recipients.map((r) => r.name));
+  const author = praise.author.name ?? t("aColleague");
   const message = (
     <p className={cn(reading ? "type-narrative" : "type-body", "text-foreground", onOpen && "line-clamp-4")}>{praise.message}</p>
   );
   return (
-    <article className="flex flex-col gap-3.5 rounded-surface bg-card p-5" aria-label={`${author} praised ${recipients}`}>
+    <article className="flex flex-col gap-3.5 rounded-surface bg-card p-5" aria-label={t("praised", { author, recipients })}>
       <header className="flex items-center gap-3">
         <AvatarStack names={praise.recipients.map((r) => r.name)} size="lg" max={3} />
         <div className="min-w-0 flex-1">
           <p className="type-label text-foreground">{recipients}</p>
           <p className="type-meta text-muted-foreground">
-            from {author} · <time dateTime={praise.givenAt}>{praiseTime(praise.givenAt)}</time>
+            {t("from", { author })} <time dateTime={praise.givenAt}>{words.praiseTime(praise.givenAt)}</time>
           </p>
         </div>
       </header>
       {toViewer ? (
-        <span className="self-start rounded-detail bg-primary/15 px-2 py-0.5 type-meta font-semibold text-primary">To you</span>
+        <span className="self-start rounded-detail bg-primary/15 px-2 py-0.5 type-meta font-semibold text-primary">{t("toYou")}</span>
       ) : null}
       {onOpen ? (
         <button type="button" onClick={onOpen} className="block w-full rounded-control text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -89,11 +79,12 @@ export function PraiseReactions({
   onReact?: (kind: PraiseReactionKind, add: boolean) => void;
   pending?: PraiseReactionKind | null;
 }) {
+  const t = useTranslations("performanceUi.PraiseReactions");
   const byKind = new Map(praise.reactions.map((r) => [r.kind, r]));
   const kinds = onReact ? PRAISE_REACTIONS : PRAISE_REACTIONS.filter((kind) => (byKind.get(kind)?.count ?? 0) > 0);
   if (kinds.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Reactions">
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("reactions")}>
       {kinds.map((kind) => {
         const reaction = byKind.get(kind) ?? { kind, count: 0, mine: false };
         const content = (

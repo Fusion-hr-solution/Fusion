@@ -26,7 +26,7 @@ import {
   ButtonGroupText,
 } from "@repo/ds/components/ui/button-group";
 import { Calendar } from "@repo/ds/components/ui/calendar";
-import { formatDate } from "@repo/ds/lib/dates";
+
 import { Input } from "@repo/ds/components/ui/input";
 import {
   Popover,
@@ -34,6 +34,8 @@ import {
   PopoverTrigger,
 } from "@repo/ds/components/ui/popover";
 import { cn } from "@repo/ds/lib/utils";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 export interface MilestoneRow {
   /** Stable identity for drag-reordering and list keys — order carries meaning, so it can't be index. */
@@ -113,6 +115,7 @@ export function MilestoneEditor({
   minDate: string;
   maxDate: string;
 }) {
+  const t = useTranslations("progress.MilestoneEditor");
   const remaining = 100 - weightSum;
   const empty = weightSum === 0;
   const ready = weightSum === 100;
@@ -180,11 +183,11 @@ export function MilestoneEditor({
           size="sm"
           onClick={() => onChange((rows) => [...rows, emptyMilestone()])}
         >
-          <Plus className="size-3.5" data-icon="inline-start" /> Add milestone
+          <Plus className="size-3.5" data-icon="inline-start" /> {t("addMilestone")}
         </Button>
         <div className="flex items-center gap-2.5">
           <span className="text-xs text-muted-foreground">
-            {ready ? readyLabel : over ? `${weightSum - 100}% over` : `${remaining}% to allocate`}
+            {ready ? readyLabel : over ? t("over", { value: weightSum - 100 }) : t("toAllocate", { remaining })}
           </span>
           <span
             className={cn(
@@ -230,6 +233,7 @@ function SortableMilestoneRow({
   minDate: string;
   maxDate: string;
 }) {
+  const t = useTranslations("progress.SortableMilestoneRow");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: row.id });
 
@@ -245,7 +249,7 @@ function SortableMilestoneRow({
       <button
         type="button"
         className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-control-sm text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
-        aria-label={`Reorder milestone ${index + 1}`}
+        aria-label={t("reorderMilestone", { value: index + 1 })}
         {...attributes}
         {...listeners}
       >
@@ -254,7 +258,7 @@ function SortableMilestoneRow({
       <Input
         value={row.title}
         onChange={(event) => onTitle(event.target.value)}
-        placeholder={`Milestone ${index + 1}`}
+        placeholder={t("milestone", { value: index + 1 })}
         className="min-w-0 flex-1"
       />
       <MilestoneDueDate
@@ -280,7 +284,7 @@ function SortableMilestoneRow({
         size="icon-sm"
         onClick={onRemove}
         disabled={!canRemove}
-        aria-label={`Remove milestone ${index + 1}`}
+        aria-label={t("removeMilestone", { value: index + 1 })}
       >
         <Trash2 className="size-3.5" />
       </Button>
@@ -321,6 +325,8 @@ function MilestoneDueDate({
   max: string;
   onChange: (value: string) => void;
 }) {
+  const format = useFormat();
+  const t = useTranslations("progress.MilestoneDueDate");
   const [open, setOpen] = useState(false);
   const selected = parseLocalDate(value);
   const minDate = parseLocalDate(min);
@@ -333,7 +339,7 @@ function MilestoneDueDate({
     selected ??
     parseLocalDate(previous) ??
     ((!minDate || today >= minDate) && (!maxDate || today <= maxDate) ? today : minDate);
-  const display = selected ? formatDate(selected) : undefined;
+  const display = selected ? format.date(selected) : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -344,10 +350,10 @@ function MilestoneDueDate({
           aria-invalid={outside || undefined}
           aria-label={
             selected
-              ? `Due ${display}, change the due date for ${label}`
-              : `Set a due date for ${label}`
+              ? t("dueChangeTheDueDate", { display: display ?? "", label })
+              : t("setADueDateFor", { label })
           }
-          title={outside ? "Outside the objective's dates" : undefined}
+          title={outside ? t("outsideTheObjectivesDates") : undefined}
           className={cn(
             "w-32 shrink-0 justify-start gap-2 px-2.5 font-normal tabular-nums",
             !selected && "text-muted-foreground",
@@ -355,7 +361,7 @@ function MilestoneDueDate({
           )}
         >
           <CalendarDays className="size-4 shrink-0 opacity-70" aria-hidden />
-          <span className="truncate">{selected ? display : "Due date"}</span>
+          <span className="truncate">{selected ? display : t("dueDate")}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="end">
@@ -388,7 +394,7 @@ function MilestoneDueDate({
                 setOpen(false);
               }}
             >
-              No due date
+              {t("noDueDate")}
             </Button>
           </div>
         ) : null}

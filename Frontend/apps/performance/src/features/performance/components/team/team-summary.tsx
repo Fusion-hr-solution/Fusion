@@ -4,7 +4,11 @@ import type { ReactNode } from "react";
 import type { StatusMixDto, TeamResultsDto, YourPeoplePageDto } from "@repo/api";
 import { Lock } from "@/lib/icons";
 import { cn } from "@repo/ds/lib/utils";
-import { day, plural } from "../overview/overview-model";
+import { day } from "../overview/overview-model";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
+import { english, type Say } from "@/i18n/say";
 
 /**
  * My Team's header facts for the phase, over the manager's whole responsibility (never the current page):
@@ -13,17 +17,19 @@ import { day, plural } from "../overview/overview-model";
  */
 
 /** The line under the title: who this is about and the phase's one date. */
-export function teamSubtitle(data: YourPeoplePageDto): string {
-  const people = plural(data.totalCount, "person", "people");
+const en = english("team.summary");
+
+export function teamSubtitle(data: YourPeoplePageDto, say: Say = en, locale?: string): string {
+  const people = say("people", { count: data.totalCount });
   const summary = data.summary;
   if (data.phase === "Execution" && summary?.status) {
     const s = summary.status;
-    return `${people} · ${plural(s.onTrack + s.atRisk + s.offTrack + s.noStatus, "objective")}`;
+    return `${people} · ${say("objectives", { count: s.onTrack + s.atRisk + s.offTrack + s.noStatus })}`;
   }
   if (data.phase === "Review" && summary?.roundName)
-    return [people, summary.roundName, summary.reviewsDue ? `your reviews due ${day(summary.reviewsDue)}` : null].filter(Boolean).join(" · ");
+    return [people, summary.roundName, summary.reviewsDue ? say("reviewsDue", { day: day(summary.reviewsDue, locale) }) : null].filter(Boolean).join(" · ");
   if (data.phase === "Closed" && summary?.roundName)
-    return `${people} · ${summary.roundName}${summary.releasedAt ? ` released ${day(summary.releasedAt)}` : ""}`;
+    return `${people} · ${summary.roundName}${summary.releasedAt ? ` ${say("released", { day: day(summary.releasedAt, locale) })}` : ""}`;
   return people;
 }
 
@@ -56,26 +62,29 @@ function Breakdown({ title, segments, trailing }: { title: string; segments: Seg
   );
 }
 
-function statusSegments(s: StatusMixDto): Segment[] {
+function statusSegments(s: StatusMixDto, say: Say): Segment[] {
   return [
-    { count: s.onTrack, label: "on track", bar: "bg-success", dot: "bg-success" },
-    { count: s.atRisk, label: "at risk", bar: "bg-warning", dot: "bg-warning" },
-    { count: s.offTrack, label: "off track", bar: "bg-destructive", dot: "bg-destructive" },
-    { count: s.noStatus, label: "no status yet", bar: "bg-inlay ring-1 ring-inset ring-border", dot: "ring-1 ring-inset ring-muted-foreground" },
+    { count: s.onTrack, label: say("onTrack"), bar: "bg-success", dot: "bg-success" },
+    { count: s.atRisk, label: say("atRisk"), bar: "bg-warning", dot: "bg-warning" },
+    { count: s.offTrack, label: say("offTrack"), bar: "bg-destructive", dot: "bg-destructive" },
+    { count: s.noStatus, label: say("noStatus"), bar: "bg-inlay ring-1 ring-inset ring-border", dot: "ring-1 ring-inset ring-muted-foreground" },
   ];
 }
 
 export function TeamSummary({ data }: { data: YourPeoplePageDto }) {
+  const format = useFormat();
+  const t = useTranslations("team.TeamSummary");
+  const words = useSay("team.summary");
   const { standing, summary } = data;
   if (data.phase === "Planning") {
     return (
       <Breakdown
-        title="Plans"
+        title={t("plans")}
         segments={[
           { count: standing.approved, label: "approved", bar: "bg-success", dot: "bg-success" },
-          { count: standing.submitted, label: "waiting for you", bar: "bg-primary", dot: "bg-primary" },
+          { count: standing.submitted, label: t("waitingForYou"), bar: "bg-primary", dot: "bg-primary" },
           { count: standing.draft + standing.returned, label: "drafting", bar: "bg-muted-foreground/60", dot: "bg-muted-foreground/60" },
-          { count: standing.notStarted, label: "not started", bar: "bg-inlay ring-1 ring-inset ring-border", dot: "ring-1 ring-inset ring-muted-foreground" },
+          { count: standing.notStarted, label: t("notStarted"), bar: "bg-inlay ring-1 ring-inset ring-border", dot: "ring-1 ring-inset ring-muted-foreground" },
         ]}
       />
     );
@@ -83,11 +92,11 @@ export function TeamSummary({ data }: { data: YourPeoplePageDto }) {
   if (data.phase === "Execution" && summary?.status) {
     return (
       <Breakdown
-        title="Objectives"
-        segments={statusSegments(summary.status)}
+        title={t("objectives")}
+        segments={statusSegments(summary.status, words)}
         trailing={
           <>
-            <b className="font-semibold tabular-nums text-foreground">{summary.updatedIn30Days}</b> of {summary.approved} updated in the last 30 days
+            <b className="font-semibold tabular-nums text-foreground">{summary.updatedIn30Days}</b> {t("ofUpdatedInTheLast", { approved: summary.approved })}
           </>
         }
       />
@@ -99,17 +108,17 @@ export function TeamSummary({ data }: { data: YourPeoplePageDto }) {
     const waiting = Math.max(0, summary.reviewsTotal - summary.reviewsSubmitted - summary.reviewsReady);
     return (
       <Breakdown
-        title="Your reviews"
+        title={t("yourReviews")}
         segments={[
-          { count: summary.reviewsSubmitted, label: "submitted", bar: "bg-success", dot: "bg-success" },
-          { count: summary.reviewsReady, label: "ready to write", bar: "bg-primary", dot: "bg-primary" },
-          { count: waiting, label: "waiting on them", bar: "bg-muted-foreground/60", dot: "bg-muted-foreground/60" },
+          { count: summary.reviewsSubmitted, label: t("submitted"), bar: "bg-success", dot: "bg-success" },
+          { count: summary.reviewsReady, label: t("readyToWrite"), bar: "bg-primary", dot: "bg-primary" },
+          { count: waiting, label: t("waitingOnThem"), bar: "bg-muted-foreground/60", dot: "bg-muted-foreground/60" },
         ]}
         trailing={
           <>
-            <b className="font-semibold tabular-nums text-foreground">{summary.selfSubmitted}</b> of {summary.selfTotal} self-assessments in
-            {summary.selfDue ? ` · due ${day(summary.selfDue)}` : ""}
-            {peers.length > 0 ? ` · ${peers.length} peer ${peers.length === 1 ? "list" : "lists"} to approve` : ""}
+            <b className="font-semibold tabular-nums text-foreground">{summary.selfSubmitted}</b> {t("ofSelfAssessmentsIn", { selfTotal: summary.selfTotal })}
+            {summary.selfDue ? " " + t("due", { selfDue: day(summary.selfDue, format.locale) }) : ""}
+            {peers.length > 0 ? (peers.length === 1 ? t("peerListToApprove", { length: peers.length }) : t("peerListsToApprove", { length: peers.length })) : ""}
           </>
         }
       />
@@ -123,6 +132,7 @@ export function TeamSummary({ data }: { data: YourPeoplePageDto }) {
  * calibration changes and open growth goals. Final ratings only, no averages, nothing before release.
  */
 export function TeamResultsPanel({ results }: { results: TeamResultsDto }) {
+  const t = useTranslations("team.TeamResultsPanel");
   if (results.released === 0) return null;
   const tallest = Math.max(1, ...results.levels.map((l) => l.count));
   const top = Math.max(...results.levels.map((l) => l.value));
@@ -131,15 +141,15 @@ export function TeamResultsPanel({ results }: { results: TeamResultsDto }) {
     <section aria-labelledby="team-results" className="rounded-surface bg-card p-6 ring-1 ring-inset ring-border">
       <div className="flex items-center justify-between gap-4">
         <h2 id="team-results" className="type-section-title text-foreground">
-          Your team&apos;s results
+          {t("yourTeamsResults")}
         </h2>
         <span className="inline-flex items-center gap-1.5 type-meta text-muted-foreground">
           <Lock className="size-3.5" aria-hidden />
-          Your team only
+          {t("yourTeamOnly")}
         </span>
       </div>
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <ol className="grid grid-cols-5 items-end gap-3" aria-label="People at each level">
+        <ol className="grid grid-cols-5 items-end gap-3" aria-label={t("peopleAtEachLevel")}>
           {results.levels.map((level) => (
             <li key={level.value} className="flex min-w-0 flex-col items-center">
               <span className="type-section-title tabular-nums text-foreground">{level.count}</span>
@@ -166,18 +176,18 @@ export function TeamResultsPanel({ results }: { results: TeamResultsDto }) {
         </ol>
         <dl className="divide-y divide-border">
           <div className="pb-4">
-            <dt className="sr-only">Acknowledged</dt>
+            <dt className="sr-only">{t("acknowledged")}</dt>
             <dd className="text-foreground">
               <span className="font-display text-2xl font-semibold tabular-nums">{results.acknowledged}</span>{" "}
-              <span className="type-body-secondary">of {results.released} acknowledged</span>
+              <span className="type-body-secondary">{t("ofAcknowledged", { released: results.released })}</span>
             </dd>
-            {notYet.length > 0 ? <dd className="mt-1 type-meta text-muted-foreground">Not yet: {notYet.join(", ")}</dd> : null}
+            {notYet.length > 0 ? <dd className="mt-1 type-meta text-muted-foreground">{t("notYet", { join: notYet.join(", ") })}</dd> : null}
           </div>
           <div className="py-4">
-            <dt className="sr-only">Changed in calibration</dt>
+            <dt className="sr-only">{t("changedInCalibration")}</dt>
             <dd className="text-foreground">
               <span className="font-display text-2xl font-semibold tabular-nums">{results.calibrationChanges.length}</span>{" "}
-              <span className="type-body-secondary">changed in calibration</span>
+              <span className="type-body-secondary">{t("changedInCalibration2")}</span>
             </dd>
             {results.calibrationChanges.map((c) => (
               <dd key={c.employeeId} className="mt-1 type-meta text-muted-foreground">
@@ -186,10 +196,10 @@ export function TeamResultsPanel({ results }: { results: TeamResultsDto }) {
             ))}
           </div>
           <div className="pt-4">
-            <dt className="sr-only">Open growth goals</dt>
+            <dt className="sr-only">{t("openGrowthGoals")}</dt>
             <dd className="text-foreground">
               <span className="font-display text-2xl font-semibold tabular-nums">{results.openGrowthGoals}</span>{" "}
-              <span className="type-body-secondary">open growth {results.openGrowthGoals === 1 ? "goal" : "goals"}</span>
+              <span className="type-body-secondary">{t("openGrowth")} {results.openGrowthGoals === 1 ? t("goal") : t("goals")}</span>
             </dd>
           </div>
         </dl>

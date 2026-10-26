@@ -54,10 +54,3 @@ export function AvatarStack({
   );
 }
 
-/** Names as a sentence: "Aicha", "Aicha and Fares", "Aicha, Fares and Meriem". */
-export function joinNames(names: readonly (string | null)[]): string {
-  const clean = names.map((name) => name ?? "A colleague");
-  if (clean.length <= 1) return clean[0] ?? "";
-  if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
-  return `${clean.slice(0, -1).join(", ")} and ${clean[clean.length - 1]}`;
-}

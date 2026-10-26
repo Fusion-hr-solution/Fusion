@@ -1,0 +1,124 @@
+{
+  "performanceUi": {
+    "SummarySkeleton": {
+      "loadingPerformance": "Loading performance"
+    },
+    "PersonPerformanceSummary": {
+      "performanceCouldntBeLoaded": "Performance couldn't be loaded.",
+      "tryAgain": "Try again",
+      "theresNothingYouCanSee": "There's nothing you can see here yet."
+    },
+    "PraiseCard": {
+      "aColleague": "A colleague",
+      "from": "from {author} ·",
+      "toYou": "To you",
+      "praised": "{author} praised {recipients}"
+    },
+    "PraiseReactions": {
+      "reactions": "Reactions"
+    },
+    "SummaryOneOnOne": {
+      "next11": "Next 1:1",
+      "notScheduled": "Not scheduled"
+    },
+    "SummaryFeedback": {
+      "feedback": "Feedback",
+      "noFeedbackYet": "No feedback yet",
+      "aColleague": "A colleague",
+      "managerOnly": "Manager only"
+    },
+    "SummaryPraise": {
+      "praise": "Praise",
+      "noPraiseYet": "No praise yet"
+    },
+    "SummaryDevelopment": {
+      "development": "Development",
+      "noDevelopmentGoalsYet": "No development goals yet",
+      "by": "by {targetDate}"
+    },
+    "PlanFact": {
+      "noCycleYet": "No cycle yet",
+      "notPartOf": "Not part of {cycleName}",
+      "n1Objective": "1 objective",
+      "objectives": "{length} objectives",
+      "atRisk": "{cycle} at risk"
+    },
+    "ReviewStepTrack": {
+      "noReviewInProgress": "No review in progress",
+      "reviewSteps": "{reviewRoundName} review steps",
+      "due": ", due {dueDate}"
+    },
+    "ResultsOverTime": {
+      "noReleasedResultsYet": "No released results yet",
+      "noRating": "No rating"
+    },
+    "SummaryGlance": {
+      "plan": "Plan, {cycleName}",
+      "plan2": "Plan",
+      "review": "Review",
+      "results": "Results",
+      "atAGlance": "At a glance"
+    },
+    "SummaryObjectives": {
+      "objectives": "Objectives",
+      "notPartOf": "Not part of {cycleName}",
+      "noObjectivesSharedYet": "No objectives shared yet",
+      "alignedTo": "Aligned to {alignedTo}",
+      "standalone": "Standalone"
+    },
+    "SummaryReviews": {
+      "due": "Due {dueDate}",
+      "inProgress": "In progress",
+      "finalized": "Finalized {finalizedAt}",
+      "finalized2": "Finalized",
+      "reviews": "Reviews",
+      "noReviewsYet": "No reviews yet"
+    },
+    "words": {
+      "objectiveStatus": {
+        "OnTrack": "On track",
+        "AtRisk": "At risk",
+        "OffTrack": "Off track"
+      },
+      "planStatus": {
+        "NotStarted": "Not started",
+        "Draft": "Draft",
+        "ReturnedForChanges": "Returned for changes",
+        "Submitted": "Waiting for approval",
+        "Approved": "Approved"
+      },
+      "developmentStatus": {
+        "NotStarted": "Not started",
+        "InProgress": "In progress",
+        "Done": "Done"
+      },
+      "step": {
+        "SelfAssessment": "Self-assessment",
+        "ManagerAssessment": "Reviewer assessment",
+        "Calibration": "Calibration",
+        "ReadyToFinalize": "Ready to finalize",
+        "Finalized": "Finalized"
+      },
+      "mix": {
+        "onTrack": "{count} on track",
+        "atRisk": "{count} at risk",
+        "offTrack": "{count} off track",
+        "notReported": "{count} not reported"
+      },
+      "aColleague": "A colleague",
+      "namesAnd": "{first} and {last}",
+      "justNow": "Just now",
+      "minutesAgo": "{count} min ago",
+      "hoursAgo": "{count} h ago",
+      "yesterday": "Yesterday",
+      "closed": "Closed",
+      "noRating": "No rating",
+      "open11s": "Open 1:1s",
+      "overdue11": "1:1 overdue",
+      "openFeedback": "Open feedback",
+      "seeAllPraise": "See all praise",
+      "openDevelopment": "Open development",
+      "openPlan": "Open plan"
+    }
+  }
+}

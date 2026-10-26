@@ -6,7 +6,8 @@ import type { FeedbackSubjectDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
 import { ValueChip } from "@repo/performance-ui";
 import { Target } from "@/lib/icons";
-import { formatDateParts } from "@repo/ds/lib/dates";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /** Paths from the server carry the app's base path; the router adds it itself. */
 export function inApp(href: string) {
@@ -41,6 +42,7 @@ export function SubjectChip({ subject, link = false, className }: { subject: Fee
 
 /** Items grouped under their month, the month set in its own column on wide screens. */
 export function ByMonth<T>({ items, at, render }: { items: readonly T[]; at: (item: T) => string; render: (item: T) => ReactNode }) {
+  const format = useFormat();
   const groups: { key: string; label: string; items: T[] }[] = [];
   const thisYear = new Date().getFullYear();
   for (const item of items) {
@@ -50,7 +52,7 @@ export function ByMonth<T>({ items, at, render }: { items: readonly T[]; at: (it
     if (!group || group.key !== key) {
       group = {
         key,
-        label: formatDateParts(date, { month: "long", ...(date.getFullYear() === thisYear ? {} : { year: "numeric" }) }),
+        label: format.parts(date, { month: "long", ...(date.getFullYear() === thisYear ? {} : { year: "numeric" }) }),
         items: [],
       };
       groups.push(group);
@@ -71,11 +73,13 @@ export function ByMonth<T>({ items, at, render }: { items: readonly T[]; at: (it
 
 /** A due date as a block: the weekday when it's this week, else the date; amber once it's close, red when past. */
 export function DueBlock({ date, overdue }: { date: string; overdue: boolean }) {
+  const format = useFormat();
+  const t = useTranslations("conversations.DueBlock");
   const due = new Date(`${date}T00:00:00`);
   const days = Math.round((due.getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
-  const label = days === 0 ? "Today" : days === 1 ? "Tomorrow" : days > 1 && days < 7
-    ? formatDateParts(due, { weekday: "short" })
-    : formatDateParts(due, { day: "numeric", month: "short" });
+  const label = days === 0 ? t("today") : days === 1 ? t("tomorrow") : days > 1 && days < 7
+    ? format.parts(due, { weekday: "short" })
+    : format.parts(due, { day: "numeric", month: "short" });
   return (
     <span
       className={cn(
@@ -83,7 +87,7 @@ export function DueBlock({ date, overdue }: { date: string; overdue: boolean }) 
         overdue ? "bg-destructive/12 text-destructive" : days <= 3 ? "bg-primary-tint text-primary-ink ring-1 ring-primary-ring" : "bg-inlay text-foreground",
       )}
     >
-      <span className="type-meta">{overdue ? "Overdue" : "Due"}</span>
+      <span className="type-meta">{overdue ? t("overdue") : t("due")}</span>
       <span className="type-label tabular-nums">{label}</span>
     </span>
   );

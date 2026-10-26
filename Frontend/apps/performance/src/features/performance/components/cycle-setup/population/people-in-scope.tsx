@@ -59,6 +59,7 @@ import {
 } from "./population-cells";
 import { coreProfileHref } from "./population-model";
 import { ExcludeDialog } from "./exclude-dialog";
+import { useTranslations } from "next-intl";
 
 type Filter = "all" | CandidateStatus;
 type SortField = "employee" | "organization" | "reviewer" | "status";
@@ -127,6 +128,7 @@ export function PeopleInScope({
   onRemoveInclusion: (candidate: PopulationCandidateDto) => void;
   onInspect: (candidate: PopulationCandidateDto) => void;
 }) {
+  const t = useTranslations("cycleSetup.PeopleInScope");
   const [term, setTerm] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir } | null>(
@@ -251,14 +253,13 @@ export function PeopleInScope({
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="type-section-title text-foreground">
-              People in scope
+              {t("peopleInScope")}
             </h2>
             <p className="type-meta text-muted-foreground">
-              Review everyone resolved from the selected scope, including
-              readiness and exclusions.
+              {t("reviewEveryoneResolvedFromThe")}
             </p>
           </div>
-          <StatusBadge tone="neutral">{counts.all} resolved</StatusBadge>
+          <StatusBadge tone="neutral">{t("resolved", { all: counts.all })}</StatusBadge>
         </div>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -270,7 +271,7 @@ export function PeopleInScope({
             <Input
               value={term}
               onChange={(event) => setTerm(event.target.value)}
-              placeholder="Search employees, organization, or reviewer…"
+              placeholder={t("searchEmployeesOrganizationOrReviewer")}
               className="ps-9"
             />
           </div>
@@ -278,27 +279,27 @@ export function PeopleInScope({
             <FilterChip
               active={filter === "all"}
               onClick={() => changeFilter("all")}
-              label="All"
+              label={t("all")}
               count={counts.all}
             />
             <FilterChip
               active={filter === "ready"}
               onClick={() => changeFilter("ready")}
-              label="Ready"
+              label={t("ready")}
               count={counts.ready}
               dot="bg-emerald-500"
             />
             <FilterChip
               active={filter === "attention"}
               onClick={() => changeFilter("attention")}
-              label="Needs attention"
+              label={t("needsAttention")}
               count={counts.attention}
               dot="bg-amber-500"
             />
             <FilterChip
               active={filter === "excluded"}
               onClick={() => changeFilter("excluded")}
-              label="Excluded"
+              label={t("excluded")}
               count={counts.excluded}
               dot="bg-muted-foreground/60"
             />
@@ -308,7 +309,7 @@ export function PeopleInScope({
         {selectionVisible && selectedCount > 0 ? (
           <div className="flex items-center justify-between gap-4 rounded-surface border border-primary/40 bg-primary/[0.06] px-4 py-2.5">
             <p className="type-label text-foreground">
-              {selectedCount} selected
+              {t("selected", { selectedCount })}
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -316,7 +317,7 @@ export function PeopleInScope({
                 size="sm"
                 onClick={() => setBulkOpen(true)}
               >
-                Exclude selected
+                {t("excludeSelected")}
               </Button>
               <Button
                 variant="ghost"
@@ -324,7 +325,7 @@ export function PeopleInScope({
                 onClick={() => setSelected(new Set())}
               >
                 <X className="size-4" data-icon="inline-start" />
-                Clear
+                {t("clear")}
               </Button>
             </div>
           </div>
@@ -347,32 +348,32 @@ export function PeopleInScope({
                     }
                     onCheckedChange={togglePage}
                     disabled={pageIds.length === 0}
-                    aria-label="Select all non-excluded people on this page"
+                    aria-label={t("selectAllNonExcludedPeople")}
                   />
                 </TableHead>
               ) : null}
               <SortableHead
-                label="Employee"
+                label={t("employee")}
                 field="employee"
                 sort={sort}
                 onSort={toggleSort}
               />
               <SortableHead
-                label="Organization"
+                label={t("organization")}
                 field="organization"
                 sort={sort}
                 onSort={toggleSort}
                 className="hidden md:table-cell"
               />
               <SortableHead
-                label="Reviewer"
+                label={t("reviewer")}
                 field="reviewer"
                 sort={sort}
                 onSort={toggleSort}
                 className="hidden lg:table-cell"
               />
               <SortableHead
-                label="Status"
+                label={t("status")}
                 field="status"
                 sort={sort}
                 onSort={toggleSort}
@@ -388,7 +389,7 @@ export function PeopleInScope({
                   colSpan={selectionVisible ? 6 : 5}
                   className="py-12 text-center type-body-secondary text-muted-foreground"
                 >
-                  No people match these filters.
+                  {t("noPeopleMatchTheseFilters")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -412,7 +413,7 @@ export function PeopleInScope({
                             onCheckedChange={() =>
                               toggleRow(candidate.employeeId)
                             }
-                            aria-label={`Select ${candidate.displayName}`}
+                            aria-label={t("select", { displayName: candidate.displayName })}
                           />
                         ) : null}
                       </TableCell>
@@ -436,7 +437,7 @@ export function PeopleInScope({
                             variant="ghost"
                             size="icon"
                             className="size-8"
-                            aria-label="More actions"
+                            aria-label={t("moreActions")}
                           >
                             <MoreHorizontal className="size-4" />
                           </Button>
@@ -447,8 +448,8 @@ export function PeopleInScope({
                           >
                             <Eye className="size-4" data-icon="inline-start" />
                             {candidateStatus(candidate) === "attention"
-                              ? "View issue details"
-                              : "View details"}
+                              ? t("viewIssueDetails")
+                              : t("viewDetails")}
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <a
@@ -460,7 +461,7 @@ export function PeopleInScope({
                                 className="size-4"
                                 data-icon="inline-start"
                               />
-                              View in Core
+                              {t("viewInCore")}
                             </a>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -469,14 +470,14 @@ export function PeopleInScope({
                               onSelect={() => onRestore(candidate)}
                             >
                               <RotateCcw className="size-4" data-icon="inline-start" />
-                              Restore to population
+                              {t("restoreToPopulation")}
                             </DropdownMenuItem>
                           ) : candidate.byExplicitInclusion ? (
                             <DropdownMenuItem
                               onSelect={() => onRemoveInclusion(candidate)}
                             >
                               <UserMinus className="size-4" data-icon="inline-start" />
-                              Remove explicit addition
+                              {t("removeExplicitAddition")}
                             </DropdownMenuItem>
                           ) : (
                             <DropdownMenuItem
@@ -484,7 +485,7 @@ export function PeopleInScope({
                               onSelect={() => onExclude(candidate)}
                             >
                               <Ban className="size-4" data-icon="inline-start" />
-                              Exclude from cycle
+                              {t("excludeFromCycle")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -499,12 +500,11 @@ export function PeopleInScope({
 
         <div className="flex flex-col gap-3 border-t border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="type-meta text-muted-foreground">
-            Showing{" "}
+            {t("showing")}
             <span className="tabular-nums text-foreground">
               {filtered.length === 0 ? 0 : page * pageSize + 1}–
               {Math.min(filtered.length, (page + 1) * pageSize)}
-            </span>{" "}
-            of{" "}
+            </span>{t("of")}
             <span className="tabular-nums text-foreground">
               {filtered.length}
             </span>
@@ -513,7 +513,7 @@ export function PeopleInScope({
             <Pager page={page} pageCount={pageCount} onChange={setPage} />
             <div className="flex items-center gap-2">
               <span className="type-meta text-muted-foreground">
-                Rows per page
+                {t("rowsPerPage")}
               </span>
               <Select
                 value={String(pageSize)}
@@ -540,7 +540,7 @@ export function PeopleInScope({
 
       <ExcludeDialog
         name={`${selectedCount} ${selectedCount === 1 ? "employee" : "employees"}`}
-        confirmLabel={`Exclude ${selectedCount} ${selectedCount === 1 ? "employee" : "employees"}`}
+        confirmLabel={(selectedCount === 1 ? t("excludeEmployee", { selectedCount }) : t("excludeEmployees", { selectedCount }))}
         open={bulkOpen}
         onOpenChange={setBulkOpen}
         onExclude={async (reason) => {
@@ -642,6 +642,7 @@ function Pager({
   pageCount: number;
   onChange: (page: number) => void;
 }) {
+  const t = useTranslations("cycleSetup.Pager");
   if (pageCount <= 1) return null;
   const current = page + 1; // 1-based for display
   const pages: (number | "…")[] = [];
@@ -662,7 +663,7 @@ function Pager({
         className="size-8"
         disabled={page === 0}
         onClick={() => onChange(page - 1)}
-        aria-label="Previous page"
+        aria-label={t("previousPage")}
       >
         <ChevronLeft className="size-4" />
       </Button>
@@ -696,7 +697,7 @@ function Pager({
         className="size-8"
         disabled={page >= pageCount - 1}
         onClick={() => onChange(page + 1)}
-        aria-label="Next page"
+        aria-label={t("nextPage")}
       >
         <ChevronRight className="size-4" />
       </Button>

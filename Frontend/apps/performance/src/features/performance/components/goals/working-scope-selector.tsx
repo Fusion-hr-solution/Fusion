@@ -12,6 +12,7 @@ import {
 } from "@repo/ds/components/ui/popover";
 import { ScrollArea } from "@repo/ds/components/ui/scroll-area";
 import { cn } from "@repo/ds/lib/utils";
+import { useTranslations } from "next-intl";
 
 export interface WorkingScopeUnit {
   id: string;
@@ -81,6 +82,7 @@ export function WorkingScopeSelector({
   loading: boolean;
   onChange: (orgUnitId: string | null) => void;
 }) {
+  const t = useTranslations("goals.WorkingScopeSelector");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const units = useMemo(() => scopeUnitsFromTree(roots), [roots]);
@@ -113,7 +115,7 @@ export function WorkingScopeSelector({
             aria-hidden
           />
           <span className="truncate">
-            {selected?.name ?? "Organization-wide"}
+            {selected?.name ?? t("organizationWide")}
           </span>
           <ChevronDown
             className="size-3.5 text-muted-foreground"
@@ -134,22 +136,22 @@ export function WorkingScopeSelector({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search organization…"
+            placeholder={t("searchOrganization")}
             className="ps-8"
-            aria-label="Search working scope"
+            aria-label={t("searchWorkingScope")}
           />
         </div>
         <ScrollArea className="h-80">
           <div className="pe-2">
             <ScopeOption
-              label="Organization-wide"
+              label={t("organizationWide")}
               active={value === null}
               depth={0}
               onClick={() => select(null)}
             />
             {loading ? (
               <p className="px-2.5 py-3 text-sm text-muted-foreground">
-                Loading organization…
+                {t("loadingOrganization")}
               </p>
             ) : visibleRoots.length > 0 ? (
               visibleRoots.map((node) => (
@@ -162,7 +164,7 @@ export function WorkingScopeSelector({
               ))
             ) : (
               <p className="px-2.5 py-3 text-sm text-muted-foreground">
-                No organizational units match.
+                {t("noOrganizationalUnitsMatch")}
               </p>
             )}
           </div>

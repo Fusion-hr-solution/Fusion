@@ -7,6 +7,7 @@ import { SummaryReviews } from "./summary-reviews";
 import type { RenderSummaryLink } from "./summary-lib";
 import { SummaryFeedback, SummaryOneOnOne, SummaryPraise } from "./summary-conversations";
 import type { PraiseReactionIcons } from "./praise";
+import { useTranslations } from "next-intl";
 
 export type PersonPerformanceSummaryState =
   | { status: "loading" }
@@ -23,8 +24,9 @@ export interface PersonPerformanceSummaryProps {
 }
 
 function SummarySkeleton() {
+  const t = useTranslations("performanceUi.SummarySkeleton");
   return (
-    <div aria-busy aria-label="Loading performance" className="space-y-8">
+    <div aria-busy aria-label={t("loadingPerformance")} className="space-y-8">
       <Skeleton className="h-32 w-full rounded-surface" />
       <div className="space-y-3">
         <Skeleton className="h-6 w-40" />
@@ -40,13 +42,14 @@ function SummarySkeleton() {
  * says so. Loading and failure stay in place, so the surrounding record never waits on Performance.
  */
 export function PersonPerformanceSummary({ state, renderLink, reactionIcons, onReact, onOpenPraise }: PersonPerformanceSummaryProps) {
+  const t = useTranslations("performanceUi.PersonPerformanceSummary");
   if (state.status === "loading") return <SummarySkeleton />;
   if (state.status === "error") {
     return (
       <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-surface bg-card px-5 py-4">
-        <p className="type-body text-foreground">Performance couldn&apos;t be loaded.</p>
+        <p className="type-body text-foreground">{t("performanceCouldntBeLoaded")}</p>
         <Button variant="outline" size="sm" onClick={state.onRetry}>
-          Try again
+          {t("tryAgain")}
         </Button>
       </div>
     );
@@ -57,7 +60,7 @@ export function PersonPerformanceSummary({ state, renderLink, reactionIcons, onR
   const reviews = summary.reviews;
   const development = summary.development;
   if (!cycle && !reviews && !development && !summary.praise && !summary.feedback) {
-    return <p className="type-body-secondary text-muted-foreground">There&apos;s nothing you can see here yet.</p>;
+    return <p className="type-body-secondary text-muted-foreground">{t("theresNothingYouCanSee")}</p>;
   }
 
   return (

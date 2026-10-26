@@ -10,6 +10,7 @@ import { cn } from "@repo/ds/lib/utils";
 import { AsyncButton } from "@repo/ds/shell";
 import { useGoalMutations, useSaveStrategy } from "../../api/use-performance";
 import type { ObjectiveRecord } from "./objective-record-model";
+import { useTranslations } from "next-intl";
 
 /**
  * The record's actions, each offered only when the server says this viewer may take it. Company direction
@@ -30,6 +31,7 @@ export function RecordActions({
   onRemoved: () => void;
   presentation?: "sheet" | "page";
 }) {
+  const t = useTranslations("objective.RecordActions");
   const goals = useGoalMutations(record.ref.cycleId);
   const strategy = useSaveStrategy(record.ref.cycleId);
   const isCompany = record.kind === "company";
@@ -45,7 +47,7 @@ export function RecordActions({
       <div className="flex items-center gap-1.5">
         {record.can.edit ? (
           <Button variant="outline" size="sm" onClick={onEdit}>
-            <Pencil className="size-3.5" data-icon="inline-start" /> Edit
+            <Pencil className="size-3.5" data-icon="inline-start" /> {t("edit")}
           </Button>
         ) : null}
         {record.can.remove ? (
@@ -56,31 +58,31 @@ export function RecordActions({
             onClick={async () => {
               try {
                 await remove.mutateAsync({ objectiveId: record.ref.objectiveId, expectedVersion: record.source.node.version });
-                toast.success("Draft objective removed.");
+                toast.success(t("draftObjectiveRemoved"));
                 onRemoved();
               } catch (error) {
-                reportPerformanceFailure(error, "The objective could not be removed.");
+                reportPerformanceFailure(error, t("theObjectiveCouldNotBe"));
               }
             }}
           >
-            <Trash2 className="size-3.5" data-icon="inline-start" /> Remove
+            <Trash2 className="size-3.5" data-icon="inline-start" /> {t("remove")}
           </AsyncButton>
         ) : null}
         {record.can.archive ? (
-          <AsyncButton variant="outline" size="sm" pending={archive.isLoading} pendingLabel="Archiving…"
+          <AsyncButton variant="outline" size="sm" pending={archive.isLoading} pendingLabel={t("archiving")}
             onClick={async () => {
               try {
                 await archive.mutateAsync({ objectiveId: record.ref.objectiveId, expectedVersion: record.source.node.version });
-                toast.success("Objective archived.");
-              } catch (error) { reportPerformanceFailure(error, "The objective could not be archived."); }
+                toast.success(t("objectiveArchived"));
+              } catch (error) { reportPerformanceFailure(error, t("theObjectiveCouldNotBe2")); }
             }}>
-            Archive
+            {t("archive")}
           </AsyncButton>
         ) : null}
         {showDirectionLink ? (
           <Button variant="ghost" size="sm" asChild>
             <Link href={`/goals?focus=${record.ref.objectiveId}`}>
-              <GitBranch className="size-3.5" data-icon="inline-start" /> Open in organization direction
+              <GitBranch className="size-3.5" data-icon="inline-start" /> {t("openInOrganizationDirection")}
             </Link>
           </Button>
         ) : null}
@@ -92,13 +94,13 @@ export function RecordActions({
           onClick={async () => {
             try {
               await publish.mutateAsync({ objectiveId: record.ref.objectiveId, expectedVersion: record.source.node.version });
-              toast.success(isCompany ? "Published as company direction." : "Published as organizational direction.");
+              toast.success(isCompany ? t("publishedCompany") : t("publishedOrg"));
             } catch (error) {
-              reportPerformanceFailure(error, "The objective could not be published.");
+              reportPerformanceFailure(error, t("theObjectiveCouldNotBe3"));
             }
           }}
         >
-          Publish
+          {t("publish")}
         </AsyncButton>
       ) : null}
     </div>

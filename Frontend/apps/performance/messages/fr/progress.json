@@ -1,0 +1,135 @@
+{
+  "MeasurementEditor": {
+    "manualPercentage": "Pourcentage manuel",
+    "updateProgressAsAPercentage": "Mettez à jour l’avancement en pourcentage tout au long du cycle.",
+    "numericTarget": "Cible chiffrée",
+    "defineATargetWithA": "Définissez une cible avec une valeur numérique de départ et d’arrivée.",
+    "weightedMilestones": "Jalons pondérés",
+    "breakTheObjectiveIntoMilestones": "Découpez l’objectif en jalons pondérés.",
+    "youllUpdateProgressAsA": "Vous mettrez à jour l’avancement en pourcentage pendant le cycle."
+  },
+  "NumericTargetEditor": {
+    "enterANumberPutA": "Saisissez un nombre ; mettez une étiquette comme M€ ou % dans le champ Unité.",
+    "baselineAndTargetMustDiffer": "La valeur de départ et la cible doivent être différentes.",
+    "baseline": "Valeur de départ",
+    "target": "Cible",
+    "unit": "Unité",
+    "direction": "Orientation",
+    "increase": "Augmenter",
+    "decrease": "Diminuer"
+  },
+  "UnitCombobox": {
+    "percent": "Pourcentage (%)",
+    "usesAsACustomUnit": "Utilise « {trim} » comme unité personnalisée."
+  },
+  "MilestoneDue": {
+    "overdue": "En retard ·",
+    "due": "Échéance"
+  },
+  "MilestoneEditor": {
+    "addMilestone": "Ajouter un jalon",
+    "over": "{value} % en trop",
+    "toAllocate": "{remaining} % à répartir"
+  },
+  "SortableMilestoneRow": {
+    "reorderMilestone": "Réordonner le jalon {value}",
+    "milestone": "Jalon {value}",
+    "removeMilestone": "Retirer le jalon {value}"
+  },
+  "MilestoneDueDate": {
+    "dueDate": "Échéance",
+    "dueChangeTheDueDate": "Échéance le {display}, modifier l’échéance de {label}",
+    "setADueDateFor": "Définir une échéance pour {label}",
+    "outsideTheObjectivesDates": "En dehors des dates de l’objectif",
+    "noDueDate": "Pas d’échéance"
+  },
+  "MilestoneRail": {
+    "cycleMilestones": "Jalons du cycle",
+    "ofReached": "{reached} sur {length} atteints",
+    "next": "· suivant :"
+  },
+  "EvidenceUploader": {
+    "removeEvidence": "Retirer la pièce justificative",
+    "uploading": "Envoi",
+    "attachFile": "Joindre un fichier",
+    "addLink": "Ajouter un lien",
+    "https": "https://…",
+    "cancel": "Annuler",
+    "uploadFailedTryAgain": "L’envoi a échoué. Réessayez."
+  },
+  "ProgressHistoryTimeline": {
+    "showEarlierUpdates": "Afficher les mises à jour précédentes",
+    "noEarlierUpdates": "Aucune mise à jour précédente",
+    "thisWasTheFirstProgress": "C’était la première mise à jour de l’avancement."
+  },
+  "HistoryRow": {
+    "file": "{length} fichier",
+    "files": "{length} fichiers",
+    "link": "{length} lien",
+    "links": "{length} liens",
+    "note": "Note",
+    "completed": "Terminés ·",
+    "reopened": "Rouverts ·"
+  },
+  "ExpandedDetail": {
+    "note": "Note",
+    "evidence": "Pièces justificatives ({length})"
+  },
+  "EvidenceRow": {
+    "attachmentRemovedUnderRetentionPolicy": "Pièce jointe supprimée selon la politique de conservation",
+    "opening": "Ouverture",
+    "open": "Ouvrir"
+  },
+  "DeltaBadge": {
+    "correction": "· correction"
+  },
+  "ValueForm": {
+    "newValue": "Nouvelle valeur",
+    "completion": "Achèvement",
+    "baseline": "Valeur de départ",
+    "target": "Cible",
+    "currentValue": "Valeur actuelle{value}",
+    "thisLowersTheLastReported": "Ceci abaisse la dernière valeur communiquée : ajoutez une courte note.",
+    "couldNotRecordProgress": "Impossible d’enregistrer l’avancement."
+  },
+  "MilestoneForm": {
+    "milestones": "Jalons",
+    "ofComplete": "sur {total} terminés",
+    "wasOf": "était {wasCompleted} sur {total}",
+    "reopeningACompletedMilestoneAdd": "Réouverture d’un jalon terminé : ajoutez une courte note.",
+    "couldNotUpdateTheMilestones": "Impossible de mettre à jour les jalons.",
+    "new": "Nouvelle",
+    "reopened": "Rouvert"
+  },
+  "StatusPicker": {
+    "howItsGoing": "Comment ça avance",
+    "OnTrack": "En bonne voie",
+    "AtRisk": "À risque",
+    "OffTrack": "Hors trajectoire"
+  },
+  "NumberField": {
+    "increase": "Augmenter",
+    "decrease": "Diminuer"
+  },
+  "DerivedCard": {
+    "from": "depuis {from} %"
+  },
+  "NoteField": {
+    "whatsInTheWay": "Ce qui bloque",
+    "addANote": "Ajouter une note",
+    "required": "(obligatoire)",
+    "optional": "(facultatif)",
+    "eGKeyActivitiesCompleted": "p. ex. Activités clés réalisées, résultats ou contexte…"
+  },
+  "EvidenceField": {
+    "addEvidence": "Ajouter une pièce justificative",
+    "optional": "(facultatif)"
+  },
+  "ValueDial": {
+    "notReportedYet": "Pas encore communiqué",
+    "reset": "Réinitialiser",
+    "decrease": "Diminuer",
+    "increase": "Augmenter",
+    "last": "Dernière"
+  }
+}

@@ -8,8 +8,12 @@ import { ScopeMark } from "../scope-mark";
 import { useObjectiveRecord } from "../objective-record/use-objective-record";
 import { SidebarSection } from "./plan-layout";
 import { initials } from "./plan-lib";
-import { formatDate } from "../../lib";
+
 import { useWorkforceMe } from "../../api/use-workforce-me";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
+import { english, type Say } from "@/i18n/say";
 
 export interface DirectionLevel {
   key: string;
@@ -33,21 +37,23 @@ export function PlanDirectionSection({
   targets: AlignmentTargetDto[];
   directionLevels?: DirectionLevel[];
 }) {
-  const derived = useMemo(() => resolveDirection(objectives, targets), [objectives, targets]);
+  const tr = useTranslations("plan.PlanDirectionSection");
+  const words = useSay("common.words");
+  const derived = useMemo(() => resolveDirection(objectives, targets, words), [objectives, targets, words]);
   const levels = (directionLevels ?? derived).slice(0, 2);
   const idByTitle = useMemo(() => new Map(targets.map((t) => [t.title, t.id])), [targets]);
   const record = useObjectiveRecord();
   // The rail keeps its sections in every state, so an undirected plan still says so.
   if (levels.length === 0) {
     return (
-      <SidebarSection label="Direction">
-        <p className="mt-3 text-sm text-muted-foreground">No direction linked yet</p>
+      <SidebarSection label={tr("direction")}>
+        <p className="mt-3 text-sm text-muted-foreground">{tr("noDirectionLinkedYet")}</p>
       </SidebarSection>
     );
   }
 
   return (
-    <SidebarSection label="Direction">
+    <SidebarSection label={tr("direction")}>
       <ol className="mt-4">
         {levels.map((level, index) => {
           const leading = index === 0;
@@ -76,7 +82,7 @@ export function PlanDirectionSection({
                 <button
                   type="button"
                   onClick={() => record.open({ cycleId, objectiveId })}
-                  aria-label={`Open ${level.title}`}
+                  aria-label={tr("open", { title: level.title })}
                   className="flex size-7 shrink-0 items-center justify-center rounded-detail text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <SquareArrowEnter className="size-4 -scale-x-100" aria-hidden />
@@ -90,10 +96,8 @@ export function PlanDirectionSection({
   );
 }
 
-const DECISION_LABEL: Partial<Record<PlanDecisionDto["kind"], string>> = {
-  // Approval is stated (with its date) by the Approved & locked section, so it is not repeated here.
-  Returned: "Returned your plan",
-};
+// Approval is stated (with its date) by the Approved & locked section, so only a return is named here.
+const DECISION_LABEL: Partial<Record<PlanDecisionDto["kind"], "returned">> = { Returned: "returned" };
 
 /**
  * Who holds the plan's agreement: the reviewer's identity, how they relate to the employee (their own
@@ -109,11 +113,13 @@ export function PlanReviewerSection({
   reviewerName: string | null;
   history?: PlanDecisionDto[];
 }) {
+  const format = useFormat();
+  const t = useTranslations("plan.PlanReviewerSection");
   const me = useWorkforceMe(Boolean(reviewerName));
   if (!reviewerName) {
     return (
-      <SidebarSection label="Reviewer">
-        <p className="mt-3 text-sm text-muted-foreground">No reviewer assigned</p>
+      <SidebarSection label={t("reviewer")}>
+        <p className="mt-3 text-sm text-muted-foreground">{t("noReviewerAssigned")}</p>
       </SidebarSection>
     );
   }
@@ -124,7 +130,7 @@ export function PlanReviewerSection({
   const lastDecision = [...history].reverse().find((h) => DECISION_LABEL[h.kind] && (!reviewerId || h.actorEmployeeId === reviewerId));
 
   return (
-    <SidebarSection label="Reviewer">
+    <SidebarSection label={t("reviewer")}>
       <div className="mt-4 flex items-center gap-3">
         <Avatar className="size-10">
           <AvatarFallback className="text-xs">{initials(reviewerName)}</AvatarFallback>
@@ -144,8 +150,8 @@ export function PlanReviewerSection({
 
       {lastDecision ? (
         <dl className="mt-4 flex items-baseline justify-between gap-3 text-sm">
-          <dt className="text-muted-foreground">{DECISION_LABEL[lastDecision.kind]}</dt>
-          <dd className="shrink-0 tabular-nums text-foreground/85">{formatDate(lastDecision.decidedAt.slice(0, 10))}</dd>
+          <dt className="text-muted-foreground">{t(DECISION_LABEL[lastDecision.kind]!)}</dt>
+          <dd className="shrink-0 tabular-nums text-foreground/85">{format.date(lastDecision.decidedAt.slice(0, 10))}</dd>
         </dl>
       ) : null}
     </SidebarSection>
@@ -159,7 +165,8 @@ export function PlanReviewerSection({
  */
 function resolveDirection(
   objectives: PlanObjectiveDto[],
-  targets: AlignmentTargetDto[]
+  targets: AlignmentTargetDto[],
+  say: Say
 ): DirectionLevel[] {
   const deepest = objectives
     .filter((o) => o.isAligned && o.directionPath.length > 0)
@@ -171,8 +178,8 @@ function resolveDirection(
     scopeByTitle.set(
       target.title,
       target.ownershipScope === "Company"
-        ? "Company strategy"
-        : (target.orgUnitName ?? "Organizational")
+        ? say("companyStrategy")
+        : (target.orgUnitName ?? say("organizational"))
     );
   }
 
@@ -180,7 +187,7 @@ function resolveDirection(
   return deepest.directionPath
     .map((title, index) => ({
       key: `${index}-${title}`,
-      scope: scopeByTitle.get(title) ?? "Direction",
+      scope: scopeByTitle.get(title) ?? say("direction"),
       title,
     }))
     .reverse();
@@ -194,14 +201,15 @@ function resolveDirection(
  */
 export function directionFromTargets(
   targets: AlignmentTargetDto[],
-  orgUnitName: string | null | undefined
+  orgUnitName: string | null | undefined,
+  say: Say = english("common.words")
 ): DirectionLevel[] {
   if (targets.length === 0) return [];
 
   const scopeLabel = (t: AlignmentTargetDto) =>
     t.ownershipScope === "Company"
-      ? "Company strategy"
-      : (t.orgUnitName ?? "Organizational");
+      ? say("companyStrategy")
+      : (t.orgUnitName ?? say("organizational"));
   const scopeByTitle = new Map<string, string>();
   for (const t of targets) scopeByTitle.set(t.title, scopeLabel(t));
 

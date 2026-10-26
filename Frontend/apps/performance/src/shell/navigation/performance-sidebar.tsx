@@ -22,9 +22,11 @@ export function PerformanceSidebar() {
   const context = useWorkspaceContext(entitled);
   const destinations = context.data?.destinations;
   const selectedCycleId = useSelectedCycleId();
+  const nav = useTranslations("common.nav");
   const carry = (section: ShellNavSection): ShellNavSection => ({
     ...section,
-    items: section.items.map((item) => ({ ...item, navigateHref: CYCLE_FREE_ROUTES.has(item.href) ? item.href : withCycle(item.href, selectedCycleId) })),
+    title: section.title ? nav(section.title as "cycle") : section.title,
+    items: section.items.map((item) => ({ ...item, label: nav(item.label as "cycle"), navigateHref: CYCLE_FREE_ROUTES.has(item.href) ? item.href : withCycle(item.href, selectedCycleId) })),
   });
 
   const primaryItems = visiblePrimaryItems(destinations);

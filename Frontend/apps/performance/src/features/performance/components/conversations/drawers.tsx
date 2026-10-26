@@ -11,12 +11,15 @@ import { Button } from "@repo/ds/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@repo/ds/components/ui/sheet";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { AsyncButton } from "@repo/ds/shell";
-import { AvatarStack, PersonInitials, PraiseReactions, ValueChip, joinNames, praiseTime } from "@repo/performance-ui";
+import { AvatarStack, PersonInitials, PraiseReactions, ValueChip, usePerformanceWords } from "@repo/performance-ui";
 import { ArrowRight, Check, Eye, Lock, OneOnOnes } from "@/lib/icons";
 import { useDeletePraise, useFeedbackItem, useOneOnOne, useOneOnOneCommands, useOneOnOnes, usePraiseItem } from "../../api/use-conversations";
 import { formatDay } from "../one-on-ones/one-on-one-lib";
 import { SubjectChip, firstName } from "./conversation-parts";
 import { REACTION_ICONS } from "./reaction-icons";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { reportPerformanceFailure } from "../../api/performance-failure";
 
 function DrawerFrame({
   open,
@@ -63,17 +66,19 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
  * the request it answers sit below. Nothing to edit: feedback is fixed once sent.
  */
 export function FeedbackDrawer({ feedbackId, initial, onClose }: { feedbackId: string | null; initial?: FeedbackDto; onClose: () => void }) {
+  const format = useFormat();
+  const t = useTranslations("conversations.FeedbackDrawer");
   const item = useFeedbackItem(initial ? null : feedbackId);
   const feedback = initial ?? item.data;
   return (
     <DrawerFrame
       open={Boolean(feedbackId)}
       onOpenChange={(open) => { if (!open) onClose(); }}
-      title={feedback ? `Feedback · ${formatDay(feedback.sentAt)}` : "Feedback"}
+      title={feedback ? t("feedback", { sentAt: formatDay(feedback.sentAt, format.locale) }) : t("feedback2")}
       footer={
         feedback ? (
           <>
-            <span className="flex items-center gap-1.5 type-meta text-muted-foreground"><Lock className="size-3.5" aria-hidden /> Fixed once sent</span>
+            <span className="flex items-center gap-1.5 type-meta text-muted-foreground"><Lock className="size-3.5" aria-hidden /> {t("fixedOnceSent")}</span>
             <span className="flex-1" />
             <AddToNextOneOnOne feedback={feedback} />
           </>
@@ -89,28 +94,28 @@ export function FeedbackDrawer({ feedbackId, initial, onClose }: { feedbackId: s
           </div>
           <p className="mt-6 type-narrative whitespace-pre-wrap text-foreground">{feedback.message}</p>
           <div className="mt-8">
-            <Fact label="From"><span className="type-label text-foreground">{feedback.author.name ?? "A colleague"}</span></Fact>
-            <Fact label="To"><span className="type-label text-foreground">{feedback.receiver.name ?? "A colleague"}</span></Fact>
-            {feedback.subject ? <Fact label="About"><SubjectChip subject={feedback.subject} link /></Fact> : null}
-            <Fact label="Who reads it">
+            <Fact label={t("from")}><span className="type-label text-foreground">{feedback.author.name ?? t("aColleague")}</span></Fact>
+            <Fact label={t("to")}><span className="type-label text-foreground">{feedback.receiver.name ?? t("aColleague")}</span></Fact>
+            {feedback.subject ? <Fact label={t("about")}><SubjectChip subject={feedback.subject} link /></Fact> : null}
+            <Fact label={t("whoReadsIt")}>
               <span className="flex items-center gap-2 type-body text-foreground">
                 {feedback.visibility === "ManagerOnly" ? <Lock className="size-4 text-muted-foreground" aria-hidden /> : <Eye className="size-4 text-muted-foreground" aria-hidden />}
                 {feedback.visibility === "ManagerOnly"
-                  ? `Only ${feedback.addressedManager?.name ?? "the manager"}`
-                  : `${firstName(feedback.receiver.name)} and their manager`}
+                  ? t("only", { value: feedback.addressedManager?.name ?? "the manager" })
+                  : t("andTheirManager", { name: firstName(feedback.receiver.name) })}
               </span>
             </Fact>
             {feedback.requestQuestion ? (
-              <Fact label="Answers">
+              <Fact label={t("answers")}>
                 <Link href={`/feedback/requests/${feedback.requestId}`} className="type-body text-foreground hover:underline">{feedback.requestQuestion}</Link>
               </Fact>
             ) : null}
           </div>
         </>
       ) : item.error ? (
-        <Unavailable text="This feedback isn't available to you." />
+        <Unavailable text={t("thisFeedbackIsntAvailableTo")} />
       ) : (
-        <div aria-label="Loading feedback" className="space-y-4">
+        <div aria-label={t("loadingFeedback")} className="space-y-4">
           <Skeleton className="h-10 w-32" />
           <Skeleton className="h-28 w-full" />
         </div>
@@ -124,6 +129,7 @@ export function FeedbackDrawer({ feedbackId, initial, onClose }: { feedbackId: s
  * as a talking point (the server's rule: since the last meeting, never manager-only).
  */
 function AddToNextOneOnOne({ feedback }: { feedback: FeedbackDto }) {
+  const t = useTranslations("conversations.AddToNextOneOnOne");
   const { user } = useAuth();
   const list = useOneOnOnes(feedback.visibility === "Shared");
   const row = feedback.receiver.id === user?.employeeId
@@ -138,7 +144,7 @@ function AddToNextOneOnOne({ feedback }: { feedback: FeedbackDto }) {
   if (onAgenda) {
     return (
       <Link href={`/one-on-ones/${row.seriesId}`} className="flex items-center gap-1.5 type-label text-foreground hover:underline">
-        <Check className="size-4 text-success" aria-hidden /> On the next 1:1
+        <Check className="size-4 text-success" aria-hidden /> {t("onTheNext11")}
       </Link>
     );
   }
@@ -151,35 +157,37 @@ function AddToNextOneOnOne({ feedback }: { feedback: FeedbackDto }) {
       onClick={async () => {
         try {
           await commands.addAgendaItem.mutateAsync({ meetingId: meeting.id, request: { id: newClientId(), sourceKind: "Feedback", sourceId: feedback.id } });
-          toast.success(`Added to your next 1:1 with ${firstName(row.with.displayName)}.`);
+          toast.success(t("addedToYourNext1", { displayName: firstName(row.with.displayName) }));
         } catch { /* reported by the command */ }
       }}
     >
-      <OneOnOnes className="size-4" data-icon="inline-start" /> Add to next 1:1
+      <OneOnOnes className="size-4" data-icon="inline-start" /> {t("addToNext11")}
     </AsyncButton>
   );
 }
 
 /** One praise in full: the people praised lead, then the words, the value and the reactions; Delete for its author or HR. */
 export function PraiseDrawer({ praiseId, onClose }: { praiseId: string | null; onClose: () => void }) {
+  const t = useTranslations("conversations.PraiseDrawer");
+  const words = usePerformanceWords();
   const item = usePraiseItem(praiseId);
   const react = useReactToPraise();
   const remove = useDeletePraise();
   const [confirming, setConfirming] = useState(false);
   const praise: PraiseDto | null | undefined = item.data?.praise;
-  const recipients = praise ? joinNames(praise.recipients.map((r) => r.name)) : "";
+  const recipients = praise ? words.joinNames(praise.recipients.map((r) => r.name)) : "";
 
   return (
     <DrawerFrame
       open={Boolean(praiseId)}
       onOpenChange={(open) => { if (!open) onClose(); }}
-      title="Praise"
+      title={t("praise")}
       footer={praise?.canDelete ? (
-        <Button variant="ghost" className="text-destructive" onClick={() => setConfirming(true)}>Delete praise</Button>
+        <Button variant="ghost" className="text-destructive" onClick={() => setConfirming(true)}>{t("deletePraise")}</Button>
       ) : null}
     >
       {item.data?.removed ? (
-        <Unavailable text="This praise was removed." />
+        <Unavailable text={t("thisPraiseWasRemoved")} />
       ) : praise ? (
         <>
           <div className="flex items-center gap-3">
@@ -187,7 +195,7 @@ export function PraiseDrawer({ praiseId, onClose }: { praiseId: string | null; o
             <div className="min-w-0">
               <p className="type-label text-foreground">{recipients}</p>
               <p className="type-meta text-muted-foreground">
-                from {praise.author.name ?? "a colleague"} · <time dateTime={praise.givenAt}>{praiseTime(praise.givenAt)}</time>
+                {t("from")} {praise.author.name ?? t("aColleague")} · <time dateTime={praise.givenAt}>{words.praiseTime(praise.givenAt)}</time>
               </p>
             </div>
           </div>
@@ -203,34 +211,34 @@ export function PraiseDrawer({ praiseId, onClose }: { praiseId: string | null; o
           <AlertDialog open={confirming} onOpenChange={setConfirming}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete this praise?</AlertDialogTitle>
+                <AlertDialogTitle>{t("deleteThisPraise")}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  It disappears from the feed, the home and {recipients}&apos;s profile for everyone.
+                  {t("itDisappearsFromTheFeed", { recipients })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Keep it</AlertDialogCancel>
+                <AlertDialogCancel>{t("keepIt")}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={async () => {
                     try {
                       await remove.mutateAsync(praise.id);
-                      toast.success("Praise deleted.");
+                      toast.success(t("praiseDeleted"));
                       onClose();
                     } catch (error) {
-                      toast.error(error instanceof Error ? error.message : "Could not delete this praise.");
+                      reportPerformanceFailure(error, t("couldNotDelete"));
                     }
                   }}
                 >
-                  Delete praise
+                  {t("deletePraise")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </>
       ) : item.error ? (
-        <Unavailable text="This praise isn't available." />
+        <Unavailable text={t("thisPraiseIsntAvailable")} />
       ) : (
-        <div aria-label="Loading praise" className="space-y-4">
+        <div aria-label={t("loadingPraise")} className="space-y-4">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-24 w-full" />
         </div>

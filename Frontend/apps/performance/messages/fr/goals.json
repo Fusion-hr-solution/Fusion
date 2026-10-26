@@ -1,0 +1,275 @@
+{
+  "MapSkeleton": {
+    "loadingTheAlignmentMap": "Chargement de la carte d’alignement"
+  },
+  "GoalsPage": {
+    "loadingGoals": "Chargement des objectifs"
+  },
+  "GoalsWorkspace": {
+    "loadingPerformance": "Chargement de Performance",
+    "performanceWorkspace": "Espace Performance",
+    "loadingCycle": "Chargement du cycle",
+    "theCycle": "Le cycle",
+    "noCycleYet": "Pas encore de cycle",
+    "organizationDirectionOpensOnceA": "L’orientation de l’organisation s’ouvre dès qu’un cycle de performance existe.",
+    "draftObjectiveRemoved": "Objectif en brouillon supprimé.",
+    "publishedAsCompanyDirection": "Publié comme orientation de l’entreprise.",
+    "map": "Carte",
+    "mapView": "Vue carte",
+    "list": "Liste",
+    "listView": "Vue liste",
+    "organizationDirectionView": "Vue de l’orientation de l’organisation",
+    "createCompanyObjective": "Créer un objectif d’entreprise",
+    "organizationDirection": "Orientation de l’organisation",
+    "overview": "Vue d’ensemble",
+    "theAlignmentMap": "La carte d’alignement",
+    "noPublishedDirectionForThis": "Aucune orientation publiée pour ce cycle",
+    "openTheList": "Ouvrir la liste",
+    "loadingGoals": "Chargement des objectifs",
+    "organizationDirectionUnavailable": "Orientation de l’organisation indisponible"
+  },
+  "DirectionNode": {
+    "personal": "{total} personnels",
+    "hideThem": "{counts}. Les masquer",
+    "showThem": "{counts}. Les afficher",
+    "collapse": "Réduire {title}",
+    "expandHiddenObjective": "Développer {title}, {hiddenCount} objectif masqué",
+    "expandHiddenObjectives": "Développer {title}, {hiddenCount} objectifs masqués"
+  },
+  "PersonalNode": {
+    "you": "Vous",
+    "personalObjective": "Objectif personnel"
+  },
+  "HiddenNode": {
+    "notVisibleToYou": "+{count} non visibles pour vous"
+  },
+  "AlignmentMap": {
+    "statusKey": "Légende des statuts"
+  },
+  "CompanyComposerHost": {
+    "thisObjectiveCantBeEdited": "Cet objectif ne peut pas être modifié.",
+    "openingObjective": "Ouverture de l’objectif…",
+    "published": "Orientation de l’entreprise publiée.",
+    "updated": "Objectif mis à jour.",
+    "savedDraft": "Objectif d’entreprise enregistré en brouillon."
+  },
+  "ObjectiveWorkspace": {
+    "workingScope": "Périmètre de travail"
+  },
+  "ObjectiveBlockView": {
+    "organizationalAlignment": "Alignement organisationnel",
+    "alignedObjectives": "Objectifs alignés",
+    "theseOrganizationalObjectivesSupportThe": "Ces objectifs organisationnels soutiennent l’orientation stratégique de l’entreprise."
+  },
+  "SubjectCard": {
+    "accountable": "Responsable",
+    "objective": "Objectif {value}"
+  },
+  "SubjectMenu": {
+    "objectiveActions": "Actions sur l’objectif",
+    "viewDetails": "Voir le détail",
+    "edit": "Modifier",
+    "publishDirection": "Publier l’orientation",
+    "resumeEditing": "Reprendre la modification",
+    "removeDraft": "Supprimer le brouillon"
+  },
+  "DirectionStrip": {
+    "alignedTo": "Aligné sur",
+    "objective": "Objectif {value}"
+  },
+  "ObjectiveRow": {
+    "openObjective": "Ouvrir l’objectif",
+    "organizationalUnit": "Unité",
+    "accountable": "Responsable",
+    "child": "enfant",
+    "objective": "objectif",
+    "objectives": "objectifs"
+  },
+  "RowMenu": {
+    "objectiveActions": "Actions sur l’objectif",
+    "viewDetails": "Voir le détail",
+    "addAlignedObjective": "Ajouter un objectif aligné",
+    "resumeEditing": "Reprendre la modification",
+    "removeDraft": "Supprimer le brouillon"
+  },
+  "AddAligned": {
+    "addAlignedObjective": "Ajouter un objectif aligné"
+  },
+  "GroupHeader": {
+    "direct": "direct",
+    "objective": "objectif",
+    "objectives": "objectifs"
+  },
+  "EmptyChildren": {
+    "noAlignedChildObjectivesYet": "Aucun objectif enfant aligné pour l’instant.",
+    "noDownstreamObjectivesYet": "Aucun objectif en aval pour l’instant."
+  },
+  "ContextHeader": {
+    "directlyAssigned": "affecté directement"
+  },
+  "FocusTrail": {
+    "direction": "Orientation",
+    "directionPath": "Chemin d’orientation"
+  },
+  "EmptyUnitContext": {
+    "noObjectiveForYet": "Aucun objectif pour {name} pour l’instant",
+    "defineAnObjectiveAlignedTo": "Définissez un objectif aligné sur",
+    "createObjectiveFor": "Créer un objectif pour {name}"
+  },
+  "DirectionSelector": {
+    "alignUnder": "Aligner sous"
+  },
+  "NoPublishedDirection": {
+    "companyDirection": "Orientation de l’entreprise",
+    "establishCompanyDirection": "Établir l’orientation de l’entreprise",
+    "defineTheStrategicObjectiveThat": "Définissez l’objectif stratégique sur lequel les objectifs organisationnels s’aligneront pendant ce cycle.",
+    "createCompanyObjective": "Créer un objectif d’entreprise",
+    "goToCycleSetup": "Aller à la préparation du cycle",
+    "setTheStrategicDirection": "Définir l’orientation stratégique",
+    "defineTheCompanysFocusFor": "Définissez le cap de l’entreprise pour le cycle de performance.",
+    "enableOrganizationalAlignment": "Permettre l’alignement organisationnel",
+    "helpTeamsAlignTheirGoals": "Aidez les équipes à aligner leurs objectifs sur l’essentiel.",
+    "createSharedFocus": "Créer un cap commun",
+    "makeTheOrganizationsPrioritiesClear": "Rendez les priorités de l’organisation claires tout au long du cycle.",
+    "organizationalAlignment": "Alignement organisationnel",
+    "organizationalObjectivesWillAppearHere": "Les objectifs organisationnels apparaîtront ici une fois l’orientation de l’entreprise établie.",
+    "alignedObjectivesWillAppearHere": "Les objectifs alignés apparaîtront ici",
+    "onceYouCreateTheCompany": "Une fois l’objectif d’entreprise créé, vous pourrez ajouter des objectifs organisationnels qui soutiennent l’orientation stratégique."
+  },
+  "PersonLine": {
+    "unassigned": "Non affecté"
+  },
+  "MeasurementFact": {
+    "measurement": "Mesure"
+  },
+  "ProgressFact": {
+    "calculatedProgress": "Avancement calculé",
+    "notStarted": "Non commencé",
+    "progress": "Avancement"
+  },
+  "OrgComposerHost": {
+    "thisObjectiveCantBeEdited": "Cet objectif ne peut pas être modifié."
+  },
+  "ComposerSkeleton": {
+    "createTeamObjective": "Créer un objectif d’équipe",
+    "editTeamObjective": "Modifier l’objectif d’équipe",
+    "loadingObjective": "Chargement de l’objectif"
+  },
+  "OrgObjectiveComposer": {
+    "milestoneWeightsTotalAssignMore": "Les poids des jalons totalisent {weightSum} % : ajoutez {value} % pour publier.",
+    "milestoneWeightsTotalRemoveTo": "Les poids des jalons totalisent {weightSum} % : retirez {value} % pour publier.",
+    "draftSaved": "Brouillon enregistré.",
+    "teamObjectivePublished": "Objectif d’équipe publié.",
+    "editTeamObjective": "Modifier l’objectif d’équipe",
+    "createTeamObjective": "Créer un objectif d’équipe",
+    "owningTeam": "Équipe responsable",
+    "companyStrategy": "Stratégie de l’entreprise",
+    "organizational": "Organisationnel",
+    "title": "Intitulé",
+    "improveTalentDevelopmentExecution": "Améliorer la mise en œuvre du développement des talents",
+    "description": "Description",
+    "optional": "(facultatif)",
+    "theContributionThisObjectiveMakes": "La contribution de cet objectif à l’orientation ci-dessus.",
+    "objectiveDefinition": "Définition de l’objectif",
+    "organizationalScope": "Périmètre organisationnel",
+    "owningUnit": "Unité responsable",
+    "chooseTheOwningTeamAbove": "Choisissez l’équipe responsable ci-dessus",
+    "accountablePerson": "Personne responsable",
+    "thisTeamHasNoEligible": "Cette équipe n’a aucun responsable éligible pour le cycle.",
+    "start": "Début",
+    "end": "Fin",
+    "scopeAccountability": "Périmètre et responsabilité",
+    "measureDirectly": "Mesurer directement",
+    "trackThisObjectiveWithIts": "Suivez cet objectif avec sa propre mesure métier.",
+    "calculateFromContributors": "Calculer à partir des contributeurs",
+    "rollUpFromPublishedDirect": "Agréger à partir des objectifs enfants directs publiés.",
+    "readyToPublish": "Prêt à publier",
+    "progressRollsUpFromThe": "L’avancement est agrégé à partir des objectifs alignés sous celui-ci.",
+    "measurement": "Mesure",
+    "howWillProgressOnThis": "Comment l’avancement de cet objectif sera-t-il mesuré ?",
+    "cancel": "Annuler",
+    "saving": "Enregistrement…",
+    "saveAsDraft": "Enregistrer en brouillon",
+    "publishing": "Publication…",
+    "publishObjective": "Publier l’objectif",
+    "couldNotSaveTheDraft": "Impossible d’enregistrer le brouillon.",
+    "couldNotSaveTheObjective": "Impossible d’enregistrer l’objectif."
+  },
+  "AlignmentEditor": {
+    "alignment": "Alignement",
+    "chooseTheOrganizationalDirectionThis": "Choisissez l’orientation organisationnelle que cet objectif soutient.",
+    "alignToOrganizationalDirection": "Aligner sur l’orientation organisationnelle",
+    "connectThisObjectiveToA": "Reliez cet objectif à un objectif amont publié.",
+    "standaloneTeamObjective": "Objectif d’équipe autonome",
+    "keepThisObjectiveWithinMy": "Gardez cet objectif dans Mon équipe sans lien vers l’amont.",
+    "upstreamObjective": "Objectif amont",
+    "teamOptionsCouldNotBe": "Les options d’équipe n’ont pas pu être chargées. Fermez et réessayez.",
+    "noPublishedUpstreamObjectivesAre": "Aucun objectif amont publié n’est disponible. Vous pouvez tout de même créer un objectif autonome."
+  },
+  "AlignmentTargetPicker": {
+    "organizationalDirection": "Orientation organisationnelle",
+    "noOwner": "Aucun responsable",
+    "to": "· du {startDate} au {endDate}",
+    "noAlignment": "Aucun alignement",
+    "company": "Entreprise",
+    "organizational": "Organisationnel",
+    "chooseAnUpstreamObjective": "Choisissez un objectif amont",
+    "standalone": "Autonome",
+    "createATeamObjectiveWithout": "Créez un objectif d’équipe sans lien vers l’amont."
+  },
+  "OwnerPicker": {
+    "teamMember": "Membre de l’équipe",
+    "activeTeamMemberAtCycle": "Membre actif de l’équipe au début du cycle",
+    "chooseAnAccountableOwner": "Choisissez un responsable",
+    "searchTeamMembers": "Rechercher des membres de l’équipe…",
+    "noEligibleTeamMembersMatch": "Aucun membre éligible de l’équipe ne correspond à votre recherche.",
+    "noEligibleTeamMembers": "Aucun membre éligible dans l’équipe."
+  },
+  "WorkingScopeSelector": {
+    "organizationWide": "Toute l’organisation",
+    "searchOrganization": "Rechercher une unité…",
+    "searchWorkingScope": "Rechercher un périmètre de travail",
+    "loadingOrganization": "Chargement de l’organisation…",
+    "noOrganizationalUnitsMatch": "Aucune unité organisationnelle ne correspond."
+  },
+  "lib": {
+    "state": {
+      "Draft": "Brouillon",
+      "Published": "Publié",
+      "Archived": "Archivée"
+    },
+    "company": "Entreprise",
+    "orgUnit": "Unité d’organisation",
+    "employee": "Collaborateur",
+    "yourUnit": "Votre {type}",
+    "yourOrganization": "Votre organisation",
+    "orgStrategic": "Objectif stratégique de {orgName}",
+    "companyObjective": "Objectif de l’entreprise",
+    "companyStrategy": "Stratégie de l’entreprise",
+    "individual": "Individuel",
+    "organizational": "Organisationnel"
+  },
+  "map": {
+    "status": {
+      "OnTrack": "En bonne voie",
+      "AtRisk": "À risque",
+      "OffTrack": "Hors trajectoire"
+    },
+    "notReported": "Non communiqué",
+    "noProgress": "Pas encore d’avancement",
+    "percent": "{value} %",
+    "company": "Entreprise",
+    "yourObjective": "Votre objectif",
+    "personalObjective": "Objectif personnel",
+    "unit": "Unité",
+    "companyObjective": "Objectif de l’entreprise",
+    "unitObjective": "Objectif {scope}",
+    "accessible": "{scope}, {title}, {status}, {progress}",
+    "onTrack": "{count, plural, one {# en bonne voie} other {# en bonne voie}}",
+    "atRisk": "{count, plural, one {# à risque} other {# à risque}}",
+    "offTrack": "{count, plural, one {# en difficulté} other {# en difficulté}}",
+    "noStatus": "{count} non communiqués",
+    "personal": "{count, plural, one {# objectif personnel} other {# objectifs personnels}}",
+    "personalWithParts": "{count, plural, one {# objectif personnel} other {# objectifs personnels}} : {parts}"
+  }
+}

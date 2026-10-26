@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./i18n": "./src/i18n.ts",
+    "./messages/en.json": "./src/messages/en.json",
+    "./messages/fr.json": "./src/messages/fr.json"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
@@ -13,7 +16,8 @@
   },
   "dependencies": {
     "@repo/api": "workspace:*",
-    "@repo/ds": "workspace:*"
+    "@repo/ds": "workspace:*",
+    "next-intl": "^4.13.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

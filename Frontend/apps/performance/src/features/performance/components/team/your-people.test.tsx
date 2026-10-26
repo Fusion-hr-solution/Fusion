@@ -101,7 +101,7 @@ describe("Your People", () => {
 
   it("leads the page with the first plan waiting for a decision", () => {
     const data = page({ items: [member({ employeeName: "Aicha Bouazizi", status: "Submitted", canReview: true, planId: "p1" })] });
-    expect(leadAction("c", data)?.label).toBe("Review Aicha's plan");
+    expect(leadAction("c", data)?.label).toBe("Review Aicha’s plan");
     expect(leadAction("c", page({ phase: "Execution" }))).toBeNull();
   });
 

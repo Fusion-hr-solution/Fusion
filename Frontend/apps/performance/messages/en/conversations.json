@@ -1,0 +1,278 @@
+{
+  "ColleaguePicker": {
+    "typeAtLeastTwoLetters": "Type at least two letters of a name",
+    "colleaguesCouldntBeLoadedTry": "Colleagues couldn't be loaded. Try again.",
+    "typeANameToSearch": "Type a name to search",
+    "noColleaguesMatch": "No colleagues match “{typed}”"
+  },
+  "ColleaguesPicker": {
+    "remove": "Remove {displayName}",
+    "searchColleagues": "Search colleagues",
+    "addAnother": "Add another"
+  },
+  "SubjectPicker": {
+    "nothingSpecific": "Nothing specific",
+    "about": "About"
+  },
+  "VisibilityChoice": {
+    "shared": "Shared",
+    "managerOnly": "Manager only",
+    "whoReadsIt": "Who reads it",
+    "they": "They",
+    "sharedWho": "{name} and their manager",
+    "managerOnlyWho": "Only {name}’s manager",
+    "managerOnlyWhoAnon": "Only their manager"
+  },
+  "FeedbackComposer": {
+    "giveFeedback": "Give feedback",
+    "change": "Change",
+    "to": "To",
+    "about": "About",
+    "feedback": "Feedback",
+    "whoReadsIt": "Who reads it",
+    "cantBeChangedOnceSent": "Can't be changed once sent",
+    "cancel": "Cancel",
+    "sendTo": "Send to {displayName}",
+    "sendFeedback": "Send feedback",
+    "feedbackSentTo": "Feedback sent to {displayName}."
+  },
+  "RequestComposer": {
+    "askForFeedback": "Ask for feedback",
+    "howIsLanding": "How is \"{title}\" landing?",
+    "yourQuestion": "Your question",
+    "ask": "Ask",
+    "about": "About",
+    "answerBy": "Answer by",
+    "cancel": "Cancel",
+    "askColleagues": "Ask {length} colleagues",
+    "sendRequest": "Send request",
+    "askedColleague": "Asked {length} colleague.",
+    "askedColleagues": "Asked {length} colleagues."
+  },
+  "PraiseComposer": {
+    "whatTheyDidInYour": "What they did, in your words.",
+    "givePraise": "Give praise",
+    "who": "Who",
+    "value": "Value",
+    "for": "For",
+    "whatTheyDid": "What they did",
+    "everyoneWillSee": "Everyone will see",
+    "cancel": "Cancel",
+    "praisePeople": "Praise {length} people",
+    "praiseShared": "Praise shared."
+  },
+  "DueBlock": {
+    "overdue": "Overdue",
+    "due": "Due",
+    "today": "Today",
+    "tomorrow": "Tomorrow"
+  },
+  "FeedbackDrawer": {
+    "aColleague": "A colleague",
+    "from": "From",
+    "to": "To",
+    "about": "About",
+    "only": "Only {value}",
+    "andTheirManager": "{name} and their manager",
+    "whoReadsIt": "Who reads it",
+    "answers": "Answers",
+    "thisFeedbackIsntAvailableTo": "This feedback isn't available to you.",
+    "loadingFeedback": "Loading feedback",
+    "feedback": "Feedback · {sentAt}",
+    "feedback2": "Feedback",
+    "fixedOnceSent": "Fixed once sent"
+  },
+  "AddToNextOneOnOne": {
+    "onTheNext11": "On the next 1:1",
+    "addToNext11": "Add to next 1:1",
+    "addedToYourNext1": "Added to your next 1:1 with {displayName}."
+  },
+  "PraiseDrawer": {
+    "thisPraiseWasRemoved": "This praise was removed.",
+    "from": "from",
+    "aColleague": "a colleague",
+    "deleteThisPraise": "Delete this praise?",
+    "itDisappearsFromTheFeed": "It disappears from the feed, the home and {recipients}'s profile for everyone.",
+    "keepIt": "Keep it",
+    "deletePraise": "Delete praise",
+    "praiseDeleted": "Praise deleted.",
+    "thisPraiseIsntAvailable": "This praise isn't available.",
+    "loadingPraise": "Loading praise",
+    "praise": "Praise",
+    "couldNotDelete": "Could not delete this praise."
+  },
+  "FeedbackWorkspace": {
+    "yourTeam": "Your team",
+    "feedback": "Feedback",
+    "askForFeedback": "Ask for feedback",
+    "giveFeedback": "Give feedback",
+    "toAnswer": "{toAnswer} to answer",
+    "noFeedbackAboutYourTeam": "No feedback about your team yet",
+    "youHaventGivenFeedbackYet": "You haven't given feedback yet",
+    "tabs": {
+      "received": "Received",
+      "given": "Given",
+      "requests": "Requests",
+      "praise": "Praise",
+      "team": "Your team"
+    }
+  },
+  "ReceivedTab": {
+    "noFeedbackYet": "No feedback yet",
+    "askAbout": "Ask about {title}",
+    "askForFeedback": "Ask for feedback"
+  },
+  "ReceivedBand": {
+    "fromColleague": "from {fromCount} colleague",
+    "s": "s",
+    "nothingSpecific": "Nothing specific",
+    "toAnswer": "{toAnswer} to answer",
+    "requestsWaitingOnYou": "Requests waiting on you",
+    "yourFeedbackAtAGlance": "Your feedback at a glance"
+  },
+  "ReceivedSidebar": {
+    "noFeedbackYet": "No feedback yet",
+    "pieceOfFeedback": "{feedback} piece of feedback",
+    "piecesOfFeedback": "{feedback} pieces of feedback",
+    "ask": "Ask",
+    "askAbout": "Ask about",
+    "feedback": "feedback",
+    "praise": "praise",
+    "givenByYou": "Given by you"
+  },
+  "FeedbackPage": {
+    "feedback": "Feedback",
+    "showOlder": "Show older"
+  },
+  "FeedbackCard": {
+    "to": "to",
+    "to2": "To",
+    "aColleague": "A colleague",
+    "managerOnly": "Manager only",
+    "answerTo": "Answer to “{requestQuestion}”"
+  },
+  "RequestsTab": {
+    "feedbackRequests": "Feedback requests",
+    "askedOfYou": "Asked of you",
+    "nothingToAnswer": "Nothing to answer",
+    "lastAnsweredFor": "· last answered for {name}",
+    "yours": "Yours",
+    "open": "{length} open",
+    "noOpenRequests": "No open requests",
+    "closed": "Closed",
+    "asked": "{name} asked:",
+    "answered": "Answered",
+    "declined": "Declined",
+    "answer": "{answered} answer",
+    "answers": "{answered} answers"
+  },
+  "AskedOfYou": {
+    "askedYou": "asked you · {requestedAt}",
+    "answer": "Answer"
+  },
+  "YourRequest": {
+    "overdue": "Overdue",
+    "due": "Due",
+    "noAnswersYet": "No answers yet",
+    "answered": "Answered",
+    "declined": "Declined",
+    "waiting": "Waiting",
+    "asked": "Asked",
+    "ofAnswered": "{answered} of {invited} answered"
+  },
+  "PraiseTab": {
+    "showPraise": "Show praise",
+    "praise": "Praise",
+    "filters": {
+      "all": "Everyone",
+      "forMe": "For you",
+      "byMe": "By you"
+    }
+  },
+  "GivePraiseBar": {
+    "praiseAColleagueFor": "Praise a colleague for…",
+    "praiseSomeoneFor": "Praise someone for {name}",
+    "givePraise": "Give praise"
+  },
+  "PraiseSidebar": {
+    "whatWeCelebrateLastDays": "What we celebrate · last {windowDays} days",
+    "received": "received",
+    "given": "given",
+    "yourPraise": "Your praise"
+  },
+  "PraisePage": {
+    "praise": "Praise",
+    "noPraiseYet": "No praise yet",
+    "giveTheFirst": "Give the first",
+    "noPraiseForYouYet": "No praise for you yet",
+    "youHaventGivenPraiseYet": "You haven't given praise yet",
+    "showOlder": "Show older"
+  },
+  "RequestRecord": {
+    "thisRequest": "This request"
+  },
+  "RequestView": {
+    "requests": "Requests",
+    "askedYou": "{name} asked you",
+    "open": "Open",
+    "closed": "Closed",
+    "asked": "Asked {requestedAt}",
+    "due": "· due {dueDate}",
+    "closed2": "· closed {closedAt}",
+    "closeRequest": "Close request"
+  },
+  "FullView": {
+    "asked": "Asked",
+    "answered": "{answered} answered",
+    "declined": "· {declined} declined",
+    "waiting": "· {length} waiting",
+    "answers": "Answers",
+    "hasntAnsweredYet": "{name} hasn't answered yet",
+    "noAnswers": "No answers",
+    "declined2": "{name} declined: {declineReason}",
+    "statusAnswered": "Answered",
+    "answeredOn": "Answered {day}",
+    "statusDeclined": "Declined",
+    "statusWaiting": "Waiting"
+  },
+  "InviteeView": {
+    "answered": "Answered {sentAt}",
+    "yourAnswer": "Your answer",
+    "youDeclinedThisRequest": "You declined this request.",
+    "closedThisRequest": "{name} closed this request.",
+    "yourFeedbackFor": "Your feedback for {name}",
+    "yourAnswerFor": "Your answer for {name}",
+    "andTheirManagerReadIt": "{name} and their manager read it, with your name",
+    "decline": "Decline",
+    "sendAnswer": "Send answer",
+    "reason": "Reason",
+    "optional": "(optional)",
+    "declineRequest": "Decline request"
+  },
+  "RequestSkeleton": {
+    "loadingThisRequest": "Loading this request"
+  },
+  "RequestUpdateDialog": {
+    "askForAnUpdate": "Ask {personName} for an update",
+    "onTheWholePlan": "On the whole plan",
+    "note": "Note",
+    "optional": "(optional)",
+    "cancel": "Cancel",
+    "sendRequest": "Send request",
+    "updateRequestedFrom": "Update requested from {personName}."
+  },
+  "RequestUpdateAction": {
+    "updateRequested": "Update requested",
+    "withdraw": "Withdraw",
+    "requestUpdate": "Request update",
+    "couldNotWithdrawTheRequest": "Could not withdraw the request."
+  },
+  "RequestBand": {
+    "askedForAnUpdate": "{requestedByName} asked for an update",
+    "recordingProgressAnswersIt": "Recording progress answers it.",
+    "recordProgress": "Record progress"
+  },
+  "ObjectiveRequestMarker": {
+    "asked": "{value} asked · {formatDate}"
+  }
+}

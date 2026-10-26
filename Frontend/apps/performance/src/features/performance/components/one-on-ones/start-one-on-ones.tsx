@@ -17,18 +17,14 @@ import { ObjectiveStatusBadge, PersonInitials } from "@repo/performance-ui";
 import { OneOnOnes, PencilLine, Plus, X } from "@/lib/icons";
 import { useOneOnOneStart, useStartOneOnOne } from "../../api/use-conversations";
 import { Segmented } from "../conversations/segmented";
-import { CADENCES, CADENCE_LABEL, TIME_SLOTS, defaultFirstMeeting, localDate, nextOccurrences, shortDay, toInstant } from "./one-on-one-lib";
-import { SOURCE_LABEL, SourceWell } from "./one-on-one-parts";
+import { CADENCES, TIME_SLOTS, defaultFirstMeeting, localDate, nextOccurrences, shortDay, toInstant, useOneOnOneWords } from "./one-on-one-lib";
+import { SourceWell } from "./one-on-one-parts";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /** Suggestions offered for the first agenda; the server takes up to ten talking points at start. */
 const MAX_PICKS = 8;
 const MAX_OWN = 2;
-
-const RHYTHM_PHRASE: Record<OneOnOneCadence, string> = {
-  Weekly: "Then every week",
-  EveryTwoWeeks: "Then every two weeks",
-  Monthly: "Then every month",
-};
 
 function suggestionKey(s: OneOnOneSuggestionDto) {
   return `${s.kind}:${s.sourceId}`;
@@ -49,6 +45,9 @@ function StartForm({
   layout: "page" | "dialog";
   onCancel?: () => void;
 }) {
+  const w = useOneOnOneWords();
+  const format = useFormat();
+  const t = useTranslations("oneOnOnes.StartForm");
   const router = useRouter();
   const start = useStartOneOnOne();
   const options = useOneOnOneStart(person.employeeId);
@@ -63,7 +62,7 @@ function StartForm({
   const suggestions = (options.data?.suggestions ?? []).slice(0, MAX_PICKS);
 
   const picked = suggestions.filter((s) => !unpicked.has(suggestionKey(s)));
-  const then = date && time ? nextOccurrences(toInstant(date, time), cadence, 2).map(shortDay).join(", ") : null;
+  const then = date && time ? nextOccurrences(toInstant(date, time), cadence, 2).map((d) => shortDay(d, format.locale)).join(", ") : null;
   const today = new Date();
   const lastDay = new Date(today);
   lastDay.setFullYear(today.getFullYear() + 1);
@@ -102,21 +101,21 @@ function StartForm({
   const schedule = (
     <div className={cn("grid gap-5", layout === "page" && "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]")}>
       <div className="space-y-2">
-        <p className="type-label text-foreground">How often</p>
+        <p className="type-label text-foreground">{t("howOften")}</p>
         <Segmented
-          label="How often"
+          label={t("howOften")}
           value={cadence}
           onChange={setCadence}
-          options={CADENCES.map((value) => ({ value, label: CADENCE_LABEL[value] }))}
+          options={CADENCES.map((value) => ({ value, label: w.cadence[value] }))}
           className="w-full [&>*]:flex-1"
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`start-date-${person.employeeId}`}>First meeting</Label>
+        <Label htmlFor={`start-date-${person.employeeId}`}>{t("firstMeeting")}</Label>
         <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
           <DatePicker id={`start-date-${person.employeeId}`} value={date} min={localDate(today)} max={localDate(lastDay)} onChange={setDate} />
           <Select value={time} onValueChange={setTime}>
-            <SelectTrigger aria-label="Time" className="w-full tabular-nums">
+            <SelectTrigger aria-label={t("time")} className="w-full tabular-nums">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -133,9 +132,9 @@ function StartForm({
   const agenda = (
     <section aria-labelledby={`first-agenda-${person.employeeId}`}>
       <div className="mb-3 flex items-baseline justify-between gap-4">
-        <h3 id={`first-agenda-${person.employeeId}`} className="type-subsection-title text-foreground">First agenda</h3>
+        <h3 id={`first-agenda-${person.employeeId}`} className="type-subsection-title text-foreground">{t("firstAgenda")}</h3>
         {suggestions.length > 0 ? (
-          <span className="type-meta tabular-nums text-muted-foreground">{picked.length + own.length} picked</span>
+          <span className="type-meta tabular-nums text-muted-foreground">{t("picked", { value: picked.length + own.length })}</span>
         ) : null}
       </div>
       <ul className="divide-y divide-border overflow-hidden rounded-surface border border-border bg-card">
@@ -152,13 +151,13 @@ function StartForm({
           return (
             <li key={suggestionKey(s)}>
               <label className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-inlay/60">
-                <Checkbox checked={on} onCheckedChange={() => toggle(s)} aria-label={`Put ${s.label} on the first agenda`} />
+                <Checkbox checked={on} onCheckedChange={() => toggle(s)} aria-label={t("putOnTheFirstAgenda", { label: s.label })} />
                 <SourceWell kind={s.kind} status={s.status} />
                 <span className="min-w-0 flex-1">
                   <span className={cn("block truncate type-label", on ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
                   <span className="block type-meta text-muted-foreground">
-                    {SOURCE_LABEL[s.kind]}
-                    {s.at ? ` · ${shortDay(s.at)}` : ""}
+                    {w.source[s.kind]}
+                    {s.at ? ` · ${shortDay(s.at, format.locale)}` : ""}
                   </span>
                 </span>
                 {s.status ? <ObjectiveStatusBadge status={s.status} /> : null}
@@ -173,7 +172,7 @@ function StartForm({
               <PencilLine className="size-4" />
             </span>
             <span className="min-w-0 flex-1 truncate type-label text-foreground">{text}</span>
-            <Button variant="ghost" size="icon-sm" aria-label={`Remove ${text}`} onClick={() => setOwn((current) => current.filter((_, i) => i !== index))}>
+            <Button variant="ghost" size="icon-sm" aria-label={t("remove", { text })} onClick={() => setOwn((current) => current.filter((_, i) => i !== index))}>
               <X className="size-4" />
             </Button>
           </li>
@@ -185,8 +184,8 @@ function StartForm({
               <Plus className="size-4" />
             </span>
             <Input
-              aria-label="Add your own talking point"
-              placeholder="Add your own"
+              aria-label={t("addYourOwnTalkingPoint")}
+              placeholder={t("addYourOwn")}
               value={draft}
               maxLength={200}
               onChange={(event) => setDraft(event.target.value)}
@@ -198,7 +197,7 @@ function StartForm({
               }}
               className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
-            {draft.trim() ? <Button size="sm" variant="ghost" onClick={addOwn}>Add</Button> : null}
+            {draft.trim() ? <Button size="sm" variant="ghost" onClick={addOwn}>{t("add")}</Button> : null}
           </li>
         ) : null}
       </ul>
@@ -207,11 +206,11 @@ function StartForm({
 
   const footer = (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <span className="type-meta tabular-nums text-muted-foreground">{then ? `${RHYTHM_PHRASE[cadence]}: ${then}` : ""}</span>
+      <span className="type-meta tabular-nums text-muted-foreground">{then ? `${w.then[cadence]}: ${then}` : ""}</span>
       <div className="flex items-center gap-2">
-        {onCancel ? <Button variant="ghost" onClick={onCancel} disabled={start.isLoading}>Cancel</Button> : null}
+        {onCancel ? <Button variant="ghost" onClick={onCancel} disabled={start.isLoading}>{t("cancel")}</Button> : null}
         <AsyncButton pending={start.isLoading} disabled={!date || !time} onClick={() => void submit()}>
-          Start 1:1s
+          {t("start11s")}
         </AsyncButton>
       </div>
     </div>
@@ -229,6 +228,7 @@ function StartForm({
 
 /** The page's whole job when someone has no 1:1s with their manager yet. */
 export function StartWithManager({ me, manager, defaultCadence }: { me: string; manager: OneOnOnePersonDto; defaultCadence: OneOnOneCadence }) {
+  const t = useTranslations("oneOnOnes.StartWithManager");
   return (
     <section aria-labelledby="start-with-manager" className="rounded-surface border border-primary-ring bg-card p-6 md:p-7">
       <div className="flex items-center gap-2.5" aria-hidden>
@@ -240,8 +240,8 @@ export function StartWithManager({ me, manager, defaultCadence }: { me: string; 
         <span className="h-px w-10 border-t border-dashed border-border" />
         <PersonInitials name={manager.displayName} size="xl" />
       </div>
-      <h2 id="start-with-manager" className="mt-5 type-display text-foreground">1:1s with {manager.displayName}</h2>
-      <p className="mt-1 type-meta text-muted-foreground">Your manager{manager.jobTitle ? ` · ${manager.jobTitle}` : ""}</p>
+      <h2 id="start-with-manager" className="mt-5 type-display text-foreground">{t("n11sWith", { displayName: manager.displayName })}</h2>
+      <p className="mt-1 type-meta text-muted-foreground">{t("yourManager")}{manager.jobTitle ? ` · ${manager.jobTitle}` : ""}</p>
       <div className="mt-7">
         <StartForm person={manager} defaultCadence={defaultCadence} layout="page" />
       </div>
@@ -259,6 +259,7 @@ export function StartOneOnOnesDialog({
   defaultCadence: OneOnOneCadence;
   onClose: () => void;
 }) {
+  const t = useTranslations("oneOnOnes.StartOneOnOnesDialog");
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[min(38rem,calc(100vw-2rem))] max-w-none sm:max-w-none overflow-y-auto">
@@ -266,7 +267,7 @@ export function StartOneOnOnesDialog({
           <div className="flex items-center gap-3">
             <PersonInitials name={person.displayName} size="lg" />
             <div className="min-w-0">
-              <DialogTitle className="break-words">1:1s with {person.displayName}</DialogTitle>
+              <DialogTitle className="break-words">{t("n11sWith", { displayName: person.displayName })}</DialogTitle>
               {person.jobTitle ? <p className="type-meta text-muted-foreground">{person.jobTitle}</p> : null}
             </div>
           </div>

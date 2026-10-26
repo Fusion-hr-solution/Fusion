@@ -1,8 +1,12 @@
 import type { PersonSummaryReviewsDto } from "@repo/api";
-import { formatDate, stepLabel, type RenderSummaryLink } from "./summary-lib";
+import type { RenderSummaryLink } from "./summary-lib";
+import { useTranslations } from "next-intl";
+import { usePerformanceWords } from "./use-words";
 
 /** The open review, then released results across cycles, newest first. Each opens the review. */
 export function SummaryReviews({ reviews, renderLink }: { reviews: PersonSummaryReviewsDto; renderLink: RenderSummaryLink }) {
+  const t = useTranslations("performanceUi.SummaryReviews");
+  const words = usePerformanceWords();
   const current = reviews.current;
   const rows = [
     ...(current
@@ -11,8 +15,8 @@ export function SummaryReviews({ reviews, renderLink }: { reviews: PersonSummary
             id: current.reviewId,
             href: current.href,
             title: current.reviewRoundName,
-            detail: current.dueDate ? `Due ${formatDate(current.dueDate)}` : "In progress",
-            outcome: current.state === "Closed" ? "Closed" : stepLabel(current.state),
+            detail: current.dueDate ? t("due", { dueDate: words.date(current.dueDate) }) : t("inProgress"),
+            outcome: current.state === "Closed" ? words.t("closed") : words.step(current.state),
             current: true,
           },
         ]
@@ -21,8 +25,8 @@ export function SummaryReviews({ reviews, renderLink }: { reviews: PersonSummary
       id: result.reviewId,
       href: result.href,
       title: `${result.reviewRoundName}, ${result.cycleName}`,
-      detail: result.finalizedAt ? `Finalized ${formatDate(result.finalizedAt)}` : "Finalized",
-      outcome: result.finalRatingLabel ?? "No rating",
+      detail: result.finalizedAt ? t("finalized", { finalizedAt: words.date(result.finalizedAt) }) : t("finalized2"),
+      outcome: result.finalRatingLabel ?? words.t("noRating"),
       current: false,
     })),
   ];
@@ -30,10 +34,10 @@ export function SummaryReviews({ reviews, renderLink }: { reviews: PersonSummary
   return (
     <section aria-labelledby="summary-reviews-heading" className="space-y-3">
       <h2 id="summary-reviews-heading" className="type-section-title text-foreground">
-        Reviews
+        {t("reviews")}
       </h2>
       {rows.length === 0 ? (
-        <p className="type-body-secondary text-muted-foreground">No reviews yet</p>
+        <p className="type-body-secondary text-muted-foreground">{t("noReviewsYet")}</p>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-surface bg-card">
           {rows.map((row) => (

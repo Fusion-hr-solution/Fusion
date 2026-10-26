@@ -8,24 +8,24 @@ const none: WorkspaceDestinationsDto = {
 
 describe("primary navigation", () => {
   it("shows 1:1s and Feedback only when the workspace offers them, after My Plan and Team", () => {
-    expect(visiblePrimaryItems(none).map((i) => i.label)).toEqual(["Overview"]);
+    expect(visiblePrimaryItems(none).map((i) => i.label)).toEqual(["overview"]);
     const manager = visiblePrimaryItems({ ...none, myPlan: true, team: true, oneOnOnes: true, feedback: true, reviews: true });
-    expect(manager.map((i) => i.label)).toEqual(["Overview", "My Plan", "My Team", "1:1s", "Feedback", "Reviews"]);
+    expect(manager.map((i) => i.label)).toEqual(["overview", "myPlan", "myTeam", "oneOnOnes", "feedback", "reviews"]);
   });
 
   it("keeps Feedback without 1:1s for someone with no manager and no reports", () => {
-    expect(visiblePrimaryItems({ ...none, feedback: true }).map((i) => i.label)).toEqual(["Overview", "Feedback"]);
+    expect(visiblePrimaryItems({ ...none, feedback: true }).map((i) => i.label)).toEqual(["overview", "feedback"]);
   });
 
   it("shows nothing but Overview before the context loads", () => {
-    expect(visiblePrimaryItems(undefined).map((i) => i.label)).toEqual(["Overview"]);
+    expect(visiblePrimaryItems(undefined).map((i) => i.label)).toEqual(["overview"]);
   });
 });
 
 describe("administration", () => {
   it("shows Settings to whoever can view it and Cycle only to cycle administrators", () => {
     expect(visibleAdminItems(none)).toEqual([]);
-    expect(visibleAdminItems({ ...none, settings: true }).map((i) => i.label)).toEqual(["Settings"]);
-    expect(visibleAdminItems({ ...none, settings: true, cycleAdmin: true }).map((i) => i.label)).toEqual(["Cycle", "Settings"]);
+    expect(visibleAdminItems({ ...none, settings: true }).map((i) => i.label)).toEqual(["settings"]);
+    expect(visibleAdminItems({ ...none, settings: true, cycleAdmin: true }).map((i) => i.label)).toEqual(["cycle", "settings"]);
   });
 });

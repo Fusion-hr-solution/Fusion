@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from "@repo/ds/components/ui/dialog";
 import { AsyncButton } from "@repo/ds/shell";
-import { formatDate } from "../lib";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * Activation is consequential, so it is confirmed — but it is a commitment, not a
@@ -33,33 +34,33 @@ export function ActivationReview({
   detail: CycleDetailDto;
   onActivate: () => Promise<void>;
 }) {
+  const format = useFormat();
+  const t = useTranslations("cycleSetup.ActivationReview");
   const [submitting, setSubmitting] = useState(false);
 
   const locked: { label: string; value: ReactNode }[] = [
     {
-      label: "Population",
+      label: t("population"),
       value: (
         <>
           <span className="font-semibold tabular-nums text-primary-ink">
             {detail.confirmedParticipantCount}
-          </span>{" "}
-          people, frozen as the roster
+          </span>{t("peopleFrozenAsTheRoster")}
         </>
       ),
     },
-    { label: "Settings", value: "Locked to this Cycle" },
+    { label: t("settings"), value: "Locked to this Cycle" },
   ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Activate {detail.cycle.name}</DialogTitle>
+          <DialogTitle>{t("activate", { name: detail.cycle.name })}</DialogTitle>
           <DialogDescription>
             <span className="font-medium text-foreground">
-              Planning opens through {formatDate(detail.cycle.planningDeadline)}.
-            </span>{" "}
-            These lock into the Cycle and won&apos;t follow later changes.
+              {t("planningOpensThrough", { planningDeadline: format.date(detail.cycle.planningDeadline) })}
+            </span>{t("theseLockIntoTheCycle")}
           </DialogDescription>
         </DialogHeader>
 
@@ -74,25 +75,25 @@ export function ActivationReview({
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t("cancel")}
           </Button>
           <AsyncButton
             pending={submitting}
-            pendingLabel="Activating…"
+            pendingLabel={t("activating")}
             onClick={async () => {
               setSubmitting(true);
               try {
                 await onActivate();
-                toast.success(`${detail.cycle.name} is now Active — planning is open.`);
+                toast.success(t("isNowActivePlanningIs", { name: detail.cycle.name }));
                 onOpenChange(false);
               } catch (error) {
-                reportPerformanceFailure(error, "Activation failed.");
+                reportPerformanceFailure(error, t("activationFailed"));
               } finally {
                 setSubmitting(false);
               }
             }}
           >
-            Activate Cycle
+            {t("activateCycle")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>

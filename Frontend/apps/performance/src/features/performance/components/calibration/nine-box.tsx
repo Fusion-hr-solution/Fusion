@@ -11,6 +11,8 @@ import { cn } from "@repo/ds/lib/utils";
 import { initials } from "@repo/performance-ui";
 import { Check } from "@/lib/icons";
 import { bandLevels, bandRange, nearestLevel, POTENTIALS } from "./calibration-format";
+import { useTranslations } from "next-intl";
+import { performanceFailure } from "@/features/performance/api/performance-failure";
 
 export interface NineBoxMove {
   person: CalibrationCellPersonDto;
@@ -33,6 +35,7 @@ export function NineBoxView({ view, scale, readOnly, onOpen, onMove }: {
   onOpen: (reviewId: string) => void;
   onMove: (move: NineBoxMove) => Promise<unknown>;
 }) {
+  const t = useTranslations("calibration.NineBoxView");
   const bands = bandLevels(scale, view.bandLowTop, view.bandMidTop);
   const [picked, setPicked] = useState<{ person: CalibrationCellPersonDto; from: CalibrationCellDto } | null>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -62,14 +65,14 @@ export function NineBoxView({ view, scale, readOnly, onOpen, onMove }: {
   };
 
   return (
-    <section aria-label="Nine-box">
+    <section aria-label={t("nineBox")}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 type-meta text-muted-foreground">
         <span aria-live="polite">
-          {picked ? `Moving ${picked.person.name}: choose a cell, or press Escape`
-            : `${people} ${people === 1 ? "person" : "people"}${readOnly ? "" : " · drag a person to change their rating or potential"}`}
+          {picked ? t("movingChooseACellOr", { name: picked.person.name })
+            : readOnly ? t("people", { count: people }) : t("peopleDrag", { count: people })}
         </span>
         <span className="flex items-center gap-3">
-          <span className="rounded-full border border-primary px-2 py-0.5 font-semibold text-primary-ink">Moved</span>
+          <span className="rounded-full border border-primary px-2 py-0.5 font-semibold text-primary-ink">{t("moved")}</span>
         </span>
       </div>
       <div className="grid grid-cols-[2rem_repeat(3,minmax(0,1fr))] gap-3">
@@ -92,7 +95,7 @@ export function NineBoxView({ view, scale, readOnly, onOpen, onMove }: {
                   <div className="flex items-baseline justify-between">
                     <span className="type-metric tabular-nums text-foreground">{cell.people.length}</span>
                     {target ? (
-                      <Button size="sm" variant="outline" onClick={() => dropOn(cell, picked)}>Move here</Button>
+                      <Button size="sm" variant="outline" onClick={() => dropOn(cell, picked)}>{t("moveHere")}</Button>
                     ) : null}
                   </div>
                   <ul className="mt-3 flex flex-wrap gap-2">
@@ -118,7 +121,7 @@ export function NineBoxView({ view, scale, readOnly, onOpen, onMove }: {
             })}
           </div>
         ))}
-        <div className="flex items-end justify-center pb-1 text-center type-meta text-muted-foreground">Potential</div>
+        <div className="flex items-end justify-center pb-1 text-center type-meta text-muted-foreground">{t("potential")}</div>
         {bands.map((levels, band) => (
           <div key={band} className="pt-1 text-center">
             <p className="type-label tabular-nums text-foreground">{bandRange(levels)}</p>
@@ -143,6 +146,7 @@ function DropForm({ drop, bands, onClose, onConfirm }: {
   onClose: () => void;
   onConfirm: (rating: number, reason: string, discussed: boolean) => Promise<void>;
 }) {
+  const t = useTranslations("calibration.DropForm");
   const levels = bands[drop.to.band] ?? [];
   const [rating, setRating] = useState(() => nearestLevel(levels, drop.person.currentRating));
   const [reason, setReason] = useState("");
@@ -155,14 +159,14 @@ function DropForm({ drop, bands, onClose, onConfirm }: {
     <Dialog open onOpenChange={(open) => { if (!open && !pending) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Move {drop.person.name}</DialogTitle>
+          <DialogTitle>{t("move", { name: drop.person.name })}</DialogTitle>
           <DialogDescription>
-            {[rating !== drop.person.currentRating ? `Rating ${drop.person.currentRating} → ${rating}` : null,
-              potentialChanged ? `potential ${drop.from.potential} → ${drop.to.potential}` : null].filter(Boolean).join(" · ") || "No change"}
+            {[rating !== drop.person.currentRating ? t("rating2", { currentRating: drop.person.currentRating, rating }) : null,
+              potentialChanged ? t("potential", { potential: drop.from.potential, potential2: drop.to.potential }) : null].filter(Boolean).join(" · ") || t("noChange")}
           </DialogDescription>
         </DialogHeader>
         {levels.length > 1 ? (
-          <div role="radiogroup" aria-label="Rating" className="grid gap-2" style={{ gridTemplateColumns: `repeat(${levels.length}, minmax(0, 1fr))` }}>
+          <div role="radiogroup" aria-label={t("rating")} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${levels.length}, minmax(0, 1fr))` }}>
             {levels.map((level) => (
               <button key={level.value} type="button" role="radio" aria-checked={rating === level.value} onClick={() => setRating(level.value)}
                 className={cn("rounded-control border px-3 py-2.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -174,25 +178,25 @@ function DropForm({ drop, bands, onClose, onConfirm }: {
           </div>
         ) : null}
         <label className="block">
-          <span className="type-label text-foreground">Why this changes</span>
+          <span className="type-label text-foreground">{t("whyThisChanges")}</span>
           <Textarea className="mt-2" rows={3} maxLength={2000} value={reason} onChange={(event) => setReason(event.target.value)}
-            placeholder={`What the group agreed about ${first}`} />
+            placeholder={t("whatTheGroupAgreedAbout", { first: first ?? "" })} />
         </label>
         <label className="flex items-center gap-2.5 type-body text-foreground">
-          <Checkbox checked={discussed} onCheckedChange={(value) => setDiscussed(value === true)} />Discussed
+          <Checkbox checked={discussed} onCheckedChange={(value) => setDiscussed(value === true)} />{t("discussed")}
         </label>
         {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={pending}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={pending}>{t("cancel")}</Button>
           <AsyncButton pending={pending} disabled={!reason.trim()}
             onClick={async () => {
               setPending(true);
               setError(null);
               try { await onConfirm(rating, reason.trim(), discussed); }
-              catch (failure) { setError(failure instanceof Error ? failure.message : "The move couldn't be saved."); }
+              catch (failure) { setError(performanceFailure(failure, t("theMoveCouldntBeSaved")).message); }
               finally { setPending(false); }
             }}>
-            <Check className="size-4" aria-hidden />Move
+            <Check className="size-4" aria-hidden />{t("move2")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>

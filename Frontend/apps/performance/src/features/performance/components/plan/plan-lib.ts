@@ -1,22 +1,11 @@
-import type { MeasurementMethod, PlanLifecycleState, PlanReadinessDto } from "@repo/api";
+import type { PlanLifecycleState, PlanReadinessDto } from "@repo/api";
 import { formatNumber } from "@repo/ds/lib/numbers";
-
-export const PLAN_STATE_LABEL: Record<PlanLifecycleState, string> = {
-  Draft: "Draft",
-  Submitted: "Awaiting decision",
-  Approved: "Approved",
-};
+import { english, type Say } from "@/i18n/say";
 
 export const PLAN_STATE_TONE: Record<PlanLifecycleState, "muted" | "warning" | "success"> = {
   Draft: "muted",
   Submitted: "warning",
   Approved: "success",
-};
-
-export const MEASUREMENT_METHOD_LABEL: Record<MeasurementMethod, string> = {
-  ManualPercentage: "Manual percentage",
-  NumericTarget: "Numeric target",
-  WeightedMilestones: "Weighted milestones",
 };
 
 /** The tone for a running weight total against the 100% target. */
@@ -125,32 +114,32 @@ export interface PlanCheck {
 }
 
 /** Submission conditions follow the cycle's captured policy; Optional has no alignment check. */
-export function planChecks(readiness: PlanReadinessDto): PlanCheck[] {
+export function planChecks(readiness: PlanReadinessDto, say: Say = english("plan.checks")): PlanCheck[] {
   const hasObjectives = readiness.objectiveCount > 0;
   const remaining = readiness.weightRemaining;
   const checks: PlanCheck[] = [
     {
       id: "objective",
-      label: "Plan has at least one objective",
+      label: say("objective.label"),
       passed: hasObjectives,
-      detail: "Add an objective to your plan",
+      detail: say("objective.detail"),
     },
     {
       id: "weight-assigned",
-      label: "Every objective carries a weight",
+      label: say("weightAssigned.label"),
       passed: hasObjectives && readiness.everyObjectiveHasWeight,
-      detail: "Give every objective a weight above zero",
+      detail: say("weightAssigned.detail"),
     },
     {
       id: "weight-total",
-      label: "Weights total 100%",
+      label: say("weightTotal.label"),
       passed: hasObjectives && readiness.weightTotal === 100,
       detail:
         remaining > 0
-          ? `${pct(remaining)}% of plan weight is still to assign`
+          ? say("weightTotal.remaining", { remaining: pct(remaining) })
           : remaining < 0
-            ? `Plan weight is over by ${pct(-remaining)}%`
-            : "Weights total 100%",
+            ? say("weightTotal.over", { over: pct(-remaining) })
+            : say("weightTotal.label"),
     },
   ];
   if (readiness.openChangeRequests > 0) {

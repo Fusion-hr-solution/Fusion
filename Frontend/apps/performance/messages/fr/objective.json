@@ -1,0 +1,182 @@
+{
+  "ObjectiveEditor": {
+    "addATitleFirst": "Ajoutez d’abord un titre",
+    "chooseAnAccountablePerson": "Choisissez une personne responsable",
+    "theEndDateMustBe": "La date de fin doit être postérieure à la date de début",
+    "keepTheDatesWithinThe": "Gardez les dates dans la période du cycle",
+    "moveMilestoneDueDatesInside": "Placez les échéances des jalons dans les dates de l’objectif",
+    "setABaselineTargetAnd": "Définissez une valeur de départ, une cible et une unité pour la mesure",
+    "giveEachMilestoneAWeight": "Donnez à chaque jalon un poids, pour un total de 100 %",
+    "completeTheMeasurement": "Complétez la mesure",
+    "milestone": "{named} jalon · {weightSum} %",
+    "milestones": "{named} jalons · {weightSum} %",
+    "manualPercentage": "Pourcentage manuel",
+    "editStrategicObjective": "Modifier l’objectif stratégique",
+    "newStrategicObjective": "Nouvel objectif stratégique",
+    "title": "Intitulé",
+    "growRecurringRevenue": "Développer le chiffre d’affaires récurrent",
+    "description": "Description",
+    "optional": "(facultatif)",
+    "theOutcomeThisDirectionCommits": "Le résultat auquel cette orientation engage l’entreprise.",
+    "objective": "Objectif",
+    "accountablePerson": "Personne responsable",
+    "accountability": "Responsabilité",
+    "start": "Début",
+    "end": "Fin",
+    "timeline": "Calendrier",
+    "outcome": "Résultat",
+    "measurement": "Mesure",
+    "howWillProgressOnThis": "Comment l’avancement de cet objectif sera-t-il mesuré ?",
+    "cancel": "Annuler",
+    "saveDraft": "Enregistrer le brouillon",
+    "publishDirection": "Publier l’orientation",
+    "saveObjective": "Enregistrer l’objectif",
+    "addToDirection": "Ajouter à l’orientation",
+    "couldNotSaveTheObjective": "Impossible d’enregistrer l’objectif."
+  },
+  "RecordProgressMode": {
+    "backToObjectiveDetails": "Retour aux détails de l’objectif",
+    "recordProgress": "Enregistrer l’avancement",
+    "loadingProgress": "Chargement de l’avancement",
+    "progressUnavailable": "Avancement indisponible",
+    "cancel": "Annuler"
+  },
+  "ObjectiveRecordSheet": {
+    "loadingObjective": "Chargement de l’objectif",
+    "thisObjectiveIsntAvailableTo": "Cet objectif ne vous est pas accessible",
+    "thisObjectiveCouldNotBe": "Cet objectif n’a pas pu être chargé",
+    "tryAgain": "Réessayer",
+    "objectiveRecordFor": "Fiche de l’objectif {title}."
+  },
+  "RecordLoading": {
+    "objective": "Objectif",
+    "loadingTheObjective": "Chargement de l’objectif."
+  },
+  "RecordUnavailable": {
+    "tryAgain": "Réessayer"
+  },
+  "RecordActions": {
+    "edit": "Modifier",
+    "remove": "Supprimer",
+    "draftObjectiveRemoved": "Objectif en brouillon supprimé.",
+    "archive": "Archiver",
+    "archiving": "Archivage…",
+    "objectiveArchived": "Objectif archivé.",
+    "openInOrganizationDirection": "Ouvrir dans l’orientation de l’organisation",
+    "publish": "Publier",
+    "theObjectiveCouldNotBe": "L’objectif n’a pas pu être supprimé.",
+    "theObjectiveCouldNotBe2": "L’objectif n’a pas pu être archivé.",
+    "theObjectiveCouldNotBe3": "L’objectif n’a pas pu être publié.",
+    "publishedCompany": "Publié comme orientation de l’entreprise.",
+    "publishedOrg": "Publié comme orientation organisationnelle."
+  },
+  "AlignedChildrenSection": {
+    "unassigned": "Non affecté",
+    "planObjectives": "Objectifs du plan",
+    "alignedObjectives": "Objectifs alignés · {value}"
+  },
+  "AlignmentSection": {
+    "viewOnMap": "Voir sur la carte",
+    "alignment": "Alignement",
+    "archived": "· Archivé",
+    "supports": "Soutient"
+  },
+  "ContributionSection": {
+    "baselineLocked": "Base verrouillée",
+    "contributionBaseline": "Base de contribution",
+    "noAlignedObjectivesContributeYet": "Aucun objectif aligné ne contribue pour l’instant.",
+    "contributionOf": "Contribution de {title}",
+    "fullyAllocated": "Entièrement réparti",
+    "toAssign": "{value} % à répartir",
+    "over": "{value} % en trop",
+    "save": "Enregistrer",
+    "contributionSaved": "Contribution enregistrée.",
+    "lockBaseline": "Verrouiller la base",
+    "everyContributingObjectiveMustBe": "Chaque objectif contributeur doit d’abord être publié",
+    "contributionBaselineLocked": "Base de contribution verrouillée.",
+    "couldNotSave": "Impossible d’enregistrer.",
+    "couldNotLock": "Impossible de verrouiller."
+  },
+  "DescriptionSection": {
+    "description": "Description"
+  },
+  "FeedbackSection": {
+    "askForFeedbackOnThis": "Demander un feedback à ce sujet",
+    "giveFeedback": "Donner un feedback",
+    "noFeedbackAboutThisObjective": "Aucun feedback sur cet objectif pour l’instant",
+    "feedback": "Feedback · {length}",
+    "feedback2": "Feedback"
+  },
+  "MeasureFacts": {
+    "contributingObjectives": "Objectifs contributeurs",
+    "measuredBy": "Mesuré par",
+    "target": "Cible",
+    "measure": "Mesure"
+  },
+  "MeasurementSection": {
+    "measurement": "Mesure"
+  },
+  "ObjectiveFactsSection": {
+    "runs": "Période",
+    "ofThePlan": "{planWeight} % du plan",
+    "weight": "Poids",
+    "aboutThisObjective": "À propos de cet objectif"
+  },
+  "ProgressSection": {
+    "ofMilestoneCompletedOfTotal": "{length} sur {length} jalon terminé · {derived} % du poids total",
+    "ofMilestonesCompletedOfTotal": "{length} sur {length} jalons terminés · {derived} % du poids total",
+    "ofContributingWeightReported": "{coverage} % du poids contributeur communiqué",
+    "noProgressReportedYet": "Aucun avancement communiqué pour l’instant",
+    "currentProgress": "Avancement actuel",
+    "recordProgress": "Enregistrer l’avancement",
+    "noUpdatesRecordedYet": "Aucune mise à jour enregistrée pour l’instant",
+    "progressHistory": "Historique de l’avancement",
+    "updated": "Mis à jour le {formatDate}"
+  },
+  "StatusSection": {
+    "theReviewer": "l’évaluateur",
+    "reported": "Communiqué",
+    "whatsInTheWay": "Ce qui bloque",
+    "acknowledgedBy": "Pris en compte par",
+    "acknowledge": "Prendre en compte",
+    "howItsGoing": "Comment ça avance",
+    "couldNotAcknowledgeTheStatus": "Impossible de prendre en compte le statut."
+  },
+  "ObjectiveSummary": {
+    "accountable": "Responsable ·",
+    "unassigned": "Non affecté"
+  },
+  "model": {
+    "kind": {
+      "company": "Objectif stratégique de l’entreprise",
+      "team": "Objectif {unit}",
+      "aligned": "Objectif aligné",
+      "standalone": "Objectif de poste autonome"
+    },
+    "organizational": "Organisationnel",
+    "companyStrategy": "Stratégie de l’entreprise",
+    "status": {
+      "Approved": "Approuvé",
+      "Submitted": "Soumis",
+      "DraftPlan": "Plan en brouillon",
+      "Published": "Publié",
+      "Archived": "Archivée",
+      "Draft": "Brouillon"
+    },
+    "measure": {
+      "percentage": "Pourcentage",
+      "in": "En {unit}",
+      "numeric": "Valeur numérique",
+      "milestones": "{count, plural, one {# jalon} other {# jalons}}",
+      "single": "Pourcentage unique"
+    },
+    "planWaiting": "plan en attente d’approbation",
+    "planDraft": "plan en brouillon"
+  },
+  "back": {
+    "myPlan": "Mon plan",
+    "theirPlan": "Plan de {name}",
+    "their": "Son",
+    "direction": "Orientation de l’organisation"
+  }
+}

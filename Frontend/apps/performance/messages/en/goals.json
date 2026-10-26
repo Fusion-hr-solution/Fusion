@@ -1,0 +1,275 @@
+{
+  "MapSkeleton": {
+    "loadingTheAlignmentMap": "Loading the alignment map"
+  },
+  "GoalsPage": {
+    "loadingGoals": "Loading goals"
+  },
+  "GoalsWorkspace": {
+    "loadingPerformance": "Loading Performance",
+    "performanceWorkspace": "Performance workspace",
+    "loadingCycle": "Loading Cycle",
+    "theCycle": "The Cycle",
+    "noCycleYet": "No Cycle yet",
+    "organizationDirectionOpensOnceA": "Organization direction opens once a Performance Cycle exists.",
+    "draftObjectiveRemoved": "Draft objective removed.",
+    "publishedAsCompanyDirection": "Published as company direction.",
+    "map": "Map",
+    "mapView": "Map view",
+    "list": "List",
+    "listView": "List view",
+    "organizationDirectionView": "Organization direction view",
+    "createCompanyObjective": "Create company objective",
+    "organizationDirection": "Organization direction",
+    "overview": "Overview",
+    "theAlignmentMap": "The alignment map",
+    "noPublishedDirectionForThis": "No published direction for this cycle",
+    "openTheList": "Open the list",
+    "loadingGoals": "Loading goals",
+    "organizationDirectionUnavailable": "Organization direction unavailable"
+  },
+  "DirectionNode": {
+    "personal": "{total} personal",
+    "hideThem": "{counts}. Hide them",
+    "showThem": "{counts}. Show them",
+    "collapse": "Collapse {title}",
+    "expandHiddenObjective": "Expand {title}, {hiddenCount} hidden objective",
+    "expandHiddenObjectives": "Expand {title}, {hiddenCount} hidden objectives"
+  },
+  "PersonalNode": {
+    "you": "You",
+    "personalObjective": "Personal objective"
+  },
+  "HiddenNode": {
+    "notVisibleToYou": "+{count} not visible to you"
+  },
+  "AlignmentMap": {
+    "statusKey": "Status key"
+  },
+  "CompanyComposerHost": {
+    "thisObjectiveCantBeEdited": "This objective can’t be edited.",
+    "openingObjective": "Opening objective…",
+    "published": "Company direction published.",
+    "updated": "Objective updated.",
+    "savedDraft": "Company objective saved as draft."
+  },
+  "ObjectiveWorkspace": {
+    "workingScope": "Working scope"
+  },
+  "ObjectiveBlockView": {
+    "organizationalAlignment": "Organizational alignment",
+    "alignedObjectives": "Aligned objectives",
+    "theseOrganizationalObjectivesSupportThe": "These organizational objectives support the company's strategic direction."
+  },
+  "SubjectCard": {
+    "accountable": "Accountable",
+    "objective": "{value} objective"
+  },
+  "SubjectMenu": {
+    "objectiveActions": "Objective actions",
+    "viewDetails": "View details",
+    "edit": "Edit",
+    "publishDirection": "Publish direction",
+    "resumeEditing": "Resume editing",
+    "removeDraft": "Remove draft"
+  },
+  "DirectionStrip": {
+    "alignedTo": "Aligned to",
+    "objective": "{value} objective"
+  },
+  "ObjectiveRow": {
+    "openObjective": "Open objective",
+    "organizationalUnit": "Organizational unit",
+    "accountable": "Accountable",
+    "child": "child",
+    "objective": "objective",
+    "objectives": "objectives"
+  },
+  "RowMenu": {
+    "objectiveActions": "Objective actions",
+    "viewDetails": "View details",
+    "addAlignedObjective": "Add aligned objective",
+    "resumeEditing": "Resume editing",
+    "removeDraft": "Remove draft"
+  },
+  "AddAligned": {
+    "addAlignedObjective": "Add aligned objective"
+  },
+  "GroupHeader": {
+    "direct": "direct",
+    "objective": "objective",
+    "objectives": "objectives"
+  },
+  "EmptyChildren": {
+    "noAlignedChildObjectivesYet": "No aligned child objectives yet.",
+    "noDownstreamObjectivesYet": "No downstream objectives yet."
+  },
+  "ContextHeader": {
+    "directlyAssigned": "directly assigned"
+  },
+  "FocusTrail": {
+    "direction": "Direction",
+    "directionPath": "Direction path"
+  },
+  "EmptyUnitContext": {
+    "noObjectiveForYet": "No objective for {name} yet",
+    "defineAnObjectiveAlignedTo": "Define an objective aligned to",
+    "createObjectiveFor": "Create objective for {name}"
+  },
+  "DirectionSelector": {
+    "alignUnder": "Align under"
+  },
+  "NoPublishedDirection": {
+    "companyDirection": "Company direction",
+    "establishCompanyDirection": "Establish company direction",
+    "defineTheStrategicObjectiveThat": "Define the strategic objective that organizational goals will align to during this cycle.",
+    "createCompanyObjective": "Create company objective",
+    "goToCycleSetup": "Go to Cycle setup",
+    "setTheStrategicDirection": "Set the strategic direction",
+    "defineTheCompanysFocusFor": "Define the company's focus for the performance cycle.",
+    "enableOrganizationalAlignment": "Enable organizational alignment",
+    "helpTeamsAlignTheirGoals": "Help teams align their goals to what matters most.",
+    "createSharedFocus": "Create shared focus",
+    "makeTheOrganizationsPrioritiesClear": "Make the organization's priorities clear across the cycle.",
+    "organizationalAlignment": "Organizational alignment",
+    "organizationalObjectivesWillAppearHere": "Organizational objectives will appear here once company direction has been established.",
+    "alignedObjectivesWillAppearHere": "Aligned objectives will appear here",
+    "onceYouCreateTheCompany": "Once you create the company objective, you can add organizational objectives that support the strategic direction."
+  },
+  "PersonLine": {
+    "unassigned": "Unassigned"
+  },
+  "MeasurementFact": {
+    "measurement": "Measurement"
+  },
+  "ProgressFact": {
+    "calculatedProgress": "Calculated progress",
+    "notStarted": "Not started",
+    "progress": "Progress"
+  },
+  "OrgComposerHost": {
+    "thisObjectiveCantBeEdited": "This objective can’t be edited."
+  },
+  "ComposerSkeleton": {
+    "createTeamObjective": "Create team objective",
+    "editTeamObjective": "Edit team objective",
+    "loadingObjective": "Loading objective"
+  },
+  "OrgObjectiveComposer": {
+    "milestoneWeightsTotalAssignMore": "Milestone weights total {weightSum}% — assign {value}% more to publish.",
+    "milestoneWeightsTotalRemoveTo": "Milestone weights total {weightSum}% — remove {value}% to publish.",
+    "draftSaved": "Draft saved.",
+    "teamObjectivePublished": "Team objective published.",
+    "editTeamObjective": "Edit team objective",
+    "createTeamObjective": "Create team objective",
+    "owningTeam": "Owning team",
+    "companyStrategy": "Company strategy",
+    "organizational": "Organizational",
+    "title": "Title",
+    "improveTalentDevelopmentExecution": "Improve talent development execution",
+    "description": "Description",
+    "optional": "(optional)",
+    "theContributionThisObjectiveMakes": "The contribution this objective makes to the direction above.",
+    "objectiveDefinition": "Objective definition",
+    "organizationalScope": "Organizational scope",
+    "owningUnit": "Owning unit",
+    "chooseTheOwningTeamAbove": "Choose the owning team above",
+    "accountablePerson": "Accountable person",
+    "thisTeamHasNoEligible": "This team has no eligible owners for the cycle.",
+    "start": "Start",
+    "end": "End",
+    "scopeAccountability": "Scope & accountability",
+    "measureDirectly": "Measure directly",
+    "trackThisObjectiveWithIts": "Track this objective with its own business measure.",
+    "calculateFromContributors": "Calculate from contributors",
+    "rollUpFromPublishedDirect": "Roll up from published direct child objectives.",
+    "readyToPublish": "Ready to publish",
+    "progressRollsUpFromThe": "Progress rolls up from the objectives aligned beneath this one.",
+    "measurement": "Measurement",
+    "howWillProgressOnThis": "How will progress on this objective be measured?",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "saveAsDraft": "Save as draft",
+    "publishing": "Publishing…",
+    "publishObjective": "Publish objective",
+    "couldNotSaveTheDraft": "Could not save the draft.",
+    "couldNotSaveTheObjective": "Could not save the objective."
+  },
+  "AlignmentEditor": {
+    "alignment": "Alignment",
+    "chooseTheOrganizationalDirectionThis": "Choose the organizational direction this objective supports.",
+    "alignToOrganizationalDirection": "Align to organizational direction",
+    "connectThisObjectiveToA": "Connect this objective to a published upstream objective.",
+    "standaloneTeamObjective": "Standalone team objective",
+    "keepThisObjectiveWithinMy": "Keep this objective within My Team without an upstream link.",
+    "upstreamObjective": "Upstream objective",
+    "teamOptionsCouldNotBe": "Team options could not be loaded. Close and try again.",
+    "noPublishedUpstreamObjectivesAre": "No published upstream objectives are available. You can still create a standalone objective."
+  },
+  "AlignmentTargetPicker": {
+    "organizationalDirection": "Organizational direction",
+    "noOwner": "No owner",
+    "to": "· {startDate} to {endDate}",
+    "noAlignment": "No alignment",
+    "company": "Company",
+    "organizational": "Organizational",
+    "chooseAnUpstreamObjective": "Choose an upstream objective",
+    "standalone": "Standalone",
+    "createATeamObjectiveWithout": "Create a team objective without an upstream link."
+  },
+  "OwnerPicker": {
+    "teamMember": "Team member",
+    "activeTeamMemberAtCycle": "Active team member at cycle start",
+    "chooseAnAccountableOwner": "Choose an accountable owner",
+    "searchTeamMembers": "Search team members…",
+    "noEligibleTeamMembersMatch": "No eligible team members match your search.",
+    "noEligibleTeamMembers": "No eligible team members."
+  },
+  "WorkingScopeSelector": {
+    "organizationWide": "Organization-wide",
+    "searchOrganization": "Search organization…",
+    "searchWorkingScope": "Search working scope",
+    "loadingOrganization": "Loading organization…",
+    "noOrganizationalUnitsMatch": "No organizational units match."
+  },
+  "lib": {
+    "state": {
+      "Draft": "Draft",
+      "Published": "Published",
+      "Archived": "Archived"
+    },
+    "company": "Company",
+    "orgUnit": "Organization unit",
+    "employee": "Employee",
+    "yourUnit": "Your {type}",
+    "yourOrganization": "Your organization",
+    "orgStrategic": "{orgName} strategic objective",
+    "companyObjective": "Company objective",
+    "companyStrategy": "Company strategy",
+    "individual": "Individual",
+    "organizational": "Organizational"
+  },
+  "map": {
+    "status": {
+      "OnTrack": "On track",
+      "AtRisk": "At risk",
+      "OffTrack": "Off track"
+    },
+    "notReported": "Not reported",
+    "noProgress": "No progress yet",
+    "percent": "{value}%",
+    "company": "Company",
+    "yourObjective": "Your objective",
+    "personalObjective": "Personal objective",
+    "unit": "Unit",
+    "companyObjective": "Company objective",
+    "unitObjective": "{scope} objective",
+    "accessible": "{scope}, {title}, {status}, {progress}",
+    "onTrack": "{count} on track",
+    "atRisk": "{count} at risk",
+    "offTrack": "{count} off track",
+    "noStatus": "{count} not reported",
+    "personal": "{count, plural, one {# personal objective} other {# personal objectives}}",
+    "personalWithParts": "{count, plural, one {# personal objective} other {# personal objectives}}: {parts}"
+  }
+}

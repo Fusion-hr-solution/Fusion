@@ -3,13 +3,16 @@
 import { Check } from "@/lib/icons";
 import type { MilestoneStateDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
-import { MILESTONE_LABELS } from "../lib";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 
 /**
  * Operational orientation, not lifecycle status. Reached milestones read as done; the current
  * frontier is emphasized; later ones stay quiet. The formal state lives in the header badge.
  */
 export function MilestoneRail({ milestones }: { milestones: MilestoneStateDto[] }) {
+  const t = useTranslations("progress.MilestoneRail");
+  const words = useSay("common.words");
   // Once the final milestone is reached there is no frontier left, even if an earlier one was skipped.
   const finished = milestones.at(-1)?.reached ?? false;
   const frontier = finished ? -1 : milestones.findIndex((milestone) => !milestone.reached);
@@ -19,7 +22,7 @@ export function MilestoneRail({ milestones }: { milestones: MilestoneStateDto[] 
   // Six labels need ~85px each; below that the rail keeps its markers and names only the next milestone.
   return (
     <div className="@container w-full">
-      <ol className="flex w-full items-start gap-0 pb-1" aria-label="Cycle milestones">
+      <ol className="flex w-full items-start gap-0 pb-1" aria-label={t("cycleMilestones")}>
         {milestones.map((milestone, index) => {
           const isCurrent = index === frontier;
           const connectorReached = milestone.reached && index < milestones.length - 1;
@@ -47,7 +50,7 @@ export function MilestoneRail({ milestones }: { milestones: MilestoneStateDto[] 
                   milestone.reached ? "text-foreground" : isCurrent ? "font-medium text-foreground" : "text-muted-foreground"
                 )}
               >
-                {MILESTONE_LABELS[milestone.milestone]}
+                {words(`milestone.${milestone.milestone}`)}
               </span>
             </li>
           );
@@ -55,12 +58,12 @@ export function MilestoneRail({ milestones }: { milestones: MilestoneStateDto[] 
       </ol>
       <p className="type-body-secondary mt-1 text-muted-foreground @lg:hidden" aria-hidden>
         <span className="tabular-nums">
-          {reached} of {milestones.length} reached
+          {t("ofReached", { reached, length: milestones.length })}
         </span>
         {next ? (
           <>
-            {" · next: "}
-            <span className="text-foreground">{MILESTONE_LABELS[next.milestone]}</span>
+            {" " + t("next") + " "}
+            <span className="text-foreground">{words(`milestone.${next.milestone}`)}</span>
           </>
         ) : null}
       </p>

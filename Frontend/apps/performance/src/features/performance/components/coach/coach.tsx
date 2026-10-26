@@ -3,6 +3,7 @@ import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
 import { Loader2, Sparkles, X } from "@/lib/icons";
 import type { CoachState } from "./coach-model";
+import { useTranslations } from "next-intl";
 
 /** Asks the coach on request. Lives in the definition section's header. */
 export function CoachTrigger({
@@ -12,6 +13,7 @@ export function CoachTrigger({
   state: CoachState;
   onRun: () => void;
 }) {
+  const t = useTranslations("coach.CoachTrigger");
   const running = state.kind === "running";
   return (
     <Button
@@ -27,7 +29,7 @@ export function CoachTrigger({
       ) : (
         <Sparkles className="size-3.5" aria-hidden />
       )}
-      {running ? "Suggesting" : "Suggest improvements"}
+      {running ? t("suggesting") : t("suggestImprovements")}
     </Button>
   );
 }
@@ -48,10 +50,11 @@ export function CoachSuggestion({
   onApply: () => void;
   onDismiss: () => void;
 }) {
+  const t = useTranslations("coach.CoachSuggestion");
   return (
     <div
       role="group"
-      aria-label={`Suggested ${label}`}
+      aria-label={t("suggested", { label })}
       className="mt-2 flex animate-in items-start gap-3 rounded-control border border-border bg-inlay px-3 py-2.5 fade-in-0"
     >
       <Sparkles
@@ -59,7 +62,7 @@ export function CoachSuggestion({
         aria-hidden
       />
       <div className="min-w-0 flex-1">
-        <p className="type-meta text-primary-ink">Suggested {label}</p>
+        <p className="type-meta text-primary-ink">{t("suggested", { label })}</p>
         <div className="mt-0.5 text-sm text-foreground">{children}</div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
@@ -70,13 +73,13 @@ export function CoachSuggestion({
           className="text-primary-ink hover:text-primary-ink"
           onClick={onApply}
         >
-          Apply<span className="sr-only"> suggested {label}</span>
+          {t("apply")}<span className="sr-only"> {t("suggested2", { label })}</span>
         </Button>
         <Button
           type="button"
           size="icon-xs"
           variant="ghost"
-          aria-label={`Dismiss suggested ${label}`}
+          aria-label={t("dismissSuggested", { label })}
           onClick={onDismiss}
         >
           <X />
@@ -106,6 +109,7 @@ export function CoachField({
   onDismiss: () => void;
   children?: ReactNode;
 }) {
+  const t = useTranslations("coach.CoachField");
   if (suggestion === null) return <>{children}</>;
   return (
     <div className="overflow-hidden rounded-control border border-input transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
@@ -116,7 +120,7 @@ export function CoachField({
       ) : null}
       <div
         role="group"
-        aria-label={`Suggested ${label}`}
+        aria-label={t("suggested2", { label })}
         className={cn(
           "flex animate-in items-center gap-2.5 py-1.5 pe-1.5 ps-2.5 fade-in-0",
           children && "border-t border-border"
@@ -133,13 +137,13 @@ export function CoachField({
           className="text-primary-ink hover:text-primary-ink"
           onClick={onApply}
         >
-          Apply<span className="sr-only"> suggested {label}</span>
+          {t("apply")}<span className="sr-only"> {t("suggested", { label })}</span>
         </Button>
         <Button
           type="button"
           size="icon-xs"
           variant="ghost"
-          aria-label={`Dismiss suggested ${label}`}
+          aria-label={t("dismissSuggested", { label })}
           onClick={onDismiss}
         >
           <X />
@@ -151,23 +155,25 @@ export function CoachField({
 
 /** The coach looked and abstained on everything. */
 export function CoachNothing() {
+  const t = useTranslations("coach.CoachNothing");
   return (
     <p
       className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"
       role="status"
     >
       <Sparkles className="size-3.5" aria-hidden />
-      No suggestions for this objective
+      {t("noSuggestionsForThisObjective")}
     </p>
   );
 }
 
 /** Marks a field the author filled from a suggestion, until they edit it. */
 export function AiSuggestedTag() {
+  const t = useTranslations("coach.AiSuggestedTag");
   return (
     <span className="ms-1.5 inline-flex items-center gap-1 text-xs font-normal text-primary-ink">
       <Sparkles className="size-3" aria-hidden />
-      AI-suggested
+      {t("aiSuggested")}
     </span>
   );
 }

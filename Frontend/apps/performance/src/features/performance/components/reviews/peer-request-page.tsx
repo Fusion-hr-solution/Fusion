@@ -13,21 +13,26 @@ import { usePeerRequest, usePeerRequestCommands } from "../../api/use-review-wor
 import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
 import { DueChip, dayLabel } from "./review-parts";
-import { formatTime } from "@repo/ds/lib/dates";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
 
 /**
  * A colleague's input on someone's review (R4b, board 11): one column, the questions as a page, who reads the answers.
  * Answers save as you write and lock once sent; declining takes an optional note.
  */
 export function PeerRequestPage() {
+  const t = useTranslations("reviews.PeerRequestPage");
   const { requestId } = useParams<{ requestId: string }>();
   const query = usePeerRequest(requestId);
-  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject="This request" />;
-  if (!query.data) return <PageSkeleton rows={5} label="Loading the request" />;
+  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject={t("thisRequest")} />;
+  if (!query.data) return <PageSkeleton rows={5} label={t("loadingTheRequest")} />;
   return <PeerRequestForm request={query.data} />;
 }
 
 function PeerRequestForm({ request }: { request: PeerRequestDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.PeerRequestForm");
   const router = useRouter();
   const commands = usePeerRequestCommands(request.id);
   const [answers, setAnswers] = useState<Record<string, string>>(() =>
@@ -57,20 +62,20 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
     if (empty.length) return;
     try {
       await commands.send.mutateAsync(Object.entries(answers).map(([questionId, text]) => ({ questionId, text })));
-      toast.success(`Your input for ${first} was sent.`);
+      toast.success(t("yourInputForWasSent", { first }));
       router.push("/reviews");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Your input couldn't be sent.");
+      reportPerformanceFailure(error, t("yourInputCouldntBeSent"));
     }
   };
 
   const decline = async () => {
     try {
       await commands.decline.mutateAsync(note.trim() || null);
-      toast.success("You declined this request.");
+      toast.success(t("youDeclinedThisRequest"));
       router.push("/reviews");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "The request couldn't be declined.");
+      reportPerformanceFailure(error, t("theRequestCouldntBeDeclined"));
     }
   };
 
@@ -78,42 +83,42 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
     <PageContainer>
       <div className="mx-auto max-w-3xl">
         <PerformancePageHeading
-          back={{ href: "/reviews", label: "Reviews" }}
+          back={{ href: "/reviews", label: t("reviews") }}
           leading={<PersonInitials name={request.subjectDisplayName} size="xl" />}
-          eyebrow={<span className="type-meta text-muted-foreground">Input for a {request.reviewRoundName.toLowerCase()}</span>}
+          eyebrow={<span className="type-meta text-muted-foreground">{t("inputForA", { toLowerCase: request.reviewRoundName.toLowerCase() })}</span>}
           title={request.subjectDisplayName}
-          actions={request.state === "Open" ? <DueChip date={request.dueDate} late={request.daysLate > 0} label={`Due ${dayLabel(request.dueDate)}`} />
-            : <StatusBadge tone={request.state === "Answered" ? "success" : "muted"} dot>{request.state === "Answered" ? "Sent" : request.state}</StatusBadge>}
+          actions={request.state === "Open" ? <DueChip date={request.dueDate} late={request.daysLate > 0} label={t("due", { dueDate: dayLabel(request.dueDate, format.locale) })} />
+            : <StatusBadge tone={request.state === "Answered" ? "success" : "muted"} dot>{request.state === "Answered" ? t("sent") : request.state}</StatusBadge>}
         />
 
         <div className="flex flex-wrap items-center gap-3 rounded-surface bg-card px-4 py-3">
           <Eye className="size-4 text-muted-foreground" aria-hidden />
-          <span className="type-label text-foreground">Read by</span>
+          <span className="type-label text-foreground">{t("readBy")}</span>
           <span className="ms-auto flex flex-wrap items-center gap-3">
-            <span className="type-body text-foreground">{first}&apos;s reviewer</span>
-            <span className="type-body text-foreground">HR</span>
-            <span className="inline-flex items-center gap-1 type-meta text-muted-foreground"><Lock className="size-3.5" aria-hidden />Not {first}</span>
+            <span className="type-body text-foreground">{t("sReviewer", { first })}</span>
+            <span className="type-body text-foreground">{t("hr")}</span>
+            <span className="inline-flex items-center gap-1 type-meta text-muted-foreground"><Lock className="size-3.5" aria-hidden />{t("not", { first })}</span>
           </span>
         </div>
 
         {request.state === "Declined" ? (
-          <p className="mt-8 type-body-secondary text-muted-foreground">You declined this request{request.declineNote ? `: “${request.declineNote}”` : "."}</p>
+          <p className="mt-8 type-body-secondary text-muted-foreground">{t("youDeclinedThisRequest2")}{request.declineNote ? `: “${request.declineNote}”` : "."}</p>
         ) : request.state === "Closed" ? (
-          <p className="mt-8 type-body-secondary text-muted-foreground">{first}&apos;s review moved on before your input was sent, so this request is closed.</p>
+          <p className="mt-8 type-body-secondary text-muted-foreground">{t("sReviewMovedOnBefore", { first })}</p>
         ) : null}
 
         {request.state !== "Declined" ? (
           <ol className="mt-8 space-y-8">
             {request.questions.map((question, index) => (
               <li key={question.questionId}>
-                <p className="type-meta text-muted-foreground">{index + 1} of {request.questions.length}</p>
+                <p className="type-meta text-muted-foreground">{t("of", { value: index + 1, length: request.questions.length })}</p>
                 <label htmlFor={`answer-${question.questionId}`} className="mt-1.5 block type-subsection-title text-foreground">{question.text}</label>
                 <Textarea
                   id={`answer-${question.questionId}`}
                   className="mt-3 min-h-28 type-narrative"
                   maxLength={2000}
                   readOnly={!editable}
-                  placeholder={editable ? "Write your answer" : undefined}
+                  placeholder={editable ? t("writeYourAnswer") : undefined}
                   aria-invalid={missing.includes(question.questionId) || undefined}
                   value={answers[question.questionId] ?? ""}
                   onChange={(event) => {
@@ -122,7 +127,7 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
                     setAnswers((current) => ({ ...current, [question.questionId]: event.target.value }));
                   }}
                 />
-                {missing.includes(question.questionId) ? <p className="mt-1.5 type-meta text-destructive">Answer this question before sending.</p> : null}
+                {missing.includes(question.questionId) ? <p className="mt-1.5 type-meta text-destructive">{t("answerThisQuestionBeforeSending")}</p> : null}
               </li>
             ))}
           </ol>
@@ -132,21 +137,21 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
           <div className="mt-8 border-t border-border pt-5">
             {declining ? (
               <div className="space-y-3">
-                <label htmlFor="decline-note" className="type-label text-foreground">Why you&apos;re declining (optional)</label>
+                <label htmlFor="decline-note" className="type-label text-foreground">{t("whyYoureDecliningOptional")}</label>
                 <Textarea id="decline-note" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)}
-                  placeholder={`Haven't worked with ${first} since March`} />
+                  placeholder={t("haventWorkedWithSinceMarch", { first })} />
                 <div className="flex justify-end gap-2">
-                  <Button variant="ghost" onClick={() => setDeclining(false)}>Keep answering</Button>
-                  <AsyncButton variant="outline" pending={commands.decline.isLoading} onClick={() => void decline()}>Decline request</AsyncButton>
+                  <Button variant="ghost" onClick={() => setDeclining(false)}>{t("keepAnswering")}</Button>
+                  <AsyncButton variant="outline" pending={commands.decline.isLoading} onClick={() => void decline()}>{t("declineRequest")}</AsyncButton>
                 </div>
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-3">
-                <Button variant="ghost" onClick={() => setDeclining(true)}><Ban className="size-4" aria-hidden />Decline</Button>
+                <Button variant="ghost" onClick={() => setDeclining(true)}><Ban className="size-4" aria-hidden />{t("decline")}</Button>
                 <span className="ms-auto type-meta text-muted-foreground">
-                  {commands.save.isLoading ? "Saving…" : savedAt ? `Saved ${formatTime(savedAt)}` : null}
+                  {commands.save.isLoading ? t("saving") : savedAt ? t("saved", { savedAt: format.time(savedAt) }) : null}
                 </span>
-                <AsyncButton pending={commands.send.isLoading} onClick={() => void send()}><Send className="size-4" aria-hidden />Send input</AsyncButton>
+                <AsyncButton pending={commands.send.isLoading} onClick={() => void send()}><Send className="size-4" aria-hidden />{t("sendInput")}</AsyncButton>
               </div>
             )}
           </div>

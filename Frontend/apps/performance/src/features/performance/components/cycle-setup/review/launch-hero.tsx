@@ -15,8 +15,9 @@ import type { CycleDetailDto } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDate } from "../../../lib";
 import { setupStepHref } from "../setup-readiness";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 type Tone = "done" | "blocked";
 
@@ -78,6 +79,8 @@ export function LaunchHero({
   onLaunch: () => void;
   launching: boolean;
 }) {
+  const format = useFormat();
+  const t = useTranslations("cycleSetup.LaunchHero");
   const ready = detail.launchReadiness.canActivate;
   const blockers = detail.launchReadiness.blockers;
   const participants = detail.confirmedParticipantCount;
@@ -111,15 +114,15 @@ export function LaunchHero({
             </span>
             <div className="min-w-0">
               <p className="type-meta text-amber-400">
-                {ready ? "Ready to launch" : "Not ready to launch"}
+                {ready ? t("readyToLaunch") : t("notReadyToLaunch")}
               </p>
               <h2 className="type-page-title mt-1 text-white sm:type-display">{detail.cycle.name}</h2>
               <p className="mt-1.5 type-body text-zinc-300">
                 {ready
-                  ? "All required components are complete. You can launch this cycle now."
+                  ? t("allRequiredComponentsAreComplete")
                   : blockers.length > 0
-                    ? `${blockers.length} ${blockers.length === 1 ? "issue blocks" : "issues block"} launch.`
-                    : "Resolve the outstanding setup before launching."}
+                    ? (blockers.length === 1 ? t("issueBlocksLaunch", { length: blockers.length }) : t("issuesBlockLaunch", { length: blockers.length }))
+                    : t("resolveTheOutstandingSetupBefore")}
               </p>
             </div>
           </div>
@@ -133,7 +136,7 @@ export function LaunchHero({
                 pending={launching}
               >
                 <Rocket className="size-4" data-icon="inline-start" />
-                Launch cycle
+                {t("launchCycle")}
               </AsyncButton>
             ) : (
               <Button
@@ -142,7 +145,7 @@ export function LaunchHero({
                 asChild
                 className="w-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               >
-                <Link href={setupStepHref("population", detail.cycle.id)}>Back to population</Link>
+                <Link href={setupStepHref("population", detail.cycle.id)}>{t("backToPopulation")}</Link>
               </Button>
             )}
           </div>
@@ -160,12 +163,12 @@ export function LaunchHero({
         )}
 
         <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:divide-white/10">
-          <Stat icon={FileText} tone="done" value="Cycle details" label="Complete" />
+          <Stat icon={FileText} tone="done" value="Cycle details" label={t("complete")} />
           <Stat
             icon={Users2}
             tone={participants > 0 ? "done" : "blocked"}
             value={participants}
-            label={participants === 1 ? "participant confirmed" : "participants confirmed"}
+            label={participants === 1 ? t("participantConfirmed") : t("participantsConfirmed")}
           />
           <Stat
             icon={ShieldCheck}
@@ -177,7 +180,7 @@ export function LaunchHero({
             icon={CalendarDays}
             tone="done"
             value="Planning opens"
-            label={`through ${formatDate(detail.cycle.planningDeadline)}`}
+            label={t("through", { planningDeadline: format.date(detail.cycle.planningDeadline) })}
           />
         </div>
       </div>

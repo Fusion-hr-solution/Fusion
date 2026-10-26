@@ -1,0 +1,396 @@
+{
+  "PlanPage": {
+    "performanceWorkspace": "Espace Performance",
+    "youreNotPartOf": "Vous ne faites pas partie de {selected}",
+    "youreNotPartOfA": "Vous ne faites partie d’aucun cycle de performance",
+    "theCycle": "Le cycle",
+    "noPerformanceCycleYet": "Pas encore de cycle de performance"
+  },
+  "ChangeRequestDraft": {
+    "whatShouldChange": "Ce qui doit changer",
+    "cancel": "Annuler",
+    "saveChange": "Enregistrer la modification",
+    "changeToRequest": "Modification à demander",
+    "editTheChange": "Modifier la demande",
+    "removeTheChange": "Retirer la demande",
+    "requestAChange": "Demander une modification"
+  },
+  "ChangeRequestOutcome": {
+    "youAsked": "Vous avez demandé",
+    "reply": "Réponse ·",
+    "objectiveRemoved": "Objectif supprimé",
+    "changed": "Modifié",
+    "notChanged": "Non modifié"
+  },
+  "OwnerChangeRequest": {
+    "askedForAChange": "{reviewerName} a demandé une modification",
+    "addressed": "Traitée",
+    "markAddressed": "Marquer comme traitée",
+    "reply": "Répondre",
+    "optional": "(facultatif)",
+    "cancel": "Annuler"
+  },
+  "DevelopmentSection": {
+    "loadingDevelopment": "Chargement du développement",
+    "developmentUnavailable": "Développement indisponible",
+    "noDevelopmentGoalsYet": "Aucun objectif de développement pour l’instant",
+    "addAGoal": "Ajouter un objectif",
+    "development": "Développement",
+    "addGoal": "Ajouter l’objectif"
+  },
+  "GoalCard": {
+    "by": "D’ici le {targetDate}",
+    "fromLastCycle": "Du cycle précédent",
+    "carriedTo": "Reporté sur {carriedToCycleName}",
+    "moreFor": "Plus pour {title}",
+    "edit": "Modifier",
+    "remove": "Supprimer",
+    "removeThisGoal": "Supprimer cet objectif ?",
+    "leavesTheDevelopmentPlan": "quitte le plan de développement.",
+    "keepIt": "La garder",
+    "removeGoal": "Supprimer l’objectif",
+    "couldNotChangeTheGoals": "Impossible de modifier le statut de l’objectif.",
+    "couldNotRemoveTheGoal": "Impossible de supprimer l’objectif."
+  },
+  "CarryOverOffer": {
+    "openGoal": "{count} objectif ouvert",
+    "s": "s",
+    "from": "de {fromCycleName}",
+    "dismiss": "Fermer",
+    "bringOver": "Reporter",
+    "bringGoalsOverFrom": "Reporter des objectifs de {fromCycleName}",
+    "roomForMore": "Place pour {room} de plus",
+    "cancel": "Annuler",
+    "bringOver2": "Reporter {length}",
+    "couldNotDismissTheOffer": "Impossible d’ignorer la proposition.",
+    "couldNotBringTheGoals": "Impossible de reporter les objectifs.",
+    "broughtOver": "{count, plural, one {# objectif reporté.} other {# objectifs reportés.}}"
+  },
+  "GoalComposer": {
+    "editGoal": "Modifier l’objectif",
+    "addADevelopmentGoal": "Ajouter un objectif de développement",
+    "goal": "Objectif",
+    "competency": "Compétence",
+    "optional": "(facultatif)",
+    "none": "Aucune",
+    "by": "D’ici le",
+    "status": "Statut",
+    "actions": "Actions",
+    "action": "Action {value}",
+    "removeAction": "Retirer l’action {value}",
+    "addAnAction": "Ajouter une action",
+    "cancel": "Annuler",
+    "saveGoal": "Enregistrer l’objectif",
+    "addGoal": "Ajouter l’objectif",
+    "couldNotSaveTheGoal": "Impossible d’enregistrer l’objectif."
+  },
+  "PlanGoalComposer": {
+    "addATitleFirst": "Ajoutez d’abord un titre",
+    "chooseTheObjectiveThisAligns": "Choisissez l’objectif sur lequel celui-ci s’aligne",
+    "chooseHowProgressIsMeasured": "Choisissez comment l’avancement est mesuré",
+    "giveEachMilestoneAWeight": "Donnez à chaque jalon un poids, pour un total de 100 %",
+    "setABaselineTargetAnd": "Définissez une valeur de départ, une cible et une unité pour la mesure",
+    "moveMilestoneDueDatesInside": "Placez les échéances des jalons dans les dates de l’objectif",
+    "giveThisObjectiveAPlan": "Donnez à cet objectif un poids dans le plan",
+    "planWeightCanBeAt": "Le poids dans le plan est de 100 % au maximum",
+    "editObjective": "Modifier l’objectif",
+    "addObjective": "Ajouter un objectif",
+    "allocated": "réparti",
+    "percentOfPlanWeightAllocated": "{existing} % du poids du plan réparti",
+    "left": "{remaining} % restants",
+    "alignedToDirection": "Aligné sur l’orientation",
+    "alignThisObjectiveToAn": "Alignez cet objectif sur un objectif organisationnel existant.",
+    "standaloneRoleObjective": "Objectif de poste autonome",
+    "createAnObjectiveFocusedOn": "Créez un objectif centré sur votre rôle et vos responsabilités.",
+    "notPermittedThisCycleEvery": "Non autorisé dans ce cycle : chaque objectif doit être aligné sur l’orientation.",
+    "noPublishedOrganizationalObjectivesTo": "Aucun objectif organisationnel publié sur lequel s’aligner pour l’instant.",
+    "chooseAnOrganizationalObjective": "Choisissez un objectif organisationnel",
+    "selectOrganizationalObjective": "Sélectionner un objectif organisationnel",
+    "companyStrategy": "Stratégie de l’entreprise",
+    "organizational": "Organisationnel",
+    "alignment": "Alignement",
+    "chooseHowThisObjectiveConnects": "Choisissez comment cet objectif se rattache à l’orientation organisationnelle.",
+    "title": "Intitulé",
+    "enterAClearAndSpecific": "Saisissez un titre d’objectif clair et précis",
+    "description": "Description",
+    "optional": "(facultatif)",
+    "describeWhatSuccessLooksLike": "Décrivez à quoi ressemble la réussite, les résultats clés et pourquoi cet objectif est important.",
+    "objectiveDefinition": "Définition de l’objectif",
+    "measurement": "Mesure",
+    "howWillYouMeasureProgress": "Comment allez-vous mesurer l’avancement de cet objectif ?",
+    "decreaseWeightBy5": "Diminuer le poids de 5",
+    "planWeightPercent": "Poids dans le plan en pourcentage",
+    "increaseWeightBy5": "Augmenter le poids de 5",
+    "inYourOtherObjectives": "dans vos autres objectifs",
+    "planTotal": "Total du plan",
+    "planWeight": "Poids dans le plan",
+    "assignTheWeightOfThis": "Attribuez le poids de cet objectif dans l’ensemble de votre plan.",
+    "cancel": "Annuler",
+    "saveChanges": "Enregistrer les modifications",
+    "couldNotSaveTheObjective": "Impossible d’enregistrer l’objectif."
+  },
+  "TargetSummary": {
+    "companyStrategy": "Stratégie de l’entreprise"
+  },
+  "MyPlanWorkspace": {
+    "myPlan": "Mon plan"
+  },
+  "MyPlan": {
+    "planUnavailable": "Plan indisponible",
+    "youAreNotPartOf": "Vous ne faites pas partie de ce cycle. Quand votre organisation vous ajoutera, votre plan s’ouvrira ici.",
+    "objectiveAdded": "Objectif ajouté.",
+    "objectiveUpdated": "Objectif mis à jour.",
+    "couldNotSubmitYourPlan": "Impossible de soumettre votre plan.",
+    "couldNotMarkTheChange": "Impossible de marquer la modification comme traitée.",
+    "couldNotRemoveTheObjective": "Impossible de supprimer l’objectif.",
+    "resubmitted": "Plan soumis à nouveau pour revue.",
+    "submitted": "Plan soumis pour revue."
+  },
+  "ObjectiveLedger": {
+    "noObjectivesYetAddThe": "Aucun objectif pour l’instant. Ajoutez le premier pour commencer votre plan.",
+    "objectives": "Objectifs",
+    "addObjective": "Ajouter un objectif",
+    "yourReviewer": "Votre évaluateur"
+  },
+  "SubmitPlanAction": {
+    "yourReviewer": "votre évaluateur",
+    "saved": "Enregistré {lastSavedAt}",
+    "resubmitPlan": "Soumettre à nouveau le plan",
+    "submitPlan": "Soumettre le plan",
+    "resubmitYourPlan": "Soumettre à nouveau votre plan ?",
+    "submitYourPlan": "Soumettre votre plan ?",
+    "your": "Vos",
+    "objective": "{objectiveCount} objectif(s)",
+    "s": "s",
+    "goTo": "vont à",
+    "you": ". Vous",
+    "cantEditThem": "ne pouvez pas les modifier",
+    "whileThePlanIsIn": "pendant la revue du plan.",
+    "keepEditing": "Continuer la saisie",
+    "resubmit": "Soumettre à nouveau",
+    "submit": "Soumettre"
+  },
+  "PlanNotStarted": {
+    "createYourPlan": "Créez votre plan {cycleName}",
+    "defineYourObjectivesAndAlign": "Définissez vos objectifs et alignez-les sur votre équipe.",
+    "startMyPlan": "Commencer mon plan",
+    "objectives": "Objectifs",
+    "pillars": {
+      "set": "Fixer des objectifs pertinents",
+      "align": "S’aligner sur votre équipe",
+      "track": "Suivre l’avancement"
+    }
+  },
+  "PlanApprovedStatus": {
+    "approvedItAsAdministrator": "{approver} l’a approuvé en tant qu’administrateur",
+    "approvedByAdministration": "Approuvé par l’administration",
+    "approvedBy": "Approuvé par {approver}",
+    "youApprovedPlanAsAdministrator": "Vous avez approuvé le plan de {whose} en tant qu’administrateur",
+    "youApprovedPlan": "Vous avez approuvé le plan de {whose}",
+    "approvedLocked": "Approuvé et verrouillé"
+  },
+  "PlanDirectionSection": {
+    "noDirectionLinkedYet": "Aucune orientation liée pour l’instant",
+    "direction": "Orientation",
+    "open": "Ouvrir {title}"
+  },
+  "PlanReviewerSection": {
+    "noReviewerAssigned": "Aucun évaluateur affecté",
+    "reviewer": "Évaluateur",
+    "returned": "A renvoyé votre plan"
+  },
+  "PlanStateBadge": {
+    "draft": "Brouillon",
+    "submitted": "Soumis",
+    "approved": "Approuvé"
+  },
+  "NotStartedBadge": {
+    "notStarted": "Non commencé"
+  },
+  "PlanWeightStrip": {
+    "weight": "Poids",
+    "ofPlanWeightAllocated": "du poids du plan réparti"
+  },
+  "PlanObjectiveRow": {
+    "alignedTo": "Aligné sur",
+    "standaloneRoleObjective": "Objectif de poste autonome",
+    "actionsFor": "Actions pour {title}",
+    "editObjective": "Modifier l’objectif",
+    "removeObjective": "Supprimer l’objectif",
+    "view": "Voir {title}",
+    "measurement": "Mesure",
+    "target": "Cible",
+    "milestones": "Jalons",
+    "singlePercentage": "Pourcentage unique",
+    "measure": "Mesure",
+    "duration": "Durée",
+    "weight": "Poids",
+    "updateProgress": "Mettre à jour l’avancement",
+    "view2": "Lecture",
+    "direction": "orientation"
+  },
+  "MilestoneStrip": {
+    "ofDone": "{done} sur {length} faits",
+    "milestone": "{length} jalon",
+    "milestones": "{length} jalons"
+  },
+  "ExecutionState": {
+    "ofMilestone": "{done} jalon sur {total}",
+    "s": "s",
+    "completed": "terminé(s)",
+    "updated": "mis à jour",
+    "overdue": "· {overdue} en retard",
+    "nextDue": "· prochaine échéance le {nextDue}",
+    "updated2": "Mis à jour {updated}",
+    "milestoneProgress": "Avancement des jalons",
+    "currentProgress": "Avancement actuel",
+    "currentValue": "Valeur actuelle"
+  },
+  "PlanProgressCard": {
+    "noProgressReportedYet": "Aucun avancement communiqué pour l’instant",
+    "planProgress": "Avancement du plan",
+    "weightedAcrossObjectives": "Pondéré sur {length} objectifs"
+  },
+  "StatusMixLine": {
+    "onTrack": "{onTrack} en bonne voie",
+    "atRisk": "{atRisk} à risque",
+    "offTrack": "{offTrack} hors trajectoire",
+    "notReported": "{notReported} non communiqués"
+  },
+  "ObjectiveProgressRing": {
+    "overallProgress": "avancement global"
+  },
+  "PlanRail": {
+    "status": "Statut",
+    "planProgressBeginsOnceYou": "L’avancement du plan commence dès que vous mettez à jour vos objectifs.",
+    "startsOnceThePlanIs": "Commence une fois le plan approuvé",
+    "planProgress": "Avancement du plan"
+  },
+  "StatusBody": {
+    "yourReviewer": "votre évaluateur",
+    "submitted": "Soumis",
+    "returnedForChanges": "Renvoyé pour modifications",
+    "draft": "Brouillon",
+    "notStarted": "Non commencé",
+    "due": "Échéance",
+    "inReview": "En revue",
+    "waitingForYourDecision": "En attente de votre décision",
+    "isReviewing": "examine le plan",
+    "approved": "Approuvé",
+    "readOnlyWhileInReview": "Lecture seule pendant la revue",
+    "they": "Cette personne",
+    "you": "Vous"
+  },
+  "ReturnNote": {
+    "yourReviewer": "Votre évaluateur",
+    "you": "Vous",
+    "ofChange": "{addressed} modification sur {total}",
+    "s": "s",
+    "addressed": "traitée(s)",
+    "by": "par {subjectFirstName}",
+    "revised": "Révisé"
+  },
+  "ResubmissionOutcome": {
+    "addressedOfChange": "{who} a traité {addressed} modification(s) sur {length}",
+    "s": "s",
+    "objectiveRemoved": "Objectif supprimé · « {text} »"
+  },
+  "ClampedText": {
+    "showLess": "Afficher moins",
+    "readMore": "Lire la suite"
+  },
+  "PlanRecordPage": {
+    "sPlan": "Plan de {name}",
+    "plan": "Plan",
+    "planUnavailable": "Plan indisponible",
+    "theCycle": "Le cycle"
+  },
+  "PlanReview": {
+    "planUnavailable": "Plan indisponible",
+    "theEmployee": "le collaborateur"
+  },
+  "ReviewStateBadge": {
+    "approved": "Approuvé",
+    "returned": "Renvoyé",
+    "submitted": "Soumis"
+  },
+  "ReviewHeading": {
+    "employee": "Collaborateur",
+    "trackingExecution": "Suivi de l’exécution"
+  },
+  "ObjectiveLedgerReadOnly": {
+    "objectives": "Objectifs"
+  },
+  "ReviewDecision": {
+    "returnWithChange": "Renvoyer avec {length} modification",
+    "returnWithChanges": "Renvoyer avec {length} modifications",
+    "returnPlan": "Renvoyer le plan",
+    "requestChanges": "Demander des modifications",
+    "theWholePlanReopensFor": "L’ensemble du plan est rouvert pour que {firstName} le révise et le soumette à nouveau.",
+    "aNoteForTheWhole": "Une note pour l’ensemble du plan (facultatif)",
+    "whatShouldChange": "Que doit modifier {firstName} ?",
+    "cancel": "Annuler",
+    "planReturnedToForChanges": "Plan renvoyé à {firstName} pour modifications.",
+    "approvePlan": "Approuver le plan",
+    "approveThisPlan": "Approuver ce plan ?",
+    "approving": "L’approbation",
+    "locksSPlan": "verrouille le plan de {firstName}",
+    "asTheAgreedBaselineFor": "comme référence convenue pour",
+    "it": ". Il",
+    "cantBeEditedAfterward": "ne pourra plus être modifié ensuite",
+    "withoutAnAdministrator": "sans un administrateur.",
+    "planApprovedAndLocked": "Plan approuvé et verrouillé.",
+    "couldNotReturnThePlan": "Impossible de renvoyer le plan.",
+    "couldNotApproveThePlan": "Impossible d’approuver le plan.",
+    "objective": "Objectif"
+  },
+  "ExceptionalApproval": {
+    "approveAsAdministrator": "Approuver en tant qu’administrateur",
+    "approveSPlanAsAdministrator": "Approuver le plan de {firstName} en tant qu’administrateur",
+    "remainsThePlansReviewer": "{reviewerName} reste l’évaluateur du plan.",
+    "thisApprovalIsRecordedAs": "Cette approbation est enregistrée à votre nom, avec votre raison.",
+    "reasonForApprovingOnThe": "Raison de l’approbation à la place de l’évaluateur",
+    "whyTheReviewerCantDecide": "Pourquoi l’évaluateur ne peut pas décider",
+    "cancel": "Annuler",
+    "approvePlan": "Approuver le plan",
+    "planApprovedByAdministration": "Plan approuvé par l’administration.",
+    "couldNotApproveThePlan": "Impossible d’approuver le plan."
+  },
+  "PlanSurfaceSkeleton": {
+    "loadingYourPlan": "Chargement de votre plan"
+  },
+  "PlanEmptySkeleton": {
+    "loadingYourPlan": "Chargement de votre plan"
+  },
+  "PlanSubmissionChecks": {
+    "check": "{passedCount} vérification(s)",
+    "s": "s",
+    "passed": "réussie(s)",
+    "hideChecks": "Masquer les vérifications",
+    "viewChecks": "Voir les vérifications",
+    "check2": "{length} vérification(s)",
+    "need": "demande(nt)",
+    "attention": "votre attention",
+    "submissionChecks": "Vérifications avant soumission"
+  },
+  "TargetRange": {
+    "decreaseTo": "réduire à",
+    "increaseTo": "augmenter à"
+  },
+  "checks": {
+    "objective": {
+      "label": "Le plan contient au moins un objectif",
+      "detail": "Ajoutez un objectif à votre plan"
+    },
+    "weightAssigned": {
+      "label": "Chaque objectif a un poids",
+      "detail": "Donnez à chaque objectif un poids supérieur à zéro"
+    },
+    "weightTotal": {
+      "label": "Les poids totalisent 100 %",
+      "remaining": "{remaining} % du poids du plan reste à répartir",
+      "over": "Le poids du plan dépasse de {over} %"
+    }
+  },
+  "leaveGuard": "Quitter sans envoyer vos demandes de modification ?"
+}

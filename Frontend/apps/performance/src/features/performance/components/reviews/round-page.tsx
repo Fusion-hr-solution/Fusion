@@ -19,14 +19,20 @@ import { useScheduleCommands } from "../../api/use-review-work";
 import { useApis } from "../../api/use-performance";
 import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
-import { formatDateRange } from "../../lib";
 import { calibrationHref, reviewHref, withCycle } from "@/lib/performance-routes";
 import { CountTile, DueChip, SectionHeading, dayLabel } from "./review-parts";
 import { RoundSetup } from "./round-setup";
 import { useRecentRecord } from "@repo/api/react";
+import { useTranslations } from "next-intl";
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+import { useFormat } from "@repo/ds/lib/use-format";
+import type { Format } from "@repo/ds/lib/use-format";
+import type { Say } from "@/i18n/say";
 
 /** One round's page in each state (boards 04–07): setup while Draft, monitoring while running, the outcome once closed. */
 export function RoundPage() {
+  const t = useTranslations("reviews.RoundPage");
+  const format = useFormat();
   const { roundId } = useParams<{ roundId: string }>();
   const context = useWorkspaceContext();
   const isAdmin = context.data?.capabilities.administers ?? false;
@@ -35,21 +41,21 @@ export function RoundPage() {
     "performance",
     query.data ? { label: query.data.name, kind: "Review round", href: `/performance/reviews/rounds/${query.data.id}` } : null,
   );
-  if (context.isLoading || (isAdmin && query.isLoading)) return <PageSkeleton rows={7} width="wide" label="Loading the round" />;
-  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
-  if (!isAdmin) return <PagePermissionNotice title="Administration only" description="Review rounds are run by Performance administrators." />;
-  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject="Review round" />;
+  if (context.isLoading || (isAdmin && query.isLoading)) return <PageSkeleton rows={7} width="wide" label={t("loadingTheRound")} />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject={t("performanceWorkspace")} />;
+  if (!isAdmin) return <PagePermissionNotice title={t("administrationOnly")} description={t("reviewRoundsAreRunBy")} />;
+  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject={t("reviewRound")} />;
   const round = query.data;
-  if (!round) return <PageSkeleton rows={7} width="wide" label="Loading the round" />;
+  if (!round) return <PageSkeleton rows={7} width="wide" label={t("loadingTheRound")} />;
   const canCalibrate = context.data?.capabilities.canCalibrate ?? false;
 
   return (
     <RecordCycleScope cycleId={round.cycleId}>
       <PageContainer width="wide">
         <PerformancePageHeading
-          back={{ href: withCycle("/reviews", round.cycleId), label: "Reviews" }}
+          back={{ href: withCycle("/reviews", round.cycleId), label: t("reviews") }}
           title={<span className="inline-flex flex-wrap items-center gap-3">{round.name}<RoundBadge round={round} /></span>}
-          description={describe(round)}
+          description={describe(round, (key, values) => t(`describe.${key}` as "describe.draft", values as never), format)}
           actions={round.state === "Active" ? <RunningActions round={round} canCalibrate={canCalibrate} /> : null}
         />
         {round.state === "Draft" ? <RoundSetup round={round} /> : round.state === "Active" ? <RoundRunning round={round} /> : <RoundClosed round={round} />}
@@ -60,22 +66,25 @@ export function RoundPage() {
 
 /** Sits inside the page title, so it resets to the system face rather than inherit the title's serif. */
 function RoundBadge({ round }: { round: ReviewRoundDto }) {
-  return round.state === "Active" ? <StatusBadge className="font-sans" tone="warning" dot>Running</StatusBadge>
-    : round.state === "Draft" ? <StatusBadge className="font-sans" tone="neutral" dot>Draft</StatusBadge>
-    : <StatusBadge className="font-sans" tone="muted" dot>Closed</StatusBadge>;
+  const t = useTranslations("reviews.RoundBadge");
+  return round.state === "Active" ? <StatusBadge className="font-sans" tone="warning" dot>{t("running")}</StatusBadge>
+    : round.state === "Draft" ? <StatusBadge className="font-sans" tone="neutral" dot>{t("draft")}</StatusBadge>
+    : <StatusBadge className="font-sans" tone="muted" dot>{t("closed")}</StatusBadge>;
 }
 
-function describe(round: ReviewRoundDto): string {
-  if (round.state === "Draft") return `${round.cycleName} · saved as you go`;
+function describe(round: ReviewRoundDto, say: Say, format: Format): string {
+  if (round.state === "Draft") return say("draft", { cycle: round.cycleName });
   const people = round.progress ? round.progress.stages.find((s) => s.stage === "ManagerAssessment")?.total ?? 0 : round.outcome?.total ?? 0;
   if (round.state === "Active")
-    return `Launched ${dayLabel(round.launchedAt?.slice(0, 10))} · ${people} ${people === 1 ? "person" : "people"} · ${formatDateRange(round.periodStart, round.periodEnd)}`;
-  return `${formatDateRange(round.periodStart, round.periodEnd)}${round.outcome?.releasedAt ? ` · released ${dayLabel(round.outcome.releasedAt.slice(0, 10))}` : ""}`;
+    return say("active", { count: people, day: dayLabel(round.launchedAt?.slice(0, 10), format.locale), period: format.range(round.periodStart, round.periodEnd) });
+  const period = format.range(round.periodStart, round.periodEnd);
+  return round.outcome?.releasedAt ? say("released", { period, day: dayLabel(round.outcome.releasedAt.slice(0, 10), format.locale) }) : period;
 }
 
 // ── Running (board 06) ─────────────────────────────────────────────────────────────
 
 function RunningActions({ round, canCalibrate }: { round: ReviewRoundDto; canCalibrate: boolean }) {
+  const t = useTranslations("reviews.RunningActions");
   const finalize = useReviewRoundFinalization(round.id, round.cycleId);
   const { close } = useReviewRoundMutations(round.cycleId, round.id);
   const ready = round.progress?.readyToFinalize ?? 0;
@@ -86,33 +95,35 @@ function RunningActions({ round, canCalibrate }: { round: ReviewRoundDto; canCal
     <div className="flex flex-wrap items-center gap-2">
       <MoveDueDates round={round} />
       {round.calibrationEnabled && canCalibrate ? (
-        <Button variant="outline" asChild><Link href={withCycle(calibrationHref(round.id), round.cycleId)}>Calibration</Link></Button>
+        <Button variant="outline" asChild><Link href={withCycle(calibrationHref(round.id), round.cycleId)}>{t("calibration")}</Link></Button>
       ) : null}
       {total > 0 && resolved === total ? (
         <AsyncButton pending={close.isLoading} onClick={() => void close.mutateAsync(round.version)
-          .then(() => toast.success("Round closed."))
-          .catch((error) => toast.error(error instanceof Error ? error.message : "The round couldn't close."))}>
-          Close round
+          .then(() => toast.success(t("roundClosed")))
+          .catch((error) => reportPerformanceFailure(error, t("theRoundCouldntClose")))}>
+          {t("closeRound")}
         </AsyncButton>
       ) : (
         <AsyncButton pending={finalize.isLoading} disabled={ready === 0} onClick={() => void finalize.mutateAsync(round.version)
-          .then((result) => toast.success(`${result.finalized.length} ${result.finalized.length === 1 ? "review" : "reviews"} released.`))
-          .catch((error) => toast.error(error instanceof Error ? error.message : "Ready reviews couldn't be released."))}>
-          <Send className="size-4" aria-hidden />{ready ? `Finalize and release ${ready}` : "Finalize and release"}
+          .then((result) => toast.success((result.finalized.length === 1 ? t("reviewReleased", { length: result.finalized.length }) : t("reviewsReleased", { length: result.finalized.length }))))
+          .catch((error) => reportPerformanceFailure(error, t("readyReviewsCouldntBeReleased")))}>
+          <Send className="size-4" aria-hidden />{ready ? t("finalizeAndRelease", { ready }) : t("finalizeAndRelease2")}
         </AsyncButton>
       )}
     </div>
   );
 }
 
-const STAGES: { stage: ReviewStage; label: string; key: "selfAssessment" | "peerInput" | "managerAssessment" }[] = [
-  { stage: "SelfAssessment", label: "Self-assessment", key: "selfAssessment" },
-  { stage: "PeerInput", label: "Peer input", key: "peerInput" },
-  { stage: "ManagerAssessment", label: "Manager assessment", key: "managerAssessment" },
+const STAGES: { stage: ReviewStage; key: "selfAssessment" | "peerInput" | "managerAssessment" }[] = [
+  { stage: "SelfAssessment", key: "selfAssessment" },
+  { stage: "PeerInput", key: "peerInput" },
+  { stage: "ManagerAssessment", key: "managerAssessment" },
 ];
 
 /** HR moves one or more stage dates for the whole round, with a reason; everyone affected is told (D-02). */
 function MoveDueDates({ round }: { round: ReviewRoundDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.MoveDueDates");
   const { moveRound } = useScheduleCommands();
   const { performance } = useApis();
   const [open, setOpen] = useState(false);
@@ -128,35 +139,35 @@ function MoveDueDates({ round }: { round: ReviewRoundDto }) {
         const version = index === 0 ? round.version : (await performance.getReviewRound(round.id)).version;
         await moveRound.mutateAsync({ roundId: round.id, request: { expectedVersion: version, stage: stage.stage, dueDate: dates[stage.key]!, reason: reason.trim() } });
       }
-      toast.success("Due dates moved. Everyone affected was told.");
+      toast.success(t("dueDatesMovedEveryoneAffected"));
       setOpen(false);
       setDates({});
       setReason("");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "The due dates couldn't move.");
+      reportPerformanceFailure(error, t("theDueDatesCouldntMove"));
     }
   };
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild><Button variant="outline"><CalendarDays className="size-4" aria-hidden />Due dates</Button></PopoverTrigger>
+      <PopoverTrigger asChild><Button variant="outline"><CalendarDays className="size-4" aria-hidden />{t("dueDates")}</Button></PopoverTrigger>
       <PopoverContent align="end" className="w-96 p-5">
-        <p className="type-panel-title text-foreground">Move due dates</p>
-        <p className="mt-0.5 type-meta text-muted-foreground">Everyone affected is notified · recorded in the round activity</p>
+        <p className="type-panel-title text-foreground">{t("moveDueDates")}</p>
+        <p className="mt-0.5 type-meta text-muted-foreground">{t("everyoneAffectedIsNotifiedRecorded")}</p>
         <div className="mt-4 space-y-2.5">
           {stages.map((stage) => (
             <div key={stage.key} className="flex items-center gap-3">
-              <span className="flex-1 type-label text-foreground">{stage.label}</span>
-              {dates[stage.key] && dates[stage.key] !== current(stage.key) ? <span className="type-meta text-muted-foreground line-through">{dayLabel(current(stage.key))}</span> : null}
-              <Input type="date" aria-label={`${stage.label} due`} className="w-40" min={round.schedule.launchDay} max={round.cycleEnd}
+              <span className="flex-1 type-label text-foreground">{t(`stage.${stage.key}`)}</span>
+              {dates[stage.key] && dates[stage.key] !== current(stage.key) ? <span className="type-meta text-muted-foreground line-through">{dayLabel(current(stage.key), format.locale)}</span> : null}
+              <Input type="date" aria-label={t("due", { label: t(`stage.${stage.key}`) })} className="w-40" min={round.schedule.launchDay} max={round.cycleEnd}
                 value={dates[stage.key] ?? current(stage.key)} onChange={(event) => setDates({ ...dates, [stage.key]: event.target.value })} />
             </div>
           ))}
         </div>
-        <Textarea className="mt-4" aria-label="Reason" placeholder="Why the dates move" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
+        <Textarea className="mt-4" aria-label={t("reason")} placeholder={t("whyTheDatesMove")} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setOpen(false)}>{t("cancel")}</Button>
           <AsyncButton pending={moveRound.isLoading} disabled={changed.length === 0 || !reason.trim()} onClick={() => void submit()}>
-            {changed.length > 1 ? "Move dates" : "Move date"}
+            {changed.length > 1 ? t("moveDates") : t("moveDate")}
           </AsyncButton>
         </div>
       </PopoverContent>
@@ -165,6 +176,8 @@ function MoveDueDates({ round }: { round: ReviewRoundDto }) {
 }
 
 function RoundRunning({ round }: { round: ReviewRoundDto }) {
+  const format = useFormat();
+  const tr = useTranslations("reviews.RoundRunning");
   const progress = round.progress!;
   const today = new Date().toISOString().slice(0, 10);
   const stage = (name: string) => progress.stages.find((s) => s.stage === name);
@@ -175,29 +188,29 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
   const lists = progress.teams.reduce((sum, t) => sum + t.listsToApprove, 0);
   const tile = (s: ReviewStageProgressDto | undefined, label: string, foot: string, tone: "success" | "primary" = "success") => s ? (
     <CountTile label={label} value={s.done} total={s.total} tone={tone} foot={foot}
-      aside={s.dueDate ? <DueChip date={s.dueDate} late={s.dueDate < today && s.open > 0} label={`Due ${dayLabel(s.dueDate)}`} /> : null} />
+      aside={s.dueDate ? <DueChip date={s.dueDate} late={s.dueDate < today && s.open > 0} label={tr("due", { dueDate: dayLabel(s.dueDate, format.locale) })} /> : null} />
   ) : null;
 
   return (
     <div className="space-y-10">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {tile(self, "Self-assessments", `${self?.open ?? 0} open${self?.late ? ` · ${self.late} late` : ""}`)}
-        {tile(peers, "Peer input", `${peers?.declined ?? 0} declined${lists ? ` · ${lists} ${lists === 1 ? "list" : "lists"} to approve` : ""}`)}
-        {tile(manager, "Manager reviews", `${manager?.readyToWrite ?? 0} ready to write`, "primary")}
-        {released ? <CountTile label="Released" value={released.done} total={released.total} foot={round.calibrationEnabled ? "After calibration" : `${progress.readyToFinalize} ready to release`} /> : null}
+        {tile(self, tr("selfTile"), self?.late ? tr("openLate", { open: self.open, late: self.late }) : tr("open", { open: self?.open ?? 0 }))}
+        {tile(peers, tr("peerTile"), lists ? tr("declinedLists", { declined: peers?.declined ?? 0, count: lists }) : tr("declined", { declined: peers?.declined ?? 0 }))}
+        {tile(manager, tr("managerTile"), tr("readyToWrite", { count: manager?.readyToWrite ?? 0 }), "primary")}
+        {released ? <CountTile label={tr("released")} value={released.done} total={released.total} foot={round.calibrationEnabled ? tr("afterCalibration") : tr("readyToRelease", { count: progress.readyToFinalize })} /> : null}
       </div>
 
       <section aria-labelledby="teams-heading">
-        <SectionHeading id="teams-heading" title="By team" count={progress.teams.length} aside="Furthest behind first" />
+        <SectionHeading id="teams-heading" title={tr("byTeam")} count={progress.teams.length} aside={tr("furthestBehindFirst")} />
         <div className="overflow-x-auto rounded-surface bg-card">
           <table className="w-full min-w-[52rem] text-start">
             <thead className="bg-inlay">
               <tr className="type-meta text-muted-foreground">
-                <th scope="col" className="px-5 py-3 font-semibold">Team</th>
-                {round.selfAssessmentEnabled ? <th scope="col" className="px-3 py-3 font-semibold">Self</th> : null}
-                {round.peerInputEnabled ? <th scope="col" className="px-3 py-3 font-semibold">Peers</th> : null}
-                <th scope="col" className="px-3 py-3 font-semibold">Manager</th>
-                <th scope="col" className="px-5 py-3"><span className="sr-only">Attention</span></th>
+                <th scope="col" className="px-5 py-3 font-semibold">{tr("team")}</th>
+                {round.selfAssessmentEnabled ? <th scope="col" className="px-3 py-3 font-semibold">{tr("self")}</th> : null}
+                {round.peerInputEnabled ? <th scope="col" className="px-3 py-3 font-semibold">{tr("peers")}</th> : null}
+                <th scope="col" className="px-3 py-3 font-semibold">{tr("manager")}</th>
+                <th scope="col" className="px-5 py-3"><span className="sr-only">{tr("attention")}</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -208,7 +221,7 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
                       <PersonInitials name={team.reviewerDisplayName} size="md" />
                       <div className="min-w-0">
                         <p className="type-label text-foreground">{team.orgUnitName ?? team.reviewerDisplayName}</p>
-                        <p className="type-meta text-muted-foreground">{team.reviewerDisplayName} · {team.people} {team.people === 1 ? "person" : "people"}</p>
+                        <p className="type-meta text-muted-foreground">{team.reviewerDisplayName} · {team.people} {team.people === 1 ? tr("person") : tr("people")}</p>
                       </div>
                     </div>
                   </td>
@@ -216,7 +229,7 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
                   {round.peerInputEnabled ? <td className="px-3 py-3.5"><RatioBar done={team.peers.done} total={team.peers.total} /></td> : null}
                   <td className="px-3 py-3.5"><span className="type-body tabular-nums text-foreground">{team.manager.done}/{team.manager.total}</span></td>
                   <td className="px-5 py-3.5 text-end">
-                    {team.listsToApprove ? <StatusBadge tone="warning" dot>{team.listsToApprove} {team.listsToApprove === 1 ? "list" : "lists"} to approve</StatusBadge> : null}
+                    {team.listsToApprove ? <StatusBadge tone="warning" dot>{team.listsToApprove} {team.listsToApprove === 1 ? tr("list") : tr("lists")} {tr("toApprove")}</StatusBadge> : null}
                   </td>
                 </tr>
               ))}
@@ -227,26 +240,26 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
 
       <div className="grid gap-8 lg:grid-cols-3">
         <section aria-labelledby="reminders-heading">
-          <h2 id="reminders-heading" className="mb-3 type-meta text-muted-foreground">Reminders</h2>
+          <h2 id="reminders-heading" className="mb-3 type-meta text-muted-foreground">{tr("reminders")}</h2>
           <div className="rounded-surface bg-card p-5">
             {progress.nextReminder ? (
               <div className="flex gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary"><Bell className="size-4" aria-hidden /></span>
                 <div>
-                  <p className="type-label text-foreground">Next: {dayLabel(progress.nextReminder.date)}</p>
-                  <p className="type-meta text-muted-foreground">{reminderCounts(progress.nextReminder)}</p>
+                  <p className="type-label text-foreground">{tr("next", { date: dayLabel(progress.nextReminder.date, format.locale) })}</p>
+                  <p className="type-meta text-muted-foreground">{reminderCounts(progress.nextReminder, (key, values) => tr(`reminder.${key}` as "reminder.self", values as never))}</p>
                 </div>
               </div>
-            ) : <p className="type-body-secondary text-muted-foreground">Nothing open to remind.</p>}
-            <p className="mt-3 type-meta text-muted-foreground">3 days before each due date, the day after, then weekly · in-app and email</p>
+            ) : <p className="type-body-secondary text-muted-foreground">{tr("nothingOpenToRemind")}</p>}
+            <p className="mt-3 type-meta text-muted-foreground">{tr("n3DaysBeforeEachDue")}</p>
           </div>
         </section>
         <section aria-labelledby="activity-heading">
-          <h2 id="activity-heading" className="mb-3 type-meta text-muted-foreground">Round activity</h2>
+          <h2 id="activity-heading" className="mb-3 type-meta text-muted-foreground">{tr("roundActivity")}</h2>
           <Activity round={round} />
         </section>
         <section aria-labelledby="config-heading">
-          <h2 id="config-heading" className="mb-3 type-meta text-muted-foreground">Configuration · frozen at launch</h2>
+          <h2 id="config-heading" className="mb-3 type-meta text-muted-foreground">{tr("configurationFrozenAtLaunch")}</h2>
           <FrozenConfiguration round={round} />
         </section>
       </div>
@@ -254,12 +267,12 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
   );
 }
 
-function reminderCounts(next: NonNullable<NonNullable<ReviewRoundDto["progress"]>["nextReminder"]>) {
+function reminderCounts(next: NonNullable<NonNullable<ReviewRoundDto["progress"]>["nextReminder"]>, say: Say) {
   return [
-    next.selfAssessments ? `${next.selfAssessments} self-assessments` : null,
-    next.peerLists ? `${next.peerLists} peer lists` : null,
-    next.peerInputs ? `${next.peerInputs} peer answers` : null,
-    next.managerAssessments ? `${next.managerAssessments} manager reviews` : null,
+    next.selfAssessments ? say("self", { count: next.selfAssessments }) : null,
+    next.peerLists ? say("peerLists", { count: next.peerLists }) : null,
+    next.peerInputs ? say("peerInputs", { count: next.peerInputs }) : null,
+    next.managerAssessments ? say("managers", { count: next.managerAssessments }) : null,
   ].filter(Boolean).join(" · ");
 }
 
@@ -275,7 +288,9 @@ function RatioBar({ done, total, warn = false }: { done: number; total: number; 
 }
 
 function Activity({ round }: { round: ReviewRoundDto }) {
-  if (round.activity.length === 0) return <p className="type-body-secondary text-muted-foreground">No activity yet.</p>;
+  const format = useFormat();
+  const t = useTranslations("reviews.Activity");
+  if (round.activity.length === 0) return <p className="type-body-secondary text-muted-foreground">{t("noActivityYet")}</p>;
   return (
     <ol className="space-y-4">
       {round.activity.slice(0, 6).map((entry, index) => (
@@ -283,7 +298,7 @@ function Activity({ round }: { round: ReviewRoundDto }) {
           <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-background"><Check className="size-3" aria-hidden /></span>
           <div className="min-w-0">
             <p className="type-label text-foreground">{entry.text}</p>
-            <p className="type-meta text-muted-foreground">{[dayLabel(entry.at.slice(0, 10)), entry.actorName].filter(Boolean).join(" · ")}</p>
+            <p className="type-meta text-muted-foreground">{[dayLabel(entry.at.slice(0, 10), format.locale), entry.actorName].filter(Boolean).join(" · ")}</p>
             {entry.detail ? <p className="mt-0.5 type-body-secondary text-muted-foreground">{entry.detail}</p> : null}
           </div>
         </li>
@@ -293,19 +308,20 @@ function Activity({ round }: { round: ReviewRoundDto }) {
 }
 
 function FrozenConfiguration({ round }: { round: ReviewRoundDto }) {
+  const t = useTranslations("reviews.FrozenConfiguration");
   const config = round.configuration;
   if (!config) return null;
   const chips: string[] = [
-    ...(config.selfAssessment ? ["Self"] : []),
-    ...(config.peerInput ? ["Peers"] : []),
-    ...(config.objectiveRatings ? ["Objective ratings"] : []),
-    ...(config.competencies.length ? [`${config.competencies.length} ${config.competencies.length === 1 ? "competency" : "competencies"}`] : []),
-    ...(config.questions || config.peerInput ? [`${round.questions.length} questions`] : []),
-    ...(config.potential ? ["Potential"] : []),
-    ...(config.calibration ? ["Calibration"] : []),
+    ...(config.selfAssessment ? [t("self")] : []),
+    ...(config.peerInput ? [t("peers")] : []),
+    ...(config.objectiveRatings ? [t("objectiveRatings")] : []),
+    ...(config.competencies.length ? [t("competencies", { count: config.competencies.length })] : []),
+    ...(config.questions || config.peerInput ? [t("questions", { length: round.questions.length })] : []),
+    ...(config.potential ? [t("potential")] : []),
+    ...(config.calibration ? [t("calibration")] : []),
   ];
   return (
-    <ul className="flex flex-wrap gap-2" aria-label="Frozen configuration">
+    <ul className="flex flex-wrap gap-2" aria-label={t("frozenConfiguration")}>
       {chips.map((chip) => <li key={chip} className="rounded-control bg-card px-2.5 py-1 type-meta font-medium text-foreground">{chip}</li>)}
     </ul>
   );
@@ -314,24 +330,26 @@ function FrozenConfiguration({ round }: { round: ReviewRoundDto }) {
 // ── Closed (board 07) ──────────────────────────────────────────────────────────────
 
 function RoundClosed({ round }: { round: ReviewRoundDto }) {
+  const format = useFormat();
+  const t = useTranslations("reviews.RoundClosed");
   const outcome = round.outcome!;
   const max = Math.max(1, ...outcome.distribution.map((b) => b.count));
   const top = outcome.distribution.reduce((best, b) => (b.count > best.count ? b : best), outcome.distribution[0] ?? { value: 0, label: "", count: 0 });
   return (
     <div className="space-y-10">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <CountTile label="Released" value={outcome.released} foot={`of ${outcome.total} reviews`} />
-        <CountTile label="Acknowledged" value={outcome.acknowledged} total={outcome.released}
-          foot={outcome.notAcknowledged.length ? `${outcome.notAcknowledged.length} not yet` : "Everyone"} />
-        <CountTile label="Calibrated" value={outcome.calibratedChanged}
-          foot={outcome.calibratedChanged ? `ratings changed · ${outcome.calibratedDown} down, ${outcome.calibratedUp} up` : "No rating changed"} />
-        <CountTile label="Closed without a result" value={outcome.closedWithoutResult.length} foot={outcome.closedWithoutResult.length ? "each with a reason" : "None"} />
+        <CountTile label={t("released")} value={outcome.released} foot={t("ofReviews", { total: outcome.total })} />
+        <CountTile label={t("acknowledged")} value={outcome.acknowledged} total={outcome.released}
+          foot={outcome.notAcknowledged.length ? t("notYet", { count: outcome.notAcknowledged.length }) : t("everyone")} />
+        <CountTile label={t("calibrated")} value={outcome.calibratedChanged}
+          foot={outcome.calibratedChanged ? t("ratingsChanged", { down: outcome.calibratedDown, up: outcome.calibratedUp }) : t("noRatingChanged")} />
+        <CountTile label={t("closedWithoutAResult")} value={outcome.closedWithoutResult.length} foot={outcome.closedWithoutResult.length ? t("eachWithReason") : t("noneFoot")} />
       </div>
 
       <section aria-labelledby="ratings-heading" className="rounded-surface bg-card p-6">
         <div className="mb-6 flex items-baseline justify-between">
-          <h2 id="ratings-heading" className="type-section-title text-foreground">Final ratings</h2>
-          <span className="type-meta text-muted-foreground">{outcome.released} released</span>
+          <h2 id="ratings-heading" className="type-section-title text-foreground">{t("finalRatings")}</h2>
+          <span className="type-meta text-muted-foreground">{t("released2", { released: outcome.released })}</span>
         </div>
         <div className="grid h-56 items-end gap-4" style={{ gridTemplateColumns: `repeat(${Math.max(1, outcome.distribution.length)}, minmax(0, 1fr))` }}
           role="img" aria-label={outcome.distribution.map((b) => `${b.label} ${b.count}`).join(", ")}>
@@ -348,7 +366,7 @@ function RoundClosed({ round }: { round: ReviewRoundDto }) {
 
       <div className="grid gap-8 lg:grid-cols-3">
         <section aria-labelledby="closed-heading">
-          <h2 id="closed-heading" className="mb-3 type-meta text-muted-foreground">Closed without a result</h2>
+          <h2 id="closed-heading" className="mb-3 type-meta text-muted-foreground">{t("closedWithoutAResult")}</h2>
           {outcome.closedWithoutResult.length ? (
             <ul className="divide-y divide-border rounded-surface bg-card">
               {outcome.closedWithoutResult.map((closed) => (
@@ -363,19 +381,19 @@ function RoundClosed({ round }: { round: ReviewRoundDto }) {
                 </li>
               ))}
             </ul>
-          ) : <p className="type-body-secondary text-muted-foreground">None.</p>}
+          ) : <p className="type-body-secondary text-muted-foreground">{t("none")}</p>}
         </section>
         <section aria-labelledby="unack-heading">
-          <h2 id="unack-heading" className="mb-3 type-meta text-muted-foreground">Not acknowledged yet · {outcome.notAcknowledged.length}</h2>
+          <h2 id="unack-heading" className="mb-3 type-meta text-muted-foreground">{t("notAcknowledgedYet", { length: outcome.notAcknowledged.length })}</h2>
           {outcome.notAcknowledged.length ? (
             <div className="flex flex-wrap items-center gap-3">
               <AvatarStack names={outcome.notAcknowledged.map((p) => p.displayName)} size="sm" max={4} />
-              {outcome.nextAcknowledgementReminder ? <span className="type-meta text-muted-foreground">Next reminder {dayLabel(outcome.nextAcknowledgementReminder)}</span> : null}
+              {outcome.nextAcknowledgementReminder ? <span className="type-meta text-muted-foreground">{t("nextReminder", { nextAcknowledgementReminder: dayLabel(outcome.nextAcknowledgementReminder, format.locale) })}</span> : null}
             </div>
-          ) : <p className="type-body-secondary text-muted-foreground">Everyone has acknowledged.</p>}
+          ) : <p className="type-body-secondary text-muted-foreground">{t("everyoneHasAcknowledged")}</p>}
         </section>
         <section aria-labelledby="records-heading">
-          <h2 id="records-heading" className="mb-3 type-meta text-muted-foreground">Records</h2>
+          <h2 id="records-heading" className="mb-3 type-meta text-muted-foreground">{t("records")}</h2>
           <RecordsTile released={outcome.released} />
         </section>
       </div>
@@ -384,12 +402,13 @@ function RoundClosed({ round }: { round: ReviewRoundDto }) {
 }
 
 function RecordsTile({ released }: { released: number }): ReactNode {
+  const t = useTranslations("reviews.RecordsTile");
   return (
     <div className="flex items-center gap-3 rounded-surface bg-card px-4 py-3.5">
       <span className="flex size-9 items-center justify-center rounded-control bg-inlay text-muted-foreground"><FileText className="size-4" aria-hidden /></span>
       <span className="min-w-0 flex-1">
-        <span className="block type-label text-foreground">{released} review {released === 1 ? "PDF" : "PDFs"}</span>
-        <span className="block type-meta text-muted-foreground">One per person, from the released record</span>
+        <span className="block type-label text-foreground">{t("review", { released })} {released === 1 ? t("pdf") : t("pdfs")}</span>
+        <span className="block type-meta text-muted-foreground">{t("onePerPersonFromThe")}</span>
       </span>
     </div>
   );

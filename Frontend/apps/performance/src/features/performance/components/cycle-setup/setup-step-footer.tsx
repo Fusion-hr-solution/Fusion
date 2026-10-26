@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
+import { useTranslations } from "next-intl";
 
 /**
  * Shared setup footer bar: a left affordance (Back to the previous step, or Cancel out of the
@@ -21,18 +22,19 @@ export function SetupStepFooter({
   center?: ReactNode;
   children?: ReactNode;
 }) {
+  const t = useTranslations("cycleSetup.SetupStepFooter");
   return (
     <div className="mt-8 flex items-center justify-between gap-4 border-t border-border pt-6">
       {backHref ? (
         <Button variant="ghost" asChild>
           <Link href={backHref}>
             <ArrowLeft className="size-4" data-icon="inline-start" />
-            Back
+            {t("back")}
           </Link>
         </Button>
       ) : cancelHref ? (
         <Button variant="outline" asChild>
-          <Link href={cancelHref}>Cancel</Link>
+          <Link href={cancelHref}>{t("cancel")}</Link>
         </Button>
       ) : (
         <span />

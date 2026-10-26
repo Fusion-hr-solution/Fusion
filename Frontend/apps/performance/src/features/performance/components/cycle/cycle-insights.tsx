@@ -26,7 +26,11 @@ import { PersonInitials } from "@repo/performance-ui";
 import { ChevronDown, ChevronRight } from "@/lib/icons";
 import { useInsights, useInsightsPeople } from "../../api/use-performance";
 import { ContentUnavailable } from "../content-unavailable";
-import { appHref, day, plural } from "../overview/overview-model";
+import { appHref, day } from "../overview/overview-model";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
+import { english, type Say } from "@/i18n/say";
 
 /**
  * Cycle › Insights (boards 26–28): how the cycle is going across the organization, as counts, shares and
@@ -36,31 +40,18 @@ import { appHref, day, plural } from "../overview/overview-model";
 
 type Drill = Omit<InsightsPeopleQuery, "page" | "pageSize"> & { context: string };
 
-const METRIC_TITLE: Record<InsightsMetric, string> = {
-  people: "People",
-  "plans-approved": "Plans approved",
-  "plans-not-approved": "Plans not approved",
-  updated: "Updated in the last 30 days",
-  "not-updated": "No update in 30 days",
-  "at-risk-or-off-track": "Objectives at risk or off track",
-  reviews: "Reviews",
-  "on-time": "Manager reviews on time",
-  late: "Manager reviews late",
-  released: "Results released",
-  acknowledged: "Acknowledged",
-  "not-acknowledged": "Not acknowledged",
-  level: "Rated",
-  raised: "Raised in calibration",
-  lowered: "Lowered in calibration",
-};
+/** Insights' words in English, for helpers outside a translated tree. */
+const en = english("cycle");
 
 const share = (part: number | null, whole: number | null) => (part != null && whole ? Math.round((part / whole) * 100) : null);
 
 export function CycleInsights({ cycleId, unitId, onUnit }: { cycleId: string; unitId: string | null; onUnit: (unitId: string | null) => void }) {
+  const format = useFormat();
+  const t = useTranslations("cycle.CycleInsights");
   const insights = useInsights(cycleId, unitId);
   const [drill, setDrill] = useState<Drill | null>(null);
 
-  if (insights.error) return <ContentUnavailable error={insights.error} onRetry={insights.refetch} subject="Insights" />;
+  if (insights.error) return <ContentUnavailable error={insights.error} onRetry={insights.refetch} subject={t("insights")} />;
   if (!insights.data) return <InsightsSkeleton />;
   const data = insights.data;
   const open = (metric: InsightsMetric, context: string, extra?: Partial<Drill>) =>
@@ -70,7 +61,7 @@ export function CycleInsights({ cycleId, unitId, onUnit }: { cycleId: string; un
     <div className="space-y-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <UnitFilter data={data} onUnit={onUnit} />
-        <span className="type-meta text-muted-foreground">{data.final ? "Final" : `As of ${day(data.asOf)}`}</span>
+        <span className="type-meta text-muted-foreground">{data.final ? t("final") : t("asOf", { asOf: day(data.asOf, format.locale) })}</span>
       </div>
       <FactStrip data={data} open={open} />
       <ByUnit data={data} open={open} />
@@ -82,17 +73,18 @@ export function CycleInsights({ cycleId, unitId, onUnit }: { cycleId: string; un
 }
 
 function UnitFilter({ data, onUnit }: { data: InsightsDto; onUnit: (unitId: string | null) => void }) {
+  const t = useTranslations("cycle.UnitFilter");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className={cn(data.unitId && "border-primary bg-primary-tint text-primary-ink")}>
-          <span className="text-muted-foreground">Unit</span> {data.scopeName}
+          <span className="text-muted-foreground">{t("unit")}</span> {data.scopeName}
           <ChevronDown className="size-4" data-icon="inline-end" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
         <DropdownMenuRadioGroup value={data.unitId ?? ""} onValueChange={(value) => onUnit(value || null)}>
-          <DropdownMenuRadioItem value="">The whole organization</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="">{t("theWholeOrganization")}</DropdownMenuRadioItem>
           {data.units.map((unit) => (
             <DropdownMenuRadioItem key={unit.unitId} value={unit.unitId} style={{ paddingInlineStart: `${0.5 + unit.depth * 0.75}rem` }}>
               {unit.name}
@@ -140,40 +132,42 @@ function Tile({ label, value, of, detail, onOpen }: { label: string; value: Reac
 }
 
 function FactStrip({ data, open }: { data: InsightsDto; open: Open }) {
+  const format = useFormat();
+  const tr = useTranslations("cycle.FactStrip");
   const t = data.total;
   const scope = data.scopeName;
   let tiles: ReactNode[];
   if (data.showsReviews) {
     const changed = (t.raised ?? 0) + (t.lowered ?? 0);
     tiles = [
-      <Tile key="released" label="Results released" value={t.released ?? 0} of={`of ${t.reviews ?? 0}`}
-        detail={data.releasedAt ? day(data.releasedAt) : "Not released yet"} onOpen={() => open("released", scope)} />,
-      <Tile key="ack" label="Acknowledged" value={t.acknowledged ?? 0} of={`of ${t.released ?? 0}`}
-        detail={(t.released ?? 0) > (t.acknowledged ?? 0) ? `${(t.released ?? 0) - (t.acknowledged ?? 0)} not yet` : null}
+      <Tile key="released" label={tr("resultsReleased")} value={t.released ?? 0} of={tr("of", { total: t.reviews ?? 0 })}
+        detail={data.releasedAt ? day(data.releasedAt, format.locale) : tr("notReleasedYet")} onOpen={() => open("released", scope)} />,
+      <Tile key="ack" label={tr("acknowledged")} value={t.acknowledged ?? 0} of={tr("of", { total: t.released ?? 0 })}
+        detail={(t.released ?? 0) > (t.acknowledged ?? 0) ? tr("notYet", { value: (t.released ?? 0) - (t.acknowledged ?? 0) }) : null}
         onOpen={() => open("not-acknowledged", scope)} />,
-      <Tile key="ontime" label="Manager reviews on time" value={t.onTime ?? 0} of={`of ${t.reviews ?? 0}`}
-        detail={(t.late ?? 0) > 0 ? `${t.late} after ${data.managerDue ? day(data.managerDue) : "the due date"}` : null}
+      <Tile key="ontime" label={tr("managerReviewsOnTime")} value={t.onTime ?? 0} of={tr("of", { total: t.reviews ?? 0 })}
+        detail={(t.late ?? 0) > 0 ? tr("lateAfter", { late: t.late ?? 0, day: data.managerDue ? day(data.managerDue, format.locale) : tr("theDueDate") }) : null}
         onOpen={() => open("late", scope)} />,
-      <Tile key="calibration" label="Changed in calibration" value={changed} of={changed === 1 ? "rating" : "ratings"}
-        detail={`${t.raised ?? 0} raised · ${t.lowered ?? 0} lowered`} onOpen={() => open("lowered", scope)} />,
+      <Tile key="calibration" label={tr("changedInCalibration")} value={changed} of={tr("rating", { count: changed })}
+        detail={tr("raisedLowered", { value: t.raised ?? 0, value2: t.lowered ?? 0 })} onOpen={() => open("lowered", scope)} />,
     ];
   } else if (data.showsExecution) {
     const status = t.status;
     const flagged = status ? status.atRisk + status.offTrack : 0;
     tiles = [
-      <Tile key="plans" label="Plans approved" value={t.plansApproved} of={`of ${t.people}`}
-        detail={data.neverApproved > 0 ? `${data.neverApproved} never approved` : null} onOpen={() => open("plans-not-approved", scope)} />,
-      <Tile key="updated" label="Updated in the last 30 days" value={t.updatedIn30Days ?? 0} of={`of ${t.approvedPlans ?? 0}`}
-        detail={data.withoutRecentUpdate > 0 ? `${plural(data.withoutRecentUpdate, "person", "people")} without an update` : null}
+      <Tile key="plans" label={tr("plansApproved")} value={t.plansApproved} of={tr("of", { total: t.people })}
+        detail={data.neverApproved > 0 ? tr("neverApproved", { neverApproved: data.neverApproved }) : null} onOpen={() => open("plans-not-approved", scope)} />,
+      <Tile key="updated" label={tr("updatedInTheLast30")} value={t.updatedIn30Days ?? 0} of={tr("of", { total: t.approvedPlans ?? 0 })}
+        detail={data.withoutRecentUpdate > 0 ? tr("withoutAnUpdate", { withoutRecentUpdate: tr("personCount", { count: data.withoutRecentUpdate }) }) : null}
         onOpen={() => open("not-updated", scope)} />,
-      <Tile key="risk" label="At risk or off track" value={flagged} of={`of ${plural(t.objectives ?? 0, "objective")}`}
-        detail={status ? `${status.atRisk} at risk · ${status.offTrack} off track` : null} onOpen={() => open("at-risk-or-off-track", scope)} />,
-      <Tile key="aligned" label="Aligned to company direction" value={`${share(t.aligned, t.objectives) ?? 0}%`} of={`${t.aligned ?? 0} of ${t.objectives ?? 0}`} />,
+      <Tile key="risk" label={tr("atRiskOrOffTrack")} value={flagged} of={tr("ofObjectives", { objectives: tr("objectiveCount", { count: t.objectives ?? 0 }) })}
+        detail={status ? tr("atRiskOffTrack", { atRisk: status.atRisk, offTrack: status.offTrack }) : null} onOpen={() => open("at-risk-or-off-track", scope)} />,
+      <Tile key="aligned" label={tr("alignedToCompanyDirection")} value={`${share(t.aligned, t.objectives) ?? 0}%`} of={tr("alignedOf", { aligned: t.aligned ?? 0, total: t.objectives ?? 0 })} />,
     ];
   } else {
     tiles = [
-      <Tile key="people" label="Participants" value={t.people} onOpen={() => open("people", scope)} />,
-      <Tile key="plans" label="Plans approved" value={t.plansApproved} of={`of ${t.people}`} onOpen={() => open("plans-not-approved", scope)} />,
+      <Tile key="people" label={tr("participants")} value={t.people} onOpen={() => open("people", scope)} />,
+      <Tile key="plans" label={tr("plansApproved")} value={t.plansApproved} of={tr("of", { total: t.people })} onOpen={() => open("plans-not-approved", scope)} />,
     ];
   }
   return (
@@ -193,6 +187,7 @@ function Bar({ value, total }: { value: number; total: number }) {
 }
 
 function StatusBar({ status }: { status: StatusMixDto }) {
+  const t = useTranslations("cycle.StatusBar");
   const segments = [
     { count: status.onTrack, className: "bg-success" },
     { count: status.atRisk, className: "bg-warning" },
@@ -200,7 +195,7 @@ function StatusBar({ status }: { status: StatusMixDto }) {
     { count: status.noStatus, className: "bg-inlay ring-1 ring-inset ring-border" },
   ].filter((s) => s.count > 0);
   return (
-    <span role="img" aria-label={`${status.onTrack} on track, ${status.atRisk} at risk, ${status.offTrack} off track, ${status.noStatus} no status yet`} className="flex h-2 w-36 gap-[2px]">
+    <span role="img" aria-label={t("onTrackAtRiskOff", { onTrack: status.onTrack, atRisk: status.atRisk, offTrack: status.offTrack, noStatus: status.noStatus })} className="flex h-2 w-36 gap-[2px]">
       {segments.map((s, i) => (
         <span key={i} className={cn("min-w-1 rounded-full", s.className)} style={{ flexGrow: s.count, flexBasis: 0 }} />
       ))}
@@ -224,6 +219,7 @@ function Frame({ title, aside, children }: { title: string; aside?: ReactNode; c
 }
 
 function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
+  const t = useTranslations("cycle.ByUnit");
   const levels = data.total.levels ?? [];
   const reviews = data.showsReviews;
   const execution = data.showsExecution && !reviews;
@@ -235,13 +231,13 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
 
   return (
     <Frame
-      title="By unit"
+      title={t("byUnit")}
       aside={
         reviews ? (
-          <span className="type-meta text-muted-foreground">Final ratings after calibration · people at each level</span>
+          <span className="type-meta text-muted-foreground">{t("finalRatingsAfterCalibrationPeople")}</span>
         ) : execution ? (
           <ul className="flex flex-wrap gap-4 type-meta text-muted-foreground">
-            {[["bg-success", "On track"], ["bg-warning", "At risk"], ["bg-destructive", "Off track"], ["bg-inlay ring-1 ring-inset ring-border", "No status yet"]].map(([dot, label]) => (
+            {[["bg-success", t("onTrack")], ["bg-warning", t("atRisk")], ["bg-destructive", t("offTrack")], ["bg-inlay ring-1 ring-inset ring-border", t("noStatusYet")]].map(([dot, label]) => (
               <li key={label} className="inline-flex items-center gap-1.5">
                 <span className={cn("size-2.5 rounded-detail", dot)} aria-hidden />
                 {label}
@@ -254,25 +250,25 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
       <table className="w-full min-w-[56rem]">
         <thead className="bg-inlay">
           <tr className="border-b border-border">
-            <th scope="col" className={TH}>Unit</th>
-            <th scope="col" className={cn(TH, "text-end")}>People</th>
+            <th scope="col" className={TH}>{t("unit")}</th>
+            <th scope="col" className={cn(TH, "text-end")}>{t("people")}</th>
             {reviews ? (
               <>
-                <th scope="col" className={TH}>Manager reviews on time</th>
-                <th scope="col" className={TH}>Acknowledged</th>
+                <th scope="col" className={TH}>{t("managerReviewsOnTime")}</th>
+                <th scope="col" className={TH}>{t("acknowledged")}</th>
                 {levels.map((l) => (
                   <th key={l.value} scope="col" className={cn(TH, "text-center")} title={l.label}>{l.value}</th>
                 ))}
-                <th scope="col" className={cn(TH, "text-end")}>Calibration</th>
+                <th scope="col" className={cn(TH, "text-end")}>{t("calibration")}</th>
               </>
             ) : (
               <>
-                <th scope="col" className={TH}>Plans approved</th>
+                <th scope="col" className={TH}>{t("plansApproved")}</th>
                 {execution ? (
                   <>
-                    <th scope="col" className={TH}>Updated in the last 30 days</th>
-                    <th scope="col" className={TH}>Objective status, as owners set it</th>
-                    <th scope="col" className={cn(TH, "text-end")}>Aligned</th>
+                    <th scope="col" className={TH}>{t("updatedInTheLast30")}</th>
+                    <th scope="col" className={TH}>{t("objectiveStatusAsOwnersSet")}</th>
+                    <th scope="col" className={cn(TH, "text-end")}>{t("aligned")}</th>
                   </>
                 ) : null}
               </>
@@ -284,16 +280,16 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
             const drill = drillFor(row, total);
             return (
               <tr key={row.unitId ?? (total ? "total" : row.name)} className={cn("border-b border-border last:border-0", total && "bg-inlay font-semibold")}>
-                <th scope="row" className={cn(TD, "text-start font-semibold text-foreground")}>{total ? (data.unitId ? `All of ${data.scopeName}` : "All units") : row.name}</th>
+                <th scope="row" className={cn(TD, "text-start font-semibold text-foreground")}>{total ? (data.unitId ? t("allOf", { scopeName: data.scopeName }) : t("allUnits")) : row.name}</th>
                 <td className={cn(TD, "text-end tabular-nums")}>
-                  <Figure onOpen={() => drill("people")} label={`${row.people} people in ${row.name}`}>{row.people}</Figure>
+                  <Figure onOpen={() => drill("people")} label={t("peopleIn", { people: row.people, name: row.name })}>{row.people}</Figure>
                 </td>
                 {reviews ? (
                   <>
                     <td className={TD}>
-                      <Figure onOpen={() => drill("late")} label={`Manager reviews late in ${row.name}`}>
-                        {row.onTime ?? 0} of {row.reviews ?? 0}
-                        {(row.late ?? 0) > 0 ? <span className="type-meta text-muted-foreground"> · {row.late} late</span> : null}
+                      <Figure onOpen={() => drill("late")} label={t("managerReviewsLateIn", { name: row.name })}>
+                        {t("of", { value: row.onTime ?? 0, value2: row.reviews ?? 0 })}
+                        {(row.late ?? 0) > 0 ? <span className="type-meta text-muted-foreground"> {t("late", { late: row.late ?? "" })}</span> : null}
                       </Figure>
                     </td>
                     <td className={TD}>
@@ -302,8 +298,8 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
                       ) : (
                         <span className="flex items-center gap-3">
                           {total ? null : <Bar value={row.acknowledged ?? 0} total={row.released ?? 0} />}
-                          <Figure onOpen={() => drill("not-acknowledged")} label={`Not acknowledged in ${row.name}`}>
-                            {row.acknowledged ?? 0} of {row.released ?? 0}
+                          <Figure onOpen={() => drill("not-acknowledged")} label={t("notAcknowledgedIn", { name: row.name })}>
+                            {t("of", { value: row.acknowledged ?? 0, value2: row.released ?? 0 })}
                           </Figure>
                         </span>
                       )}
@@ -315,7 +311,7 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
                           {count === 0 ? (
                             <span className="text-muted-foreground">0</span>
                           ) : (
-                            <Figure onOpen={() => drill("level", { level: l.value })} label={`Rated ${l.value} in ${row.name}`}
+                            <Figure onOpen={() => drill("level", { level: l.value })} label={t("ratedIn", { value: l.value, name: row.name })}
                               className={cn("inline-grid min-w-9 place-items-center px-2 py-1", total ? "" : "bg-inlay ring-1 ring-inset ring-border")}>
                               {count}
                             </Figure>
@@ -328,8 +324,8 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
                         <span className="text-muted-foreground">—</span>
                       ) : (
                         <span className="inline-flex gap-2">
-                          {row.raised ? <Figure onOpen={() => drill("raised")} label={`Raised in ${row.name}`} className="text-success">↑{row.raised}</Figure> : null}
-                          {row.lowered ? <Figure onOpen={() => drill("lowered")} label={`Lowered in ${row.name}`} className="text-warning">↓{row.lowered}</Figure> : null}
+                          {row.raised ? <Figure onOpen={() => drill("raised")} label={t("raisedIn", { name: row.name })} className="text-success">↑{row.raised}</Figure> : null}
+                          {row.lowered ? <Figure onOpen={() => drill("lowered")} label={t("loweredIn", { name: row.name })} className="text-warning">↓{row.lowered}</Figure> : null}
                         </span>
                       )}
                     </td>
@@ -339,25 +335,25 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
                     <td className={TD}>
                       <span className="flex items-center gap-3">
                         {total ? null : <Bar value={row.plansApproved} total={row.people} />}
-                        <Figure onOpen={() => drill("plans-not-approved")} label={`Plans not approved in ${row.name}`}>
-                          {row.plansApproved} of {row.people}
+                        <Figure onOpen={() => drill("plans-not-approved")} label={t("plansNotApprovedIn", { name: row.name })}>
+                          {t("of2", { plansApproved: row.plansApproved, people: row.people })}
                         </Figure>
                       </span>
                     </td>
                     {execution ? (
                       <>
                         <td className={TD}>
-                          <Figure onOpen={() => drill("not-updated")} label={`Not updated in ${row.name}`}>
-                            {row.updatedIn30Days ?? 0} of {row.approvedPlans ?? 0}
+                          <Figure onOpen={() => drill("not-updated")} label={t("notUpdatedIn", { name: row.name })}>
+                            {t("of", { value: row.updatedIn30Days ?? 0, value2: row.approvedPlans ?? 0 })}
                             <span className="type-meta text-muted-foreground"> · {share(row.updatedIn30Days, row.approvedPlans) ?? 0}%</span>
                           </Figure>
                         </td>
                         <td className={TD}>
                           <span className="flex items-center gap-3">
                             {row.status && !total ? <StatusBar status={row.status} /> : null}
-                            <Figure onOpen={() => drill("at-risk-or-off-track")} label={`At risk or off track in ${row.name}`}>
+                            <Figure onOpen={() => drill("at-risk-or-off-track")} label={t("atRiskOrOffTrack", { name: row.name })}>
                               {row.status ? row.status.atRisk + row.status.offTrack : 0}
-                              <span className="type-meta text-muted-foreground"> at risk or off{total ? ` · of ${row.objectives ?? 0}` : ""}</span>
+                              <span className="type-meta text-muted-foreground"> {t("atRiskOrOff")}{total ? " " + t("of3", { value: row.objectives ?? 0 }) : ""}</span>
                             </Figure>
                           </span>
                         </td>
@@ -376,16 +372,17 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
 }
 
 function CompanyDirection({ data }: { data: InsightsDto }) {
+  const t = useTranslations("cycle.CompanyDirection");
   return (
-    <Frame title="Company direction">
+    <Frame title={t("companyDirection")}>
       <table className="w-full min-w-[48rem]">
         <thead className="bg-inlay">
           <tr className="border-b border-border">
-            <th scope="col" className={TH}>Company objective</th>
-            <th scope="col" className={TH}>Owner</th>
-            <th scope="col" className={cn(TH, "text-end")}>Aligned objectives</th>
-            <th scope="col" className={cn(TH, "text-end")}>Units contributing</th>
-            <th scope="col" className={TH}>Progress</th>
+            <th scope="col" className={TH}>{t("companyObjective")}</th>
+            <th scope="col" className={TH}>{t("owner")}</th>
+            <th scope="col" className={cn(TH, "text-end")}>{t("alignedObjectives")}</th>
+            <th scope="col" className={cn(TH, "text-end")}>{t("unitsContributing")}</th>
+            <th scope="col" className={TH}>{t("progress")}</th>
           </tr>
         </thead>
         <tbody>
@@ -394,7 +391,7 @@ function CompanyDirection({ data }: { data: InsightsDto }) {
               <th scope="row" className={cn(TD, "text-start font-semibold text-foreground")}>{o.title}</th>
               <td className={TD}>{o.owner ?? "—"}</td>
               <td className={cn(TD, "text-end tabular-nums")}>{o.alignedObjectives}</td>
-              <td className={cn(TD, "text-end tabular-nums")}>{o.unitsContributing} of {o.units}</td>
+              <td className={cn(TD, "text-end tabular-nums")}>{t("of", { unitsContributing: o.unitsContributing, units: o.units })}</td>
               <td className={TD}>
                 <span className="flex items-center gap-3">
                   <span className="relative block h-1.5 w-28 overflow-hidden rounded-full bg-inlay">
@@ -406,7 +403,7 @@ function CompanyDirection({ data }: { data: InsightsDto }) {
             </tr>
           ))}
           <tr className="bg-inlay">
-            <th scope="row" className={cn(TD, "text-start font-semibold text-foreground")} colSpan={2}>Not aligned to any company objective</th>
+            <th scope="row" className={cn(TD, "text-start font-semibold text-foreground")} colSpan={2}>{t("notAlignedToAnyCompany")}</th>
             <td className={cn(TD, "text-end font-semibold tabular-nums")}>{data.notAligned}</td>
             <td colSpan={2} />
           </tr>
@@ -419,18 +416,20 @@ function CompanyDirection({ data }: { data: InsightsDto }) {
 const MANAGERS_SHOWN = 5;
 
 function ByManager({ data, open }: { data: InsightsDto; open: Open }) {
+  const format = useFormat();
+  const t = useTranslations("cycle.ByManager");
   const [all, setAll] = useState(false);
   const managers = all ? data.byManager : data.byManager.slice(0, MANAGERS_SHOWN);
   const drill = (m: InsightsManagerDto, metric: InsightsMetric) => open(metric, m.name, { managerId: m.employeeId });
   return (
-    <Frame title="By manager">
+    <Frame title={t("byManager")}>
       <table className="w-full min-w-[44rem]">
         <thead className="bg-inlay">
           <tr className="border-b border-border">
-            <th scope="col" className={TH}>Manager</th>
-            <th scope="col" className={cn(TH, "text-end")}>People</th>
-            <th scope="col" className={TH}>Late manager reviews</th>
-            <th scope="col" className={TH}>Acknowledged</th>
+            <th scope="col" className={TH}>{t("manager")}</th>
+            <th scope="col" className={cn(TH, "text-end")}>{t("people")}</th>
+            <th scope="col" className={TH}>{t("lateManagerReviews")}</th>
+            <th scope="col" className={TH}>{t("acknowledged")}</th>
           </tr>
         </thead>
         <tbody>
@@ -448,16 +447,16 @@ function ByManager({ data, open }: { data: InsightsDto; open: Open }) {
               <td className={cn(TD, "text-end tabular-nums")}>{m.people}</td>
               <td className={TD}>
                 {m.late > 0 ? (
-                  <Figure onOpen={() => drill(m, "late")} label={`Late reviews by ${m.name}`} className="text-warning">
-                    {m.late} after {data.managerDue ? day(data.managerDue) : "the due date"}
+                  <Figure onOpen={() => drill(m, "late")} label={t("lateReviewsBy", { name: m.name })} className="text-warning">
+                    {t("after", { late: m.late })} {data.managerDue ? day(data.managerDue, format.locale) : t("theDueDate")}
                   </Figure>
                 ) : (
-                  <span className="text-muted-foreground">All on time</span>
+                  <span className="text-muted-foreground">{t("allOnTime")}</span>
                 )}
               </td>
               <td className={TD}>
-                <Figure onOpen={() => drill(m, "not-acknowledged")} label={`Not acknowledged for ${m.name}`}>
-                  {m.acknowledged} of {m.released}
+                <Figure onOpen={() => drill(m, "not-acknowledged")} label={t("notAcknowledgedFor", { name: m.name })}>
+                  {t("of", { acknowledged: m.acknowledged, released: m.released })}
                 </Figure>
               </td>
             </tr>
@@ -467,10 +466,10 @@ function ByManager({ data, open }: { data: InsightsDto; open: Open }) {
       {data.byManager.length > MANAGERS_SHOWN ? (
         <div className="flex items-center justify-between border-t border-border px-4 py-2.5 type-meta text-muted-foreground">
           <span>
-            {managers.length} of {data.byManager.length} managers, most late first
+            {t("ofManagersMostLateFirst", { length: managers.length, length2: data.byManager.length })}
           </span>
           <Button variant="ghost" size="sm" onClick={() => setAll((v) => !v)}>
-            {all ? "Show fewer" : `Show all ${data.byManager.length}`}
+            {all ? t("showFewer") : t("showAll", { length: data.byManager.length })}
           </Button>
         </div>
       ) : null}
@@ -481,32 +480,36 @@ function ByManager({ data, open }: { data: InsightsDto; open: Open }) {
 const PAGE_SIZE = 25;
 
 /** What a person's line says beside their name, for the figure that listed them. */
-export function personFacts(metric: InsightsMetric, p: InsightsPersonDto): string[] {
+export function personFacts(metric: InsightsMetric, p: InsightsPersonDto, say: Say = en, locale?: string): string[] {
+  const on = (iso: string) => day(iso, locale);
   switch (metric) {
     case "late":
     case "on-time":
     case "reviews":
-      return [p.managerSubmittedAt ? `Submitted ${day(p.managerSubmittedAt)}` : "Not submitted", p.managerDue ? `Due ${day(p.managerDue)}` : null].filter(Boolean) as string[];
+      return [p.managerSubmittedAt ? say("facts.submitted", { day: on(p.managerSubmittedAt) }) : say("facts.notSubmitted"), p.managerDue ? say("facts.due", { day: on(p.managerDue) }) : null].filter(Boolean) as string[];
     case "released":
     case "acknowledged":
     case "not-acknowledged":
-      return [p.releasedAt ? `Released ${day(p.releasedAt)}` : null, p.acknowledgedAt ? `Acknowledged ${day(p.acknowledgedAt)}` : null].filter(Boolean) as string[];
+      return [p.releasedAt ? say("facts.released", { day: on(p.releasedAt) }) : null, p.acknowledgedAt ? say("facts.acknowledged", { day: on(p.acknowledgedAt) }) : null].filter(Boolean) as string[];
     case "level":
     case "raised":
     case "lowered":
-      return p.level == null ? [] : [p.managerLevel != null && p.managerLevel !== p.level ? `${p.managerLevel} → ${p.level}` : `Rated ${p.level}`];
+      return p.level == null ? [] : [p.managerLevel != null && p.managerLevel !== p.level ? `${p.managerLevel} → ${p.level}` : say("facts.rated", { level: p.level })];
     default:
-      return [p.planState ? (p.planState === "NotStarted" ? "No plan" : `Plan ${p.planState === "ReturnedForChanges" ? "returned" : p.planState.toLowerCase()}`) : null,
-        p.lastUpdateAt ? `Updated ${day(p.lastUpdateAt)}` : null].filter(Boolean) as string[];
+      return [p.planState ? (p.planState === "NotStarted" ? say("facts.noPlan") : say(`facts.plan.${p.planState}`)) : null,
+        p.lastUpdateAt ? say("facts.updated", { day: on(p.lastUpdateAt) }) : null].filter(Boolean) as string[];
   }
 }
 
 function PeopleDrawer({ cycleId, cycleName, drill, onClose }: { cycleId: string; cycleName: string; drill: Drill | null; onClose: () => void }) {
+  const t = useTranslations("cycle.PeopleDrawer");
+  const words = useSay("cycle");
+  const format = useFormat();
   const [page, setPage] = useState(1);
   const query = drill ? { metric: drill.metric, unitId: drill.unitId, managerId: drill.managerId, level: drill.level, page, pageSize: PAGE_SIZE } : null;
   const people = useInsightsPeople(cycleId, query);
   const data = people.data;
-  const title = drill ? (drill.metric === "level" ? `Rated ${drill.level}` : METRIC_TITLE[drill.metric]) : "";
+  const title = drill ? (drill.metric === "level" ? t("rated", { level: drill.level ?? "" }) : words(`metric.${drill.metric}`)) : "";
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
@@ -525,22 +528,22 @@ function PeopleDrawer({ cycleId, cycleName, drill, onClose }: { cycleId: string;
           {people.error ? (
             <p role="alert" className="px-3 py-4 text-sm text-destructive">{people.error.message}</p>
           ) : !data ? (
-            <div className="space-y-2 p-3" role="status" aria-label="Loading people">
+            <div className="space-y-2 p-3" role="status" aria-label={t("loadingPeople")}>
               {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-12" />)}
             </div>
           ) : data.items.length === 0 ? (
-            <p className="px-3 py-6 text-sm text-muted-foreground">No one</p>
+            <p className="px-3 py-6 text-sm text-muted-foreground">{t("noOne")}</p>
           ) : (
             <ul className="divide-y divide-border">
               {data.items.map((p) => {
-                const facts = personFacts(data.metric, p);
+                const facts = personFacts(data.metric, p, words, format.locale);
                 const body = (
                   <>
                     <PersonInitials name={p.name} size="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate type-label text-foreground">{p.name}</span>
                       <span className="block truncate type-meta text-muted-foreground">
-                        {[p.jobTitle, p.unitName, p.managerName ? `Manager ${p.managerName}` : null].filter(Boolean).join(" · ")}
+                        {[p.jobTitle, p.unitName, p.managerName ? t("manager", { managerName: p.managerName }) : null].filter(Boolean).join(" · ")}
                       </span>
                     </span>
                     <span className="shrink-0 text-end type-meta text-muted-foreground">
@@ -567,11 +570,11 @@ function PeopleDrawer({ cycleId, cycleName, drill, onClose }: { cycleId: string;
         {data && pages > 1 ? (
           <div className="flex items-center justify-between border-t border-border px-6 py-3 type-meta text-muted-foreground">
             <span>
-              Page {page} of {pages}
+              {t("pageOf", { page, pages })}
             </span>
             <span className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-              <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("previous")}</Button>
+              <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>{t("next")}</Button>
             </span>
           </div>
         ) : null}
@@ -581,8 +584,9 @@ function PeopleDrawer({ cycleId, cycleName, drill, onClose }: { cycleId: string;
 }
 
 function InsightsSkeleton() {
+  const t = useTranslations("cycle.InsightsSkeleton");
   return (
-    <div className="space-y-10" role="status" aria-label="Loading Insights">
+    <div className="space-y-10" role="status" aria-label={t("loadingInsights")}>
       <Skeleton className="h-9 w-56" />
       <Skeleton className="h-32 rounded-surface" />
       <Skeleton className="h-80 rounded-surface" />
