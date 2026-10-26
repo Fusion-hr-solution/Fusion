@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { CalendarIcon } from "lucide-react"
+import { useLocale } from "next-intl"
 import type { Matcher } from "react-day-picker"
 
 import { cn } from "../../lib/utils"
@@ -40,6 +41,7 @@ function DatePicker({
   disabled?: boolean
   className?: string
 }) {
+  const locale = useLocale()
   const [open, setOpen] = React.useState(false)
 
   const selected = parseISODate(value)
@@ -65,7 +67,7 @@ function DatePicker({
           )}
         >
           <CalendarIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          {selected ? formatDisplay(selected) : placeholder}
+          {selected ? formatDisplay(selected, locale) : placeholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -106,12 +108,12 @@ function formatISODate(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function formatDisplay(date: Date): string {
+function formatDisplay(date: Date, locale: string): string {
   return formatDateParts(date, {
     day: "numeric",
     month: "short",
     year: "numeric",
-  })
+  }, undefined, locale)
 }
 
 export { DatePicker }
