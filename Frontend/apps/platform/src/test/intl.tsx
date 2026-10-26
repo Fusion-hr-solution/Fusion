@@ -5,6 +5,8 @@ import { renderWithIntl } from "@repo/ds/testing";
 import type { Say } from "@repo/ds/lib/say";
 import dsFr from "@repo/ds/messages/fr.json";
 import authFr from "@repo/auth/messages/fr.json";
+import dsAr from "@repo/ds/messages/ar.json";
+import authAr from "@repo/auth/messages/ar.json";
 import { loadPlatformMessages } from "@/i18n/messages";
 
 /** Platform's catalogue in French, as the app serves it: @repo/ds's and @repo/auth's merged with its own. */
@@ -19,4 +21,18 @@ export function sayInFrench(namespace: string): Say {
 /** `render` in French with Platform's catalogue. */
 export function renderInFrench(ui: ReactElement, options: RenderOptions = {}): RenderResult {
   return renderWithIntl(ui, { locale: "fr", messages: frenchMessages, ...options });
+}
+
+/** Platform's catalogue in Arabic, merged the same way. */
+export const arabicMessages = { ...dsAr, ...authAr, ...(await loadPlatformMessages("ar")) };
+
+/** One namespace in Arabic, for pure helpers that take a {@link Say}. */
+export function sayInArabic(namespace: string): Say {
+  const t = createTranslator({ locale: "ar", messages: arabicMessages, namespace: namespace as never });
+  return (key, values) => t(key as never, values as never);
+}
+
+/** `render` in Arabic with Platform's catalogue. */
+export function renderInArabic(ui: ReactElement, options: RenderOptions = {}): RenderResult {
+  return renderWithIntl(ui, { locale: "ar", messages: arabicMessages, ...options });
 }

@@ -1,0 +1,195 @@
+{
+  "common": {
+    "permissionChanged": "تغيّر وصولك إلى إدارة المنصة. سجّل الدخول مجددًا للمتابعة.",
+    "accessChanged": "تغيّر وصولك إلى إدارة المنصة.",
+    "noAccess": "لم يعد لديك وصول إلى المنصة",
+    "retry": "إعادة المحاولة"
+  },
+  "status": {
+    "AwaitingAdministratorActivation": "بانتظار تفعيل المسؤول",
+    "Active": "نشطة"
+  },
+  "invitation": {
+    "Pending": "معلّقة",
+    "Accepted": "مقبولة",
+    "Expired": "منتهية",
+    "Revoked": "مسحوبة",
+    "Superseded": "مستبدلة"
+  },
+  "delivery": {
+    "Sent": "مُرسلة",
+    "Failed": "فشل الإرسال"
+  },
+  "event": {
+    "TenantProvisioned": "أُنشئت المؤسسة",
+    "InvitationResent": "أُعيد إرسال الدعوة",
+    "InvitationRevoked": "سُحبت الدعوة",
+    "InvitationReplaced": "استُبدل البريد المدعو",
+    "InvitationReissued": "أُعيد إصدار الدعوة",
+    "ActivationRejected": "رُفض التفعيل",
+    "BootstrapCompleted": "فُعّل المسؤول",
+    "TenantDeactivated": "عُطّلت المؤسسة",
+    "TenantReactivated": "أُعيد تفعيل المؤسسة",
+    "TenantProfileChanged": "حُدّث ملف المؤسسة",
+    "deliveryFailed": "فشل إرسال الدعوة",
+    "deliverySent": "أُرسلت الدعوة",
+    "unknown": "نشاط المؤسسة"
+  },
+  "recovery": {
+    "resend": "إعادة إرسال الدعوة",
+    "revoke": "سحب الدعوة",
+    "replace": "استبدال البريد المدعو",
+    "reissue": "إعادة إصدار الدعوة"
+  },
+  "availability": {
+    "notAvailable": "غير متاح في هذا الإصدار",
+    "notConnected": "غير موصول في هذا الإصدار"
+  },
+  "ago": {
+    "moments": "منذ لحظات",
+    "minutes": "{count, plural, one {منذ دقيقة} two {منذ دقيقتين} other {منذ # دقائق}}",
+    "hours": "{count, plural, one {منذ ساعة} two {منذ ساعتين} other {منذ # ساعات}}",
+    "days": "{count, plural, one {منذ يوم} two {منذ يومين} other {منذ # أيام}}"
+  },
+  "recoveryDialog": {
+    "revoke": {
+      "title": "سحب الدعوة؟",
+      "consequence": "لن تعود الدعوة الحالية صالحة. لن يكون لهذه المؤسسة أي دعوة مسؤول نشطة."
+    },
+    "replace": {
+      "title": "استبدال البريد المدعو",
+      "consequence": "استبدال البريد يُبطل الدعوة الحالية ويُنشئ دعوة جديدة."
+    },
+    "reissue": {
+      "title": "إعادة إصدار الدعوة؟",
+      "consequence": "ستُنشأ دعوة جديدة بتاريخ انتهاء جديد."
+    },
+    "emailInvalid": "أدخل بريدًا إلكترونيًا صالحًا.",
+    "emailSame": "أدخل عنوانًا مختلفًا عن العنوان الحالي.",
+    "currentEmail": "البريد الحالي",
+    "invitationFor": "دعوة لـ",
+    "sendsTo": "تُرسل إلى",
+    "newEmail": "بريد المسؤول الجديد",
+    "cancel": "إلغاء",
+    "failure": {
+      "conflict": "تغيّرت الدعوة قبل تنفيذ هذا الإجراء. حُدّثت المؤسسة إلى حالتها الحالية.",
+      "notFound": "لم تعد هذه الدعوة موجودة. حُدّثت المؤسسة.",
+      "unavailable": "الخدمة غير متاحة الآن. لم يتغير شيء — أعد المحاولة بعد قليل.",
+      "unexpected": "تعذّر إتمام الإجراء."
+    }
+  },
+  "rowActions": {
+    "actionsFor": "إجراءات {name}",
+    "viewTenant": "عرض المؤسسة",
+    "viewActivity": "عرض النشاط",
+    "notAvailable": "غير متاح"
+  },
+  "modules": {
+    "none": "لا شيء",
+    "show": "{count, plural, one {عرض الوحدة المفعّلة} other {عرض الوحدات المفعّلة (#)}}",
+    "enabledCount": "<n>{count}</n> مفعّلة",
+    "enabled": "الوحدات المفعّلة",
+    "included": "مضمّنة",
+    "enabledOne": "مفعّلة"
+  },
+  "activation": {
+    "activated": "فُعّل المسؤول",
+    "noInvitation": "لا دعوة مسجّلة",
+    "notSent": "لم تُرسل",
+    "reissueRequired": "يلزم إعادة الإصدار"
+  },
+  "export": {
+    "tenant": "المؤسسة",
+    "status": "حالة المؤسسة",
+    "administrator": "المسؤول الأول",
+    "invitation": "حالة الدعوة",
+    "delivery": "نتيجة الإرسال",
+    "modules": "الوحدات المفعّلة",
+    "created": "تاريخ الإنشاء"
+  },
+  "narrative": {
+    "TenantProvisioned": "أُنشئت {tenant} بنجاح.",
+    "deliveryFailed": "تعذّر إرسال دعوة المسؤول لـ{tenant}.",
+    "deliverySent": "أُرسلت دعوة المسؤول لـ{tenant}.",
+    "InvitationResent": "أُعيد إرسال دعوة المسؤول لـ{tenant}.",
+    "InvitationRevoked": "سُحبت دعوة المسؤول لـ{tenant}.",
+    "InvitationReplaced": "استُبدل المسؤول المعيّن لـ{tenant}.",
+    "InvitationReissued": "صدرت دعوة مسؤول جديدة لـ{tenant}.",
+    "BootstrapCompleted": "أكملت {tenant} تفعيل المسؤول.",
+    "ActivationRejected": "رُفضت محاولة تفعيل لـ{tenant}.",
+    "unknown": "سُجّل تحديث لـ{tenant}."
+  },
+  "timestamp": {
+    "today": "اليوم عند {time}",
+    "yesterday": "أمس عند {time}"
+  },
+  "activity": {
+    "title": "آخر نشاط المؤسسات",
+    "description": "أحدث أحداث الإنشاء وتفعيل المسؤولين في مؤسسات العملاء.",
+    "auditLog": "عرض سجل التدقيق كاملًا",
+    "empty": "لم يُسجّل أي نشاط للمؤسسات بعد.",
+    "loading": "جارٍ تحميل آخر نشاط المؤسسات",
+    "failed": "تعذّر تحميل آخر نشاط."
+  },
+  "summary": {
+    "group": "تصفية المؤسسات حسب المرحلة",
+    "All": {
+      "label": "إجمالي المؤسسات",
+      "meaning": "كل بيئات العملاء"
+    },
+    "AwaitingActivation": {
+      "label": "بانتظار التفعيل",
+      "meaning": "بانتظار المسؤولين المدعوين"
+    },
+    "Active": {
+      "label": "نشطة",
+      "meaning": "تم إرساء وصول المسؤول"
+    },
+    "NeedsAttention": {
+      "label": "تحتاج إلى متابعة",
+      "meaning": "يلزم استرجاع الدعوة"
+    }
+  },
+  "overview": {
+    "title": "المؤسسات",
+    "description": "إدارة مؤسسات العملاء والاستحقاقات وتفعيل المسؤولين.",
+    "provision": "إنشاء مؤسسة",
+    "search": "البحث في المؤسسات أو البريد",
+    "noResults": "لا مؤسسة تطابق البحث وعوامل التصفية الحالية",
+    "noun": {
+      "one": "مؤسسة",
+      "other": "مؤسسات"
+    },
+    "filters": {
+      "activation": "التفعيل",
+      "module": "الوحدة",
+      "created": "تاريخ الإنشاء"
+    },
+    "activationOptions": {
+      "AwaitingActivation": "بانتظار التفعيل",
+      "Active": "نشطة",
+      "NeedsAttention": "تحتاج إلى متابعة"
+    },
+    "columns": {
+      "tenant": "المؤسسة",
+      "activation": "التفعيل",
+      "modules": "الوحدات",
+      "created": "تاريخ الإنشاء",
+      "actions": "الإجراءات"
+    },
+    "administratorNotRecorded": "لا مسؤول مسجّل",
+    "export": {
+      "failed": "فشل التصدير. أعد المحاولة.",
+      "label": "تصدير المؤسسات المطابقة بصيغة CSV",
+      "button": "تصدير"
+    },
+    "empty": {
+      "title": "لا مؤسسات بعد",
+      "description": "لم تُنشأ أي مؤسسة عميل بعد."
+    },
+    "failure": {
+      "title": "تعذّر تحميل المؤسسات",
+      "description": "قائمة المؤسسات غير متاحة الآن. لم تتأثر مؤسساتك."
+    }
+  }
+}

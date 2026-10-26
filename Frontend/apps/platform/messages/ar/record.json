@@ -1,0 +1,170 @@
+{
+  "status": {
+    "active": "نشطة",
+    "deactivated": "معطّلة"
+  },
+  "menu": {
+    "label": "إجراءات المؤسسة",
+    "copyId": "نسخ معرّف المؤسسة",
+    "deactivate": "تعطيل المؤسسة",
+    "reactivate": "إعادة تفعيل المؤسسة"
+  },
+  "toast": {
+    "reactivated": "أُعيد تفعيل المؤسسة",
+    "reactivatedBody": "{name} نشطة من جديد ومتاحة لمستخدميها.",
+    "reactivateFailed": "تعذّرت إعادة تفعيل المؤسسة",
+    "deactivated": "عُطّلت المؤسسة",
+    "deactivatedBody": "لم يعد بإمكان مستخدمي {name} تسجيل الدخول إلى Fusion.",
+    "deactivateFailed": "تعذّر تعطيل المؤسسة"
+  },
+  "deactivate": {
+    "title": "تعطيل {name}؟",
+    "description": "لن يتمكن مستخدموها من تسجيل الدخول إلى Fusion. تُحفظ كل بيانات المؤسسة، ويمكنك إعادة تفعيلها في أي وقت.",
+    "cancel": "إلغاء",
+    "pending": "جارٍ التعطيل…"
+  },
+  "key": {
+    "copied": "نُسخ مفتاح المؤسسة",
+    "copy": "نسخ مفتاح المؤسسة {slug}",
+    "copiedShort": "تم النسخ",
+    "tooltip": "نسخ مفتاح المؤسسة"
+  },
+  "navigation": "سجل المؤسسة",
+  "destinations": {
+    "overview": "نظرة عامة",
+    "access": "الوصول",
+    "products": "المنتجات",
+    "activity": "النشاط"
+  },
+  "identifier": {
+    "label": "معرّف المؤسسة",
+    "copied": "نُسخ معرّف المؤسسة",
+    "copy": "نسخ معرّف المؤسسة {id}",
+    "copiedShort": "تم النسخ"
+  },
+  "failure": {
+    "notFound": "المؤسسة غير موجودة",
+    "notFoundDescription": "هذه المؤسسة غير موجودة أو حُذفت.",
+    "back": "العودة إلى المؤسسات",
+    "title": "تعذّر تحميل هذه المؤسسة",
+    "description": "سجل المؤسسة غير متاح الآن. لم يتغير شيء في المؤسسة."
+  },
+  "loading": "جارٍ تحميل المؤسسة",
+  "lifecycle": {
+    "label": "مرحلة المؤسسة",
+    "active": "المؤسسة نشطة",
+    "activeDescription": "هذه المؤسسة نشطة ومتاحة للمستخدمين المصرّح لهم.",
+    "deactivated": "المؤسسة معطّلة",
+    "deactivatedDescription": "لا يستطيع مستخدمو العميل الوصول إلى Fusion حاليًا. تُحفظ بيانات المؤسسة الحالية.",
+    "reactivating": "جارٍ إعادة التفعيل…"
+  },
+  "handoff": {
+    "title": "نقل الإدارة",
+    "complete": "اكتمل النقل",
+    "working": "جارٍ العمل…",
+    "sendNew": "إرسال دعوة جديدة",
+    "toast": {
+      "newSent": "أُرسلت دعوة جديدة",
+      "newSentDescription": "دعوة إعداد جديدة في طريقها إلى المسؤول.",
+      "resent": "أُعيد إرسال الدعوة",
+      "resentDescription": "أُرسلت دعوة الإعداد مجددًا.",
+      "newFailed": "تعذّر إرسال دعوة جديدة",
+      "resendFailed": "تعذّرت إعادة إرسال الدعوة"
+    },
+    "recoveryRequired": {
+      "description": "لا يستطيع أي مسؤول صالح للمؤسسة تسجيل الدخول حاليًا.",
+      "label": "تلزم الاستعادة",
+      "meta": "استمرارية الإدارة تحتاج إلى متابعة",
+      "action": "بدء الاستعادة"
+    },
+    "recoveryPending": {
+      "description": "تجري استعادة الوصول الإداري.",
+      "label": "الاستعادة معلّقة",
+      "meta": "أُرسلت دعوة الاستعادة إلى {recipient}",
+      "action": "إعادة إرسال دعوة الاستعادة"
+    },
+    "active": {
+      "description": "نُقلت السيطرة الإدارية إلى العميل.",
+      "label": "نشط",
+      "meta": "قُبلت في {date}"
+    },
+    "deliveryFailed": {
+      "description": "المؤسسة نشطة، لكن الدعوة لم تصل.",
+      "label": "فشل الإرسال",
+      "meta": "آخر محاولة في {date}"
+    },
+    "pending": {
+      "description": "تجري عملية نقل السيطرة إلى مسؤول العميل.",
+      "label": "الدعوة معلّقة",
+      "meta": "أُرسلت {ago}"
+    },
+    "expired": {
+      "description": "انتهت صلاحية الدعوة قبل أن يكمل المسؤول الإعداد.",
+      "label": "انتهت صلاحية الدعوة",
+      "meta": "انتهت في {date}"
+    },
+    "revoked": {
+      "description": "سُحبت الدعوة قبل قبولها.",
+      "label": "سُحبت الدعوة"
+    },
+    "awaiting": {
+      "description": "لم تُنقل السيطرة إلى العميل بعد.",
+      "label": "بانتظار المسؤول",
+      "action": "عرض الوصول"
+    },
+    "person": {
+      "fallback": "مسؤول المؤسسة",
+      "role": "مسؤول الموارد البشرية للمؤسسة"
+    }
+  },
+  "products": {
+    "title": "المنتجات",
+    "description": "وصول هذه المؤسسة إلى المنتجات.",
+    "manage": "إدارة المنتجات",
+    "states": {
+      "Included": "مضمّن",
+      "Enabled": "مفعّل",
+      "Disabled": "معطّل"
+    }
+  },
+  "profile": {
+    "title": "ملف المؤسسة",
+    "edit": "تعديل",
+    "name": "اسم المؤسسة",
+    "industry": "القطاع",
+    "notSpecified": "غير محدد",
+    "timeZone": "المنطقة الزمنية الافتراضية",
+    "locale": "اللغة الافتراضية",
+    "provisioned": "تاريخ الإنشاء",
+    "rename": {
+      "title": "إعادة تسمية المؤسسة",
+      "cancel": "إلغاء",
+      "saving": "جارٍ الحفظ…",
+      "save": "حفظ التغييرات",
+      "done": "أُعيدت تسمية المؤسسة",
+      "doneDescription": "أصبح اسم المؤسسة «{name}».",
+      "failed": "تعذّرت إعادة تسمية المؤسسة"
+    }
+  },
+  "activity": {
+    "title": "آخر نشاط",
+    "view": "عرض النشاط",
+    "empty": "لم يُسجّل أي نشاط بعد.",
+    "describe": {
+      "TenantProvisioned": "أُنشئت المؤسسة واكتمل إعدادها.",
+      "deliveryFailed": "تعذّر إرسال دعوة المسؤول.",
+      "deliverySent": "أُرسلت دعوة المسؤول.",
+      "InvitationResent": "أُعيد إرسال دعوة المسؤول.",
+      "InvitationRevoked": "سُحبت دعوة المسؤول.",
+      "InvitationReplaced": "استُبدل المسؤول المعيّن.",
+      "InvitationReissued": "صدرت دعوة مسؤول جديدة.",
+      "BootstrapCompleted": "أكمل المسؤول التفعيل.",
+      "ActivationRejected": "رُفضت محاولة تفعيل.",
+      "TenantDeactivated": "عُطّل وصول العميل.",
+      "TenantReactivated": "استُعيد وصول العميل.",
+      "TenantProfileChanged": "حُدّث ملف المؤسسة.",
+      "failed": "لم يكتمل التحديث.",
+      "recorded": "سُجّل تحديث."
+    }
+  }
+}

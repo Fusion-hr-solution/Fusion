@@ -79,9 +79,13 @@ export type LucideIcon = Icon;
 /** Hugeicons' 1.5 default reads thin beside Geist at 14–16px; 1.75 keeps the rounded style but holds weight. */
 const STROKE = 1.75;
 
+/** Icons that point along the line, mirrored right to left by @repo/ds's `data-rtl-flip` rule. */
+const DIRECTIONAL = new Set(["ChevronRight", "ChevronLeft", "ArrowRight", "ArrowLeft"]);
+
 function icon(svg: IconSvgElement, name: string): Icon {
+  const flip = DIRECTIONAL.has(name) ? { "data-rtl-flip": "" } : {};
   const Component = forwardRef<SVGSVGElement, IconProps>(function AppIcon({ strokeWidth = STROKE, ...props }, ref) {
-    return <HugeiconsIcon ref={ref} icon={svg} strokeWidth={Number(strokeWidth)} {...props} />;
+    return <HugeiconsIcon ref={ref} icon={svg} strokeWidth={Number(strokeWidth)} {...flip} {...props} />;
   });
   Component.displayName = name;
   return Component;
