@@ -15,7 +15,10 @@ import {
 } from "@/lib/icons";
 import { cn } from "@repo/ds/lib/utils";
 import type { TenantHistoryEntry } from "../api";
-import { eventActor, eventTitle, formatDateTime, isFailureOutcome } from "../language";
+import { formatDateTime, isFailureOutcome, tenantWords } from "../language";
+
+// An unrouted reference component, kept for the record's tab redesign; it reads in English until then.
+const ENGLISH = tenantWords();
 
 /** Titles come from `language.ts`; only the glyph is chosen here. */
 const EVENT_ICON: Record<string, LucideIcon> = {
@@ -47,7 +50,7 @@ interface DescribedEvent {
 
 export function describeEvent(entry: TenantHistoryEntry): DescribedEvent {
   const failed = isFailureOutcome(entry.outcome);
-  const title = eventTitle(entry.eventType, failed);
+  const title = ENGLISH.eventTitle(entry.eventType, failed);
 
   return {
     title,
@@ -86,7 +89,7 @@ export function EventTimeline({
             {!isLast ? (
               <span
                 aria-hidden="true"
-                className="absolute bottom-0 left-[13px] top-7 w-px bg-border"
+                className="absolute bottom-0 inset-s-[13px] top-7 w-px bg-border"
               />
             ) : null}
 
@@ -115,7 +118,7 @@ export function EventTimeline({
                   {formatDateTime(entry.occurredAt)}
                 </time>
                 <span aria-hidden="true">·</span>
-                <span>{eventActor(entry.actorName)}</span>
+                <span>{ENGLISH.eventActor(entry.actorName)}</span>
               </p>
             </div>
           </li>

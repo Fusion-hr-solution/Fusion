@@ -1,0 +1,170 @@
+{
+  "status": {
+    "active": "Active",
+    "deactivated": "Désactivée"
+  },
+  "menu": {
+    "label": "Actions sur l’organisation",
+    "copyId": "Copier l’ID de l’organisation",
+    "deactivate": "Désactiver l’organisation",
+    "reactivate": "Réactiver l’organisation"
+  },
+  "toast": {
+    "reactivated": "Organisation réactivée",
+    "reactivatedBody": "{name} est de nouveau active et accessible à ses utilisateurs.",
+    "reactivateFailed": "Impossible de réactiver l’organisation",
+    "deactivated": "Organisation désactivée",
+    "deactivatedBody": "Les utilisateurs de {name} ne peuvent plus se connecter à Fusion.",
+    "deactivateFailed": "Impossible de désactiver l’organisation"
+  },
+  "deactivate": {
+    "title": "Désactiver {name} ?",
+    "description": "Ses utilisateurs ne pourront plus se connecter à Fusion. Toutes les données de l’organisation sont conservées, et vous pourrez la réactiver à tout moment.",
+    "cancel": "Annuler",
+    "pending": "Désactivation…"
+  },
+  "key": {
+    "copied": "Clé de l’organisation copiée",
+    "copy": "Copier la clé de l’organisation {slug}",
+    "copiedShort": "Copié",
+    "tooltip": "Copier la clé de l’organisation"
+  },
+  "navigation": "Fiche de l’organisation",
+  "destinations": {
+    "overview": "Vue d’ensemble",
+    "access": "Accès",
+    "products": "Produits",
+    "activity": "Activité"
+  },
+  "identifier": {
+    "label": "ID de l’organisation",
+    "copied": "ID de l’organisation copié",
+    "copy": "Copier l’ID de l’organisation {id}",
+    "copiedShort": "Copié"
+  },
+  "failure": {
+    "notFound": "Organisation introuvable",
+    "notFoundDescription": "Cette organisation n’existe pas ou a été supprimée.",
+    "back": "Retour aux organisations",
+    "title": "Échec du chargement de cette organisation",
+    "description": "La fiche de l’organisation est indisponible pour le moment. Rien n’a changé pour l’organisation."
+  },
+  "loading": "Chargement de l’organisation",
+  "lifecycle": {
+    "label": "Cycle de vie de l’organisation",
+    "active": "L’organisation est active",
+    "activeDescription": "Cette organisation est active et accessible aux utilisateurs autorisés.",
+    "deactivated": "L’organisation est désactivée",
+    "deactivatedDescription": "Les utilisateurs du client ne peuvent pas accéder à Fusion pour le moment. Les données de l’organisation sont conservées.",
+    "reactivating": "Réactivation…"
+  },
+  "handoff": {
+    "title": "Transfert de l’administration",
+    "complete": "Transfert terminé",
+    "working": "En cours…",
+    "sendNew": "Envoyer une nouvelle invitation",
+    "toast": {
+      "newSent": "Nouvelle invitation envoyée",
+      "newSentDescription": "Une nouvelle invitation est en route vers l’administrateur.",
+      "resent": "Invitation renvoyée",
+      "resentDescription": "L’invitation a été renvoyée.",
+      "newFailed": "Impossible d’envoyer une nouvelle invitation",
+      "resendFailed": "Impossible de renvoyer l’invitation"
+    },
+    "recoveryRequired": {
+      "description": "Aucun administrateur de l’organisation ne peut se connecter pour le moment.",
+      "label": "Récupération nécessaire",
+      "meta": "La continuité de l’administration doit être rétablie",
+      "action": "Lancer la récupération"
+    },
+    "recoveryPending": {
+      "description": "L’accès administrateur est en cours de rétablissement.",
+      "label": "Récupération en cours",
+      "meta": "Invitation de récupération envoyée à {recipient}",
+      "action": "Renvoyer l’invitation de récupération"
+    },
+    "active": {
+      "description": "L’administration a été transférée au client.",
+      "label": "Active",
+      "meta": "Acceptée le {date}"
+    },
+    "deliveryFailed": {
+      "description": "L’organisation est active, mais l’invitation n’a pas été remise.",
+      "label": "Échec de l’envoi",
+      "meta": "Dernière tentative le {date}"
+    },
+    "pending": {
+      "description": "L’administration est en cours de transfert à l’administrateur du client.",
+      "label": "Invitation en attente",
+      "meta": "Envoyée {ago}"
+    },
+    "expired": {
+      "description": "L’invitation a expiré avant que l’administrateur ne termine son activation.",
+      "label": "Invitation expirée",
+      "meta": "Expirée le {date}"
+    },
+    "revoked": {
+      "description": "L’invitation a été révoquée avant d’être acceptée.",
+      "label": "Invitation révoquée"
+    },
+    "awaiting": {
+      "description": "L’administration n’a pas encore été transférée au client.",
+      "label": "En attente de l’administrateur",
+      "action": "Voir les accès"
+    },
+    "person": {
+      "fallback": "Administrateur de l’organisation",
+      "role": "Administrateur RH de l’organisation"
+    }
+  },
+  "products": {
+    "title": "Produits",
+    "description": "Accès aux produits pour cette organisation.",
+    "manage": "Gérer les produits",
+    "states": {
+      "Included": "Inclus",
+      "Enabled": "Activé",
+      "Disabled": "Désactivé"
+    }
+  },
+  "profile": {
+    "title": "Profil de l’organisation",
+    "edit": "Modifier",
+    "name": "Nom de l’organisation",
+    "industry": "Secteur d’activité",
+    "notSpecified": "Non précisé",
+    "timeZone": "Fuseau horaire par défaut",
+    "locale": "Langue par défaut",
+    "provisioned": "Créée le",
+    "rename": {
+      "title": "Renommer l’organisation",
+      "cancel": "Annuler",
+      "saving": "Enregistrement…",
+      "save": "Enregistrer les modifications",
+      "done": "Organisation renommée",
+      "doneDescription": "L’organisation s’appelle désormais « {name} ».",
+      "failed": "Impossible de renommer l’organisation"
+    }
+  },
+  "activity": {
+    "title": "Activité récente",
+    "view": "Voir l’activité",
+    "empty": "Aucune activité enregistrée pour l’instant.",
+    "describe": {
+      "TenantProvisioned": "Organisation créée et configurée.",
+      "deliveryFailed": "L’invitation de l’administrateur n’a pas pu être remise.",
+      "deliverySent": "L’invitation de l’administrateur a été envoyée.",
+      "InvitationResent": "L’invitation de l’administrateur a été renvoyée.",
+      "InvitationRevoked": "L’invitation de l’administrateur a été révoquée.",
+      "InvitationReplaced": "L’administrateur désigné a été remplacé.",
+      "InvitationReissued": "Une nouvelle invitation d’administrateur a été émise.",
+      "BootstrapCompleted": "L’administrateur a terminé son activation.",
+      "ActivationRejected": "Une tentative d’activation a été refusée.",
+      "TenantDeactivated": "L’accès du client a été désactivé.",
+      "TenantReactivated": "L’accès du client a été rétabli.",
+      "TenantProfileChanged": "Le profil de l’organisation a été modifié.",
+      "failed": "La modification n’a pas abouti.",
+      "recorded": "Une modification a été enregistrée."
+    }
+  }
+}

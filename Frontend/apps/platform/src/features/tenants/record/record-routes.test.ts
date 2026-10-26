@@ -10,11 +10,11 @@ import {
 
 describe("RECORD_DESTINATIONS", () => {
   it("keeps the order an operator learns once", () => {
-    expect(RECORD_DESTINATIONS.map((entry) => entry.label)).toEqual([
-      "Overview",
-      "Access",
-      "Products",
-      "Activity",
+    expect(RECORD_DESTINATIONS.map((entry) => entry.id)).toEqual([
+      "overview",
+      "access",
+      "products",
+      "activity",
     ]);
   });
 

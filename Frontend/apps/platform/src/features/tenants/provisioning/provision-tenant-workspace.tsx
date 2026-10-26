@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 import { ArrowLeft } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
@@ -36,8 +38,9 @@ import { RegionProductsStep } from "./steps/region-products-step";
 import { InitialAdminStep } from "./steps/initial-admin-step";
 import { ReviewStep } from "./steps/review-step";
 import type { ProvisioningStepProps } from "./steps/types";
-import { failureMessage } from "../api";
+import { useFailureMessage } from "../language";
 import {
+  fieldFailureLine,
   fieldForFailure,
   validateDraft,
   type FieldErrors,
@@ -77,6 +80,9 @@ const STEP_FIELDS: (keyof FieldErrors)[][] = [
 export function ProvisionTenantWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("provisioning");
+  const say = useSay("provisioning");
+  const failureMessage = useFailureMessage();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [draft, setDraft] = useState<ProvisioningDraft>({
@@ -125,10 +131,10 @@ export function ProvisionTenantWorkspace() {
       const invitee =
         [draft.firstName.trim(), draft.lastName.trim()].filter(Boolean).join(" ") ||
         draft.administratorEmail.trim();
-      toast.success("Tenant provisioned", {
-        description: `${draft.name.trim()} is ready.${
-          invitee ? ` ${invitee} has been invited as tenant administrator.` : ""
-        }`,
+      toast.success(t("toast.provisioned"), {
+        description: invitee
+          ? t("toast.readyInvited", { name: draft.name.trim(), invitee })
+          : t("toast.ready", { name: draft.name.trim() }),
       });
       router.push(`/tenants/${tenantId}`);
     },
@@ -141,16 +147,17 @@ export function ProvisionTenantWorkspace() {
     (error) => {
       const field = fieldForFailure(error);
       if (field) {
-        const message =
-          failureMessage(error) ?? "This value was rejected. Adjust it and try again.";
+        const message = failureMessage(
+          error,
+          fieldFailureLine(error, say) ?? t("fieldRejected")
+        );
         setErrors((current) => ({ ...current, [field]: message }));
         const step = STEP_FIELDS.findIndex((fields) => fields.includes(field));
         if (step >= 0) setCurrentStep(step);
         return;
       }
-      toast.error("Tenant not provisioned", {
-        description:
-          "The request did not complete. Review the details below and try again.",
+      toast.error(t("toast.failed"), {
+        description: t("toast.failedDescription"),
       });
     }
   );
@@ -183,7 +190,7 @@ export function ProvisionTenantWorkspace() {
   }
 
   function validateField(field: keyof FieldErrors) {
-    const found = validateDraft(draft);
+    const found = validateDraft(draft, say);
     setErrors((current) => ({ ...current, [field]: found[field] }));
   }
 
@@ -199,7 +206,7 @@ export function ProvisionTenantWorkspace() {
   const isLast = currentStep === PROVISIONING_STEPS.length - 1;
   const isFirst = currentStep === 0;
 
-  const found = validateDraft(draft);
+  const found = validateDraft(draft, say);
 
   // The catalogue is a provisioning dependency, not decoration: until it is
   // read the page cannot say which modules the tenant would be entitled to, so
@@ -227,7 +234,7 @@ export function ProvisionTenantWorkspace() {
       return;
     }
 
-    const nextErrors = validateDraft(draft);
+    const nextErrors = validateDraft(draft, say);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       const invalidStep = STEP_FIELDS.findIndex((fields) =>
@@ -267,9 +274,9 @@ export function ProvisionTenantWorkspace() {
         <BackToTenants href={returnHref} isDirty={isDirty} />
 
         <header className="mb-6">
-          <h1 className="type-page-title text-foreground">Provision tenant</h1>
+          <h1 className="type-page-title text-foreground">{t("title")}</h1>
           <p className="type-body-secondary mt-1 text-muted-foreground">
-            Set up a new tenant for your organization.
+            {t("description")}
           </p>
         </header>
 
@@ -330,6 +337,7 @@ export function ProvisionTenantWorkspace() {
  */
 function BackToTenants({ href, isDirty }: { href: string; isDirty: boolean }) {
   const router = useRouter();
+  const t = useTranslations("provisioning");
   const [asking, setAsking] = useState(false);
 
   return (
@@ -338,18 +346,18 @@ function BackToTenants({ href, isDirty }: { href: string; isDirty: boolean }) {
         asChild={!isDirty}
         variant="ghost"
         size="sm"
-        className="mb-2 -ml-2"
+        className="mb-2 -ms-2"
         {...(isDirty ? { onClick: () => setAsking(true) } : {})}
       >
         {isDirty ? (
           <>
             <ArrowLeft aria-hidden="true" className="size-4" />
-            Tenants
+            {t("back")}
           </>
         ) : (
           <Link href={href}>
             <ArrowLeft aria-hidden="true" className="size-4" />
-            Tenants
+            {t("back")}
           </Link>
         )}
       </Button>
@@ -357,16 +365,13 @@ function BackToTenants({ href, isDirty }: { href: string; isDirty: boolean }) {
       <AlertDialog open={asking} onOpenChange={setAsking}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard this tenant?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Nothing has been provisioned yet. Leaving now discards what you
-              have entered.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("discard.title")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("discard.description")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogCancel>{t("discard.keep")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => router.push(href)}>
-              Discard and leave
+              {t("discard.leave")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

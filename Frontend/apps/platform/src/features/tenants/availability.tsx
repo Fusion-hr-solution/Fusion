@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@repo/ds/components/ui/tooltip";
 import { cn } from "@repo/ds/lib/utils";
+import { useTenantWords } from "./language";
 
 /**
  * How this feature says what it does not know or cannot do yet.
@@ -20,14 +21,9 @@ import { cn } from "@repo/ds/lib/utils";
  * trust it.
  *
  * Shared by the tenant record and the directory so the two cannot drift into
- * describing the same absence differently.
+ * describing the same absence differently. The two sentences are
+ * `TenantWords.notAvailable` and `TenantWords.notConnected`.
  */
-
-/** The behaviour does not exist yet. */
-export const NOT_AVAILABLE = "Not available in this build";
-
-/** The behaviour is accepted and its source exists, but nothing is wired up. */
-export const NOT_CONNECTED = "Not connected in this build";
 
 /**
  * An action whose place in the workflow is settled but whose behaviour is not
@@ -43,7 +39,7 @@ export const NOT_CONNECTED = "Not connected in this build";
 export function UnavailableAction({
   label,
   icon: Icon,
-  explanation = NOT_AVAILABLE,
+  explanation,
   variant = "outline",
   size = "sm",
 }: {
@@ -53,6 +49,8 @@ export function UnavailableAction({
   variant?: "outline" | "ghost";
   size?: "sm" | "default";
 }) {
+  const words = useTenantWords();
+  const reason = explanation ?? words.notAvailable;
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
@@ -67,7 +65,7 @@ export function UnavailableAction({
             // without a positioned ancestor its containing block is the page
             // itself, so a scroll container cannot clip it and it stretches the
             // document past the viewport.
-            aria-label={`${label} — ${explanation}`}
+            aria-label={`${label} — ${reason}`}
             onClick={(event) => event.preventDefault()}
             className={cn(
               "shrink-0 cursor-default bg-transparent text-muted-foreground hover:bg-transparent hover:text-muted-foreground",
@@ -78,7 +76,7 @@ export function UnavailableAction({
             {label}
           </Button>
         </TooltipTrigger>
-        <TooltipContent>{explanation}</TooltipContent>
+        <TooltipContent>{reason}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -94,16 +92,18 @@ export function UnavailableAction({
  */
 export function CapabilityList({
   items,
-  state = NOT_AVAILABLE,
+  state,
 }: {
   items: readonly string[];
+  /** Defaults to "not available in this build". */
   state?: string;
 }) {
+  const words = useTenantWords();
   return (
     <>
       {/* The panel's headline fact, so it carries weight rather than receding
           into the same grey as the labels around it. */}
-      <p className="text-sm font-medium text-foreground/80">{state}</p>
+      <p className="text-sm font-medium text-foreground/80">{state ?? words.notAvailable}</p>
       <ul className="mt-2 flex flex-wrap gap-x-2 gap-y-1.5">
         {items.map((item) => (
           <li

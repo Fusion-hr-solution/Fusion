@@ -1,4 +1,6 @@
 import { FUSION_MODULES } from "@repo/ds/shell";
+import type { Say } from "@repo/ds/lib/say";
+import { sayProvisioningInEnglish } from "./provisioning-form-state";
 import type { ProvisionableModule, TenantModule } from "../api";
 
 /**
@@ -55,19 +57,14 @@ function resolveModule(
 
 /**
  * Descriptions written for someone deciding what a tenant should be entitled to,
- * rather than the navigation captions the switcher uses.
+ * rather than the navigation captions the switcher uses
+ * (`provisioning.moduleDescriptions.<key>`).
  */
-const ENTITLEMENT_DESCRIPTION: Record<string, string> = {
-  core: "Workforce and organization foundation",
-  performance: "Goals, reviews and feedback",
-  learning: "Training and onboarding",
-  recruitment: "Hiring pipeline.",
-  onboarding: "New-hire journeys",
-  interview: "Candidate assessments",
-};
+const DESCRIBED_MODULES = new Set(["core", "performance", "learning", "recruitment", "onboarding", "interview"]);
 
 export function buildModuleOptions(
-  provisionable: readonly ProvisionableModule[]
+  provisionable: readonly ProvisionableModule[],
+  say: Say = sayProvisioningInEnglish
 ): ProvisioningModuleOption[] {
   // Keyed by the lowercased identifier so a registry key can find it without
   // either side having to agree on casing.
@@ -88,10 +85,9 @@ export function buildModuleOptions(
     return {
       key: registryModule.key,
       label: registryModule.label,
-      description:
-        ENTITLEMENT_DESCRIPTION[registryModule.key] ??
-        registryModule.description ??
-        "",
+      description: DESCRIBED_MODULES.has(registryModule.key)
+        ? say(`moduleDescriptions.${registryModule.key}`)
+        : (registryModule.description ?? ""),
       icon: registryModule.icon,
       // Unknown to the service means unavailable, whatever the registry says.
       availability: (mandatory === undefined

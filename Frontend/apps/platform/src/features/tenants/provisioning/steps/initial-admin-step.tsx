@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 import { CheckCircle2, Mail, ShieldCheck } from "@/lib/icons";
 import { Input } from "@repo/ds/components/ui/input";
 import { Switch } from "@repo/ds/components/ui/switch";
 import { Field, describedBy } from "../field";
-import { ADMIN_ROLE_OPTIONS, adminRoleByValue } from "../admin-role-options";
+import { adminRoleByValue, adminRoleOptions } from "../admin-role-options";
 import { SearchableSelect } from "../searchable-select";
 import { StepPanel } from "./step-panel";
 import type { ProvisioningStepProps } from "./types";
@@ -21,37 +23,39 @@ export function InitialAdminStep({
   update,
   validateField,
 }: ProvisioningStepProps) {
-  const role = adminRoleByValue(draft.adminRole);
+  const t = useTranslations("provisioning.admin");
+  const say = useSay("provisioning");
+  const role = adminRoleByValue(draft.adminRole, say);
 
   const roleOptions = useMemo(
     () =>
-      ADMIN_ROLE_OPTIONS.map((option) => ({
+      adminRoleOptions(say).map((option) => ({
         value: option.value,
         label: option.label,
         keywords: `${option.label} ${option.summary}`,
       })),
-    []
+    [say]
   );
 
   return (
     <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <StepPanel
-        title="Initial administrator"
-        description="This person will receive an invitation to access the new tenant and complete the initial setup."
+        title={t("title")}
+        description={t("description")}
         className="h-full"
       >
         <div className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
               id="admin-first-name"
-              label="First name"
+              label={t("firstName")}
               required
               error={errors.firstName}
             >
               <Input
                 id="admin-first-name"
                 value={draft.firstName}
-                placeholder="e.g. John"
+                placeholder={t("firstNamePlaceholder")}
                 autoComplete="given-name"
                 onChange={(event) => update("firstName", event.target.value)}
                 onBlur={() => validateField("firstName")}
@@ -65,14 +69,14 @@ export function InitialAdminStep({
 
             <Field
               id="admin-last-name"
-              label="Last name"
+              label={t("lastName")}
               required
               error={errors.lastName}
             >
               <Input
                 id="admin-last-name"
                 value={draft.lastName}
-                placeholder="e.g. Doe"
+                placeholder={t("lastNamePlaceholder")}
                 autoComplete="family-name"
                 onChange={(event) => update("lastName", event.target.value)}
                 onBlur={() => validateField("lastName")}
@@ -87,16 +91,16 @@ export function InitialAdminStep({
 
           <Field
             id="administrator-email"
-            label="Work email"
+            label={t("email")}
             required
-            hint="An invitation will be sent to this email address."
+            hint={t("emailHint")}
             error={errors.administratorEmail}
           >
             <Input
               id="administrator-email"
               type="email"
               value={draft.administratorEmail}
-              placeholder="e.g. john.doe@acmecorp.com"
+              placeholder={t("emailPlaceholder")}
               autoComplete="email"
               // Validated on blur, never while typing: an address is invalid for
               // most of the time it is being entered.
@@ -112,31 +116,27 @@ export function InitialAdminStep({
             />
           </Field>
 
-          <Field id="admin-role" label="Role" hint={role.hint}>
+          <Field id="admin-role" label={t("role")} hint={role.hint}>
             <SearchableSelect
               id="admin-role"
               options={roleOptions}
               value={draft.adminRole}
-              placeholder="Select a role"
-              searchPlaceholder="Search roles"
-              emptyMessage="No role matches."
+              placeholder={t("rolePlaceholder")}
+              searchPlaceholder={t("roleSearch")}
+              emptyMessage={t("roleEmpty")}
               onChange={(value) => update("adminRole", value)}
             />
           </Field>
 
           <label className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
-            <span className="type-label text-foreground">
-              Send invitation immediately
-            </span>
+            <span className="type-label text-foreground">{t("sendNow")}</span>
             <Switch
               checked={draft.sendInvitation}
               onCheckedChange={(next) => update("sendInvitation", next)}
-              aria-label="Send invitation immediately"
+              aria-label={t("sendNow")}
             />
             <span className="text-xs text-muted-foreground">
-              {draft.sendInvitation
-                ? "An invitation email will be sent when the tenant is provisioned."
-                : "The invitation can be sent later from the tenant's administrators."}
+              {draft.sendInvitation ? t("sendOn") : t("sendOff")}
             </span>
           </label>
         </div>
@@ -150,22 +150,20 @@ export function InitialAdminStep({
             </span>
             <div className="min-w-0">
               <h3 className="type-subsection-title text-foreground">
-                What will this person receive?
+                {t("receive.title")}
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                After provisioning, we will:
+                {t("receive.subtitle")}
               </p>
             </div>
           </div>
 
           <ul className="mt-4 space-y-3">
             {[
-              draft.sendInvitation
-                ? "Send an invitation email"
-                : "Prepare an invitation to send later",
-              "Provide initial access to the tenant",
-              "Assign the selected role and permissions",
-              "Allow them to continue the tenant setup",
+              draft.sendInvitation ? t("receive.send") : t("receive.prepare"),
+              t("receive.access"),
+              t("receive.role"),
+              t("receive.continue"),
             ].map((item) => (
               <li key={item} className="flex items-start gap-2 text-sm">
                 <CheckCircle2
@@ -180,7 +178,7 @@ export function InitialAdminStep({
 
         <div className="mt-auto">
           <p className="type-eyebrow mb-2 text-muted-foreground">
-            Role summary
+            {t("roleSummary")}
           </p>
           <div className="flex items-start gap-3 rounded-surface border border-border bg-inlay p-4">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">

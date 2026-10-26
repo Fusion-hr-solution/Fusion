@@ -12,9 +12,12 @@ import {
   labelForLocale,
   labelForTimeZone,
 } from "../provisioning/provisioning-options";
-import { TENANT_STATUS_LABEL, formatDate } from "../language";
+import { formatDate, tenantWords } from "../language";
 import { TenantIdentifier, useTenantRecord } from "./record-shell";
 import { provisioningOrigin } from "./tenant-record-facts";
+
+// An unrouted reference component, kept for the record's tab redesign; it reads in English until then.
+const ENGLISH = tenantWords();
 
 /**
  * The Platform-owned configuration this tenant was established with.
@@ -72,7 +75,7 @@ export function TenantSettingsDestination() {
           />
           <StatusBlock
             label="Status"
-            value={TENANT_STATUS_LABEL[tenant.administratorActivationStatus]}
+            value={ENGLISH.status(tenant.administratorActivationStatus)}
             tone={
               tenant.administratorActivationStatus === "Active"
                 ? "positive"

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Label } from "@repo/ds/components/ui/label";
 
 /** Builds the `aria-describedby` for a field that may carry a hint and an error. */
@@ -26,6 +27,7 @@ export function Field({
   error?: string;
   children: ReactNode;
 }) {
+  const t = useTranslations("provisioning");
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>
@@ -34,10 +36,10 @@ export function Field({
             input's own validity, and spelled out for anyone reading the label. */}
         {required ? (
           <>
-            <span aria-hidden="true" className="ml-0.5 text-destructive">
+            <span aria-hidden="true" className="ms-0.5 text-destructive">
               *
             </span>
-            <span className="sr-only"> (required)</span>
+            <span className="sr-only"> {t("required")}</span>
           </>
         ) : null}
       </Label>

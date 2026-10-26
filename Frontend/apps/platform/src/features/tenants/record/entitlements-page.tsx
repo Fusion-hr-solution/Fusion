@@ -1,7 +1,7 @@
 "use client";
 
 import { Boxes, History, SlidersHorizontal } from "@/lib/icons";
-import { eventActor, formatDateTime } from "../language";
+import { formatDateTime, tenantWords } from "../language";
 import { ModuleCatalogue, useTenantEntitlements } from "./module-entitlements";
 import {
   IconTile,
@@ -9,11 +9,13 @@ import {
   SupportingSurface,
 } from "./record-ui";
 import {
-  NOT_CONNECTED,
   UnavailableAction,
 } from "../availability";
 import { useTenantRecord } from "./record-shell";
 import { provisioningOrigin } from "./tenant-record-facts";
+
+// An unrouted reference component, kept for the record's tab redesign; it reads in English until then.
+const ENGLISH = tenantWords();
 
 /**
  * Which Fusion products this tenant is entitled to.
@@ -66,7 +68,7 @@ export function TenantEntitlementsDestination() {
                   {formatDateTime(origin.occurredAt)}
                 </time>
                 <span aria-hidden="true">·</span>
-                <span>{eventActor(origin.actorName)}</span>
+                <span>{ENGLISH.eventActor(origin.actorName)}</span>
               </p>
             </div>
           </div>
@@ -79,7 +81,7 @@ export function TenantEntitlementsDestination() {
           icon={History}
         >
           <p className="text-sm font-medium text-muted-foreground">
-            {NOT_CONNECTED}
+            {ENGLISH.notConnected}
           </p>
         </SupportingSurface>
       )}

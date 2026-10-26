@@ -4,7 +4,7 @@ import type {
   InvitationStateValue,
   TenantActivationStatus,
 } from "../api";
-import { DELIVERY_LABEL, INVITATION_LABEL, TENANT_STATUS_LABEL } from "../language";
+import { tenantWords, type TenantWords } from "../language";
 
 /**
  * What a row says about activation.
@@ -34,20 +34,24 @@ export interface ActivationInput {
   attentionReason: AttentionReason;
 }
 
-export function activationSummary(row: ActivationInput): ActivationSummary {
-  const status = TENANT_STATUS_LABEL[row.administratorActivationStatus];
+export function activationSummary(
+  row: ActivationInput,
+  words: TenantWords = tenantWords()
+): ActivationSummary {
+  const { say } = words;
+  const status = words.status(row.administratorActivationStatus);
   const isException = row.attentionReason !== "None";
 
   if (row.administratorActivationStatus === "Active") {
     // The tenant is in; how its invitation was delivered is now history.
-    return { status, detail: "Administrator activated", isException: false };
+    return { status, detail: say("activation.activated"), isException: false };
   }
 
   if (!row.invitationState) {
-    return { status, detail: "No invitation recorded", isException };
+    return { status, detail: say("activation.noInvitation"), isException };
   }
 
-  const invitation = INVITATION_LABEL[row.invitationState];
+  const invitation = words.invitation(row.invitationState);
 
   switch (row.invitationState) {
     case "Pending":
@@ -56,8 +60,8 @@ export function activationSummary(row: ActivationInput): ActivationSummary {
         status,
         detail: `${invitation} · ${
           row.lastDeliveryOutcome
-            ? DELIVERY_LABEL[row.lastDeliveryOutcome]
-            : "Not sent"
+            ? words.delivery(row.lastDeliveryOutcome)
+            : say("activation.notSent")
         }`,
         isException,
       };
@@ -66,7 +70,7 @@ export function activationSummary(row: ActivationInput): ActivationSummary {
     case "Revoked":
       // Both leave the tenant with no live route in, and both are fixed the
       // same way, so the row says what has to happen next.
-      return { status, detail: `${invitation} · Reissue required`, isException };
+      return { status, detail: `${invitation} · ${say("activation.reissueRequired")}`, isException };
 
     default:
       return { status, detail: invitation, isException };

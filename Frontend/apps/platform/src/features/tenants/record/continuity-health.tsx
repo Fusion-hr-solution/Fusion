@@ -8,6 +8,7 @@ import { SupportingSurface } from "./record-ui";
 import { AdministratorRecoveryDialog } from "./administrator-recovery-dialog";
 import { useTenantContinuityHealth } from "../queries";
 import type { RecoveryStatusValue } from "../api";
+import { formatDateTime } from "@repo/ds/lib/dates";
 
 /**
  * Whether this tenant can still administer itself, and the one exceptional
@@ -93,7 +94,7 @@ export function ContinuityHealth({ tenantId }: { tenantId: string }) {
                 <Row label="Recipient" value={data.latestRecoveryAttempt.recipientEmail} />
                 <Row
                   label="Started"
-                  value={new Date(data.latestRecoveryAttempt.initiatedAt).toLocaleString()}
+                  value={formatDateTime(data.latestRecoveryAttempt.initiatedAt, { year: "always" })}
                 />
                 <Row label="Invitation" value={data.latestRecoveryAttempt.state} />
                 {data.latestRecoveryAttempt.deliveryStatus === "Failed" ? (

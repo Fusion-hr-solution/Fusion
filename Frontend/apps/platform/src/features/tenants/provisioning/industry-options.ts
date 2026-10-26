@@ -1,3 +1,4 @@
+import type { Say } from "@repo/ds/lib/say";
 import type { SearchableOption } from "./searchable-select";
 
 /**
@@ -7,97 +8,111 @@ import type { SearchableOption } from "./searchable-select";
  * descriptive tenant metadata that only helps if it stays consistent across
  * tenants, and typing invites near-duplicates ("Fintech" vs "Financial
  * Services") that make the field useless for grouping. The stored value is the
- * label itself — human-readable in the record and stable enough for an optional
- * descriptor.
+ * English label itself — human-readable in the record and stable enough for an
+ * optional descriptor — whatever language the operator reads the list in.
  *
  * The leading blank option is how an operator clears a choice they made by
  * mistake; industry is optional, so "Not specified" is a legitimate answer.
  */
-export const INDUSTRY_OPTIONS: SearchableOption[] = [
-  { value: "", label: "Not specified", keywords: "none unspecified blank skip" },
+const INDUSTRIES: { value: string; id: string; keywords: string }[] = [
+  { value: "", id: "notSpecified", keywords: "none unspecified blank skip" },
   {
     value: "Technology & Software",
-    label: "Technology & Software",
+    id: "technology",
     keywords: "tech it saas software internet digital startup",
   },
   {
     value: "Financial Services",
-    label: "Financial Services",
+    id: "financial",
     keywords: "finance banking fintech insurance investment capital",
   },
   {
     value: "Healthcare & Life Sciences",
-    label: "Healthcare & Life Sciences",
+    id: "healthcare",
     keywords: "health medical pharma biotech hospital clinical",
   },
   {
     value: "Manufacturing",
-    label: "Manufacturing",
+    id: "manufacturing",
     keywords: "industrial factory production automotive engineering",
   },
   {
     value: "Retail & Consumer Goods",
-    label: "Retail & Consumer Goods",
+    id: "retail",
     keywords: "retail ecommerce consumer fmcg shopping goods",
   },
   {
     value: "Professional Services",
-    label: "Professional Services",
+    id: "professional",
     keywords: "consulting legal accounting advisory agency services",
   },
   {
     value: "Education",
-    label: "Education",
+    id: "education",
     keywords: "education school university academic training edtech",
   },
   {
     value: "Government & Public Sector",
-    label: "Government & Public Sector",
+    id: "government",
     keywords: "government public sector civic municipal agency state",
   },
   {
     value: "Energy & Utilities",
-    label: "Energy & Utilities",
+    id: "energy",
     keywords: "energy utilities oil gas power renewable electricity water",
   },
   {
     value: "Construction & Real Estate",
-    label: "Construction & Real Estate",
+    id: "construction",
     keywords: "construction real estate property building infrastructure",
   },
   {
     value: "Transportation & Logistics",
-    label: "Transportation & Logistics",
+    id: "transportation",
     keywords: "transport logistics shipping freight supply chain mobility",
   },
   {
     value: "Media & Entertainment",
-    label: "Media & Entertainment",
+    id: "media",
     keywords: "media entertainment publishing gaming music film content",
   },
   {
     value: "Hospitality & Travel",
-    label: "Hospitality & Travel",
+    id: "hospitality",
     keywords: "hospitality travel tourism hotel restaurant leisure",
   },
   {
     value: "Telecommunications",
-    label: "Telecommunications",
+    id: "telecommunications",
     keywords: "telecom telecommunications mobile network carrier isp",
   },
   {
     value: "Nonprofit",
-    label: "Nonprofit",
+    id: "nonprofit",
     keywords: "nonprofit ngo charity foundation social impact",
   },
   {
     value: "Agriculture",
-    label: "Agriculture",
+    id: "agriculture",
     keywords: "agriculture farming agtech food crops livestock",
   },
   {
     value: "Other",
-    label: "Other",
+    id: "other",
     keywords: "other misc miscellaneous unlisted",
   },
 ];
+
+/** The industries in one language; the stored English value finds them in any. */
+export function industryOptions(say: Say): SearchableOption[] {
+  return INDUSTRIES.map(({ value, id, keywords }) => {
+    const label = say(`industries.${id}`);
+    return { value, label, keywords: `${keywords} ${value} ${label}` };
+  });
+}
+
+/** A stored industry in one language; one this build does not know reads as stored. */
+export function industryLabel(value: string, say: Say): string {
+  const known = INDUSTRIES.find((industry) => industry.value === value);
+  return known && value ? say(`industries.${known.id}`) : value;
+}

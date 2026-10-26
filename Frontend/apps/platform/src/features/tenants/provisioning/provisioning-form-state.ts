@@ -1,4 +1,9 @@
+import { englishSay, type Say } from "@repo/ds/lib/say";
+import { englishMessages } from "@/i18n/messages";
 import { failureCode } from "../api";
+
+/** The `provisioning` catalogue in English, for pure helpers' defaults and tests. */
+export const sayProvisioningInEnglish: Say = englishSay(englishMessages, "provisioning");
 
 export interface ProvisioningDraft {
   name: string;
@@ -59,46 +64,49 @@ export type FieldErrors = Partial<Record<ProvisioningField, string>>;
  * immediately, at the field that caused it, rather than after a round trip.
  * The service revalidates everything regardless.
  */
-export function validateDraft(draft: ProvisioningDraft): FieldErrors {
+export function validateDraft(
+  draft: ProvisioningDraft,
+  say: Say = sayProvisioningInEnglish
+): FieldErrors {
   const errors: FieldErrors = {};
   const name = draft.name.trim();
 
   if (name.length === 0) {
-    errors.name = "Enter a tenant name.";
+    errors.name = say("validation.nameRequired");
   } else if (name.length < 2 || name.length > 100) {
-    errors.name = "Tenant name must be 2 to 100 characters.";
+    errors.name = say("validation.nameLength");
   }
 
   const slug = draft.tenantSlug.trim();
   if (slug.length === 0) {
-    errors.tenantSlug = "Enter a tenant slug.";
+    errors.tenantSlug = say("validation.slugRequired");
   } else if (!TENANT_SLUG_PATTERN.test(slug)) {
-    errors.tenantSlug = "Use lowercase letters, numbers, and hyphens only.";
+    errors.tenantSlug = say("validation.slugPattern");
   }
 
   if (draft.timeZone.trim().length === 0) {
-    errors.timeZone = "Select a time zone.";
+    errors.timeZone = say("validation.timeZoneRequired");
   }
 
   const firstName = draft.firstName.trim();
   if (firstName.length === 0) {
-    errors.firstName = "Enter the administrator's first name.";
+    errors.firstName = say("validation.firstNameRequired");
   } else if (firstName.length > 100) {
-    errors.firstName = "First name must be 100 characters or fewer.";
+    errors.firstName = say("validation.firstNameLength");
   }
 
   const lastName = draft.lastName.trim();
   if (lastName.length === 0) {
-    errors.lastName = "Enter the administrator's last name.";
+    errors.lastName = say("validation.lastNameRequired");
   } else if (lastName.length > 100) {
-    errors.lastName = "Last name must be 100 characters or fewer.";
+    errors.lastName = say("validation.lastNameLength");
   }
 
   const email = draft.administratorEmail.trim();
   if (email.length === 0) {
-    errors.administratorEmail = "Enter the initial administrator's email.";
+    errors.administratorEmail = say("validation.emailRequired");
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.administratorEmail = "Enter a valid email address.";
+    errors.administratorEmail = say("validation.emailInvalid");
   }
 
   return errors;
@@ -121,4 +129,16 @@ const CODE_TO_FIELD: Record<string, ProvisioningField> = {
 export function fieldForFailure(error: unknown): ProvisioningField | null {
   const code = failureCode(error);
   return code ? (CODE_TO_FIELD[code] ?? null) : null;
+}
+
+/**
+ * The screen's own line for a refusal the service tied to a field, so it can be
+ * said in any language; null for a code this build has no line for.
+ */
+export function fieldFailureLine(
+  error: unknown,
+  say: Say = sayProvisioningInEnglish
+): string | null {
+  const code = failureCode(error);
+  return code && CODE_TO_FIELD[code] ? say(`serverErrors.${code.split(".").pop()}`) : null;
 }

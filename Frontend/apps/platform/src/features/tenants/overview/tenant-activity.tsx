@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   Ban,
   Building2,
@@ -19,13 +20,15 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import type { TenantActivityEntry } from "../api";
 import { ACTIVITY_PREVIEW_LIMIT, failureKind } from "../api";
-import { NOT_CONNECTED, UnavailableAction } from "../availability";
+import { UnavailableAction } from "../availability";
+import { useTenantWords } from "../language";
 import { useTenantActivity } from "../queries";
 import {
   activityActor,
   activityNarrative,
   activityTimestamp,
 } from "./tenant-activity-language";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * A short preview of what has recently happened across the estate.
@@ -64,24 +67,21 @@ function iconFor(entry: TenantActivityEntry): LucideIcon {
 export function TenantActivitySection() {
   const { data, error, isLoading, refetch } = useTenantActivity();
   const entries = data ?? [];
+  const t = useTranslations("tenants.activity");
+  const words = useTenantWords();
 
   return (
     <section className="mt-6">
       <header className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-foreground">
-            Recent tenant activity
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Latest provisioning and administrator-activation events across customer
-            tenants.
-          </p>
+          <h2 className="text-sm font-semibold text-foreground">{t("title")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("description")}</p>
         </div>
 
         <UnavailableAction
-          label="View full audit log"
+          label={t("auditLog")}
           icon={ScrollText}
-          explanation={NOT_CONNECTED}
+          explanation={words.notConnected}
           variant="ghost"
         />
       </header>
@@ -94,7 +94,7 @@ export function TenantActivitySection() {
 
       {!isLoading && !error && entries.length === 0 ? (
         <p className="rounded-surface border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-          No tenant activity has been recorded yet.
+          {t("empty")}
         </p>
       ) : null}
 
@@ -113,7 +113,9 @@ export function TenantActivitySection() {
 }
 
 function ActivityCard({ entry }: { entry: TenantActivityEntry }) {
-  const narrative = activityNarrative(entry);
+  const words = useTenantWords();
+  const format = useFormat();
+  const narrative = activityNarrative(entry, words);
   const Icon = iconFor(entry);
 
   return (
@@ -155,11 +157,11 @@ function ActivityCard({ entry }: { entry: TenantActivityEntry }) {
         <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
           {/* The rendered form is relative for recent events; the exact moment
               stays available to assistive technology and on hover. */}
-          <time dateTime={entry.occurredAt} title={new Date(entry.occurredAt).toLocaleString()}>
-            {activityTimestamp(entry.occurredAt)}
+          <time dateTime={entry.occurredAt} title={format.dateTime(entry.occurredAt, { year: "always" })}>
+            {activityTimestamp(entry.occurredAt, undefined, words)}
           </time>
           <span aria-hidden="true">·</span>
-          <span className="truncate">{activityActor(entry)}</span>
+          <span className="truncate">{activityActor(entry, words)}</span>
         </p>
       </div>
     </li>
@@ -168,8 +170,9 @@ function ActivityCard({ entry }: { entry: TenantActivityEntry }) {
 
 /** Card-shaped while it loads, so the section does not collapse and rebuild. */
 function ActivitySkeleton() {
+  const t = useTranslations("tenants.activity");
   return (
-    <ul aria-busy aria-label="Loading recent tenant activity" className="grid gap-2 md:grid-cols-2">
+    <ul aria-busy aria-label={t("loading")} className="grid gap-2 md:grid-cols-2">
       {Array.from({ length: ACTIVITY_PREVIEW_LIMIT }).map((_, index) => (
         <li
           key={index}
@@ -195,18 +198,17 @@ function ActivityFailure({
   error: Error;
   onRetry: () => void;
 }) {
+  const t = useTranslations("tenants");
   const kind = failureKind(error);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border border-border bg-card px-4 py-3">
       <p className="text-sm text-muted-foreground">
-        {kind === "permission"
-          ? "Your Platform administration access has changed."
-          : "Recent activity could not be loaded."}
+        {kind === "permission" ? t("common.accessChanged") : t("activity.failed")}
       </p>
       {kind === "permission" ? null : (
         <Button variant="outline" size="sm" onClick={onRetry}>
-          Retry
+          {t("common.retry")}
         </Button>
       )}
     </div>

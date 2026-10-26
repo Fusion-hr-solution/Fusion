@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { SearchX } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
@@ -23,16 +24,17 @@ export function PlatformPageState({
   kind: PlatformPageStateKind;
   onRetry?: () => void;
 }) {
+  const t = useTranslations("frame.states");
   return (
     <PageContainer width="narrow" className="py-10 sm:py-16">
       {kind === "forbidden" ? (
         <PagePermissionNotice
           headingLevel={1}
-          title="Platform access required"
-          description="Your account does not have access to Platform administration."
+          title={t("forbidden.title")}
+          description={t("forbidden.description")}
           action={
             <Button asChild variant="outline" size="sm">
-              <a href={buildHomeHref()}>Return to Fusion home</a>
+              <a href={buildHomeHref()}>{t("forbidden.action")}</a>
             </Button>
           }
         />
@@ -42,11 +44,11 @@ export function PlatformPageState({
         <PageEmpty
           headingLevel={1}
           icon={SearchX}
-          title="Page not found"
-          description="This destination does not exist in Platform administration."
+          title={t("notFound.title")}
+          description={t("notFound.description")}
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/">Return to Platform overview</Link>
+              <Link href="/">{t("notFound.action")}</Link>
             </Button>
           }
         />
@@ -55,8 +57,8 @@ export function PlatformPageState({
       {kind === "unavailable" ? (
         <PageError
           headingLevel={1}
-          title="Platform administration is unavailable"
-          description="The workspace could not load its required session state. Try again when the connection is restored."
+          title={t("unavailable.title")}
+          description={t("unavailable.description")}
           onRetry={onRetry}
         />
       ) : null}
@@ -64,8 +66,8 @@ export function PlatformPageState({
       {kind === "error" ? (
         <PageError
           headingLevel={1}
-          title="Platform administration could not load"
-          description="Your access is unchanged. Try loading this page again."
+          title={t("error.title")}
+          description={t("error.description")}
           onRetry={onRetry}
         />
       ) : null}

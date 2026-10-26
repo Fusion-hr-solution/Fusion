@@ -1,9 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { AlertTriangle, ArrowLeft, ArrowRight } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { AsyncButton } from "@repo/ds/shell";
-import { failureKind, failureMessage } from "../api";
+import { failureKind } from "../api";
+import { useFailureMessage } from "../language";
 
 /**
  * The controls that move through provisioning, shared by every step so the
@@ -28,6 +30,7 @@ export function StepNavigation({
   primaryPending: boolean;
   failure: Error | null;
 }) {
+  const t = useTranslations("provisioning");
   return (
     <div className="mt-6">
       {failure ? <SubmissionFailure error={failure} /> : null}
@@ -40,7 +43,7 @@ export function StepNavigation({
           disabled={isFirst || primaryPending}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
-          Back
+          {t("navigation.back")}
         </Button>
 
         <AsyncButton
@@ -50,7 +53,7 @@ export function StepNavigation({
           disabled={primaryDisabled}
           pending={primaryPending}
         >
-          {isLast ? "Provision tenant" : "Continue"}
+          {isLast ? t("title") : t("navigation.continue")}
           {!isLast ? <ArrowRight aria-hidden="true" className="size-4" /> : null}
         </AsyncButton>
       </div>
@@ -70,20 +73,19 @@ export function StepNavigation({
  * key and cannot create a second tenant.
  */
 export function SubmissionFailure({ error }: { error: Error }) {
+  const t = useTranslations("provisioning.failure");
+  const failureMessage = useFailureMessage();
   const kind = failureKind(error);
   const message =
     kind === "permission"
-      ? "Your Platform administration access has changed. Sign in again to provision a tenant."
+      ? t("permission")
       : kind === "validation"
-        ? (failureMessage(error) ??
-          "The request was rejected before anything was created. Your entries are kept.")
+        ? failureMessage(error, t("validation"))
         : kind === "conflict"
-          ? (failureMessage(error) ??
-            "This request conflicts with one already recorded.")
+          ? failureMessage(error, t("conflict"))
           : kind === "unavailable"
-            ? "Provisioning did not complete and the outcome is unknown. Submit again without changing anything — the retry is safe and will not create a second tenant. If it keeps failing, check the tenant list before entering different details."
-            : (failureMessage(error) ??
-              "Provisioning did not complete and the outcome is unknown. Submit again without changing anything — the retry is safe and will not create a second tenant.");
+            ? t("unavailable")
+            : failureMessage(error, t("unexpected"));
 
   return (
     <p

@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, type ComponentType, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 import {
   AlertCircle,
   ArrowRight,
@@ -28,7 +30,8 @@ import {
   labelForTimeZone,
   timeZoneOffset,
 } from "../provisioning-options";
-import { COUNTRY_OPTIONS } from "../regional-presentation-options";
+import { countryLabel as labelForCountry, dateFormatLabel } from "../regional-presentation-options";
+import { industryLabel } from "../industry-options";
 import { SubmissionFailure } from "../step-navigation";
 import type { ProvisioningStepProps } from "./types";
 
@@ -64,10 +67,13 @@ export function ReviewStep({
   provisionPending = false,
   provisionFailure = null,
 }: ReviewStepProps) {
+  const t = useTranslations("provisioning");
+  const say = useSay("provisioning");
+  const language = useLocale();
   const catalogue = useProvisionableModules();
   const options = useMemo(
-    () => buildModuleOptions(catalogue.data ?? []),
-    [catalogue.data]
+    () => buildModuleOptions(catalogue.data ?? [], say),
+    [catalogue.data, say]
   );
 
   const included = useMemo(
@@ -88,18 +94,16 @@ export function ReviewStep({
     () => timeZoneOffset(draft.timeZone),
     [draft.timeZone]
   );
-  const role = adminRoleByValue(draft.adminRole);
+  const role = adminRoleByValue(draft.adminRole, say);
   const countryLabel = useMemo(
-    () =>
-      COUNTRY_OPTIONS.find((option) => option.value === draft.country)?.label ??
-      draft.country,
-    [draft.country]
+    () => labelForCountry(draft.country, language),
+    [draft.country, language]
   );
 
   const languageLabel =
     draft.locale === PLATFORM_DEFAULT_LOCALE
-      ? "Platform default"
-      : labelForLocale(draft.locale);
+      ? t("review.platformDefault")
+      : labelForLocale(draft.locale, language);
   const timeZoneLabel = `${labelForTimeZone(draft.timeZone)} (${offset})`;
 
   const adminName = [draft.firstName.trim(), draft.lastName.trim()]
@@ -114,14 +118,14 @@ export function ReviewStep({
       <div className="space-y-3">
         <SummaryCard
           icon={Building2}
-          title="Organization details"
+          title={t("organization.title")}
           onEdit={onEditStep ? () => onEditStep(ORGANIZATION_STEP) : undefined}
         >
           <dl className="grid grid-cols-2 gap-x-3 gap-y-4 sm:flex justify-between">
-            <Fact label="Tenant name" value={draft.name} />
-            <Fact label="Tenant slug" value={draft.tenantSlug} />
-            <Fact label="Legal entity" value={draft.legalEntityName} />
-            <Fact label="Industry" value={draft.industry} />
+            <Fact label={t("organization.name")} value={draft.name} />
+            <Fact label={t("organization.slug")} value={draft.tenantSlug} />
+            <Fact label={t("review.legalEntity")} value={draft.legalEntityName} />
+            <Fact label={t("review.industry")} value={industryLabel(draft.industry, say)} />
           </dl>
           {/* <dl className="mt-4">
             <Fact label="Short description" value={draft.shortDescription} />
@@ -130,20 +134,20 @@ export function ReviewStep({
 
         <SummaryCard
           icon={Globe}
-          title="Region and defaults"
+          title={t("review.region")}
           onEdit={onEditStep ? () => onEditStep(REGION_STEP) : undefined}
         >
           <dl className="grid grid-cols-2 gap-x-3 gap-y-4 sm:flex justify-between">
-            <Fact label="Country / region" value={countryLabel} />
-            <Fact label="Time zone" value={timeZoneLabel} />
-            <Fact label="Default language" value={languageLabel} />
-            <Fact label="Date format" value={draft.dateFormat} />
+            <Fact label={t("region.country")} value={countryLabel} />
+            <Fact label={t("region.timeZone")} value={timeZoneLabel} />
+            <Fact label={t("region.language")} value={languageLabel} />
+            <Fact label={t("region.dateFormat")} value={dateFormatLabel(draft.dateFormat, language)} />
           </dl>
         </SummaryCard>
 
         <SummaryCard
           icon={BarChart3}
-          title="Product entitlements"
+          title={t("region.products.title")}
           onEdit={onEditStep ? () => onEditStep(REGION_STEP) : undefined}
         >
           {catalogue.data ? (
@@ -176,23 +180,23 @@ export function ReviewStep({
             </div>
           ) : (
             <p className="text-sm italic text-muted-foreground">
-              Product entitlements are still loading.
+              {t("review.productsLoading")}
             </p>
           )}
         </SummaryCard>
 
         <SummaryCard
           icon={User}
-          title="Initial administrator"
+          title={t("admin.title")}
           onEdit={onEditStep ? () => onEditStep(ADMIN_STEP) : undefined}
         >
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-            <Fact label="Name" value={adminName} />
-            <Fact label="Work email" value={draft.administratorEmail} />
-            <Fact label="Role" value={role.label} />
+            <Fact label={t("review.name")} value={adminName} />
+            <Fact label={t("admin.email")} value={draft.administratorEmail} />
+            <Fact label={t("admin.role")} value={role.label} />
             <Fact
-              label="Invitation"
-              value={draft.sendInvitation ? "Send immediately" : "Send later"}
+              label={t("review.invitation")}
+              value={draft.sendInvitation ? t("review.sendNow") : t("review.sendLater")}
             />
           </dl>
         </SummaryCard>
@@ -210,12 +214,10 @@ export function ReviewStep({
             </span>
             <div className="min-w-0">
               <h3 className="type-subsection-title text-foreground">
-                {canProvision ? "Ready to provision" : "Almost ready"}
+                {canProvision ? t("review.ready") : t("review.almostReady")}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {canProvision
-                  ? "Everything looks good. Review the details and create the tenant."
-                  : "Complete the required details before the tenant can be created."}
+                {canProvision ? t("review.readyBody") : t("review.almostReadyBody")}
               </p>
             </div>
           </div>
@@ -224,17 +226,17 @@ export function ReviewStep({
 
           <div>
             <p className="type-eyebrow mb-3 text-muted-foreground">
-              What will happen?
+              {t("review.happen.title")}
             </p>
             <ul className="space-y-2.5">
               {[
-                "Create tenant workspace",
-                "Apply regional defaults",
-                "Enable selected products",
-                "Create initial administrator",
+                t("review.happen.workspace"),
+                t("review.happen.defaults"),
+                t("review.happen.products"),
+                t("review.happen.administrator"),
                 draft.sendInvitation
-                  ? "Send invitation email"
-                  : "Prepare invitation to send later",
+                  ? t("review.happen.send")
+                  : t("review.happen.prepare"),
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2.5 text-sm">
                   <Check
@@ -250,27 +252,25 @@ export function ReviewStep({
           <div className="border-t border-border" />
 
           <div>
-            <p className="type-eyebrow mb-3 text-muted-foreground">Summary</p>
+            <p className="type-eyebrow mb-3 text-muted-foreground">{t("review.summary")}</p>
             <div className="space-y-2.5">
               <SummaryTile
                 icon={LayoutGrid}
-                title={`${enabledProducts.length} enabled ${
-                  enabledProducts.length === 1 ? "product" : "products"
-                }`}
+                title={t("review.enabledProducts", { count: enabledProducts.length })}
                 detail={enabledProducts
                   .map((option) => option.label)
                   .join(", ")}
               />
               <SummaryTile
                 icon={Globe}
-                title={`Region: ${countryLabel}`}
+                title={t("review.regionLine", { country: countryLabel })}
                 detail={timeZoneLabel}
               />
               <SummaryTile
                 icon={User}
-                title="1 administrator"
+                title={t("review.administrators", { count: 1 })}
                 detail={
-                  adminName || draft.administratorEmail.trim() || "Not set"
+                  adminName || draft.administratorEmail.trim() || t("review.notSet")
                 }
               />
             </div>
@@ -289,11 +289,11 @@ export function ReviewStep({
               disabled={!canProvision}
               pending={provisionPending}
             >
-              Provision tenant
+              {t("title")}
               <ArrowRight aria-hidden="true" className="size-4" />
             </AsyncButton>
             <p className="mt-3 text-center text-xs text-muted-foreground">
-              You can manage products and tenant settings later.
+              {t("review.later")}
             </p>
           </div>
         </div>
@@ -314,6 +314,7 @@ function SummaryCard({
   onEdit?: () => void;
   children: ReactNode;
 }) {
+  const t = useTranslations("provisioning.review");
   return (
     <section className="rounded-surface border border-border bg-card p-6">
       <header className="mb-5 flex items-center justify-between gap-3">
@@ -328,11 +329,11 @@ function SummaryCard({
             type="button"
             variant="ghost"
             size="sm"
-            className="-mr-2 shrink-0 text-muted-foreground"
+            className="-me-2 shrink-0 text-muted-foreground"
             onClick={onEdit}
           >
             <Pencil aria-hidden="true" className="size-3.5" />
-            Edit
+            {t("edit")}
           </Button>
         ) : null}
       </header>
@@ -343,6 +344,7 @@ function SummaryCard({
 
 /** One summarised value: a quiet label over the value the operator entered. */
 function Fact({ label, value }: { label: string; value: string }) {
+  const t = useTranslations("provisioning.review");
   const isEmpty = value.trim().length === 0;
   return (
     <div className="min-w-0">
@@ -355,7 +357,7 @@ function Fact({ label, value }: { label: string; value: string }) {
             : "font-medium text-foreground"
         )}
       >
-        {isEmpty ? "Not set" : value}
+        {isEmpty ? t("notSet") : value}
       </dd>
     </div>
   );
@@ -400,6 +402,7 @@ function ProductChip({
   selected: boolean;
   className?: string;
 }) {
+  const t = useTranslations("provisioning");
   const Icon = option.icon;
   const included = option.availability === "included";
   const enabled = option.availability === "selectable" && selected;
@@ -433,11 +436,11 @@ function ProductChip({
         </span>
         {included ? (
           <span className=" inline-block rounded-full bg-primary-tint px-2 py-0.5 text-xs font-medium text-primary-ink">
-            Required
+            {t("region.products.required")}
           </span>
         ) : enabled ? (
           <span className="inline-block rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success">
-            Enabled
+            {t("review.enabled")}
           </span>
         ) : null}
       </div>

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useSay, type Say } from "@repo/ds/lib/say";
 import { toast } from "sonner";
 import {
   CircleAlert,
@@ -14,13 +16,8 @@ import {
 } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
-import {
-  failureMessage,
-  type RecoveryAction,
-  type TenantContinuityHealth,
-  type TenantDetail,
-} from "../api";
-import { formatDate, formatDateTime, relativeFromNow } from "../language";
+import type { RecoveryAction, TenantContinuityHealth, TenantDetail } from "../api";
+import { useFailureDetail, useTenantWords, type TenantWords } from "../language";
 import { useInvitationRecovery, useTenantContinuityHealth } from "../queries";
 import { destinationHref } from "./record-routes";
 import { useTenantRecord } from "./record-shell";
@@ -42,8 +39,10 @@ import { useTenantRecord } from "./record-shell";
 export function AdminHandoff() {
   const { tenant, query } = useTenantRecord();
   const { data: continuity } = useTenantContinuityHealth(tenant.tenantId);
-  const view = resolveHandoff(tenant, continuity);
-  const person = handoffPerson(tenant, continuity);
+  const say = useSay("record.handoff");
+  const words = useTenantWords();
+  const view = resolveHandoff(tenant, continuity, say, words);
+  const person = handoffPerson(tenant, continuity, say);
 
   return (
     <section className="rounded-surface border border-border bg-card p-5">
@@ -54,7 +53,7 @@ export function AdminHandoff() {
         />
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-foreground">
-            Administrative handoff
+            {say("title")}
           </h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {view.description}
@@ -90,7 +89,7 @@ export function AdminHandoff() {
           ) : null}
         </div>
 
-        <div className="ml-auto">
+        <div className="ms-auto">
           <HandoffAction
             action={view.action}
             accessHref={`${destinationHref(tenant.tenantId, "access")}${query}`}
@@ -124,6 +123,8 @@ function HandoffAction({
   // re-derive its state. `mutateAsync` resolves only after the awaited
   // invalidation, so it is the honest signal for that whole span.
   const [running, setRunning] = useState(false);
+  const t = useTranslations("record.handoff");
+  const failureDetail = useFailureDetail();
 
   if (!action) return null;
 
@@ -131,7 +132,7 @@ function HandoffAction({
     return (
       <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
         <CircleCheck aria-hidden="true" className="size-4" />
-        Handoff complete
+        {t("complete")}
       </span>
     );
   }
@@ -163,27 +164,22 @@ function HandoffAction({
             tenantId: action.tenantId,
             invitationId: action.invitationId,
           });
-          toast.success(
-            reissue ? "New invitation sent" : "Invitation resent",
-            {
-              description: reissue
-                ? "A fresh onboarding invitation is on its way to the administrator."
-                : "The onboarding invitation has been sent again.",
-            }
-          );
+          toast.success(reissue ? t("toast.newSent") : t("toast.resent"), {
+            description: reissue
+              ? t("toast.newSentDescription")
+              : t("toast.resentDescription"),
+          });
         } catch (error) {
           toast.error(
-            reissue
-              ? "Couldn't send a new invitation"
-              : "Couldn't resend the invitation",
-            { description: failureMessage(error) ?? undefined }
+            reissue ? t("toast.newFailed") : t("toast.resendFailed"),
+            { description: failureDetail(error) }
           );
         } finally {
           setRunning(false);
         }
       }}
     >
-      {busy ? "Working…" : action.label}
+      {busy ? t("working") : action.label}
     </Button>
   );
 }
@@ -227,22 +223,24 @@ interface HandoffView {
  */
 function resolveHandoff(
   tenant: TenantDetail,
-  continuity: TenantContinuityHealth | undefined
+  continuity: TenantContinuityHealth | undefined,
+  say: Say,
+  words: TenantWords
 ): HandoffView {
   const recovery = continuity?.recoveryStatus;
 
   if (recovery === "Required" || recovery === "Failed") {
     return {
-      description: "No usable tenant administrator can currently sign in.",
+      description: say("recoveryRequired.description"),
       status: {
-        label: "Recovery required",
+        label: say("recoveryRequired.label"),
         icon: TriangleAlert,
         tone: "warning",
       },
-      meta: "Administrative continuity needs attention",
+      meta: say("recoveryRequired.meta"),
       action: {
         type: "navigate",
-        label: "Initiate recovery",
+        label: say("recoveryRequired.action"),
         destructive: true,
       },
     };
@@ -251,19 +249,18 @@ function resolveHandoff(
   if (recovery === "Pending") {
     const recipient = continuity?.latestRecoveryAttempt?.recipientEmail;
     return {
-      description: "Administrative access is being restored.",
-      status: { label: "Recovery pending", icon: Clock, tone: "warning" },
-      meta: recipient ? `Recovery invitation sent to ${recipient}` : undefined,
-      action: { type: "navigate", label: "Resend recovery invitation" },
+      description: say("recoveryPending.description"),
+      status: { label: say("recoveryPending.label"), icon: Clock, tone: "warning" },
+      meta: recipient ? say("recoveryPending.meta", { recipient }) : undefined,
+      action: { type: "navigate", label: say("recoveryPending.action") },
     };
   }
 
   if (tenant.administratorActivationStatus === "Active") {
     return {
-      description:
-        "Administrative control has been transferred to the customer.",
-      status: { label: "Active", icon: CircleCheck, tone: "success" },
-      meta: acceptedMeta(tenant),
+      description: say("active.description"),
+      status: { label: say("active.label"), icon: CircleCheck, tone: "success" },
+      meta: acceptedMeta(tenant, say, words),
       action: { type: "complete" },
     };
   }
@@ -275,35 +272,34 @@ function resolveHandoff(
 
     if (invitation.state === "Pending" && failed) {
       return {
-        description:
-          "The tenant is active, but the invitation was not delivered.",
-        status: { label: "Delivery failed", icon: CircleAlert, tone: "danger" },
+        description: say("deliveryFailed.description"),
+        status: { label: say("deliveryFailed.label"), icon: CircleAlert, tone: "danger" },
         meta: invitation.lastDelivery
-          ? `Last attempt ${formatDateTime(invitation.lastDelivery.attemptedAt)}`
+          ? say("deliveryFailed.meta", {
+              date: words.dateTime(invitation.lastDelivery.attemptedAt),
+            })
           : undefined,
-        action: resend(tenant.tenantId, invitation.invitationId),
+        action: resend(tenant.tenantId, invitation.invitationId, words),
       };
     }
 
     if (invitation.state === "Pending") {
       return {
-        description:
-          "Control is being transferred to the customer administrator.",
-        status: { label: "Invitation pending", icon: Mail, tone: "warning" },
-        meta: `Sent ${relativeFromNow(invitation.createdAt)}`,
-        action: resend(tenant.tenantId, invitation.invitationId),
+        description: say("pending.description"),
+        status: { label: say("pending.label"), icon: Mail, tone: "warning" },
+        meta: say("pending.meta", { ago: words.relative(invitation.createdAt) }),
+        action: resend(tenant.tenantId, invitation.invitationId, words),
       };
     }
 
     if (invitation.state === "Expired") {
       return {
-        description:
-          "The invitation expired before the administrator completed onboarding.",
-        status: { label: "Invitation expired", icon: Clock, tone: "warning" },
-        meta: `Expired ${formatDate(invitation.expiresAt)}`,
+        description: say("expired.description"),
+        status: { label: say("expired.label"), icon: Clock, tone: "warning" },
+        meta: say("expired.meta", { date: words.date(invitation.expiresAt) }),
         action: {
           type: "mutate",
-          label: "Send new invitation",
+          label: say("sendNew"),
           recovery: "reissue",
           tenantId: tenant.tenantId,
           invitationId: invitation.invitationId,
@@ -313,15 +309,15 @@ function resolveHandoff(
 
     if (invitation.state === "Revoked") {
       return {
-        description: "The invitation was revoked before it was accepted.",
+        description: say("revoked.description"),
         status: {
-          label: "Invitation revoked",
+          label: say("revoked.label"),
           icon: CircleAlert,
           tone: "danger",
         },
         action: {
           type: "mutate",
-          label: "Send new invitation",
+          label: say("sendNew"),
           recovery: "reissue",
           tenantId: tenant.tenantId,
           invitationId: invitation.invitationId,
@@ -333,16 +329,20 @@ function resolveHandoff(
   // Awaiting activation with nothing actionable on the invitation itself — the
   // Access destination is where the administrator picture is resolved.
   return {
-    description: "Control has not yet been transferred to the customer.",
-    status: { label: "Awaiting administrator", icon: Clock, tone: "info" },
-    action: { type: "navigate", label: "View access" },
+    description: say("awaiting.description"),
+    status: { label: say("awaiting.label"), icon: Clock, tone: "info" },
+    action: { type: "navigate", label: say("awaiting.action") },
   };
 }
 
-function resend(tenantId: string, invitationId: string): HandoffView["action"] {
+function resend(
+  tenantId: string,
+  invitationId: string,
+  words: TenantWords
+): HandoffView["action"] {
   return {
     type: "mutate",
-    label: "Resend invitation",
+    label: words.recovery("resend"),
     recovery: "resend",
     tenantId,
     invitationId,
@@ -350,22 +350,23 @@ function resend(tenantId: string, invitationId: string): HandoffView["action"] {
 }
 
 /** The activation moment, read from the bootstrap history rather than invented. */
-function acceptedMeta(tenant: TenantDetail): string | undefined {
+function acceptedMeta(tenant: TenantDetail, say: Say, words: TenantWords): string | undefined {
   const completed = tenant.history.find(
     (entry) => entry.eventType === "BootstrapCompleted"
   );
-  return completed ? `Accepted ${formatDate(completed.occurredAt)}` : undefined;
+  return completed ? say("active.meta", { date: words.date(completed.occurredAt) }) : undefined;
 }
 
 function handoffPerson(
   tenant: TenantDetail,
-  continuity: TenantContinuityHealth | undefined
+  continuity: TenantContinuityHealth | undefined,
+  say: Say
 ): { identity: string; role: string } {
   const identity =
     tenant.bootstrapInvitation?.email ??
     continuity?.latestRecoveryAttempt?.recipientEmail ??
-    "Tenant administrator";
-  return { identity, role: "Tenant HR Administrator" };
+    say("person.fallback");
+  return { identity, role: say("person.role") };
 }
 
 function personInitials(identity: string): string {

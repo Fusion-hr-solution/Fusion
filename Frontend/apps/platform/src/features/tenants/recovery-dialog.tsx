@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Ban, RefreshCw, Send, UserPen, type LucideIcon } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
@@ -15,7 +16,8 @@ import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";
 import { AsyncButton } from "@repo/ds/shell";
 import type { RecoveryAction } from "./api";
-import { failureKind, failureMessage } from "./api";
+import { failureKind } from "./api";
+import { useFailureMessage, useTenantWords } from "./language";
 import { useInvitationRecovery } from "./queries";
 
 /**
@@ -33,29 +35,6 @@ export const RECOVERY_ICON: Record<RecoveryAction, LucideIcon> = {
   reissue: RefreshCw,
   replace: UserPen,
   revoke: Ban,
-};
-
-const CONFIRMATION_COPY: Record<
-  Exclude<RecoveryAction, "resend">,
-  { title: string; consequence: string; confirm: string }
-> = {
-  revoke: {
-    title: "Revoke invitation?",
-    consequence:
-      "The current invitation will no longer be usable. This tenant will have no active administrator invitation.",
-    confirm: "Revoke invitation",
-  },
-  replace: {
-    title: "Replace invited email",
-    consequence:
-      "Replacing the email invalidates the current invitation and creates a new invitation.",
-    confirm: "Replace invited email",
-  },
-  reissue: {
-    title: "Reissue invitation?",
-    consequence: "A new invitation with a new expiry will be created.",
-    confirm: "Reissue invitation",
-  },
 };
 
 export function ConfirmRecoveryDialog({
@@ -77,18 +56,18 @@ export function ConfirmRecoveryDialog({
   const [email, setEmail] = useState(currentEmail);
   const [emailError, setEmailError] = useState<string | null>(null);
   const recovery = useInvitationRecovery(action);
-
-  const copy = CONFIRMATION_COPY[action];
+  const t = useTranslations("tenants.recoveryDialog");
+  const words = useTenantWords();
 
   function confirm() {
     if (action === "replace") {
       const next = email.trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) {
-        setEmailError("Enter a valid email address.");
+        setEmailError(t("emailInvalid"));
         return;
       }
       if (next.toLowerCase() === currentEmail.toLowerCase()) {
-        setEmailError("Enter an address different from the current one.");
+        setEmailError(t("emailSame"));
         return;
       }
     }
@@ -110,8 +89,8 @@ export function ConfirmRecoveryDialog({
     <Dialog open onOpenChange={(next) => (next ? undefined : onClose())}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{copy.title}</DialogTitle>
-          <DialogDescription>{copy.consequence}</DialogDescription>
+          <DialogTitle>{t(`${action}.title`)}</DialogTitle>
+          <DialogDescription>{t(`${action}.consequence`)}</DialogDescription>
         </DialogHeader>
 
         {/* The address the action acts on, stated where the decision is made
@@ -121,10 +100,10 @@ export function ConfirmRecoveryDialog({
             {/* Revoking sends nothing, so it names the invitation rather than
                 claiming a destination. */}
             {action === "replace"
-              ? "Current email"
+              ? t("currentEmail")
               : action === "revoke"
-                ? "Invitation for"
-                : "Sends to"}
+                ? t("invitationFor")
+                : t("sendsTo")}
           </span>{" "}
           <span className="font-medium text-foreground [overflow-wrap:anywhere]">
             {currentEmail}
@@ -133,7 +112,7 @@ export function ConfirmRecoveryDialog({
 
         {action === "replace" ? (
           <div className="space-y-2">
-            <Label htmlFor="replacement-email">New administrator email</Label>
+            <Label htmlFor="replacement-email">{t("newEmail")}</Label>
             <Input
               id="replacement-email"
               type="email"
@@ -158,14 +137,14 @@ export function ConfirmRecoveryDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={recovery.isLoading}>
-            Cancel
+            {t("cancel")}
           </Button>
           <AsyncButton
             onClick={confirm}
             pending={recovery.isLoading}
             variant={action === "revoke" ? "destructive" : "default"}
           >
-            {copy.confirm}
+            {words.recovery(action)}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>
@@ -179,18 +158,20 @@ export function ConfirmRecoveryDialog({
  * same request and need different responses.
  */
 export function RecoveryFailure({ error }: { error: Error }) {
+  const t = useTranslations("tenants");
+  const failureMessage = useFailureMessage();
   const kind = failureKind(error);
 
   const message =
     kind === "conflict"
-      ? "The invitation changed before this action ran. The tenant has been refreshed to its current state."
+      ? t("recoveryDialog.failure.conflict")
       : kind === "permission"
-        ? "Your Platform administration access has changed. Sign in again to continue."
+        ? t("common.permissionChanged")
         : kind === "not-found"
-          ? "This invitation no longer exists. The tenant has been refreshed."
+          ? t("recoveryDialog.failure.notFound")
           : kind === "unavailable"
-            ? "The service is unavailable right now. Nothing was changed — try again shortly."
-            : (failureMessage(error) ?? "The action could not be completed.");
+            ? t("recoveryDialog.failure.unavailable")
+            : failureMessage(error, t("recoveryDialog.failure.unexpected"));
 
   return (
     <p role="alert" className="text-sm text-destructive">

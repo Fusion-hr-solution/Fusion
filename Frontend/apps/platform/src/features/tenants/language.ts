@@ -1,7 +1,13 @@
+import { useCallback, useMemo } from "react";
+import { useLocale } from "next-intl";
 import type { StatusTone } from "@repo/ds/shell";
+import { dateFormatter } from "@repo/ds/lib/dates";
+import { englishSay, useSay, type Say } from "@repo/ds/lib/say";
+import { englishMessages } from "@/i18n/messages";
 // The record surfaces use their own narrower tone vocabulary; StatusBlock takes
 // this one, not the design system's badge tones.
 import type { StatusTone as RecordStatusTone } from "./record/record-ui";
+import { failureMessage } from "./api";
 import type {
   DeliveryOutcomeValue,
   InvitationStateValue,
@@ -14,25 +20,22 @@ import type {
  *
  * Domain vocabulary and user-facing wording differ on purpose in a few places —
  * a `Superseded` invitation reads as `Replaced` — so every screen resolves its
- * words here instead of formatting enum names locally.
+ * words here instead of formatting enum names locally. The words live in the
+ * `tenants` catalogue; {@link tenantWords} binds them to a language, English by
+ * default, and {@link useTenantWords} to the person's.
  */
 
-export const TENANT_STATUS_LABEL: Record<TenantActivationStatus, string> = {
-  AwaitingAdministratorActivation: "Awaiting administrator activation",
-  Active: "Active",
-};
+/** The `tenants` catalogue in English, for pure helpers' defaults and tests. */
+export const sayTenantsInEnglish: Say = englishSay(englishMessages, "tenants");
+
+/** The `tenants` catalogue in the person's language. */
+export function useTenantsSay(): Say {
+  return useSay("tenants");
+}
 
 export const TENANT_STATUS_TONE: Record<TenantActivationStatus, StatusTone> = {
   AwaitingAdministratorActivation: "info",
   Active: "success",
-};
-
-export const INVITATION_LABEL: Record<InvitationStateValue, string> = {
-  Pending: "Pending",
-  Accepted: "Accepted",
-  Expired: "Expired",
-  Revoked: "Revoked",
-  Superseded: "Replaced",
 };
 
 /**
@@ -53,13 +56,9 @@ export const INVITATION_TONE: Record<InvitationStateValue, RecordStatusTone> = {
   Superseded: "muted",
 };
 
-export const DELIVERY_LABEL: Record<DeliveryOutcomeValue, string> = {
-  Sent: "Sent",
-  Failed: "Delivery failed",
-};
-
 interface ModuleEntry {
   id: TenantModule;
+  /** A product name, the same in every language. */
   label: string;
   /**
    * Core HR is the workforce truth every other module reads, so it is granted
@@ -99,26 +98,24 @@ export function isModuleMandatory(id: string): boolean {
 }
 
 /**
- * The one title for each recorded event, shared by the tenant record's timeline
+ * The events with a title of their own, shared by the tenant record's timeline
  * and the directory's activity feed so the two cannot come to call the same
  * event different things.
- *
- * A delivery attempt is the only event whose meaning depends on its outcome:
- * the same record is either a sent invitation or a bounced one, and
- * "delivery attempted" tells the reader neither.
  */
-const EVENT_TITLE: Record<string, string> = {
-  TenantProvisioned: "Tenant provisioned",
-  InvitationResent: "Invitation resent",
-  InvitationRevoked: "Invitation revoked",
-  InvitationReplaced: "Invited email replaced",
-  InvitationReissued: "Invitation reissued",
-  ActivationRejected: "Activation rejected",
-  BootstrapCompleted: "Administrator activated",
-  TenantDeactivated: "Tenant deactivated",
-  TenantReactivated: "Tenant reactivated",
-  TenantProfileChanged: "Tenant profile updated",
-};
+const TITLED_EVENTS = new Set([
+  "TenantProvisioned",
+  "InvitationResent",
+  "InvitationRevoked",
+  "InvitationReplaced",
+  "InvitationReissued",
+  "ActivationRejected",
+  "BootstrapCompleted",
+  "TenantDeactivated",
+  "TenantReactivated",
+  "TenantProfileChanged",
+]);
+
+const RECOVERY_ACTIONS = new Set(["resend", "revoke", "replace", "reissue"]);
 
 /**
  * The outcomes the service records as success.
@@ -141,85 +138,130 @@ export function isFailureOutcome(outcome: string): boolean {
   return !SUCCESS_OUTCOMES.has(outcome.trim().toLowerCase());
 }
 
-export function eventTitle(eventType: string, failed: boolean): string {
-  if (eventType === "InvitationDeliveryAttempted") {
-    return failed ? "Invitation delivery failed" : "Invitation sent";
-  }
-
-  // An event this build has no wording for is still real; it reports what it
-  // can rather than leaking the stored name.
-  return EVENT_TITLE[eventType] ?? "Tenant activity";
-}
-
-/** Null actor means the platform acted; the interface says so rather than blank. */
-export function eventActor(actorName: string | null): string {
-  return actorName?.trim() || "Fusion Platform";
-}
-
-const RECOVERY_LABEL: Record<string, string> = {
-  resend: "Resend invitation",
-  revoke: "Revoke invitation",
-  replace: "Replace invited email",
-  reissue: "Reissue invitation",
-};
-
-export function recoveryLabel(action: string): string {
-  return RECOVERY_LABEL[action] ?? action;
-}
-
 /**
- * Both formatters are built once rather than per call. `toLocaleString` with an
- * options object constructs a formatter internally every time, and these are
- * called inside timeline and table row loops.
- *
- * Created lazily so the runtime's locale is resolved in the browser rather than
- * being fixed at module-evaluation time on the server.
+ * Both formatters are built once per language rather than per call: they are
+ * called inside timeline and table row loops. Created lazily so nothing is fixed
+ * at module-evaluation time on the server.
  */
-let dateFormat: Intl.DateTimeFormat | undefined;
-let dateTimeFormat: Intl.DateTimeFormat | undefined;
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+const dateTimeFormats = new Map<string, Intl.DateTimeFormat>();
 
-export function formatDate(value: string): string {
-  dateFormat ??= new Intl.DateTimeFormat("en-GB", {
+function cachedFormatter(
+  cache: Map<string, Intl.DateTimeFormat>,
+  locale: string,
+  options: Intl.DateTimeFormatOptions
+): Intl.DateTimeFormat {
+  let format = cache.get(locale);
+  if (!format) {
+    format = dateFormatter(options, locale);
+    cache.set(locale, format);
+  }
+  return format;
+}
+
+/** "20 Oct 2026", "20 oct. 2026". */
+export function formatDate(value: string, locale = "en"): string {
+  return cachedFormatter(dateFormats, locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
-  });
-  return dateFormat.format(new Date(value));
+  }).format(new Date(value));
 }
 
-export function formatDateTime(value: string): string {
-  dateTimeFormat ??= new Intl.DateTimeFormat("en-GB", {
+/** "20 Oct 2026, 11:00", "20 oct. 2026, 11:00". */
+export function formatDateTime(value: string, locale = "en"): string {
+  return cachedFormatter(dateTimeFormats, locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
-  return dateTimeFormat.format(new Date(value));
-}
-
-/**
- * A short "how long ago" phrase for recent moments, falling back to an absolute
- * date once it is old enough that the elapsed time stops being the useful fact.
- */
-export function relativeFromNow(value: string): string {
-  const seconds = Math.round((Date.now() - new Date(value).getTime()) / 1000);
-  if (seconds < 45) return "moments ago";
-
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
-
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
-
-  return formatDate(value);
+  }).format(new Date(value));
 }
 
 /** Whole days from now, negative once the moment has passed. */
 export function daysUntil(value: string): number {
   const ms = new Date(value).getTime() - Date.now();
   return Math.ceil(ms / 86_400_000);
+}
+
+/**
+ * The tenant journey's words in one language: statuses, events, recoveries,
+ * absences and dates. Pure helpers take one, English by default; components use
+ * {@link useTenantWords}.
+ */
+export function tenantWords(say: Say = sayTenantsInEnglish, locale = "en") {
+  return {
+    say,
+    locale,
+    status: (status: TenantActivationStatus) => say(`status.${status}`),
+    invitation: (state: InvitationStateValue) => say(`invitation.${state}`),
+    delivery: (outcome: DeliveryOutcomeValue) => say(`delivery.${outcome}`),
+    /**
+     * A delivery attempt is the only event whose meaning depends on its outcome:
+     * the same record is either a sent invitation or a bounced one, and
+     * "delivery attempted" tells the reader neither. An event this build has no
+     * wording for is still real; it reports what it can rather than leaking the
+     * stored name.
+     */
+    eventTitle: (eventType: string, failed: boolean) => {
+      if (eventType === "InvitationDeliveryAttempted") {
+        return say(failed ? "event.deliveryFailed" : "event.deliverySent");
+      }
+      return say(TITLED_EVENTS.has(eventType) ? `event.${eventType}` : "event.unknown");
+    },
+    /** Null actor means the platform acted; the interface says so rather than blank. */
+    eventActor: (actorName: string | null) => actorName?.trim() || "Fusion Platform",
+    recovery: (action: string) =>
+      RECOVERY_ACTIONS.has(action) ? say(`recovery.${action}`) : action,
+    /** The behaviour does not exist yet. */
+    notAvailable: say("availability.notAvailable"),
+    /** The behaviour is accepted and its source exists, but nothing is wired up. */
+    notConnected: say("availability.notConnected"),
+    date: (value: string) => formatDate(value, locale),
+    dateTime: (value: string) => formatDateTime(value, locale),
+    /**
+     * A short "how long ago" phrase for recent moments, falling back to an
+     * absolute date once it is old enough that the elapsed time stops being the
+     * useful fact.
+     */
+    relative: (value: string) => {
+      const seconds = Math.round((Date.now() - new Date(value).getTime()) / 1000);
+      if (seconds < 45) return say("ago.moments");
+      const minutes = Math.round(seconds / 60);
+      if (minutes < 60) return say("ago.minutes", { count: minutes });
+      const hours = Math.round(minutes / 60);
+      if (hours < 24) return say("ago.hours", { count: hours });
+      const days = Math.round(hours / 24);
+      if (days < 30) return say("ago.days", { count: days });
+      return formatDate(value, locale);
+    },
+  };
+}
+
+export type TenantWords = ReturnType<typeof tenantWords>;
+
+/**
+ * A refusal in one line. The service words its refusals in English, so they read
+ * as sent in English and as the screen's own line in other languages.
+ */
+export function useFailureMessage(): (error: unknown, fallback: string) => string {
+  const locale = useLocale();
+  return useCallback(
+    (error, fallback) => (locale === "en" ? (failureMessage(error) ?? fallback) : fallback),
+    [locale]
+  );
+}
+
+/** The service's own refusal, as a toast's optional detail: shown in English, left out in other languages. */
+export function useFailureDetail(): (error: unknown) => string | undefined {
+  const failureMessage = useFailureMessage();
+  return useCallback((error) => failureMessage(error, "") || undefined, [failureMessage]);
+}
+
+/** The tenant journey's words in the person's language. */
+export function useTenantWords(): TenantWords {
+  const say = useTenantsSay();
+  const locale = useLocale();
+  return useMemo(() => tenantWords(say, locale), [say, locale]);
 }

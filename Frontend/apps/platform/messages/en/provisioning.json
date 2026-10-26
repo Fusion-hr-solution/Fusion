@@ -1,0 +1,234 @@
+{
+  "title": "Provision tenant",
+  "description": "Set up a new tenant for your organization.",
+  "back": "Tenants",
+  "required": "(required)",
+  "fieldRejected": "This value was rejected. Adjust it and try again.",
+  "toast": {
+    "provisioned": "Tenant provisioned",
+    "ready": "{name} is ready.",
+    "readyInvited": "{name} is ready. {invitee} has been invited as tenant administrator.",
+    "failed": "Tenant not provisioned",
+    "failedDescription": "The request did not complete. Review the details below and try again."
+  },
+  "discard": {
+    "title": "Discard this tenant?",
+    "description": "Nothing has been provisioned yet. Leaving now discards what you have entered.",
+    "keep": "Keep editing",
+    "leave": "Discard and leave"
+  },
+  "steps": {
+    "progress": "Provisioning progress",
+    "organization": "Organization",
+    "region-products": "Region & products",
+    "initial-admin": "Initial admin",
+    "review": "Review"
+  },
+  "navigation": {
+    "back": "Back",
+    "continue": "Continue"
+  },
+  "failure": {
+    "permission": "Your Platform administration access has changed. Sign in again to provision a tenant.",
+    "validation": "The request was rejected before anything was created. Your entries are kept.",
+    "conflict": "This request conflicts with one already recorded.",
+    "unavailable": "Provisioning did not complete and the outcome is unknown. Submit again without changing anything — the retry is safe and will not create a second tenant. If it keeps failing, check the tenant list before entering different details.",
+    "unexpected": "Provisioning did not complete and the outcome is unknown. Submit again without changing anything — the retry is safe and will not create a second tenant."
+  },
+  "validation": {
+    "nameRequired": "Enter a tenant name.",
+    "nameLength": "Tenant name must be 2 to 100 characters.",
+    "slugRequired": "Enter a tenant slug.",
+    "slugPattern": "Use lowercase letters, numbers, and hyphens only.",
+    "timeZoneRequired": "Select a time zone.",
+    "firstNameRequired": "Enter the administrator's first name.",
+    "firstNameLength": "First name must be 100 characters or fewer.",
+    "lastNameRequired": "Enter the administrator's last name.",
+    "lastNameLength": "Last name must be 100 characters or fewer.",
+    "emailRequired": "Enter the initial administrator's email.",
+    "emailInvalid": "Enter a valid email address."
+  },
+  "serverErrors": {
+    "name_invalid": "Tenant name must be 2 to 100 characters.",
+    "duplicate_name": "A tenant with this name already exists.",
+    "time_zone_required": "Select a time zone.",
+    "time_zone_unsupported": "This time zone isn't supported.",
+    "locale_unsupported": "This language isn't supported.",
+    "administrator_email_invalid": "Enter a valid email address."
+  },
+  "industries": {
+    "notSpecified": "Not specified",
+    "technology": "Technology & Software",
+    "financial": "Financial Services",
+    "healthcare": "Healthcare & Life Sciences",
+    "manufacturing": "Manufacturing",
+    "retail": "Retail & Consumer Goods",
+    "professional": "Professional Services",
+    "education": "Education",
+    "government": "Government & Public Sector",
+    "energy": "Energy & Utilities",
+    "construction": "Construction & Real Estate",
+    "transportation": "Transportation & Logistics",
+    "media": "Media & Entertainment",
+    "hospitality": "Hospitality & Travel",
+    "telecommunications": "Telecommunications",
+    "nonprofit": "Nonprofit",
+    "agriculture": "Agriculture",
+    "other": "Other"
+  },
+  "adminRoles": {
+    "tenant-hr-admin": {
+      "label": "Tenant HR Administrator",
+      "hint": "This role has full administrative access within the tenant.",
+      "summary": "Full administrative access to manage settings, users, products and more within the tenant."
+    },
+    "hr-manager": {
+      "label": "HR Manager",
+      "hint": "Manages people and HR records, without tenant configuration.",
+      "summary": "Manages employees, organization structure and HR records, without access to tenant-wide settings."
+    },
+    "read-only": {
+      "label": "Read-only Auditor",
+      "hint": "Can view records across the tenant but cannot make changes.",
+      "summary": "Read-only visibility across the tenant for review and audit, with no ability to make changes."
+    }
+  },
+  "moduleDescriptions": {
+    "core": "Workforce and organization foundation",
+    "performance": "Goals, reviews and feedback",
+    "learning": "Training and onboarding",
+    "recruitment": "Hiring pipeline",
+    "onboarding": "New-hire journeys",
+    "interview": "Candidate assessments"
+  },
+  "timeZoneRegions": {
+    "Africa": "Africa",
+    "America": "America",
+    "Antarctica": "Antarctica",
+    "Arctic": "Arctic",
+    "Asia": "Asia",
+    "Atlantic": "Atlantic",
+    "Australia": "Australia",
+    "Europe": "Europe",
+    "Indian": "Indian",
+    "Pacific": "Pacific",
+    "Other": "Other"
+  },
+  "organization": {
+    "title": "Organization details",
+    "description": "Provide the basic information for the new tenant workspace.",
+    "name": "Tenant name",
+    "namePlaceholder": "e.g. Acme Corporation",
+    "slug": "Tenant slug",
+    "slugPlaceholder": "e.g. acme",
+    "legalEntity": "Legal entity name (optional)",
+    "legalEntityPlaceholder": "e.g. Acme Corporation Ltd.",
+    "industry": "Industry (optional)",
+    "industryPlaceholder": "Select an industry",
+    "industrySearch": "Search industries",
+    "industryEmpty": "No industry matches.",
+    "shortDescription": "Short description (optional)",
+    "shortDescriptionPlaceholder": "e.g. Global headquarters workspace for Acme Corporation.",
+    "about": {
+      "title": "About tenant setup",
+      "body": "Each tenant is a separate workspace with its own users, data, and configuration. You can provision multiple tenants."
+    },
+    "naming": {
+      "title": "Naming guidance",
+      "clear": "Choose a clear, recognizable name.",
+      "unique": "The tenant slug must be unique.",
+      "characters": "Use lowercase letters, numbers, and hyphens only.",
+      "later": "You can always update these details later."
+    }
+  },
+  "region": {
+    "title": "Region and default settings",
+    "description": "These settings define the tenant's defaults.",
+    "country": "Country / region",
+    "countryPlaceholder": "Select a country",
+    "countrySearch": "Search country or region",
+    "countryEmpty": "No country matches.",
+    "timeZone": "Time zone",
+    "timeZonePlaceholder": "Select a time zone",
+    "timeZoneSearch": "Search city, region or offset",
+    "timeZoneEmpty": "No time zone matches.",
+    "language": "Default language",
+    "languagePlaceholder": "Select a language",
+    "languageSearch": "Search language, country or code",
+    "languageEmpty": "No language matches.",
+    "platformDefault": "Use platform default",
+    "dateFormat": "Date format",
+    "dateFormatPlaceholder": "Select a date format",
+    "dateFormatSearch": "Search date format",
+    "dateFormatEmpty": "No format matches.",
+    "products": {
+      "title": "Product entitlements",
+      "description": "Select the Fusion products to enable for this tenant.",
+      "about": "About product entitlements",
+      "aboutBody": "Core HR is included with every tenant. Products marked unavailable aren’t offered in this build yet.",
+      "required": "Required",
+      "enable": "Enable {module}",
+      "unavailable": "{module} unavailable"
+    }
+  },
+  "admin": {
+    "title": "Initial administrator",
+    "description": "This person will receive an invitation to access the new tenant and complete the initial setup.",
+    "firstName": "First name",
+    "firstNamePlaceholder": "e.g. John",
+    "lastName": "Last name",
+    "lastNamePlaceholder": "e.g. Doe",
+    "email": "Work email",
+    "emailHint": "An invitation will be sent to this email address.",
+    "emailPlaceholder": "e.g. john.doe@acmecorp.com",
+    "role": "Role",
+    "rolePlaceholder": "Select a role",
+    "roleSearch": "Search roles",
+    "roleEmpty": "No role matches.",
+    "sendNow": "Send invitation immediately",
+    "sendOn": "An invitation email will be sent when the tenant is provisioned.",
+    "sendOff": "The invitation can be sent later from the tenant's administrators.",
+    "receive": {
+      "title": "What will this person receive?",
+      "subtitle": "After provisioning, we will:",
+      "send": "Send an invitation email",
+      "prepare": "Prepare an invitation to send later",
+      "access": "Provide initial access to the tenant",
+      "role": "Assign the selected role and permissions",
+      "continue": "Allow them to continue the tenant setup"
+    },
+    "roleSummary": "Role summary"
+  },
+  "review": {
+    "platformDefault": "Platform default",
+    "legalEntity": "Legal entity",
+    "industry": "Industry",
+    "region": "Region and defaults",
+    "productsLoading": "Product entitlements are still loading.",
+    "name": "Name",
+    "invitation": "Invitation",
+    "sendNow": "Send immediately",
+    "sendLater": "Send later",
+    "ready": "Ready to provision",
+    "almostReady": "Almost ready",
+    "readyBody": "Everything looks good. Review the details and create the tenant.",
+    "almostReadyBody": "Complete the required details before the tenant can be created.",
+    "happen": {
+      "title": "What will happen?",
+      "workspace": "Create tenant workspace",
+      "defaults": "Apply regional defaults",
+      "products": "Enable selected products",
+      "administrator": "Create initial administrator",
+      "send": "Send invitation email",
+      "prepare": "Prepare invitation to send later"
+    },
+    "summary": "Summary",
+    "enabledProducts": "{count, plural, one {# enabled product} other {# enabled products}}",
+    "regionLine": "Region: {country}",
+    "administrators": "{count, plural, one {# administrator} other {# administrators}}",
+    "notSet": "Not set",
+    "later": "You can manage products and tenant settings later.",
+    "edit": "Edit",
+    "enabled": "Enabled"
+  }
+}

@@ -1,5 +1,6 @@
 import type { TenantActivityEntry } from "../api";
-import { eventActor, eventTitle, isFailureOutcome } from "../language";
+import { isFailureOutcome, tenantWords, type TenantWords } from "../language";
+import { formatDateParts } from "@repo/ds/lib/dates";
 
 /**
  * Turning a bounded audit vocabulary into something a person reads.
@@ -7,7 +8,9 @@ import { eventActor, eventTitle, isFailureOutcome } from "../language";
  * The stored event names are domain terms — `BootstrapCompleted`,
  * `InvitationDeliveryAttempted` — and putting them on screen would make the
  * reader translate. Each entry resolves to a short title and one sentence that
- * names the tenant, so the feed reads as events rather than as a log dump.
+ * names the tenant, so the feed reads as events rather than as a log dump. The
+ * sentences live in the `tenants` catalogue with a {tenant} slot; the slot is
+ * where the sentence splits so the name can be rendered as a link.
  *
  * A delivery attempt is the one event whose meaning depends on its outcome: the
  * same record is either a sent invitation or a bounced one.
@@ -26,95 +29,48 @@ function failed(entry: TenantActivityEntry): boolean {
   return isFailureOutcome(entry.outcome);
 }
 
-export function activityNarrative(entry: TenantActivityEntry): ActivityNarrative {
+/** Marks where the tenant's name sits in a sentence; no catalogue line contains it. */
+const SLOT = "\u0000";
+
+const NARRATED_EVENTS = new Set([
+  "TenantProvisioned",
+  "InvitationResent",
+  "InvitationRevoked",
+  "InvitationReplaced",
+  "InvitationReissued",
+  "BootstrapCompleted",
+  "ActivationRejected",
+]);
+
+export function activityNarrative(
+  entry: TenantActivityEntry,
+  words: TenantWords = tenantWords()
+): ActivityNarrative {
   // The title is shared with the tenant record's timeline; only the sentence
   // around the tenant name belongs to this feed.
-  const title = eventTitle(entry.eventType, failed(entry));
+  const isFailed = failed(entry);
+  const title = words.eventTitle(entry.eventType, isFailed);
 
-  switch (entry.eventType) {
-    case "TenantProvisioned":
-      return {
-        title,
-        before: "",
-        after: " was provisioned successfully.",
-        isFailure: false,
-      };
+  const key =
+    entry.eventType === "InvitationDeliveryAttempted"
+      ? isFailed
+        ? "deliveryFailed"
+        : "deliverySent"
+      : NARRATED_EVENTS.has(entry.eventType)
+        ? entry.eventType
+        : // An event this build has no wording for is still real. It reports the
+          // tenant and the outcome rather than disappearing from the history.
+          "unknown";
 
-    case "InvitationDeliveryAttempted":
-      return failed(entry)
-        ? {
-            title,
-            before: "The administrator invitation for ",
-            after: " could not be delivered.",
-            isFailure: true,
-          }
-        : {
-            title,
-            before: "The administrator invitation for ",
-            after: " was sent.",
-            isFailure: false,
-          };
+  const [before = "", after = ""] = words.say(`narrative.${key}`, { tenant: SLOT }).split(SLOT);
 
-    case "InvitationResent":
-      return {
-        title,
-        before: "The administrator invitation for ",
-        after: " was sent again.",
-        isFailure: false,
-      };
+  // The business specification already calls these rejected activation
+  // attempts, so they read as failures whatever the stored outcome says.
+  const isFailure =
+    entry.eventType === "ActivationRejected" ||
+    (entry.eventType === "InvitationDeliveryAttempted" || key === "unknown" ? isFailed : false);
 
-    case "InvitationRevoked":
-      return {
-        title,
-        before: "The administrator invitation for ",
-        after: " was revoked.",
-        isFailure: false,
-      };
-
-    case "InvitationReplaced":
-      return {
-        title,
-        before: "The nominated administrator for ",
-        after: " was replaced.",
-        isFailure: false,
-      };
-
-    case "InvitationReissued":
-      return {
-        title,
-        before: "A new administrator invitation was issued for ",
-        after: ".",
-        isFailure: false,
-      };
-
-    case "BootstrapCompleted":
-      return {
-        title,
-        before: "",
-        after: " completed administrator activation.",
-        isFailure: false,
-      };
-
-    case "ActivationRejected":
-      return {
-        // The business specification already calls these rejected activation
-        // attempts, so the interface uses that word rather than a synonym.
-        title: "Activation rejected",
-        before: "An activation attempt for ",
-        after: " was rejected.",
-        isFailure: true,
-      };
-
-    default:
-      // An event this build has no wording for is still real. It reports the
-      // tenant and the outcome rather than disappearing from the history.
-      return {
-        title,
-        before: "An update was recorded for ",
-        after: ".",
-        isFailure: failed(entry),
-      };
-  }
+  return { title, before, after, isFailure };
 }
 
 /**
@@ -123,24 +79,38 @@ export function activityNarrative(entry: TenantActivityEntry): ActivityNarrative
  * the exact timestamp is always available to assistive technology through the
  * element's `dateTime` and title.
  */
-export function activityTimestamp(occurredAt: string, now: Date = new Date()): string {
+export function activityTimestamp(
+  occurredAt: string,
+  now: Date = new Date(),
+  words: TenantWords = tenantWords()
+): string {
   const at = new Date(occurredAt);
 
-  const time = at.toLocaleTimeString("en-GB", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const time = formatDateParts(
+    at,
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    },
+    undefined,
+    words.locale
+  );
 
   const days = calendarDaysBetween(at, now);
 
-  if (days === 0) return `Today at ${time}`;
-  if (days === 1) return `Yesterday at ${time}`;
+  if (days === 0) return words.say("timestamp.today", { time });
+  if (days === 1) return words.say("timestamp.yesterday", { time });
 
-  return at.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: at.getFullYear() === now.getFullYear() ? undefined : "numeric",
-  });
+  return formatDateParts(
+    at,
+    {
+      day: "numeric",
+      month: "short",
+      year: at.getFullYear() === now.getFullYear() ? undefined : "numeric",
+    },
+    undefined,
+    words.locale
+  );
 }
 
 /** Whole calendar days apart, so 23:59 and 00:01 are "yesterday", not "today". */
@@ -150,6 +120,9 @@ function calendarDaysBetween(from: Date, to: Date): number {
   return Math.round((b.getTime() - a.getTime()) / 86_400_000);
 }
 
-export function activityActor(entry: TenantActivityEntry): string {
-  return eventActor(entry.actorName);
+export function activityActor(
+  entry: TenantActivityEntry,
+  words: TenantWords = tenantWords()
+): string {
+  return words.eventActor(entry.actorName);
 }

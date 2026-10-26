@@ -13,13 +13,7 @@ import {
 } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import type { BootstrapInvitationSummary, TenantDetail } from "../api";
-import {
-  DELIVERY_LABEL,
-  INVITATION_LABEL,
-  INVITATION_TONE,
-  daysUntil,
-  formatDate,
-} from "../language";
+import { INVITATION_TONE, daysUntil, formatDate, tenantWords } from "../language";
 import { ActivationProgression, type ActivationPhase } from "./activation-progression";
 import {
   FactTile,
@@ -30,6 +24,9 @@ import {
 } from "./record-ui";
 import { RecoveryActions } from "./recovery-actions";
 import { activationCompletedAt } from "./tenant-record-facts";
+
+// An unrouted reference component, kept for the record's tab redesign; it reads in English until then.
+const ENGLISH = tenantWords();
 
 /**
  * Administrator activation, which is a condition of the tenant rather than the
@@ -210,7 +207,7 @@ export function ActivationAttention({
             </span>
           )}
 
-          <Button asChild variant="ghost" size="sm" className="-mr-2">
+          <Button asChild variant="ghost" size="sm" className="-me-2">
             <Link href={accessHref}>
               Manage in Access
               <ArrowRight aria-hidden="true" className="size-4" />
@@ -318,7 +315,7 @@ export function ActivationCompleted({
         </div>
       </div>
 
-      <Button asChild variant="ghost" size="sm" className="-mr-2 shrink-0">
+      <Button asChild variant="ghost" size="sm" className="-me-2 shrink-0">
         <Link href={accessHref}>
           Access
           <ArrowRight aria-hidden="true" className="size-4" />
@@ -363,7 +360,7 @@ export function InvitationFacts({
     <StatusGrid columns={isPending ? 4 : 2} className={className}>
       <StatusBlock
         label="Invitation"
-        value={INVITATION_LABEL[invitation.state]}
+        value={ENGLISH.invitation(invitation.state)}
         tone={INVITATION_TONE[invitation.state]}
       />
 
@@ -372,7 +369,7 @@ export function InvitationFacts({
           label="Delivery"
           value={
             invitation.lastDelivery
-              ? DELIVERY_LABEL[invitation.lastDelivery.outcome]
+              ? ENGLISH.delivery(invitation.lastDelivery.outcome)
               : "Not sent"
           }
           tone={deliveryFailed ? "attention" : "default"}

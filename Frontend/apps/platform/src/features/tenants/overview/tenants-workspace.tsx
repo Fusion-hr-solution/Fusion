@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
@@ -38,7 +39,7 @@ import type {
   TenantOverviewSort,
 } from "../api";
 import { failureKind, listAllMatchingTenants, TENANT_PAGE_SIZES } from "../api";
-import { formatDate } from "../language";
+import { useTenantWords, type TenantWords } from "../language";
 import { useTenantOverview } from "../queries";
 import { RecoveryFailure } from "../recovery-dialog";
 import { activationSummary } from "./tenant-activation";
@@ -108,8 +109,11 @@ export function TenantsWorkspace() {
   const { data, error, isLoading, isFetching, refetch } =
     useTenantOverview(query);
   const [actionError, setActionError] = useState<Error | null>(null);
-  // setActionError is stable, so the columns are built once.
-  const columns = useMemo(() => tenantColumns(setActionError), []);
+  const t = useTranslations("tenants.overview");
+  const words = useTenantWords();
+  // setActionError is stable, so the columns are rebuilt only when the language changes.
+  const columns = useMemo(() => tenantColumns(setActionError, t, words), [t, words]);
+  const filterFields = useMemo(() => tenantFilterFields(t), [t]);
 
   const serialized = serializeQuery(query);
   const provisionHref = serialized
@@ -121,7 +125,7 @@ export function TenantsWorkspace() {
     columns,
     getRowId: (row) => row.tenantId,
     manual: { rowCount: data?.totalCount ?? 0 },
-    filters: TENANT_FILTER_FIELDS,
+    filters: filterFields,
     filterState: toFilterState(query),
     onFilterStateChange: (next) => update(fromFilterState(next)),
     filterCounts: data?.counts
@@ -152,8 +156,8 @@ export function TenantsWorkspace() {
   return (
     <PageContainer width="wide">
       <PageHeader
-        title="Tenants"
-        description="Manage customer tenants, entitlements, and administrator activation."
+        title={t("title")}
+        description={t("description")}
         actions={
           <Button asChild>
             {/* The current query travels with the operator so returning from
@@ -161,7 +165,7 @@ export function TenantsWorkspace() {
                 one they have to rebuild. */}
             <Link href={provisionHref}>
               <Plus aria-hidden="true" className="size-4" />
-              Provision tenant
+              {t("provision")}
             </Link>
           </Button>
         }
@@ -179,15 +183,15 @@ export function TenantsWorkspace() {
         isLoading={isLoading}
         isRefreshing={isFetching && !isLoading}
         skeletonRows={query.pageSize}
-        searchPlaceholder="Search tenants or emails"
+        searchPlaceholder={t("search")}
         actions={<ExportButton query={query} disabled={Boolean(error)} />}
         notice={actionError ? <RecoveryFailure error={actionError} /> : null}
         error={
           error ? <TenantsFailure error={error} onRetry={refetch} /> : null
         }
         emptyState={<TenantsEmpty />}
-        noResults="No tenant matches the current search and filters"
-        noun={["tenant", "tenants"]}
+        noResults={t("noResults")}
+        noun={[t("noun.one"), t("noun.other")]}
         pageSizes={TENANT_PAGE_SIZES}
         onRowClick={(row) => router.push(tenantHref(row.tenantId))}
         minWidth="560px"
@@ -200,7 +204,7 @@ export function TenantsWorkspace() {
 
 // ── Filters: beyond lifecycle, which the summary cards own ──────────────────────
 
-/** Every Fusion module, whether or not this environment grants it yet. */
+/** Every Fusion module, whether or not this environment grants it yet. Product names, the same in every language. */
 const FILTER_MODULES = [
   { value: "CoreHR", label: "Core HR" },
   { value: "Performance", label: "Performance" },
@@ -210,39 +214,43 @@ const FILTER_MODULES = [
   { value: "Onboarding", label: "Onboarding" },
 ];
 
-const ACTIVATION_OPTIONS: {
-  value: Exclude<OverviewFilter, "All">;
-  label: string;
-}[] = [
-  { value: "AwaitingActivation", label: "Awaiting activation" },
-  { value: "Active", label: "Active" },
-  { value: "NeedsAttention", label: "Needs attention" },
+const ACTIVATION_OPTIONS: Exclude<OverviewFilter, "All">[] = [
+  "AwaitingActivation",
+  "Active",
+  "NeedsAttention",
 ];
+
+type OverviewT = ReturnType<typeof useTranslations<"tenants.overview">>;
 
 /**
  * Activation is the directory's primary question, so it is the pinned filter: always in the toolbar,
  * resetting to "All". It is the same state as the summary cards, so the two can never disagree. The
  * service takes one stage at a time.
  */
-const TENANT_FILTER_FIELDS: DataTableFilterField<TenantOverviewRow>[] = [
-  {
-    id: "activation",
-    label: "Activation",
-    icon: Activity,
-    type: "options",
-    single: true,
-    pinned: true,
-    options: ACTIVATION_OPTIONS,
-  },
-  {
-    id: "modules",
-    label: "Module",
-    icon: Blocks,
-    type: "options",
-    options: FILTER_MODULES,
-  },
-  { id: "created", label: "Created", icon: CalendarDays, type: "dateRange" },
-];
+function tenantFilterFields(t: OverviewT): DataTableFilterField<TenantOverviewRow>[] {
+  return [
+    {
+      id: "activation",
+      label: t("filters.activation"),
+      icon: Activity,
+      type: "options",
+      single: true,
+      pinned: true,
+      options: ACTIVATION_OPTIONS.map((value) => ({
+        value,
+        label: t(`activationOptions.${value}`),
+      })),
+    },
+    {
+      id: "modules",
+      label: t("filters.module"),
+      icon: Blocks,
+      type: "options",
+      options: FILTER_MODULES,
+    },
+    { id: "created", label: t("filters.created"), icon: CalendarDays, type: "dateRange" },
+  ];
+}
 
 function toFilterState(query: TenantOverviewQuery): DataTableFilterState {
   return {
@@ -307,11 +315,15 @@ const TWO_LINES = (
   </div>
 );
 
-function tenantColumns(onActionFailed: (error: Error | null) => void) {
+function tenantColumns(
+  onActionFailed: (error: Error | null) => void,
+  t: OverviewT,
+  words: TenantWords
+) {
   return [
     column.accessor("name", {
       id: "tenant",
-      header: "Tenant",
+      header: t("columns.tenant"),
       cell: ({ row }) => (
         <DataTableCellStack
           leading={<TenantMonogram name={row.original.name} />}
@@ -319,7 +331,7 @@ function tenantColumns(onActionFailed: (error: Error | null) => void) {
           secondary={
             <span title={row.original.initialAdministratorEmail ?? undefined}>
               {row.original.initialAdministratorEmail ??
-                "Administrator not recorded"}
+                t("administratorNotRecorded")}
             </span>
           }
         />
@@ -336,23 +348,23 @@ function tenantColumns(onActionFailed: (error: Error | null) => void) {
     }),
     column.display({
       id: "activation",
-      header: "Activation",
+      header: t("columns.activation"),
       cell: ({ row }) => <ActivationCell row={row.original} />,
       meta: { skeleton: TWO_LINES },
     }),
     column.display({
       id: "modules",
-      header: "Modules",
+      header: t("columns.modules"),
       cell: ({ row }) => <TenantModulesCell modules={row.original.modules} />,
       meta: { hideBelow: "lg", skeleton: <Skeleton className="h-5 w-24" /> },
     }),
     column.accessor("createdAt", {
       id: "created",
-      header: "Created",
+      header: t("columns.created"),
       sortDescFirst: true,
       cell: ({ row }) => (
         <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {formatDate(row.original.createdAt)}
+          {words.date(row.original.createdAt)}
         </span>
       ),
       meta: {
@@ -363,7 +375,7 @@ function tenantColumns(onActionFailed: (error: Error | null) => void) {
     }),
     column.display({
       id: "actions",
-      header: () => <span className="sr-only">Actions</span>,
+      header: () => <span className="sr-only">{t("columns.actions")}</span>,
       cell: ({ row }) => (
         <TenantRowActions row={row.original} onActionFailed={onActionFailed} />
       ),
@@ -382,7 +394,8 @@ function tenantColumns(onActionFailed: (error: Error | null) => void) {
  * the routine rows and the urgent ones on different rhythms.
  */
 function ActivationCell({ row }: { row: TenantOverviewRow }) {
-  const { status, detail, isException } = activationSummary(row);
+  const words = useTenantWords();
+  const { status, detail, isException } = activationSummary(row, words);
 
   return (
     <div className="min-w-0">
@@ -431,6 +444,8 @@ function ExportButton({
 }) {
   const [isExporting, setIsExporting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const t = useTranslations("tenants.overview.export");
+  const words = useTenantWords();
 
   async function run() {
     setIsExporting(true);
@@ -438,7 +453,7 @@ function ExportButton({
 
     try {
       const result = await listAllMatchingTenants(query);
-      downloadCsv(toCsv(result.rows), exportFileName());
+      downloadCsv(toCsv(result.rows, words), exportFileName());
     } catch {
       // The list on screen is untouched: only the download failed.
       setFailed(true);
@@ -451,7 +466,7 @@ function ExportButton({
     <div className="flex items-center gap-2">
       {failed ? (
         <span role="alert" className="text-sm text-destructive">
-          Export failed. Try again.
+          {t("failed")}
         </span>
       ) : null}
       {/* The convention forbids progressive wording beside a spinner, so the
@@ -461,11 +476,11 @@ function ExportButton({
         onClick={run}
         disabled={disabled}
         pending={isExporting}
-        aria-label="Export the matching tenants as CSV"
-        pendingLabel="Export the matching tenants as CSV"
+        aria-label={t("label")}
+        pendingLabel={t("label")}
       >
         <Download aria-hidden="true" className="size-4" />
-        Export
+        {t("button")}
       </AsyncButton>
     </div>
   );
@@ -473,16 +488,17 @@ function ExportButton({
 
 /** A platform with no tenants at all. A query that matched nothing is the table's "no matches" state. */
 function TenantsEmpty() {
+  const t = useTranslations("tenants.overview");
   return (
     <PageEmpty
       icon={Building2}
-      title="No tenants yet"
-      description="No customer tenant has been provisioned."
+      title={t("empty.title")}
+      description={t("empty.description")}
       action={
         <Button asChild size="sm">
           <Link href="/tenants/new">
             <Plus aria-hidden="true" className="size-4" />
-            Provision tenant
+            {t("provision")}
           </Link>
         </Button>
       }
@@ -498,19 +514,20 @@ function TenantsFailure({
   error: Error;
   onRetry: () => void;
 }) {
+  const t = useTranslations("tenants");
   const kind = failureKind(error);
 
   return (
     <PageError
       title={
         kind === "permission"
-          ? "You no longer have Platform access"
-          : "Tenants could not be loaded"
+          ? t("common.noAccess")
+          : t("overview.failure.title")
       }
       description={
         kind === "permission"
-          ? "Your Platform administration access has changed. Sign in again to continue."
-          : "The tenant list is unavailable right now. Your tenants are unaffected."
+          ? t("common.permissionChanged")
+          : t("overview.failure.description")
       }
       onRetry={kind === "permission" ? undefined : onRetry}
     />

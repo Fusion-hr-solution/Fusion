@@ -118,7 +118,7 @@ export function SearchableSelect({
               <>
                 {selected.label}
                 {selected.detail ? (
-                  <span className="ml-2 text-muted-foreground">
+                  <span className="ms-2 text-muted-foreground">
                     {selected.detail}
                   </span>
                 ) : null}
@@ -129,7 +129,7 @@ export function SearchableSelect({
           </span>
           <ChevronsUpDown
             aria-hidden="true"
-            className="ml-2 size-4 shrink-0 text-muted-foreground"
+            className="ms-2 size-4 shrink-0 text-muted-foreground"
           />
         </Button>
       </PopoverTrigger>
@@ -158,13 +158,13 @@ export function SearchableSelect({
                     <Check
                       aria-hidden="true"
                       className={cn(
-                        "mr-2 size-4 shrink-0",
+                        "me-2 size-4 shrink-0",
                         option.value === value ? "opacity-100" : "opacity-0"
                       )}
                     />
                     <span className="min-w-0 flex-1 truncate">{option.label}</span>
                     {option.detail ? (
-                      <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                      <span className="ms-2 shrink-0 text-xs text-muted-foreground">
                         {option.detail}
                       </span>
                     ) : null}

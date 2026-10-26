@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { renderInFrench } from "@/test/intl";
 import { PlatformPageState } from "./platform-page-state";
 
 describe("PlatformPageState", () => {
@@ -42,5 +43,14 @@ describe("PlatformPageState", () => {
         name: "Platform administration could not load",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("speaks French", () => {
+    renderInFrench(<PlatformPageState kind="forbidden" />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Accès à Platform requis" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Revenir à l’accueil Fusion" })).toBeInTheDocument();
   });
 });

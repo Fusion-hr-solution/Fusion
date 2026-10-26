@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { formatLocale } from "@repo/ds/lib/dates";
+import { useSay } from "@repo/ds/lib/say";
 import { FileText, Pencil } from "@/lib/icons";
 import { toast } from "sonner";
 import { Button } from "@repo/ds/components/ui/button";
@@ -13,8 +16,9 @@ import {
 } from "@repo/ds/components/ui/dialog";
 import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";
-import { failureMessage, type TenantDetail } from "../api";
-import { formatDate } from "../language";
+import type { TenantDetail } from "../api";
+import { useFailureDetail, useTenantWords } from "../language";
+import { industryLabel } from "../provisioning/industry-options";
 import { useRenameTenant } from "../queries";
 import { useTenantRecord } from "./record-shell";
 
@@ -30,13 +34,20 @@ import { useTenantRecord } from "./record-shell";
 export function TenantProfile() {
   const { tenant } = useTenantRecord();
   const [editing, setEditing] = useState(false);
+  const t = useTranslations("record.profile");
+  const sayProvisioning = useSay("provisioning");
+  const words = useTenantWords();
+  const language = useLocale();
 
   const rows: { label: string; value: string }[] = [
-    { label: "Organization name", value: tenant.name },
-    { label: "Industry", value: tenant.industry ?? "Not specified" },
-    { label: "Default timezone", value: tenant.timeZone },
-    { label: "Default locale", value: localeLabel(tenant.locale) },
-    { label: "Provisioned", value: formatDate(tenant.createdAt) },
+    { label: t("name"), value: tenant.name },
+    {
+      label: t("industry"),
+      value: tenant.industry ? industryLabel(tenant.industry, sayProvisioning) : t("notSpecified"),
+    },
+    { label: t("timeZone"), value: tenant.timeZone },
+    { label: t("locale"), value: localeLabel(tenant.locale, language) },
+    { label: t("provisioned"), value: words.date(tenant.createdAt) },
   ];
 
   return (
@@ -48,12 +59,12 @@ export function TenantProfile() {
             className="size-8 text-muted-foreground"
           />
           <h3 className="text-sm font-semibold text-foreground">
-            Tenant profile
+            {t("title")}
           </h3>
         </div>
         <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
           <Pencil aria-hidden="true" />
-          Edit
+          {t("edit")}
         </Button>
       </header>
 
@@ -90,6 +101,8 @@ function RenameDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const rename = useRenameTenant();
+  const t = useTranslations("record.profile");
+  const failureDetail = useFailureDetail();
   const [name, setName] = useState(tenant.name);
 
   // Reopen always starts from the current name, not a stale edit.
@@ -105,13 +118,13 @@ function RenameDialog({
     if (!canSave) return;
     try {
       await rename.mutateAsync({ tenantId: tenant.tenantId, name: trimmed });
-      toast.success("Tenant renamed", {
-        description: `The organization is now “${trimmed}”.`,
+      toast.success(t("rename.done"), {
+        description: t("rename.doneDescription", { name: trimmed }),
       });
       onOpenChange(false);
     } catch (error) {
-      toast.error("Couldn't rename the tenant", {
-        description: failureMessage(error) ?? undefined,
+      toast.error(t("rename.failed"), {
+        description: failureDetail(error),
       });
     }
   }
@@ -120,7 +133,7 @@ function RenameDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Rename tenant</DialogTitle>
+          <DialogTitle>{t("rename.title")}</DialogTitle>
         </DialogHeader>
 
         <form
@@ -129,7 +142,7 @@ function RenameDialog({
             void save();
           }}
         >
-          <Label htmlFor="tenant-name">Organization name</Label>
+          <Label htmlFor="tenant-name">{t("name")}</Label>
           <Input
             id="tenant-name"
             value={name}
@@ -146,10 +159,10 @@ function RenameDialog({
               onClick={() => onOpenChange(false)}
               disabled={rename.isLoading}
             >
-              Cancel
+              {t("rename.cancel")}
             </Button>
             <Button type="submit" disabled={!canSave}>
-              {rename.isLoading ? "Saving…" : "Save changes"}
+              {rename.isLoading ? t("rename.saving") : t("rename.save")}
             </Button>
           </DialogFooter>
         </form>
@@ -163,13 +176,11 @@ function RenameDialog({
  * subtag is shown — the provisioning locale identifies the language, not a
  * country the record does not otherwise claim.
  */
-function localeLabel(locale: string): string {
+function localeLabel(locale: string, reader: string): string {
   const language = locale.split("-")[0] || locale;
   try {
-    return (
-      new Intl.DisplayNames(undefined, { type: "language" }).of(language) ??
-      locale
-    );
+    const name = new Intl.DisplayNames([formatLocale(reader)], { type: "language" }).of(language);
+    return name ? name.charAt(0).toLocaleUpperCase(formatLocale(reader)) + name.slice(1) : locale;
   } catch {
     return locale;
   }

@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useSay, type Say } from "@repo/ds/lib/say";
 import { Clock } from "@/lib/icons";
 import { cn } from "@repo/ds/lib/utils";
 import type { TenantHistoryEntry } from "../api";
-import { eventTitle, isFailureOutcome, relativeFromNow } from "../language";
+import { isFailureOutcome, useTenantWords } from "../language";
 import { destinationHref } from "./record-routes";
 import { useTenantRecord } from "./record-shell";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * Recent activity — a short tail of the tenant's platform-control-plane history.
@@ -22,6 +25,7 @@ export function RecentActivity() {
   const { tenant, query } = useTenantRecord();
   const entries = tenant.history.slice(0, PREVIEW_LIMIT);
   const activityHref = `${destinationHref(tenant.tenantId, "activity")}${query}`;
+  const t = useTranslations("record.activity");
 
   return (
     <section className="rounded-surface border border-border bg-card p-5">
@@ -29,7 +33,7 @@ export function RecentActivity() {
         <div className="flex items-center gap-2.5">
           <Clock aria-hidden="true" className="size-8 text-muted-foreground" />
           <h3 className="text-sm font-semibold text-foreground">
-            Recent activity
+            {t("title")}
           </h3>
         </div>
         {entries.length > 0 ? (
@@ -37,14 +41,14 @@ export function RecentActivity() {
             href={activityHref}
             className="rounded-control text-sm font-medium text-primary-ink hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            View activity
+            {t("view")}
           </Link>
         ) : null}
       </header>
 
       {entries.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          No activity recorded yet.
+          {t("empty")}
         </p>
       ) : (
         <ol className="mt-4">
@@ -69,6 +73,9 @@ function ActivityRow({
   last: boolean;
 }) {
   const failed = isFailureOutcome(entry.outcome);
+  const words = useTenantWords();
+  const format = useFormat();
+  const say = useSay("record.activity.describe");
 
   return (
     <li className="flex gap-3">
@@ -92,18 +99,18 @@ function ActivityRow({
               failed ? "text-destructive" : "text-foreground"
             )}
           >
-            {eventTitle(entry.eventType, failed)}
+            {words.eventTitle(entry.eventType, failed)}
           </p>
           <time
             dateTime={entry.occurredAt}
-            title={new Date(entry.occurredAt).toLocaleString()}
+            title={format.dateTime(entry.occurredAt, { year: "always" })}
             className="shrink-0 text-xs text-muted-foreground"
           >
-            {relativeFromNow(entry.occurredAt)}
+            {words.relative(entry.occurredAt)}
           </time>
         </div>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          {describe(entry.eventType, failed)}
+          {describe(entry.eventType, failed, say)}
         </p>
       </div>
     </li>
@@ -115,35 +122,23 @@ function ActivityRow({
  * tenant — not fabricated specifics the audit record does not carry (a
  * recipient's name, a module list), which would be invention dressed as detail.
  */
-function describe(eventType: string, failed: boolean): string {
-  switch (eventType) {
-    case "TenantProvisioned":
-      return "Tenant created and configuration completed.";
-    case "InvitationDeliveryAttempted":
-      return failed
-        ? "The administrator invitation could not be delivered."
-        : "The administrator invitation was sent.";
-    case "InvitationResent":
-      return "The administrator invitation was sent again.";
-    case "InvitationRevoked":
-      return "The administrator invitation was revoked.";
-    case "InvitationReplaced":
-      return "The nominated administrator was replaced.";
-    case "InvitationReissued":
-      return "A new administrator invitation was issued.";
-    case "BootstrapCompleted":
-      return "The administrator completed activation.";
-    case "ActivationRejected":
-      return "An activation attempt was rejected.";
-    case "TenantDeactivated":
-      return "Customer access was disabled.";
-    case "TenantReactivated":
-      return "Customer access was restored.";
-    case "TenantProfileChanged":
-      return "The tenant profile was updated.";
-    default:
-      return failed
-        ? "The update did not complete."
-        : "An update was recorded.";
+const DESCRIBED_EVENTS = new Set([
+  "TenantProvisioned",
+  "InvitationResent",
+  "InvitationRevoked",
+  "InvitationReplaced",
+  "InvitationReissued",
+  "BootstrapCompleted",
+  "ActivationRejected",
+  "TenantDeactivated",
+  "TenantReactivated",
+  "TenantProfileChanged",
+]);
+
+function describe(eventType: string, failed: boolean, say: Say): string {
+  if (eventType === "InvitationDeliveryAttempted") {
+    return say(failed ? "deliveryFailed" : "deliverySent");
   }
+  if (DESCRIBED_EVENTS.has(eventType)) return say(eventType);
+  return say(failed ? "failed" : "recorded");
 }

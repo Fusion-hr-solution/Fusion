@@ -1,9 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useApiQuery } from "@repo/api/query";
 import { AppBreadcrumb } from "@repo/ds/shell";
-import { PLATFORM_NAV } from "@/data/sidebar-nav";
+import { usePlatformNav } from "@/shell/navigation/use-platform-nav";
 import { getTenant } from "@/features/tenants/api";
 import { tenantKeys } from "@/features/tenants/queries";
 
@@ -11,6 +12,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function PlatformBreadcrumb() {
   const pathname = usePathname();
+  const nav = usePlatformNav();
+  const t = useTranslations("frame.breadcrumb");
   const activePath = pathname.replace(/^\/platform/, "") || "/";
   const tenantId = activePath.split("/").find((segment) => UUID.test(segment));
 
@@ -23,16 +26,21 @@ export function PlatformBreadcrumb() {
     { enabled: false }
   );
 
-  const overrides =
-    tenantId && tenant
-      ? new Map([[tenantId, tenant.name]])
-      : new Map<string, string>();
+  // The route's own words ("new", "access"…) in the person's language; the
+  // tenant's name replaces its id once the record has loaded.
+  const overrides = new Map<string, string>([
+    ["new", t("new")],
+    ["access", t("access")],
+    ["products", t("products")],
+    ["activity", t("activity")],
+  ]);
+  if (tenantId && tenant) overrides.set(tenantId, tenant.name);
 
   return (
     <AppBreadcrumb
       appName="Platform"
       pathname={activePath}
-      navItems={PLATFORM_NAV.items}
+      navItems={nav.items}
       overrides={overrides}
     />
   );

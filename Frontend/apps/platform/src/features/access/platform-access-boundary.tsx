@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@repo/auth";
 import { PageSkeleton } from "@repo/ds/shell";
 import { buildShellUrl } from "@/lib/shell-url";
@@ -20,6 +21,7 @@ export function PlatformAccessBoundary({
   const searchParams = useSearchParams();
   const { user, isLoading } = useAuth();
   const state = resolvePlatformAccessState({ user, isLoading });
+  const t = useTranslations("frame");
 
   useEffect(() => {
     if (state !== "sign-in-required") {
@@ -36,7 +38,7 @@ export function PlatformAccessBoundary({
   }, [pathname, searchParams, state]);
 
   if (state === "loading" || state === "sign-in-required") {
-    return <PageSkeleton rows={3} label="Checking Platform access" />;
+    return <PageSkeleton rows={3} label={t("checkingAccess")} />;
   }
 
   if (state === "forbidden") {

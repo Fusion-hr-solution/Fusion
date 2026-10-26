@@ -1,10 +1,5 @@
 import type { TenantOverviewRow } from "../api";
-import {
-  DELIVERY_LABEL,
-  INVITATION_LABEL,
-  TENANT_STATUS_LABEL,
-  moduleLabel,
-} from "../language";
+import { moduleLabel, tenantWords, type TenantWords } from "../language";
 
 /**
  * The tenant directory as a file.
@@ -12,17 +7,17 @@ import {
  * It carries the same facts the list shows and nothing more: no credential
  * material, no invitation identifiers, no internal failure codes. An export
  * leaves the product, so it says only what a Platform Administrator already
- * reads on screen.
+ * reads on screen, in the language they read it in.
  */
 
 const COLUMNS = [
-  "Tenant",
-  "Tenant status",
-  "Initial administrator",
-  "Invitation status",
-  "Delivery outcome",
-  "Enabled modules",
-  "Created",
+  "tenant",
+  "status",
+  "administrator",
+  "invitation",
+  "delivery",
+  "modules",
+  "created",
 ] as const;
 
 /**
@@ -34,17 +29,22 @@ function escapeCell(value: string): string {
   return `"${guarded.replace(/"/g, '""')}"`;
 }
 
-export function toCsv(rows: TenantOverviewRow[]): string {
-  const lines = [COLUMNS.map(escapeCell).join(",")];
+export function toCsv(
+  rows: TenantOverviewRow[],
+  words: TenantWords = tenantWords()
+): string {
+  const lines = [
+    COLUMNS.map((column) => escapeCell(words.say(`export.${column}`))).join(","),
+  ];
 
   for (const row of rows) {
     lines.push(
       [
         row.name,
-        TENANT_STATUS_LABEL[row.administratorActivationStatus],
+        words.status(row.administratorActivationStatus),
         row.initialAdministratorEmail ?? "",
-        row.invitationState ? INVITATION_LABEL[row.invitationState] : "",
-        row.lastDeliveryOutcome ? DELIVERY_LABEL[row.lastDeliveryOutcome] : "",
+        row.invitationState ? words.invitation(row.invitationState) : "",
+        row.lastDeliveryOutcome ? words.delivery(row.lastDeliveryOutcome) : "",
         row.modules.map(moduleLabel).join("; "),
         // ISO keeps the file sortable and unambiguous between locales, which a
         // rendered date would not be.

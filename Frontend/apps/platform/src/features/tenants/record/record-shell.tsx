@@ -9,6 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Ban, Check, Copy, MoreHorizontal, RotateCcw, SearchX } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
@@ -38,7 +39,8 @@ import {
 import { toast } from "sonner";
 import { cn } from "@repo/ds/lib/utils";
 import { PageContainer, PageEmpty, PageError, StatusBadge } from "@repo/ds/shell";
-import { failureKind, failureMessage, type TenantDetail } from "../api";
+import { failureKind, type TenantDetail } from "../api";
+import { useFailureDetail } from "../language";
 import { TenantMonogram } from "../overview/tenant-monogram";
 import { useTenantDetail, useTenantLifecycle } from "../queries";
 import {
@@ -168,6 +170,7 @@ export function TenantRecordShell({
  * fact sheet; they live in the Overview profile.
  */
 function RecordHeader({ tenant }: { tenant: TenantDetail }) {
+  const t = useTranslations("record");
   return (
     <header className="mb-6 flex min-w-0 items-center gap-4 sm:gap-5">
       <TenantMonogram
@@ -181,7 +184,7 @@ function RecordHeader({ tenant }: { tenant: TenantDetail }) {
             {tenant.name}
           </h1>
           <StatusBadge tone={tenant.isActive ? "success" : "neutral"} dot>
-            {tenant.isActive ? "Active" : "Deactivated"}
+            {tenant.isActive ? t("status.active") : t("status.deactivated")}
           </StatusBadge>
         </div>
 
@@ -216,6 +219,8 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
   const [running, setRunning] = useState(false);
   const deactivate = useTenantLifecycle("deactivate");
   const reactivate = useTenantLifecycle("reactivate");
+  const t = useTranslations("record");
+  const failureDetail = useFailureDetail();
 
   return (
     <>
@@ -224,7 +229,7 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
           <Button
             variant="outline"
             size="icon"
-            aria-label="Tenant actions"
+            aria-label={t("menu.label")}
             className="size-9 shrink-0 self-start text-muted-foreground"
           >
             <MoreHorizontal aria-hidden="true" className="size-4" />
@@ -239,7 +244,7 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
             }}
           >
             <Copy />
-            Copy tenant ID
+            {t("menu.copyId")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {tenant.isActive ? (
@@ -248,7 +253,7 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
               onSelect={() => setConfirmOpen(true)}
             >
               <Ban />
-              Deactivate tenant
+              {t("menu.deactivate")}
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem
@@ -259,20 +264,20 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
                 void reactivate
                   .mutateAsync(tenant.tenantId)
                   .then(() =>
-                    toast.success("Tenant reactivated", {
-                      description: `${tenant.name} is active again and available to its users.`,
+                    toast.success(t("toast.reactivated"), {
+                      description: t("toast.reactivatedBody", { name: tenant.name }),
                     })
                   )
                   .catch((error) =>
-                    toast.error("Couldn't reactivate the tenant", {
-                      description: failureMessage(error) ?? undefined,
+                    toast.error(t("toast.reactivateFailed"), {
+                      description: failureDetail(error),
                     })
                   )
                   .finally(() => setRunning(false));
               }}
             >
               <RotateCcw />
-              Reactivate tenant
+              {t("menu.reactivate")}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -281,15 +286,12 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate {tenant.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Its users will no longer be able to sign in to Fusion. All tenant
-              data is kept, and you can reactivate the tenant at any time.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("deactivate.title", { name: tenant.name })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deactivate.description")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={running || deactivate.isLoading}>
-              Cancel
+              {t("deactivate.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
@@ -301,23 +303,23 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
                   .mutateAsync(tenant.tenantId)
                   .then(() => {
                     setConfirmOpen(false);
-                    toast.success("Tenant deactivated", {
-                      description: `${tenant.name}'s users can no longer sign in to Fusion.`,
+                    toast.success(t("toast.deactivated"), {
+                      description: t("toast.deactivatedBody", { name: tenant.name }),
                     });
                   })
                   .catch((error) => {
                     // The record refetches on settle; the dialog stays open so
                     // the operator sees the attempt did not take.
-                    toast.error("Couldn't deactivate the tenant", {
-                      description: failureMessage(error) ?? undefined,
+                    toast.error(t("toast.deactivateFailed"), {
+                      description: failureDetail(error),
                     });
                   })
                   .finally(() => setRunning(false));
               }}
             >
               {running || deactivate.isLoading
-                ? "Deactivating…"
-                : "Deactivate tenant"}
+                ? t("deactivate.pending")
+                : t("menu.deactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -335,6 +337,7 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
  * is short enough to read, so it is the control, not a label beside one.
  */
 function TenantKey({ slug }: { slug: string }) {
+  const t = useTranslations("record.key");
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -354,8 +357,8 @@ function TenantKey({ slug }: { slug: string }) {
           <button
             type="button"
             onClick={copy}
-            aria-label={copied ? "Tenant key copied" : `Copy tenant key ${slug}`}
-            className="group -ml-1 inline-flex min-h-7 items-center gap-1.5 rounded-control px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+            aria-label={copied ? t("copied") : t("copy", { slug })}
+            className="group -ms-1 inline-flex min-h-7 items-center gap-1.5 rounded-control px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
           >
             <span className="font-mono">{slug}</span>
             {copied ? (
@@ -371,7 +374,7 @@ function TenantKey({ slug }: { slug: string }) {
             )}
           </button>
         </TooltipTrigger>
-        <TooltipContent>{copied ? "Copied" : "Copy tenant key"}</TooltipContent>
+        <TooltipContent>{copied ? t("copiedShort") : t("tooltip")}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -393,10 +396,11 @@ function RecordNavigation({
   query: string;
 }) {
   const pathname = usePathname();
+  const t = useTranslations("record");
 
   return (
     <nav
-      aria-label="Tenant record"
+      aria-label={t("navigation")}
       // overflow-y-hidden explicitly: setting one axis to auto makes the other
       // auto too, which let the strip scroll vertically by a stray pixel.
       className="-mx-6 mb-6 overflow-x-auto overflow-y-hidden border-b border-border px-6"
@@ -425,7 +429,7 @@ function RecordNavigation({
                     : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
                 )}
               >
-                {destination.label}
+                {t(`destinations.${destination.id}`)}
               </Link>
             </li>
           );
@@ -448,6 +452,7 @@ export function TenantIdentifier({
   /** Off where the surrounding row already names the field. */
   showLabel?: boolean;
 }) {
+  const t = useTranslations("record.identifier");
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -465,13 +470,13 @@ export function TenantIdentifier({
   return (
     <TooltipProvider delayDuration={200}>
       <span className="inline-flex items-center gap-1.5">
-        {showLabel ? <span>Tenant ID</span> : null}
+        {showLabel ? <span>{t("label")}</span> : null}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               onClick={copy}
-              aria-label={copied ? "Tenant ID copied" : `Copy tenant ID ${tenantId}`}
+              aria-label={copied ? t("copied") : t("copy", { id: tenantId })}
               className="inline-flex min-h-7 min-w-7 items-center gap-1.5 rounded-control px-1 font-mono text-xs text-foreground transition-colors hover:text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
             >
               {shortened}
@@ -485,7 +490,7 @@ export function TenantIdentifier({
               )}
             </button>
           </TooltipTrigger>
-          <TooltipContent>{copied ? "Copied" : tenantId}</TooltipContent>
+          <TooltipContent>{copied ? t("copiedShort") : tenantId}</TooltipContent>
         </Tooltip>
       </span>
     </TooltipProvider>
@@ -493,6 +498,8 @@ export function TenantIdentifier({
 }
 
 function RecordFailure({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  const t = useTranslations("record.failure");
+  const common = useTranslations("tenants.common");
   const kind = failureKind(error);
 
   if (kind === "not-found") {
@@ -500,11 +507,11 @@ function RecordFailure({ error, onRetry }: { error: Error; onRetry: () => void }
       <PageEmpty
         headingLevel={1}
         icon={SearchX}
-        title="Tenant not found"
-        description="This tenant does not exist, or it was removed."
+        title={t("notFound")}
+        description={t("notFoundDescription")}
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href="/tenants">Back to Tenants</Link>
+            <Link href="/tenants">{t("back")}</Link>
           </Button>
         }
       />
@@ -514,15 +521,9 @@ function RecordFailure({ error, onRetry }: { error: Error; onRetry: () => void }
   return (
     <PageError
       headingLevel={1}
-      title={
-        kind === "permission"
-          ? "You no longer have Platform access"
-          : "This tenant could not be loaded"
-      }
+      title={kind === "permission" ? common("noAccess") : t("title")}
       description={
-        kind === "permission"
-          ? "Your Platform administration access has changed. Sign in again to continue."
-          : "The tenant record is unavailable right now. Nothing about the tenant has changed."
+        kind === "permission" ? common("permissionChanged") : t("description")
       }
       onRetry={kind === "permission" ? undefined : onRetry}
     />
@@ -531,8 +532,9 @@ function RecordFailure({ error, onRetry }: { error: Error; onRetry: () => void }
 
 /** Holds the record's real shape — header, destinations, then content. */
 function RecordSkeleton() {
+  const t = useTranslations("record");
   return (
-    <div aria-busy aria-label="Loading tenant">
+    <div aria-busy aria-label={t("loading")}>
       <div className="mb-6 flex items-center gap-5">
         <Skeleton className="size-16 shrink-0 rounded-surface" />
         <div className="flex-1">
@@ -619,7 +621,7 @@ function HandoffSkeleton() {
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-3 w-24" />
         </div>
-        <Skeleton className="ml-auto h-8 w-32 rounded-control" />
+        <Skeleton className="ms-auto h-8 w-32 rounded-control" />
       </div>
     </div>
   );
@@ -635,7 +637,7 @@ function ProductsSkeleton() {
           <li key={index} className="flex items-center gap-4 px-4 py-3">
             <Skeleton className="size-5 shrink-0 rounded-detail" />
             <Skeleton className="h-4 w-28" />
-            <Skeleton className="ml-auto h-5 w-20 rounded-full" />
+            <Skeleton className="ms-auto h-5 w-20 rounded-full" />
           </li>
         ))}
       </ul>

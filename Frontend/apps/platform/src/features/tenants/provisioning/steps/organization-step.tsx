@@ -1,11 +1,13 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 import { Building2, Lightbulb } from "@/lib/icons";
 import { Input } from "@repo/ds/components/ui/input";
 import { Textarea } from "@repo/ds/components/ui/textarea";
 import { Field, describedBy } from "../field";
-import { INDUSTRY_OPTIONS } from "../industry-options";
+import { industryOptions } from "../industry-options";
 import { SearchableSelect } from "../searchable-select";
 import { StepPanel } from "./step-panel";
 import type { ProvisioningStepProps } from "./types";
@@ -35,6 +37,9 @@ export function OrganizationStep({
   // The slug follows the name until the operator writes their own, at which
   // point it is theirs to control and the suggestion stops overwriting it.
   const slugEdited = useRef(draft.tenantSlug.length > 0);
+  const t = useTranslations("provisioning.organization");
+  const say = useSay("provisioning");
+  const industries = useMemo(() => industryOptions(say), [say]);
 
   function onNameChange(value: string) {
     update("name", value);
@@ -53,22 +58,22 @@ export function OrganizationStep({
   return (
     <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
       <StepPanel
-        title="Organization details"
-        description="Provide the basic information for the new tenant workspace."
+        title={t("title")}
+        description={t("description")}
         className="h-full"
       >
         <div className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
               id="tenant-name"
-              label="Tenant name"
+              label={t("name")}
               required
               error={errors.name}
             >
               <Input
                 id="tenant-name"
                 value={draft.name}
-                placeholder="e.g. Acme Corporation"
+                placeholder={t("namePlaceholder")}
                 autoComplete="organization"
                 onChange={(event) => onNameChange(event.target.value)}
                 onBlur={() => validateField("name")}
@@ -82,14 +87,14 @@ export function OrganizationStep({
 
             <Field
               id="tenant-slug"
-              label="Tenant slug"
+              label={t("slug")}
               required
               error={errors.tenantSlug}
             >
               <Input
                 id="tenant-slug"
                 value={draft.tenantSlug}
-                placeholder="e.g. acme"
+                placeholder={t("slugPlaceholder")}
                 spellCheck={false}
                 onChange={(event) => onSlugChange(event.target.value)}
                 onBlur={() => validateField("tenantSlug")}
@@ -103,36 +108,36 @@ export function OrganizationStep({
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field id="legal-entity-name" label="Legal entity name (optional)">
+            <Field id="legal-entity-name" label={t("legalEntity")}>
               <Input
                 id="legal-entity-name"
                 value={draft.legalEntityName}
-                placeholder="e.g. Acme Corporation Ltd."
+                placeholder={t("legalEntityPlaceholder")}
                 onChange={(event) =>
                   update("legalEntityName", event.target.value)
                 }
               />
             </Field>
 
-            <Field id="tenant-industry" label="Industry (optional)">
+            <Field id="tenant-industry" label={t("industry")}>
               <SearchableSelect
                 id="tenant-industry"
-                options={INDUSTRY_OPTIONS}
+                options={industries}
                 value={draft.industry}
-                placeholder="Select an industry"
-                searchPlaceholder="Search industries"
-                emptyMessage="No industry matches."
+                placeholder={t("industryPlaceholder")}
+                searchPlaceholder={t("industrySearch")}
+                emptyMessage={t("industryEmpty")}
                 onChange={(value) => update("industry", value)}
               />
             </Field>
           </div>
 
-          <Field id="short-description" label="Short description (optional)">
+          <Field id="short-description" label={t("shortDescription")}>
             <div className="relative">
               <Textarea
                 id="short-description"
                 value={draft.shortDescription}
-                placeholder="e.g. Global headquarters workspace for Acme Corporation."
+                placeholder={t("shortDescriptionPlaceholder")}
                 rows={3}
                 maxLength={DESCRIPTION_LIMIT}
                 className="resize-none pb-6"
@@ -140,7 +145,7 @@ export function OrganizationStep({
                   update("shortDescription", event.target.value)
                 }
               />
-              <span className="pointer-events-none absolute bottom-2 right-3 text-xs tabular-nums text-muted-foreground">
+              <span className="pointer-events-none absolute bottom-2 inset-e-3 text-xs tabular-nums text-muted-foreground">
                 {descriptionLength}/{DESCRIPTION_LIMIT}
               </span>
             </div>
@@ -156,14 +161,11 @@ export function OrganizationStep({
             </span>
             <div className="min-w-0">
               <h3 className="type-subsection-title text-foreground">
-                About tenant setup
+                {t("about.title")}
               </h3>
             </div>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Each tenant is a separate workspace with its own users, data, and
-            configuration. You can provision multiple tenants.
-          </p>
+          <p className="mt-3 text-sm text-muted-foreground">{t("about.body")}</p>
         </div>
 
         <div className="border-t border-border" />
@@ -172,15 +174,15 @@ export function OrganizationStep({
           <div className="mb-3 flex items-center gap-2">
             <Lightbulb aria-hidden="true" className="size-6 text-primary-ink" />
             <h3 className="type-subsection-title text-foreground">
-              Naming guidance
+              {t("naming.title")}
             </h3>
           </div>
           <ul className="space-y-3 text-sm text-muted-foreground">
             {[
-              "Choose a clear, recognizable name.",
-              "The tenant slug must be unique.",
-              "Use lowercase letters, numbers, and hyphens only.",
-              "You can always update these details later.",
+              t("naming.clear"),
+              t("naming.unique"),
+              t("naming.characters"),
+              t("naming.later"),
             ].map((item) => (
               <li key={item} className="flex gap-2">
                 <span

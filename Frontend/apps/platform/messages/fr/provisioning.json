@@ -1,0 +1,234 @@
+{
+  "title": "Créer une organisation",
+  "description": "Configurez une nouvelle organisation cliente.",
+  "back": "Organisations",
+  "required": "(obligatoire)",
+  "fieldRejected": "Cette valeur a été refusée. Corrigez-la et réessayez.",
+  "toast": {
+    "provisioned": "Organisation créée",
+    "ready": "{name} est prête.",
+    "readyInvited": "{name} est prête. {invitee} a reçu une invitation en tant qu’administrateur de l’organisation.",
+    "failed": "Organisation non créée",
+    "failedDescription": "La demande n’a pas abouti. Vérifiez les informations ci-dessous et réessayez."
+  },
+  "discard": {
+    "title": "Abandonner cette organisation ?",
+    "description": "Rien n’a encore été créé. Si vous quittez maintenant, ce que vous avez saisi sera perdu.",
+    "keep": "Continuer la saisie",
+    "leave": "Abandonner et quitter"
+  },
+  "steps": {
+    "progress": "Progression de la création",
+    "organization": "Organisation",
+    "region-products": "Région et produits",
+    "initial-admin": "Administrateur initial",
+    "review": "Vérification"
+  },
+  "navigation": {
+    "back": "Retour",
+    "continue": "Continuer"
+  },
+  "failure": {
+    "permission": "Votre accès à l’administration Platform a changé. Reconnectez-vous pour créer une organisation.",
+    "validation": "La demande a été refusée avant toute création. Vos saisies sont conservées.",
+    "conflict": "Cette demande entre en conflit avec une demande déjà enregistrée.",
+    "unavailable": "La création n’a pas abouti et son résultat est inconnu. Envoyez-la de nouveau sans rien modifier : cette nouvelle tentative est sans risque et ne créera pas de deuxième organisation. Si l’échec persiste, vérifiez la liste des organisations avant de saisir d’autres informations.",
+    "unexpected": "La création n’a pas abouti et son résultat est inconnu. Envoyez-la de nouveau sans rien modifier : cette nouvelle tentative est sans risque et ne créera pas de deuxième organisation."
+  },
+  "validation": {
+    "nameRequired": "Saisissez le nom de l’organisation.",
+    "nameLength": "Le nom de l’organisation doit comporter de 2 à 100 caractères.",
+    "slugRequired": "Saisissez l’identifiant de l’organisation.",
+    "slugPattern": "Utilisez uniquement des minuscules, des chiffres et des tirets.",
+    "timeZoneRequired": "Choisissez un fuseau horaire.",
+    "firstNameRequired": "Saisissez le prénom de l’administrateur.",
+    "firstNameLength": "Le prénom doit comporter 100 caractères au maximum.",
+    "lastNameRequired": "Saisissez le nom de l’administrateur.",
+    "lastNameLength": "Le nom doit comporter 100 caractères au maximum.",
+    "emailRequired": "Saisissez l’adresse e-mail de l’administrateur initial.",
+    "emailInvalid": "Saisissez une adresse e-mail valide."
+  },
+  "serverErrors": {
+    "name_invalid": "Le nom de l’organisation doit comporter de 2 à 100 caractères.",
+    "duplicate_name": "Une organisation porte déjà ce nom.",
+    "time_zone_required": "Choisissez un fuseau horaire.",
+    "time_zone_unsupported": "Ce fuseau horaire n’est pas pris en charge.",
+    "locale_unsupported": "Cette langue n’est pas prise en charge.",
+    "administrator_email_invalid": "Saisissez une adresse e-mail valide."
+  },
+  "industries": {
+    "notSpecified": "Non précisé",
+    "technology": "Technologies et logiciels",
+    "financial": "Services financiers",
+    "healthcare": "Santé et sciences de la vie",
+    "manufacturing": "Industrie manufacturière",
+    "retail": "Commerce et biens de consommation",
+    "professional": "Services professionnels",
+    "education": "Éducation",
+    "government": "Administration et secteur public",
+    "energy": "Énergie et services publics",
+    "construction": "Construction et immobilier",
+    "transportation": "Transport et logistique",
+    "media": "Médias et divertissement",
+    "hospitality": "Hôtellerie et tourisme",
+    "telecommunications": "Télécommunications",
+    "nonprofit": "Associations et ONG",
+    "agriculture": "Agriculture",
+    "other": "Autre"
+  },
+  "adminRoles": {
+    "tenant-hr-admin": {
+      "label": "Administrateur RH de l’organisation",
+      "hint": "Ce rôle dispose d’un accès administrateur complet dans l’organisation.",
+      "summary": "Accès administrateur complet pour gérer les paramètres, les utilisateurs, les produits et plus encore dans l’organisation."
+    },
+    "hr-manager": {
+      "label": "Responsable RH",
+      "hint": "Gère les collaborateurs et les dossiers RH, sans la configuration de l’organisation.",
+      "summary": "Gère les collaborateurs, la structure de l’organisation et les dossiers RH, sans accès aux paramètres généraux de l’organisation."
+    },
+    "read-only": {
+      "label": "Auditeur en lecture seule",
+      "hint": "Consulte les dossiers de toute l’organisation, sans rien modifier.",
+      "summary": "Consultation de toute l’organisation pour revue et audit, sans possibilité de modification."
+    }
+  },
+  "moduleDescriptions": {
+    "core": "Socle des collaborateurs et de l’organisation",
+    "performance": "Objectifs, évaluations et feedback",
+    "learning": "Formation et intégration",
+    "recruitment": "Processus de recrutement",
+    "onboarding": "Parcours des nouveaux arrivants",
+    "interview": "Évaluation des candidats"
+  },
+  "timeZoneRegions": {
+    "Africa": "Afrique",
+    "America": "Amérique",
+    "Antarctica": "Antarctique",
+    "Arctic": "Arctique",
+    "Asia": "Asie",
+    "Atlantic": "Atlantique",
+    "Australia": "Australie",
+    "Europe": "Europe",
+    "Indian": "Océan Indien",
+    "Pacific": "Pacifique",
+    "Other": "Autres"
+  },
+  "organization": {
+    "title": "Informations sur l’organisation",
+    "description": "Renseignez les informations de base du nouvel espace de l’organisation.",
+    "name": "Nom de l’organisation",
+    "namePlaceholder": "ex. Acme Corporation",
+    "slug": "Identifiant de l’organisation",
+    "slugPlaceholder": "ex. acme",
+    "legalEntity": "Raison sociale (facultatif)",
+    "legalEntityPlaceholder": "ex. Acme Corporation SARL",
+    "industry": "Secteur d’activité (facultatif)",
+    "industryPlaceholder": "Choisissez un secteur",
+    "industrySearch": "Rechercher un secteur",
+    "industryEmpty": "Aucun secteur ne correspond.",
+    "shortDescription": "Description courte (facultatif)",
+    "shortDescriptionPlaceholder": "ex. Espace du siège mondial d’Acme Corporation.",
+    "about": {
+      "title": "À propos de la création d’une organisation",
+      "body": "Chaque organisation est un espace distinct, avec ses propres utilisateurs, données et paramètres. Vous pouvez créer plusieurs organisations."
+    },
+    "naming": {
+      "title": "Conseils de nommage",
+      "clear": "Choisissez un nom clair et reconnaissable.",
+      "unique": "L’identifiant de l’organisation doit être unique.",
+      "characters": "Utilisez uniquement des minuscules, des chiffres et des tirets.",
+      "later": "Vous pourrez modifier ces informations plus tard."
+    }
+  },
+  "region": {
+    "title": "Région et paramètres par défaut",
+    "description": "Ces paramètres définissent les valeurs par défaut de l’organisation.",
+    "country": "Pays ou région",
+    "countryPlaceholder": "Choisissez un pays",
+    "countrySearch": "Rechercher un pays ou une région",
+    "countryEmpty": "Aucun pays ne correspond.",
+    "timeZone": "Fuseau horaire",
+    "timeZonePlaceholder": "Choisissez un fuseau horaire",
+    "timeZoneSearch": "Rechercher une ville, une région ou un décalage",
+    "timeZoneEmpty": "Aucun fuseau horaire ne correspond.",
+    "language": "Langue par défaut",
+    "languagePlaceholder": "Choisissez une langue",
+    "languageSearch": "Rechercher une langue, un pays ou un code",
+    "languageEmpty": "Aucune langue ne correspond.",
+    "platformDefault": "Utiliser la langue de la plateforme",
+    "dateFormat": "Format de date",
+    "dateFormatPlaceholder": "Choisissez un format de date",
+    "dateFormatSearch": "Rechercher un format de date",
+    "dateFormatEmpty": "Aucun format ne correspond.",
+    "products": {
+      "title": "Produits activés",
+      "description": "Choisissez les produits Fusion à activer pour cette organisation.",
+      "about": "À propos des produits",
+      "aboutBody": "Core HR est inclus dans chaque organisation. Les produits indiqués comme indisponibles ne sont pas encore proposés.",
+      "required": "Obligatoire",
+      "enable": "Activer {module}",
+      "unavailable": "{module} indisponible"
+    }
+  },
+  "admin": {
+    "title": "Administrateur initial",
+    "description": "Cette personne recevra une invitation pour accéder à la nouvelle organisation et terminer sa configuration.",
+    "firstName": "Prénom",
+    "firstNamePlaceholder": "ex. Jean",
+    "lastName": "Nom",
+    "lastNamePlaceholder": "ex. Dupont",
+    "email": "Adresse e-mail professionnelle",
+    "emailHint": "Une invitation sera envoyée à cette adresse.",
+    "emailPlaceholder": "ex. jean.dupont@acmecorp.com",
+    "role": "Rôle",
+    "rolePlaceholder": "Choisissez un rôle",
+    "roleSearch": "Rechercher un rôle",
+    "roleEmpty": "Aucun rôle ne correspond.",
+    "sendNow": "Envoyer l’invitation tout de suite",
+    "sendOn": "Un e-mail d’invitation sera envoyé dès la création de l’organisation.",
+    "sendOff": "L’invitation pourra être envoyée plus tard depuis les administrateurs de l’organisation.",
+    "receive": {
+      "title": "Que recevra cette personne ?",
+      "subtitle": "Après la création, Fusion va :",
+      "send": "Envoyer un e-mail d’invitation",
+      "prepare": "Préparer une invitation à envoyer plus tard",
+      "access": "Donner un premier accès à l’organisation",
+      "role": "Attribuer le rôle et les autorisations choisis",
+      "continue": "Lui permettre de poursuivre la configuration de l’organisation"
+    },
+    "roleSummary": "Résumé du rôle"
+  },
+  "review": {
+    "platformDefault": "Langue de la plateforme",
+    "legalEntity": "Raison sociale",
+    "industry": "Secteur d’activité",
+    "region": "Région et valeurs par défaut",
+    "productsLoading": "Chargement des produits…",
+    "name": "Nom",
+    "invitation": "Invitation",
+    "sendNow": "Envoyer tout de suite",
+    "sendLater": "Envoyer plus tard",
+    "ready": "Prête à être créée",
+    "almostReady": "Presque prête",
+    "readyBody": "Tout est en ordre. Vérifiez les informations et créez l’organisation.",
+    "almostReadyBody": "Complétez les informations obligatoires pour pouvoir créer l’organisation.",
+    "happen": {
+      "title": "Que va-t-il se passer ?",
+      "workspace": "Créer l’espace de l’organisation",
+      "defaults": "Appliquer les paramètres régionaux",
+      "products": "Activer les produits choisis",
+      "administrator": "Créer l’administrateur initial",
+      "send": "Envoyer l’e-mail d’invitation",
+      "prepare": "Préparer l’invitation à envoyer plus tard"
+    },
+    "summary": "Résumé",
+    "enabledProducts": "{count, plural, one {# produit activé} other {# produits activés}}",
+    "regionLine": "Région : {country}",
+    "administrators": "{count, plural, one {# administrateur} other {# administrateurs}}",
+    "notSet": "Non renseigné",
+    "later": "Vous pourrez gérer les produits et les paramètres de l’organisation plus tard.",
+    "edit": "Modifier",
+    "enabled": "Activé"
+  }
+}

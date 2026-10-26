@@ -11,7 +11,8 @@
 export interface RecordDestination {
   /** Appended to the tenant route. Empty is the record's base destination. */
   segment: string;
-  label: string;
+  /** Names it in the `record.destinations` catalogue. */
+  id: "overview" | "access" | "products" | "activity";
 }
 
 /**
@@ -26,10 +27,10 @@ export interface RecordDestination {
  * as empty tabs.
  */
 export const RECORD_DESTINATIONS: RecordDestination[] = [
-  { segment: "", label: "Overview" },
-  { segment: "access", label: "Access" },
-  { segment: "products", label: "Products" },
-  { segment: "activity", label: "Activity" },
+  { segment: "", id: "overview" },
+  { segment: "access", id: "access" },
+  { segment: "products", id: "products" },
+  { segment: "activity", id: "activity" },
 ];
 
 /** The tenant's base route, which is also its Overview destination. */

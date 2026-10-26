@@ -1,0 +1,195 @@
+{
+  "common": {
+    "permissionChanged": "Your Platform administration access has changed. Sign in again to continue.",
+    "accessChanged": "Your Platform administration access has changed.",
+    "noAccess": "You no longer have Platform access",
+    "retry": "Retry"
+  },
+  "status": {
+    "AwaitingAdministratorActivation": "Awaiting administrator activation",
+    "Active": "Active"
+  },
+  "invitation": {
+    "Pending": "Pending",
+    "Accepted": "Accepted",
+    "Expired": "Expired",
+    "Revoked": "Revoked",
+    "Superseded": "Replaced"
+  },
+  "delivery": {
+    "Sent": "Sent",
+    "Failed": "Delivery failed"
+  },
+  "event": {
+    "TenantProvisioned": "Tenant provisioned",
+    "InvitationResent": "Invitation resent",
+    "InvitationRevoked": "Invitation revoked",
+    "InvitationReplaced": "Invited email replaced",
+    "InvitationReissued": "Invitation reissued",
+    "ActivationRejected": "Activation rejected",
+    "BootstrapCompleted": "Administrator activated",
+    "TenantDeactivated": "Tenant deactivated",
+    "TenantReactivated": "Tenant reactivated",
+    "TenantProfileChanged": "Tenant profile updated",
+    "deliveryFailed": "Invitation delivery failed",
+    "deliverySent": "Invitation sent",
+    "unknown": "Tenant activity"
+  },
+  "recovery": {
+    "resend": "Resend invitation",
+    "revoke": "Revoke invitation",
+    "replace": "Replace invited email",
+    "reissue": "Reissue invitation"
+  },
+  "availability": {
+    "notAvailable": "Not available in this build",
+    "notConnected": "Not connected in this build"
+  },
+  "ago": {
+    "moments": "moments ago",
+    "minutes": "{count, plural, one {# minute ago} other {# minutes ago}}",
+    "hours": "{count, plural, one {# hour ago} other {# hours ago}}",
+    "days": "{count, plural, one {# day ago} other {# days ago}}"
+  },
+  "recoveryDialog": {
+    "revoke": {
+      "title": "Revoke invitation?",
+      "consequence": "The current invitation will no longer be usable. This tenant will have no active administrator invitation."
+    },
+    "replace": {
+      "title": "Replace invited email",
+      "consequence": "Replacing the email invalidates the current invitation and creates a new invitation."
+    },
+    "reissue": {
+      "title": "Reissue invitation?",
+      "consequence": "A new invitation with a new expiry will be created."
+    },
+    "emailInvalid": "Enter a valid email address.",
+    "emailSame": "Enter an address different from the current one.",
+    "currentEmail": "Current email",
+    "invitationFor": "Invitation for",
+    "sendsTo": "Sends to",
+    "newEmail": "New administrator email",
+    "cancel": "Cancel",
+    "failure": {
+      "conflict": "The invitation changed before this action ran. The tenant has been refreshed to its current state.",
+      "notFound": "This invitation no longer exists. The tenant has been refreshed.",
+      "unavailable": "The service is unavailable right now. Nothing was changed — try again shortly.",
+      "unexpected": "The action could not be completed."
+    }
+  },
+  "rowActions": {
+    "actionsFor": "Actions for {name}",
+    "viewTenant": "View tenant",
+    "viewActivity": "View activity",
+    "notAvailable": "Not available"
+  },
+  "modules": {
+    "none": "None",
+    "show": "{count, plural, one {Show the enabled module} other {Show the # enabled modules}}",
+    "enabledCount": "<n>{count}</n> enabled",
+    "enabled": "Enabled modules",
+    "included": "Included",
+    "enabledOne": "Enabled"
+  },
+  "activation": {
+    "activated": "Administrator activated",
+    "noInvitation": "No invitation recorded",
+    "notSent": "Not sent",
+    "reissueRequired": "Reissue required"
+  },
+  "export": {
+    "tenant": "Tenant",
+    "status": "Tenant status",
+    "administrator": "Initial administrator",
+    "invitation": "Invitation status",
+    "delivery": "Delivery outcome",
+    "modules": "Enabled modules",
+    "created": "Created"
+  },
+  "narrative": {
+    "TenantProvisioned": "{tenant} was provisioned successfully.",
+    "deliveryFailed": "The administrator invitation for {tenant} could not be delivered.",
+    "deliverySent": "The administrator invitation for {tenant} was sent.",
+    "InvitationResent": "The administrator invitation for {tenant} was sent again.",
+    "InvitationRevoked": "The administrator invitation for {tenant} was revoked.",
+    "InvitationReplaced": "The nominated administrator for {tenant} was replaced.",
+    "InvitationReissued": "A new administrator invitation was issued for {tenant}.",
+    "BootstrapCompleted": "{tenant} completed administrator activation.",
+    "ActivationRejected": "An activation attempt for {tenant} was rejected.",
+    "unknown": "An update was recorded for {tenant}."
+  },
+  "timestamp": {
+    "today": "Today at {time}",
+    "yesterday": "Yesterday at {time}"
+  },
+  "activity": {
+    "title": "Recent tenant activity",
+    "description": "Latest provisioning and administrator-activation events across customer tenants.",
+    "auditLog": "View full audit log",
+    "empty": "No tenant activity has been recorded yet.",
+    "loading": "Loading recent tenant activity",
+    "failed": "Recent activity could not be loaded."
+  },
+  "summary": {
+    "group": "Filter tenants by lifecycle",
+    "All": {
+      "label": "Total tenants",
+      "meaning": "All customer environments"
+    },
+    "AwaitingActivation": {
+      "label": "Awaiting activation",
+      "meaning": "Waiting for invited administrators"
+    },
+    "Active": {
+      "label": "Active",
+      "meaning": "Administrator access established"
+    },
+    "NeedsAttention": {
+      "label": "Needs attention",
+      "meaning": "Invitation recovery required"
+    }
+  },
+  "overview": {
+    "title": "Tenants",
+    "description": "Manage customer tenants, entitlements, and administrator activation.",
+    "provision": "Provision tenant",
+    "search": "Search tenants or emails",
+    "noResults": "No tenant matches the current search and filters",
+    "noun": {
+      "one": "tenant",
+      "other": "tenants"
+    },
+    "filters": {
+      "activation": "Activation",
+      "module": "Module",
+      "created": "Created"
+    },
+    "activationOptions": {
+      "AwaitingActivation": "Awaiting activation",
+      "Active": "Active",
+      "NeedsAttention": "Needs attention"
+    },
+    "columns": {
+      "tenant": "Tenant",
+      "activation": "Activation",
+      "modules": "Modules",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "administratorNotRecorded": "Administrator not recorded",
+    "export": {
+      "failed": "Export failed. Try again.",
+      "label": "Export the matching tenants as CSV",
+      "button": "Export"
+    },
+    "empty": {
+      "title": "No tenants yet",
+      "description": "No customer tenant has been provisioned."
+    },
+    "failure": {
+      "title": "Tenants could not be loaded",
+      "description": "The tenant list is unavailable right now. Your tenants are unaffected."
+    }
+  }
+}

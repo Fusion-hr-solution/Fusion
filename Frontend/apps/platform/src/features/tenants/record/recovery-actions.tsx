@@ -11,7 +11,7 @@ import {
 } from "@repo/ds/components/ui/dropdown-menu";
 import { AsyncButton } from "@repo/ds/shell";
 import type { BootstrapInvitationSummary, RecoveryAction } from "../api";
-import { recoveryLabel } from "../language";
+import { tenantWords } from "../language";
 import { useInvitationRecovery } from "../queries";
 import {
   ConfirmRecoveryDialog,
@@ -19,6 +19,9 @@ import {
   RecoveryFailure,
 } from "../recovery-dialog";
 import type { ActivationPhase } from "./activation-progression";
+
+// An unrouted reference component, kept for the record's tab redesign; it reads in English until then.
+const ENGLISH = tenantWords();
 
 /**
  * The recoveries this state permits, ranked by what the state actually needs.
@@ -228,7 +231,7 @@ export function RecoveryActions({
                   variant={action === "revoke" ? "destructive" : "default"}
                 >
                   <Icon aria-hidden="true" className="size-4" />
-                  {recoveryLabel(action)}
+                  {ENGLISH.recovery(action)}
                 </DropdownMenuItem>
               );
             })}
@@ -279,7 +282,7 @@ function ActionButton({
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   const Icon = RECOVERY_ICON[action];
-  const label = recoveryLabel(action);
+  const label = ENGLISH.recovery(action);
 
   return (
     <AsyncButton

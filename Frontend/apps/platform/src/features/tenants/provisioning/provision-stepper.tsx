@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Check } from "@/lib/icons";
 import {
   Stepper,
@@ -14,13 +15,14 @@ import {
 /**
  * The four decisions provisioning is broken into, in the order they are made.
  * The identifiers are stable so navigation, validation, and analytics can refer
- * to a step by name rather than by position.
+ * to a step by name rather than by position; each is labelled by its
+ * `provisioning.steps.<id>` line.
  */
 export const PROVISIONING_STEPS = [
-  { id: "organization", label: "Organization" },
-  { id: "region-products", label: "Region & products" },
-  { id: "initial-admin", label: "Initial admin" },
-  { id: "review", label: "Review" },
+  { id: "organization" },
+  { id: "region-products" },
+  { id: "initial-admin" },
+  { id: "review" },
 ] as const;
 
 export type ProvisioningStepId = (typeof PROVISIONING_STEPS)[number]["id"];
@@ -44,6 +46,7 @@ export function ProvisioningStepper({
   onStepChange?: (step: number) => void;
   className?: string;
 }) {
+  const t = useTranslations("provisioning.steps");
   return (
     <Stepper
       // reui counts steps from 1; the workspace speaks in 0-based indexes.
@@ -52,7 +55,7 @@ export function ProvisioningStepper({
       indicators={{ completed: <Check className="size-3.5" /> }}
       className={className}
     >
-      <StepperNav aria-label="Provisioning progress" className="justify-center">
+      <StepperNav aria-label={t("progress")} className="justify-center">
         {PROVISIONING_STEPS.map((step, index) => (
           <StepperItem key={step.id} step={index + 1} className="relative !flex-none">
             <StepperTrigger className="gap-2.5">
@@ -62,7 +65,7 @@ export function ProvisioningStepper({
               {/* Only the active label survives on narrow screens, so the row
                   never overflows; the numbers still carry the sequence. */}
               <StepperTitle className="hidden whitespace-nowrap data-[state=active]:inline data-[state=active]:text-primary-ink data-[state=inactive]:text-muted-foreground md:inline">
-                {step.label}
+                {t(step.id)}
               </StepperTitle>
             </StepperTrigger>
 

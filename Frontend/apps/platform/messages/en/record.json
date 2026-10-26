@@ -1,0 +1,170 @@
+{
+  "status": {
+    "active": "Active",
+    "deactivated": "Deactivated"
+  },
+  "menu": {
+    "label": "Tenant actions",
+    "copyId": "Copy tenant ID",
+    "deactivate": "Deactivate tenant",
+    "reactivate": "Reactivate tenant"
+  },
+  "toast": {
+    "reactivated": "Tenant reactivated",
+    "reactivatedBody": "{name} is active again and available to its users.",
+    "reactivateFailed": "Couldn't reactivate the tenant",
+    "deactivated": "Tenant deactivated",
+    "deactivatedBody": "{name}'s users can no longer sign in to Fusion.",
+    "deactivateFailed": "Couldn't deactivate the tenant"
+  },
+  "deactivate": {
+    "title": "Deactivate {name}?",
+    "description": "Its users will no longer be able to sign in to Fusion. All tenant data is kept, and you can reactivate the tenant at any time.",
+    "cancel": "Cancel",
+    "pending": "Deactivating…"
+  },
+  "key": {
+    "copied": "Tenant key copied",
+    "copy": "Copy tenant key {slug}",
+    "copiedShort": "Copied",
+    "tooltip": "Copy tenant key"
+  },
+  "navigation": "Tenant record",
+  "destinations": {
+    "overview": "Overview",
+    "access": "Access",
+    "products": "Products",
+    "activity": "Activity"
+  },
+  "identifier": {
+    "label": "Tenant ID",
+    "copied": "Tenant ID copied",
+    "copy": "Copy tenant ID {id}",
+    "copiedShort": "Copied"
+  },
+  "failure": {
+    "notFound": "Tenant not found",
+    "notFoundDescription": "This tenant does not exist, or it was removed.",
+    "back": "Back to Tenants",
+    "title": "This tenant could not be loaded",
+    "description": "The tenant record is unavailable right now. Nothing about the tenant has changed."
+  },
+  "loading": "Loading tenant",
+  "lifecycle": {
+    "label": "Tenant lifecycle",
+    "active": "Tenant is active",
+    "activeDescription": "This tenant is active and available to authorized users.",
+    "deactivated": "Tenant is deactivated",
+    "deactivatedDescription": "Customer users cannot currently access Fusion. Existing tenant data is retained.",
+    "reactivating": "Reactivating…"
+  },
+  "handoff": {
+    "title": "Administrative handoff",
+    "complete": "Handoff complete",
+    "working": "Working…",
+    "sendNew": "Send new invitation",
+    "toast": {
+      "newSent": "New invitation sent",
+      "newSentDescription": "A fresh onboarding invitation is on its way to the administrator.",
+      "resent": "Invitation resent",
+      "resentDescription": "The onboarding invitation has been sent again.",
+      "newFailed": "Couldn't send a new invitation",
+      "resendFailed": "Couldn't resend the invitation"
+    },
+    "recoveryRequired": {
+      "description": "No usable tenant administrator can currently sign in.",
+      "label": "Recovery required",
+      "meta": "Administrative continuity needs attention",
+      "action": "Initiate recovery"
+    },
+    "recoveryPending": {
+      "description": "Administrative access is being restored.",
+      "label": "Recovery pending",
+      "meta": "Recovery invitation sent to {recipient}",
+      "action": "Resend recovery invitation"
+    },
+    "active": {
+      "description": "Administrative control has been transferred to the customer.",
+      "label": "Active",
+      "meta": "Accepted {date}"
+    },
+    "deliveryFailed": {
+      "description": "The tenant is active, but the invitation was not delivered.",
+      "label": "Delivery failed",
+      "meta": "Last attempt {date}"
+    },
+    "pending": {
+      "description": "Control is being transferred to the customer administrator.",
+      "label": "Invitation pending",
+      "meta": "Sent {ago}"
+    },
+    "expired": {
+      "description": "The invitation expired before the administrator completed onboarding.",
+      "label": "Invitation expired",
+      "meta": "Expired {date}"
+    },
+    "revoked": {
+      "description": "The invitation was revoked before it was accepted.",
+      "label": "Invitation revoked"
+    },
+    "awaiting": {
+      "description": "Control has not yet been transferred to the customer.",
+      "label": "Awaiting administrator",
+      "action": "View access"
+    },
+    "person": {
+      "fallback": "Tenant administrator",
+      "role": "Tenant HR Administrator"
+    }
+  },
+  "products": {
+    "title": "Products",
+    "description": "Product access for this tenant.",
+    "manage": "Manage products",
+    "states": {
+      "Included": "Included",
+      "Enabled": "Enabled",
+      "Disabled": "Disabled"
+    }
+  },
+  "profile": {
+    "title": "Tenant profile",
+    "edit": "Edit",
+    "name": "Organization name",
+    "industry": "Industry",
+    "notSpecified": "Not specified",
+    "timeZone": "Default timezone",
+    "locale": "Default locale",
+    "provisioned": "Provisioned",
+    "rename": {
+      "title": "Rename tenant",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "save": "Save changes",
+      "done": "Tenant renamed",
+      "doneDescription": "The organization is now “{name}”.",
+      "failed": "Couldn't rename the tenant"
+    }
+  },
+  "activity": {
+    "title": "Recent activity",
+    "view": "View activity",
+    "empty": "No activity recorded yet.",
+    "describe": {
+      "TenantProvisioned": "Tenant created and configuration completed.",
+      "deliveryFailed": "The administrator invitation could not be delivered.",
+      "deliverySent": "The administrator invitation was sent.",
+      "InvitationResent": "The administrator invitation was sent again.",
+      "InvitationRevoked": "The administrator invitation was revoked.",
+      "InvitationReplaced": "The nominated administrator was replaced.",
+      "InvitationReissued": "A new administrator invitation was issued.",
+      "BootstrapCompleted": "The administrator completed activation.",
+      "ActivationRejected": "An activation attempt was rejected.",
+      "TenantDeactivated": "Customer access was disabled.",
+      "TenantReactivated": "Customer access was restored.",
+      "TenantProfileChanged": "The tenant profile was updated.",
+      "failed": "The update did not complete.",
+      "recorded": "An update was recorded."
+    }
+  }
+}

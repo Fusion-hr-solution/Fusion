@@ -9,11 +9,13 @@ import {
 } from "./record-ui";
 import {
   CapabilityList,
-  NOT_AVAILABLE,
-  NOT_CONNECTED,
 } from "../availability";
 import { useTenantRecord } from "./record-shell";
+import { tenantWords } from "../language";
 import { coreSetupState, hasEstablishedAccess } from "./tenant-record-facts";
+
+// An unrouted reference component, kept for the record's tab redesign; it reads in English until then.
+const ENGLISH = tenantWords();
 
 /**
  * How the tenant is running, as far as Platform is authorised and able to see.
@@ -41,7 +43,7 @@ export function TenantOperationsDestination() {
         <StatusGrid columns={3}>
           <StatusBlock
             label="Core HR setup"
-            value={setup ?? NOT_CONNECTED}
+            value={setup ?? ENGLISH.notConnected}
             tone={setup ? "default" : "muted"}
             hint={setup ? undefined : "Core HR owns this state."}
           />
@@ -80,11 +82,11 @@ export function TenantOperationsDestination() {
       >
         <div className="space-y-4">
           <CapabilityList
-            state={NOT_CONNECTED}
+            state={ENGLISH.notConnected}
             items={["Usage and capacity", "Last customer activity"]}
           />
           <CapabilityList
-            state={NOT_AVAILABLE}
+            state={ENGLISH.notAvailable}
             items={["Integrations and synchronization", "Imports and processing jobs"]}
           />
         </div>

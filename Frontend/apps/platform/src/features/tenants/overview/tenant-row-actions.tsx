@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ExternalLink, History, MoreHorizontal, UserPen } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
@@ -20,7 +21,7 @@ import {
 } from "@repo/ds/components/ui/tooltip";
 import type { LucideIcon } from "@/lib/icons";
 import type { RecoveryAction, TenantOverviewRow } from "../api";
-import { recoveryLabel } from "../language";
+import { useTenantWords } from "../language";
 import { useInvitationRecovery } from "../queries";
 import { ConfirmRecoveryDialog, RECOVERY_ICON } from "../recovery-dialog";
 
@@ -58,6 +59,8 @@ export function TenantRowActions({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const resend = useInvitationRecovery("resend");
+  const t = useTranslations("tenants.rowActions");
+  const words = useTenantWords();
 
   const invitationId = row.bootstrapInvitationId;
   const recoveries = invitationId ? row.allowedActions : [];
@@ -80,7 +83,7 @@ export function TenantRowActions({
             ref={triggerRef}
             variant="ghost"
             size="icon-sm"
-            aria-label={`Actions for ${row.name}`}
+            aria-label={t("actionsFor", { name: row.name })}
             className="text-muted-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
           >
             {resend.isLoading ? (
@@ -95,14 +98,14 @@ export function TenantRowActions({
           <DropdownMenuItem asChild className="gap-2">
             <Link href={`/tenants/${row.tenantId}`}>
               <ExternalLink aria-hidden="true" className="size-4" />
-              View tenant
+              {t("viewTenant")}
             </Link>
           </DropdownMenuItem>
 
           {/* Planned, and deliberately visible so the shape of the finished
               menu is legible now. It cannot be triggered: the tenant record has
               no addressable activity destination yet. */}
-          <NotConnectedItem icon={History} label="View activity" />
+          <NotConnectedItem icon={History} label={t("viewActivity")} />
 
           {recoveries.length > 0 || showsPlannedReplace ? (
             <DropdownMenuSeparator />
@@ -133,7 +136,7 @@ export function TenantRowActions({
                 }}
               >
                 <Icon aria-hidden="true" className="size-4" />
-                {recoveryLabel(action)}
+                {words.recovery(action)}
               </DropdownMenuItem>
             );
           })}
@@ -143,7 +146,7 @@ export function TenantRowActions({
               in this state. It is shown unavailable rather than omitted, so the
               gap stays visible instead of being rediscovered later. */}
           {showsPlannedReplace ? (
-            <NotConnectedItem icon={UserPen} label="Replace invited email" />
+            <NotConnectedItem icon={UserPen} label={words.recovery("replace")} />
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -186,6 +189,8 @@ function NotConnectedItem({
   icon: LucideIcon;
   label: string;
 }) {
+  const t = useTranslations("tenants.rowActions");
+  const words = useTenantWords();
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
@@ -202,12 +207,12 @@ function NotConnectedItem({
           >
             <Icon aria-hidden="true" className="size-4 shrink-0" />
             <span className="whitespace-nowrap">{label}</span>
-            <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground/70">
-              Not available
+            <span className="ms-auto whitespace-nowrap text-xs text-muted-foreground/70">
+              {t("notAvailable")}
             </span>
           </DropdownMenuItem>
         </TooltipTrigger>
-        <TooltipContent side="left">Not connected in this build</TooltipContent>
+        <TooltipContent side="left">{words.notConnected}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

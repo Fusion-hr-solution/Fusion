@@ -1,0 +1,195 @@
+{
+  "common": {
+    "permissionChanged": "Votre accès à l’administration Platform a changé. Reconnectez-vous pour continuer.",
+    "accessChanged": "Votre accès à l’administration Platform a changé.",
+    "noAccess": "Vous n’avez plus accès à Platform",
+    "retry": "Réessayer"
+  },
+  "status": {
+    "AwaitingAdministratorActivation": "En attente d’activation de l’administrateur",
+    "Active": "Active"
+  },
+  "invitation": {
+    "Pending": "En attente",
+    "Accepted": "Acceptée",
+    "Expired": "Expirée",
+    "Revoked": "Révoquée",
+    "Superseded": "Remplacée"
+  },
+  "delivery": {
+    "Sent": "Envoyée",
+    "Failed": "Échec de l’envoi"
+  },
+  "event": {
+    "TenantProvisioned": "Organisation créée",
+    "InvitationResent": "Invitation renvoyée",
+    "InvitationRevoked": "Invitation révoquée",
+    "InvitationReplaced": "Adresse invitée remplacée",
+    "InvitationReissued": "Invitation réémise",
+    "ActivationRejected": "Activation refusée",
+    "BootstrapCompleted": "Administrateur activé",
+    "TenantDeactivated": "Organisation désactivée",
+    "TenantReactivated": "Organisation réactivée",
+    "TenantProfileChanged": "Profil de l’organisation modifié",
+    "deliveryFailed": "Échec de l’envoi de l’invitation",
+    "deliverySent": "Invitation envoyée",
+    "unknown": "Activité de l’organisation"
+  },
+  "recovery": {
+    "resend": "Renvoyer l’invitation",
+    "revoke": "Révoquer l’invitation",
+    "replace": "Remplacer l’adresse invitée",
+    "reissue": "Réémettre l’invitation"
+  },
+  "availability": {
+    "notAvailable": "Pas encore disponible",
+    "notConnected": "Pas encore connecté"
+  },
+  "ago": {
+    "moments": "à l’instant",
+    "minutes": "il y a {count, plural, one {# minute} other {# minutes}}",
+    "hours": "il y a {count, plural, one {# heure} other {# heures}}",
+    "days": "il y a {count, plural, one {# jour} other {# jours}}"
+  },
+  "recoveryDialog": {
+    "revoke": {
+      "title": "Révoquer l’invitation ?",
+      "consequence": "L’invitation actuelle ne pourra plus être utilisée. Cette organisation n’aura plus d’invitation d’administrateur active."
+    },
+    "replace": {
+      "title": "Remplacer l’adresse invitée",
+      "consequence": "Remplacer l’adresse annule l’invitation actuelle et en crée une nouvelle."
+    },
+    "reissue": {
+      "title": "Réémettre l’invitation ?",
+      "consequence": "Une nouvelle invitation sera créée, avec une nouvelle date d’expiration."
+    },
+    "emailInvalid": "Saisissez une adresse e-mail valide.",
+    "emailSame": "Saisissez une adresse différente de l’adresse actuelle.",
+    "currentEmail": "Adresse actuelle",
+    "invitationFor": "Invitation pour",
+    "sendsTo": "Envoi à",
+    "newEmail": "Nouvelle adresse e-mail de l’administrateur",
+    "cancel": "Annuler",
+    "failure": {
+      "conflict": "L’invitation a changé avant cette action. L’organisation a été actualisée.",
+      "notFound": "Cette invitation n’existe plus. L’organisation a été actualisée.",
+      "unavailable": "Le service est indisponible pour le moment. Rien n’a été modifié ; réessayez dans un instant.",
+      "unexpected": "L’action n’a pas pu aboutir."
+    }
+  },
+  "rowActions": {
+    "actionsFor": "Actions pour {name}",
+    "viewTenant": "Voir l’organisation",
+    "viewActivity": "Voir l’activité",
+    "notAvailable": "Indisponible"
+  },
+  "modules": {
+    "none": "Aucun",
+    "show": "{count, plural, one {Afficher le module activé} other {Afficher les # modules activés}}",
+    "enabledCount": "{count, plural, one {<n>#</n> activé} other {<n>#</n> activés}}",
+    "enabled": "Modules activés",
+    "included": "Inclus",
+    "enabledOne": "Activé"
+  },
+  "activation": {
+    "activated": "Administrateur activé",
+    "noInvitation": "Aucune invitation enregistrée",
+    "notSent": "Non envoyée",
+    "reissueRequired": "À réémettre"
+  },
+  "export": {
+    "tenant": "Organisation",
+    "status": "Statut de l’organisation",
+    "administrator": "Administrateur initial",
+    "invitation": "Statut de l’invitation",
+    "delivery": "Résultat de l’envoi",
+    "modules": "Modules activés",
+    "created": "Créée le"
+  },
+  "narrative": {
+    "TenantProvisioned": "{tenant} a été créée.",
+    "deliveryFailed": "L’invitation de l’administrateur de {tenant} n’a pas pu être remise.",
+    "deliverySent": "L’invitation de l’administrateur de {tenant} a été envoyée.",
+    "InvitationResent": "L’invitation de l’administrateur de {tenant} a été renvoyée.",
+    "InvitationRevoked": "L’invitation de l’administrateur de {tenant} a été révoquée.",
+    "InvitationReplaced": "L’administrateur désigné pour {tenant} a été remplacé.",
+    "InvitationReissued": "Une nouvelle invitation d’administrateur a été émise pour {tenant}.",
+    "BootstrapCompleted": "{tenant} a terminé l’activation de son administrateur.",
+    "ActivationRejected": "Une tentative d’activation pour {tenant} a été refusée.",
+    "unknown": "Une modification a été enregistrée pour {tenant}."
+  },
+  "timestamp": {
+    "today": "Aujourd’hui à {time}",
+    "yesterday": "Hier à {time}"
+  },
+  "activity": {
+    "title": "Activité récente des organisations",
+    "description": "Dernières créations d’organisations et activations d’administrateurs.",
+    "auditLog": "Voir le journal d’audit complet",
+    "empty": "Aucune activité n’a encore été enregistrée.",
+    "loading": "Chargement de l’activité récente",
+    "failed": "Échec du chargement de l’activité récente."
+  },
+  "summary": {
+    "group": "Filtrer les organisations par étape",
+    "All": {
+      "label": "Organisations",
+      "meaning": "Tous les environnements clients"
+    },
+    "AwaitingActivation": {
+      "label": "En attente d’activation",
+      "meaning": "Invitations en attente"
+    },
+    "Active": {
+      "label": "Actives",
+      "meaning": "Accès administrateur établi"
+    },
+    "NeedsAttention": {
+      "label": "À traiter",
+      "meaning": "Invitation à rétablir"
+    }
+  },
+  "overview": {
+    "title": "Organisations",
+    "description": "Gérez les organisations clientes, leurs modules et l’activation de leur administrateur.",
+    "provision": "Créer une organisation",
+    "search": "Organisation ou e-mail",
+    "noResults": "Aucune organisation ne correspond à la recherche et aux filtres",
+    "noun": {
+      "one": "organisation",
+      "other": "organisations"
+    },
+    "filters": {
+      "activation": "Activation",
+      "module": "Module",
+      "created": "Création"
+    },
+    "activationOptions": {
+      "AwaitingActivation": "En attente d’activation",
+      "Active": "Active",
+      "NeedsAttention": "À traiter"
+    },
+    "columns": {
+      "tenant": "Organisation",
+      "activation": "Activation",
+      "modules": "Modules",
+      "created": "Créée le",
+      "actions": "Actions"
+    },
+    "administratorNotRecorded": "Administrateur non renseigné",
+    "export": {
+      "failed": "Échec de l’export. Réessayez.",
+      "label": "Exporter les organisations correspondantes en CSV",
+      "button": "Exporter"
+    },
+    "empty": {
+      "title": "Aucune organisation pour l’instant",
+      "description": "Aucune organisation cliente n’a encore été créée."
+    },
+    "failure": {
+      "title": "Échec du chargement des organisations",
+      "description": "La liste des organisations est indisponible pour le moment. Vos organisations ne sont pas affectées."
+    }
+  }
+}

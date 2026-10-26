@@ -1,3 +1,5 @@
+import { dateFormatter, formatLocale } from "@repo/ds/lib/dates";
+
 /**
  * Bounded regional choices for provisioning.
  *
@@ -23,33 +25,43 @@ export interface LocaleOption {
 }
 
 /** The locales Fusion presents its product language in. */
-export const LOCALE_OPTIONS: LocaleOption[] = [
-  {
-    value: PLATFORM_DEFAULT_LOCALE,
-    label: "Use platform default",
-    keywords: "platform default inherit standard",
-  },
-  {
-    value: "en-US",
-    label: "English (United States)",
-    keywords: "english united states us american en-US",
-  },
-  {
-    value: "en-GB",
-    label: "English (United Kingdom)",
-    keywords: "english united kingdom gb britain british en-GB",
-  },
-  {
-    value: "fr-FR",
-    label: "French (France)",
-    keywords: "french france français fr-FR",
-  },
-  {
-    value: "ar-TN",
-    label: "Arabic (Tunisia)",
-    keywords: "arabic tunisia tunisie العربية ar-TN",
-  },
+const LOCALES: Omit<LocaleOption, "label">[] = [
+  { value: "en-US", keywords: "english united states us american en-US" },
+  { value: "en-GB", keywords: "english united kingdom gb britain british en-GB" },
+  { value: "fr-FR", keywords: "french france français fr-FR" },
+  { value: "ar-TN", keywords: "arabic tunisia tunisie العربية ar-TN" },
 ];
+
+/**
+ * A locale's name in the person's language ("English (United States)",
+ * "Anglais (États-Unis)"), from the runtime rather than a table.
+ */
+export function localeName(value: string, language = "en"): string {
+  try {
+    const name = new Intl.DisplayNames([formatLocale(language)], {
+      type: "language",
+      languageDisplay: "standard",
+    }).of(value);
+    return name ? name.charAt(0).toLocaleUpperCase(formatLocale(language)) + name.slice(1) : value;
+  } catch {
+    return value;
+  }
+}
+
+/** The choices, the platform's own default first; `platformDefault` is its label in the person's language. */
+export function localeOptions(platformDefault: string, language = "en"): LocaleOption[] {
+  return [
+    {
+      value: PLATFORM_DEFAULT_LOCALE,
+      label: platformDefault,
+      keywords: `platform default inherit standard ${platformDefault}`,
+    },
+    ...LOCALES.map((locale) => {
+      const label = localeName(locale.value, language);
+      return { ...locale, label, keywords: `${locale.keywords} ${label}` };
+    }),
+  ];
+}
 
 /**
  * The zone's current offset from UTC, which is how an operator who does not
@@ -61,7 +73,7 @@ export function timeZoneOffset(zone: string): string {
     // `longOffset` gives a padded, uniform form — "GMT+01:00" rather than
     // "GMT+1" — so offsets align down the list and a search for "UTC+09"
     // matches as readily as "UTC+9".
-    const formatted = new Intl.DateTimeFormat("en-US", {
+    const formatted = dateFormatter({
       timeZone: zone,
       timeZoneName: "longOffset",
     })
@@ -125,8 +137,8 @@ export function labelForTimeZone(zone: string): string {
   return zone.replace(/_/g, " ");
 }
 
-export function labelForLocale(value: string): string {
-  return LOCALE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+export function labelForLocale(value: string, language = "en"): string {
+  return LOCALES.some((option) => option.value === value) ? localeName(value, language) : value;
 }
 
 export interface TimeZoneOption {

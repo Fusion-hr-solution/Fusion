@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   BarChart3,
   BookOpen,
@@ -55,6 +56,7 @@ const PRODUCTS: ProductDefinition[] = [
 interface ProductRow {
   key: string;
   label: string;
+  /** Worded by `record.products.states`. */
   state: "Included" | "Enabled" | "Disabled";
   tone: StatusTone;
   icon: LucideIcon;
@@ -62,6 +64,7 @@ interface ProductRow {
 
 export function TenantProducts() {
   const { tenant, query } = useTenantRecord();
+  const t = useTranslations("record.products");
 
   const rows: ProductRow[] = PRODUCTS.map((product) => {
     const enabled = product.module
@@ -88,15 +91,13 @@ export function TenantProducts() {
       <div className="flex flex-wrap items-center gap-3">
         <Layers aria-hidden="true" className="size-8 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-foreground">Products</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Product access for this tenant.
-          </p>
+          <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">{t("description")}</p>
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href={`${destinationHref(tenant.tenantId, "products")}${query}`}>
             <Settings2 aria-hidden="true" />
-            Manage products
+            {t("manage")}
           </Link>
         </Button>
       </div>
@@ -122,7 +123,7 @@ export function TenantProducts() {
               {row.label}
             </span>
             <StatusBadge tone={row.tone} dot>
-              {row.state}
+              {t(`states.${row.state}`)}
             </StatusBadge>
           </li>
         ))}

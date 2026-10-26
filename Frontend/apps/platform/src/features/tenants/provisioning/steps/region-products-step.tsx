@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 import { Info, Lock } from "@/lib/icons";
 import { Switch } from "@repo/ds/components/ui/switch";
 import {
@@ -16,14 +18,29 @@ import {
   buildModuleOptions,
   type ProvisioningModuleOption,
 } from "../module-catalogue";
-import { LOCALE_OPTIONS, timeZoneOptions } from "../provisioning-options";
+import { localeOptions, timeZoneOptions } from "../provisioning-options";
 import {
-  COUNTRY_OPTIONS,
-  DATE_FORMAT_OPTIONS,
+  countryOptions,
+  dateFormatOptions,
 } from "../regional-presentation-options";
 import { SearchableSelect } from "../searchable-select";
 import { StepPanel } from "./step-panel";
 import type { ProvisioningStepProps } from "./types";
+
+/** The IANA regions worded by `provisioning.timeZoneRegions`; any other reads as named. */
+const TIME_ZONE_REGIONS = new Set([
+  "Africa",
+  "America",
+  "Antarctica",
+  "Arctic",
+  "Asia",
+  "Atlantic",
+  "Australia",
+  "Europe",
+  "Indian",
+  "Pacific",
+  "Other",
+]);
 
 /**
  * Where the tenant operates and what it may use, as two decisions side by side:
@@ -37,10 +54,13 @@ export function RegionProductsStep({
   validateField,
   toggleModule,
 }: ProvisioningStepProps) {
+  const t = useTranslations("provisioning.region");
+  const say = useSay("provisioning");
+  const language = useLocale();
   const catalogue = useProvisionableModules();
   const options = useMemo(
-    () => buildModuleOptions(catalogue.data ?? []),
-    [catalogue.data]
+    () => buildModuleOptions(catalogue.data ?? [], say),
+    [catalogue.data, say]
   );
 
   // Several hundred zones whose offsets do not move while the form is open, so
@@ -52,21 +72,25 @@ export function RegionProductsStep({
         label: zone.label,
         detail: zone.offset,
         keywords: zone.keywords,
-        group: zone.region,
+        group: TIME_ZONE_REGIONS.has(zone.region)
+          ? say(`timeZoneRegions.${zone.region}`)
+          : zone.region,
       })),
-    []
+    [say]
   );
 
-  const localeOptions = useMemo(
+  const languages = useMemo(
     () =>
-      LOCALE_OPTIONS.map((locale) => ({
+      localeOptions(t("platformDefault"), language).map((locale) => ({
         value: locale.value,
         label: locale.label,
         detail: locale.value || undefined,
         keywords: `${locale.keywords} ${locale.value}`,
       })),
-    []
+    [t, language]
   );
+  const countries = useMemo(() => countryOptions(language), [language]);
+  const dateFormats = useMemo(() => dateFormatOptions(language), [language]);
 
   return (
     // The settings column is the narrower of the two, giving the products room
@@ -74,26 +98,26 @@ export function RegionProductsStep({
     // align.
     <div className="grid items-stretch gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <StepPanel
-        title="Region and default settings"
-        description="These settings define the tenant's defaults."
+        title={t("title")}
+        description={t("description")}
         className="h-full"
       >
         <div className="space-y-5">
-          <Field id="tenant-country" label="Country / region">
+          <Field id="tenant-country" label={t("country")}>
             <SearchableSelect
               id="tenant-country"
-              options={COUNTRY_OPTIONS}
+              options={countries}
               value={draft.country}
-              placeholder="Select a country"
-              searchPlaceholder="Search country or region"
-              emptyMessage="No country matches."
+              placeholder={t("countryPlaceholder")}
+              searchPlaceholder={t("countrySearch")}
+              emptyMessage={t("countryEmpty")}
               onChange={(value) => update("country", value)}
             />
           </Field>
 
           <Field
             id="tenant-time-zone"
-            label="Time zone"
+            label={t("timeZone")}
             required
             error={undefined}
           >
@@ -101,34 +125,34 @@ export function RegionProductsStep({
               id="tenant-time-zone"
               options={zoneOptions}
               value={draft.timeZone}
-              placeholder="Select a time zone"
-              searchPlaceholder="Search city, region or offset"
-              emptyMessage="No time zone matches."
+              placeholder={t("timeZonePlaceholder")}
+              searchPlaceholder={t("timeZoneSearch")}
+              emptyMessage={t("timeZoneEmpty")}
               onChange={(value) => update("timeZone", value)}
               onBlur={() => validateField("timeZone")}
             />
           </Field>
 
-          <Field id="tenant-locale" label="Default language">
+          <Field id="tenant-locale" label={t("language")}>
             <SearchableSelect
               id="tenant-locale"
-              options={localeOptions}
+              options={languages}
               value={draft.locale}
-              placeholder="Select a language"
-              searchPlaceholder="Search language, country or code"
-              emptyMessage="No language matches."
+              placeholder={t("languagePlaceholder")}
+              searchPlaceholder={t("languageSearch")}
+              emptyMessage={t("languageEmpty")}
               onChange={(value) => update("locale", value)}
             />
           </Field>
 
-          <Field id="tenant-date-format" label="Date format">
+          <Field id="tenant-date-format" label={t("dateFormat")}>
             <SearchableSelect
               id="tenant-date-format"
-              options={DATE_FORMAT_OPTIONS}
+              options={dateFormats}
               value={draft.dateFormat}
-              placeholder="Select a date format"
-              searchPlaceholder="Search date format"
-              emptyMessage="No format matches."
+              placeholder={t("dateFormatPlaceholder")}
+              searchPlaceholder={t("dateFormatSearch")}
+              emptyMessage={t("dateFormatEmpty")}
               onChange={(value) => update("dateFormat", value)}
             />
           </Field>
@@ -136,23 +160,20 @@ export function RegionProductsStep({
       </StepPanel>
 
       <StepPanel
-        title="Product entitlements"
-        description="Select the Fusion products to enable for this tenant."
+        title={t("products.title")}
+        description={t("products.description")}
         className="h-full"
         action={
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger
                 type="button"
-                aria-label="About product entitlements"
+                aria-label={t("products.about")}
                 className="flex size-7 items-center justify-center rounded-full text-primary-ink transition-colors hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <Info aria-hidden="true" className="size-4" />
               </TooltipTrigger>
-              <TooltipContent side="left">
-                Core HR is included with every tenant. Products marked
-                unavailable aren&rsquo;t offered in this build yet.
-              </TooltipContent>
+              <TooltipContent side="left">{t("products.aboutBody")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         }
@@ -183,6 +204,7 @@ export function RegionProductsStep({
  * part of the tenant.
  */
 function IncludedModuleCard({ option }: { option: ProvisioningModuleOption }) {
+  const t = useTranslations("provisioning.region.products");
   const Icon = option.icon;
 
   return (
@@ -197,7 +219,7 @@ function IncludedModuleCard({ option }: { option: ProvisioningModuleOption }) {
             {option.label}
           </h3>
           <span className="rounded-full bg-primary-tint px-2 py-0.5 text-xs font-medium text-primary-ink">
-            Required
+            {t("required")}
           </span>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -227,6 +249,7 @@ function ModuleToggleRow({
   selected: boolean;
   onToggle: (next: boolean) => void;
 }) {
+  const t = useTranslations("provisioning.region.products");
   const Icon = option.icon;
   const available = option.availability === "selectable";
   // An enabled product carries the same amber treatment as the included one, so
@@ -269,7 +292,9 @@ function ModuleToggleRow({
         onCheckedChange={available ? onToggle : undefined}
         disabled={!available}
         aria-label={
-          available ? `Enable ${option.label}` : `${option.label} unavailable`
+          available
+            ? t("enable", { module: option.label })
+            : t("unavailable", { module: option.label })
         }
         className="mt-0.5"
       />

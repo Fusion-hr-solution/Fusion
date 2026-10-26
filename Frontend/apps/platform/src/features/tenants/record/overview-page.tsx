@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { CircleCheck, PowerOff } from "@/lib/icons";
 import { toast } from "sonner";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
-import { failureMessage } from "../api";
+import { useFailureDetail } from "../language";
 import { useTenantLifecycle } from "../queries";
 import { AdminHandoff } from "./admin-handoff";
 import { TenantProducts } from "./products-summary";
@@ -63,11 +64,13 @@ function LifecycleBanner() {
   // after that awaited invalidation.
   const [reactivating, setReactivating] = useState(false);
   const busy = reactivating || reactivate.isLoading;
+  const t = useTranslations("record");
+  const failureDetail = useFailureDetail();
 
   if (tenant.isActive) {
     return (
       <section
-        aria-label="Tenant lifecycle"
+        aria-label={t("lifecycle.label")}
         className="flex items-center gap-4 rounded-surface border border-success/25 bg-gradient-to-r from-success-subtle to-transparent px-5 py-4 mb-3"
       >
         <BannerIcon tone="success">
@@ -75,10 +78,10 @@ function LifecycleBanner() {
         </BannerIcon>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-foreground">
-            Tenant is active
+            {t("lifecycle.active")}
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            This tenant is active and available to authorized users.
+            {t("lifecycle.activeDescription")}
           </p>
         </div>
       </section>
@@ -87,7 +90,7 @@ function LifecycleBanner() {
 
   return (
     <section
-      aria-label="Tenant lifecycle"
+      aria-label={t("lifecycle.label")}
       className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-surface border border-destructive/25 bg-gradient-to-r from-destructive/10 to-transparent px-5 py-4"
     >
       <BannerIcon tone="destructive">
@@ -95,11 +98,10 @@ function LifecycleBanner() {
       </BannerIcon>
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-semibold text-foreground">
-          Tenant is deactivated
+          {t("lifecycle.deactivated")}
         </h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Customer users cannot currently access Fusion. Existing tenant data is
-          retained.
+          {t("lifecycle.deactivatedDescription")}
         </p>
       </div>
       <Button
@@ -110,12 +112,12 @@ function LifecycleBanner() {
           setReactivating(true);
           try {
             await reactivate.mutateAsync(tenant.tenantId);
-            toast.success("Tenant reactivated", {
-              description: `${tenant.name} is active again and available to its users.`,
+            toast.success(t("toast.reactivated"), {
+              description: t("toast.reactivatedBody", { name: tenant.name }),
             });
           } catch (error) {
-            toast.error("Couldn't reactivate the tenant", {
-              description: failureMessage(error) ?? undefined,
+            toast.error(t("toast.reactivateFailed"), {
+              description: failureDetail(error),
             });
           } finally {
             setReactivating(false);
@@ -123,7 +125,7 @@ function LifecycleBanner() {
         }}
         className="shrink-0"
       >
-        {busy ? "Reactivating…" : "Reactivate tenant"}
+        {busy ? t("lifecycle.reactivating") : t("menu.reactivate")}
       </Button>
     </section>
   );

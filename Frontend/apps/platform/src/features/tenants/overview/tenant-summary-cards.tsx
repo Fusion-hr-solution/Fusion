@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Building2,
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
 import type { LucideIcon } from "@/lib/icons";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
+import { useFormat } from "@repo/ds/lib/use-format";
 import type { OverviewFilter, TenantOverviewCounts } from "../api";
 
 /**
@@ -29,10 +31,9 @@ import type { OverviewFilter, TenantOverviewCounts } from "../api";
  * into four copies of the same tile.
  */
 
+/** Each card's label and meaning are `tenants.summary.<filter>` lines. */
 interface Summary {
   filter: OverviewFilter;
-  label: string;
-  meaning: string;
   icon: LucideIcon;
   /** A second, smaller glyph for the metadata line. */
   meaningIcon: LucideIcon;
@@ -43,8 +44,6 @@ interface Summary {
 const SUMMARIES: Summary[] = [
   {
     filter: "All",
-    label: "Total tenants",
-    meaning: "All customer environments",
     icon: Building2,
     meaningIcon: Layers,
     // The platform's own accent: this is the whole estate, not a condition.
@@ -52,8 +51,6 @@ const SUMMARIES: Summary[] = [
   },
   {
     filter: "AwaitingActivation",
-    label: "Awaiting activation",
-    meaning: "Waiting for invited administrators",
     icon: Hourglass,
     meaningIcon: Clock,
     // Warm but neutral — waiting on a recipient is the ordinary path, not a
@@ -62,16 +59,12 @@ const SUMMARIES: Summary[] = [
   },
   {
     filter: "Active",
-    label: "Active",
-    meaning: "Administrator access established",
     icon: CheckCircle2,
     meaningIcon: ShieldCheck,
     tile: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
   },
   {
     filter: "NeedsAttention",
-    label: "Needs attention",
-    meaning: "Invitation recovery required",
     icon: TriangleAlert,
     meaningIcon: Wrench,
     tile: "bg-destructive/15 text-destructive",
@@ -96,10 +89,11 @@ export function TenantSummaryCards({
   isLoading: boolean;
   onSelect: (filter: OverviewFilter) => void;
 }) {
+  const t = useTranslations("tenants.summary");
   return (
     <div
       role="group"
-      aria-label="Filter tenants by lifecycle"
+      aria-label={t("group")}
       className="mb-6 grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4"
     >
       {SUMMARIES.map((summary) => (
@@ -129,6 +123,8 @@ function SummaryCard({
   isLoading: boolean;
   onSelect: () => void;
 }) {
+  const t = useTranslations("tenants.summary");
+  const format = useFormat();
   const Icon = summary.icon;
   const MeaningIcon = summary.meaningIcon;
   // Attention earns emphasis only when there is something to attend to;
@@ -141,7 +137,7 @@ function SummaryCard({
       onClick={onSelect}
       aria-pressed={isSelected}
       className={cn(
-        "group flex h-full flex-col rounded-surface border p-[22px] text-left",
+        "group flex h-full flex-col rounded-surface border p-[22px] text-start",
         "transition-[background-color,border-color,box-shadow] duration-150",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         isSelected
@@ -159,7 +155,7 @@ function SummaryCard({
     >
       <span className="flex items-start justify-between gap-3">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {summary.label}
+          {t(`${summary.filter}.label`)}
         </span>
         <span
           className={cn(
@@ -182,14 +178,14 @@ function SummaryCard({
               isRaised ? "text-destructive" : "text-foreground"
             )}
           >
-            {count}
+            {format.count(count)}
           </span>
         )}
       </span>
 
       <span className="mt-auto flex items-center gap-1.5 pt-5 text-xs text-muted-foreground">
         <MeaningIcon aria-hidden="true" className="size-3.5 shrink-0 opacity-70" />
-        <span className="truncate">{summary.meaning}</span>
+        <span className="truncate">{t(`${summary.filter}.meaning`)}</span>
       </span>
     </button>
   );

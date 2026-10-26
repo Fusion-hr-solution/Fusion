@@ -11,7 +11,7 @@ import {
 } from "../provisioning/module-catalogue";
 import { useProvisionableModules } from "../queries";
 import { IconTile } from "./record-ui";
-import { NOT_AVAILABLE } from "../availability";
+import { tenantWords } from "../language";
 import { coreSetupState } from "./tenant-record-facts";
 
 /**
@@ -33,7 +33,7 @@ const STATE_LABEL: Record<EntitlementState, string> = {
   included: "Included",
   enabled: "Enabled",
   disabled: "Disabled",
-  unavailable: NOT_AVAILABLE,
+  unavailable: tenantWords().notAvailable,
 };
 
 export interface ModuleEntitlement {
