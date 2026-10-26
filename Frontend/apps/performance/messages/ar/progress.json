@@ -1,0 +1,135 @@
+{
+  "MeasurementEditor": {
+    "manualPercentage": "نسبة يدوية",
+    "updateProgressAsAPercentage": "حدّث التقدم كنسبة مئوية طوال الدورة.",
+    "numericTarget": "هدف رقمي",
+    "defineATargetWithA": "حدّد هدفًا بقيمة بداية ونهاية رقمية.",
+    "weightedMilestones": "مراحل موزونة",
+    "breakTheObjectiveIntoMilestones": "قسّم الهدف إلى مراحل بأوزان محددة.",
+    "youllUpdateProgressAsA": "ستحدّث التقدم كنسبة مئوية خلال الدورة."
+  },
+  "NumericTargetEditor": {
+    "enterANumberPutA": "أدخل رقمًا — ضع تسمية مثل M€ أو % في حقل الوحدة.",
+    "baselineAndTargetMustDiffer": "يجب أن تختلف قيمة البداية عن الهدف.",
+    "baseline": "البداية",
+    "target": "الهدف",
+    "unit": "الوحدة",
+    "direction": "الاتجاه",
+    "increase": "زيادة",
+    "decrease": "خفض"
+  },
+  "UnitCombobox": {
+    "percent": "نسبة مئوية (%)",
+    "usesAsACustomUnit": "يستخدم «{trim}» كوحدة مخصصة."
+  },
+  "MilestoneDue": {
+    "overdue": "متأخرة ·",
+    "due": "الاستحقاق"
+  },
+  "MilestoneEditor": {
+    "addMilestone": "إضافة مرحلة",
+    "over": "تجاوز بـ{value}%",
+    "toAllocate": "{remaining}% للتوزيع"
+  },
+  "SortableMilestoneRow": {
+    "reorderMilestone": "إعادة ترتيب المرحلة {value}",
+    "milestone": "المرحلة {value}",
+    "removeMilestone": "حذف المرحلة {value}"
+  },
+  "MilestoneDueDate": {
+    "dueDate": "تاريخ الاستحقاق",
+    "dueChangeTheDueDate": "مستحقة في {display}، غيّر تاريخ استحقاق {label}",
+    "setADueDateFor": "حدّد تاريخ استحقاق لـ{label}",
+    "outsideTheObjectivesDates": "خارج تواريخ الهدف",
+    "noDueDate": "بلا تاريخ استحقاق"
+  },
+  "MilestoneRail": {
+    "cycleMilestones": "مراحل الدورة",
+    "ofReached": "{reached} من {length} مُنجزة",
+    "next": "· التالية:"
+  },
+  "EvidenceUploader": {
+    "removeEvidence": "حذف الدليل",
+    "uploading": "جارٍ الرفع",
+    "attachFile": "إرفاق ملف",
+    "addLink": "إضافة رابط",
+    "https": "https://…",
+    "cancel": "إلغاء",
+    "uploadFailedTryAgain": "فشل الرفع. أعد المحاولة."
+  },
+  "ProgressHistoryTimeline": {
+    "showEarlierUpdates": "عرض التحديثات السابقة",
+    "noEarlierUpdates": "لا تحديثات سابقة",
+    "thisWasTheFirstProgress": "كان هذا أول تحديث للتقدم."
+  },
+  "HistoryRow": {
+    "file": "{length} ملف",
+    "files": "{length} ملفات",
+    "link": "{length} رابط",
+    "links": "{length} روابط",
+    "note": "ملاحظة",
+    "completed": "مكتملة ·",
+    "reopened": "أُعيد فتحها ·"
+  },
+  "ExpandedDetail": {
+    "note": "ملاحظة",
+    "evidence": "الأدلة ({length})"
+  },
+  "EvidenceRow": {
+    "attachmentRemovedUnderRetentionPolicy": "حُذف المرفق بموجب سياسة الاحتفاظ",
+    "opening": "جارٍ الفتح",
+    "open": "فتح"
+  },
+  "DeltaBadge": {
+    "correction": "· تصحيح"
+  },
+  "ValueForm": {
+    "newValue": "القيمة الجديدة",
+    "completion": "الإنجاز",
+    "baseline": "البداية",
+    "target": "الهدف",
+    "currentValue": "القيمة الحالية{value}",
+    "thisLowersTheLastReported": "هذا يخفض آخر قيمة مُبلّغ عنها — أضف ملاحظة قصيرة.",
+    "couldNotRecordProgress": "تعذّر تسجيل التقدم."
+  },
+  "MilestoneForm": {
+    "milestones": "المراحل",
+    "ofComplete": "من {total} مكتملة",
+    "wasOf": "كان {wasCompleted} من {total}",
+    "reopeningACompletedMilestoneAdd": "إعادة فتح مرحلة مكتملة — أضف ملاحظة قصيرة.",
+    "couldNotUpdateTheMilestones": "تعذّر تحديث المراحل.",
+    "new": "جديدة",
+    "reopened": "أُعيد فتحها"
+  },
+  "StatusPicker": {
+    "howItsGoing": "كيف تسير الأمور",
+    "OnTrack": "على المسار",
+    "AtRisk": "في خطر",
+    "OffTrack": "خارج المسار"
+  },
+  "NumberField": {
+    "increase": "زيادة",
+    "decrease": "خفض"
+  },
+  "DerivedCard": {
+    "from": "من {from}%"
+  },
+  "NoteField": {
+    "whatsInTheWay": "ما الذي يعيق التقدم",
+    "addANote": "إضافة ملاحظة",
+    "required": "(إلزامي)",
+    "optional": "(اختياري)",
+    "eGKeyActivitiesCompleted": "مثال: الأنشطة الرئيسية المنجزة، النتائج، أو السياق…"
+  },
+  "EvidenceField": {
+    "addEvidence": "إضافة دليل",
+    "optional": "(اختياري)"
+  },
+  "ValueDial": {
+    "notReportedYet": "لم يُبلّغ بعد",
+    "reset": "إعادة تعيين",
+    "decrease": "خفض",
+    "increase": "زيادة",
+    "last": "الأخيرة"
+  }
+}

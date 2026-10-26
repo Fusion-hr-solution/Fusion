@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { ApiError } from "@repo/api";
 import enCommon from "../../../../messages/en/common.json";
 import frCommon from "../../../../messages/fr/common.json";
+import arCommon from "../../../../messages/ar/common.json";
 
 /**
  * The page's language, read when a failure is reported (always in the browser, after an action). The service words
@@ -11,8 +12,10 @@ function language(): string {
   return typeof document === "undefined" ? "en" : document.documentElement.lang || "en";
 }
 
+const COMMON: Record<string, typeof enCommon> = { fr: frCommon, ar: arCommon };
+
 function words() {
-  return (language() === "fr" ? frCommon : enCommon).failure;
+  return (COMMON[language()] ?? enCommon).failure;
 }
 
 export function performanceFailure(error: unknown, fallback?: string) {

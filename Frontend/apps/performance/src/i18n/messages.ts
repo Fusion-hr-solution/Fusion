@@ -19,12 +19,12 @@ export const englishMessages = { calibration, coach, common, conversations, cycl
 
 export type PerformanceMessages = typeof englishMessages;
 
-/** Performance's own catalogue in a language, merged by the request config beside @repo/ds's and @repo/auth's. Anything but French gets English. */
+/** Performance's own catalogue in a language, merged by the request config beside @repo/ds's and @repo/auth's. Anything but French or Arabic gets English. */
 export async function loadPerformanceMessages(locale: string): Promise<PerformanceMessages> {
-  if (locale !== "fr") return englishMessages;
+  if (locale !== "fr" && locale !== "ar") return englishMessages;
   const namespaces = Object.keys(englishMessages);
   const files = await Promise.all(
-    namespaces.map(async (namespace) => [namespace, (await import(`../../messages/fr/${namespace}.json`)).default]),
+    namespaces.map(async (namespace) => [namespace, (await import(`../../messages/${locale}/${namespace}.json`)).default]),
   );
   return Object.fromEntries(files) as PerformanceMessages;
 }

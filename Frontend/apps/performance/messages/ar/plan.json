@@ -1,0 +1,396 @@
+{
+  "PlanPage": {
+    "performanceWorkspace": "مساحة عمل الأداء",
+    "youreNotPartOf": "لست مشمولًا في {selected}",
+    "youreNotPartOfA": "لست مشمولًا في أي دورة أداء",
+    "theCycle": "الدورة",
+    "noPerformanceCycleYet": "لا دورة أداء بعد"
+  },
+  "ChangeRequestDraft": {
+    "whatShouldChange": "ما الذي يجب تغييره",
+    "cancel": "إلغاء",
+    "saveChange": "حفظ التغيير",
+    "changeToRequest": "التغيير المطلوب",
+    "editTheChange": "تعديل التغيير",
+    "removeTheChange": "حذف التغيير",
+    "requestAChange": "طلب تغيير"
+  },
+  "ChangeRequestOutcome": {
+    "youAsked": "طلبتَ",
+    "reply": "الرد ·",
+    "objectiveRemoved": "حُذف الهدف",
+    "changed": "تغيّر",
+    "notChanged": "لم يتغير"
+  },
+  "OwnerChangeRequest": {
+    "askedForAChange": "طلب {reviewerName} تغييرًا",
+    "addressed": "تمت المعالجة",
+    "markAddressed": "تعليم كمعالج",
+    "reply": "الرد",
+    "optional": "(اختياري)",
+    "cancel": "إلغاء"
+  },
+  "DevelopmentSection": {
+    "loadingDevelopment": "جارٍ تحميل التطوير",
+    "developmentUnavailable": "التطوير غير متاح",
+    "noDevelopmentGoalsYet": "لا أهداف تطوير بعد",
+    "addAGoal": "إضافة هدف",
+    "development": "التطوير",
+    "addGoal": "إضافة هدف"
+  },
+  "GoalCard": {
+    "by": "قبل {targetDate}",
+    "fromLastCycle": "من الدورة السابقة",
+    "carriedTo": "رُحّل إلى {carriedToCycleName}",
+    "moreFor": "المزيد لـ{title}",
+    "edit": "تعديل",
+    "remove": "حذف",
+    "removeThisGoal": "حذف هذا الهدف؟",
+    "leavesTheDevelopmentPlan": "يخرج من خطة التطوير.",
+    "keepIt": "الإبقاء عليه",
+    "removeGoal": "حذف الهدف",
+    "couldNotChangeTheGoals": "تعذّر تغيير حالة الهدف.",
+    "couldNotRemoveTheGoal": "تعذّر حذف الهدف."
+  },
+  "CarryOverOffer": {
+    "openGoal": "{count} هدف مفتوح",
+    "s": "",
+    "from": "من {fromCycleName}",
+    "dismiss": "تجاهل",
+    "bringOver": "ترحيل",
+    "bringGoalsOverFrom": "ترحيل الأهداف من {fromCycleName}",
+    "roomForMore": "متسع لـ{room} أخرى",
+    "cancel": "إلغاء",
+    "bringOver2": "ترحيل {length}",
+    "couldNotDismissTheOffer": "تعذّر تجاهل العرض.",
+    "couldNotBringTheGoals": "تعذّر ترحيل الأهداف.",
+    "broughtOver": "{count, plural, one {رُحّل هدف واحد.} two {رُحّل هدفان.} other {رُحّلت # أهداف.}}"
+  },
+  "GoalComposer": {
+    "editGoal": "تعديل الهدف",
+    "addADevelopmentGoal": "إضافة هدف تطوير",
+    "goal": "الهدف",
+    "competency": "الكفاءة",
+    "optional": "(اختياري)",
+    "none": "لا شيء",
+    "by": "قبل",
+    "status": "الحالة",
+    "actions": "الإجراءات",
+    "action": "الإجراء {value}",
+    "removeAction": "حذف الإجراء {value}",
+    "addAnAction": "إضافة إجراء",
+    "cancel": "إلغاء",
+    "saveGoal": "حفظ الهدف",
+    "addGoal": "إضافة الهدف",
+    "couldNotSaveTheGoal": "تعذّر حفظ الهدف."
+  },
+  "PlanGoalComposer": {
+    "addATitleFirst": "أضف عنوانًا أولًا",
+    "chooseTheObjectiveThisAligns": "اختر الهدف الذي يرتبط به",
+    "chooseHowProgressIsMeasured": "اختر طريقة قياس التقدم",
+    "giveEachMilestoneAWeight": "امنح كل مرحلة وزنًا بمجموع 100%",
+    "setABaselineTargetAnd": "حدّد البداية والهدف ووحدة القياس",
+    "moveMilestoneDueDatesInside": "انقل مواعيد المراحل إلى داخل تواريخ الهدف",
+    "giveThisObjectiveAPlan": "امنح هذا الهدف وزنًا في الخطة",
+    "planWeightCanBeAt": "لا يتجاوز وزن الخطة 100%",
+    "editObjective": "تعديل الهدف",
+    "addObjective": "إضافة هدف",
+    "allocated": "موزّع",
+    "percentOfPlanWeightAllocated": "وُزّع {existing} بالمئة من وزن الخطة",
+    "left": "يتبقى {remaining}%",
+    "alignedToDirection": "مرتبط بالتوجه",
+    "alignThisObjectiveToAn": "اربط هذا الهدف بهدف تنظيمي قائم.",
+    "standaloneRoleObjective": "هدف وظيفي مستقل",
+    "createAnObjectiveFocusedOn": "أنشئ هدفًا يركز على دورك ومسؤولياتك.",
+    "notPermittedThisCycleEvery": "غير مسموح في هذه الدورة — يجب أن يرتبط كل هدف بالتوجه.",
+    "noPublishedOrganizationalObjectivesTo": "لا أهداف تنظيمية منشورة للارتباط بها بعد.",
+    "chooseAnOrganizationalObjective": "اختر هدفًا تنظيميًا",
+    "selectOrganizationalObjective": "اختيار هدف تنظيمي",
+    "companyStrategy": "استراتيجية الشركة",
+    "organizational": "تنظيمي",
+    "alignment": "الارتباط",
+    "chooseHowThisObjectiveConnects": "اختر كيف يرتبط هذا الهدف بتوجه المؤسسة.",
+    "title": "العنوان",
+    "enterAClearAndSpecific": "أدخل عنوانًا واضحًا ومحددًا للهدف",
+    "description": "الوصف",
+    "optional": "(اختياري)",
+    "describeWhatSuccessLooksLike": "صف شكل النجاح والنتائج الرئيسية وسبب أهمية هذا الهدف.",
+    "objectiveDefinition": "تعريف الهدف",
+    "measurement": "القياس",
+    "howWillYouMeasureProgress": "كيف ستقيس التقدم في هذا الهدف؟",
+    "decreaseWeightBy5": "خفض الوزن بـ5",
+    "planWeightPercent": "نسبة الوزن في الخطة",
+    "increaseWeightBy5": "زيادة الوزن بـ5",
+    "inYourOtherObjectives": "في أهدافك الأخرى",
+    "planTotal": "إجمالي الخطة",
+    "planWeight": "الوزن في الخطة",
+    "assignTheWeightOfThis": "حدّد وزن هذا الهدف في خطتك الإجمالية.",
+    "cancel": "إلغاء",
+    "saveChanges": "حفظ التغييرات",
+    "couldNotSaveTheObjective": "تعذّر حفظ الهدف."
+  },
+  "TargetSummary": {
+    "companyStrategy": "استراتيجية الشركة"
+  },
+  "MyPlanWorkspace": {
+    "myPlan": "خطتي"
+  },
+  "MyPlan": {
+    "planUnavailable": "الخطة غير متاحة",
+    "youAreNotPartOf": "لست مشمولًا في هذه الدورة. عندما تضيفك مؤسستك، تُفتح خطتك هنا.",
+    "objectiveAdded": "أُضيف الهدف.",
+    "objectiveUpdated": "حُدّث الهدف.",
+    "couldNotSubmitYourPlan": "تعذّر إرسال خطتك.",
+    "couldNotMarkTheChange": "تعذّر تعليم التغيير كمعالج.",
+    "couldNotRemoveTheObjective": "تعذّر حذف الهدف.",
+    "resubmitted": "أُعيد إرسال الخطة للمراجعة.",
+    "submitted": "أُرسلت الخطة للمراجعة."
+  },
+  "ObjectiveLedger": {
+    "noObjectivesYetAddThe": "لا أهداف بعد. أضف الهدف الأول لبدء بناء خطتك.",
+    "objectives": "الأهداف",
+    "addObjective": "إضافة هدف",
+    "yourReviewer": "مراجعك"
+  },
+  "SubmitPlanAction": {
+    "yourReviewer": "مراجعك",
+    "saved": "حُفظت {lastSavedAt}",
+    "resubmitPlan": "إعادة إرسال الخطة",
+    "submitPlan": "إرسال الخطة",
+    "resubmitYourPlan": "إعادة إرسال خطتك؟",
+    "submitYourPlan": "إرسال خطتك؟",
+    "your": "",
+    "objective": "{objectiveCount} أهداف",
+    "s": "",
+    "goTo": "تذهب إلى",
+    "you": ". ",
+    "cantEditThem": "لا يمكنك تعديلها",
+    "whileThePlanIsIn": "أثناء مراجعة الخطة.",
+    "keepEditing": "متابعة التعديل",
+    "resubmit": "إعادة الإرسال",
+    "submit": "إرسال"
+  },
+  "PlanNotStarted": {
+    "createYourPlan": "أنشئ خطة {cycleName}",
+    "defineYourObjectivesAndAlign": "حدّد أهدافك واربطها بفريقك.",
+    "startMyPlan": "بدء خطتي",
+    "objectives": "الأهداف",
+    "pillars": {
+      "set": "حدّد أهدافًا ذات معنى",
+      "align": "ارتبط بفريقك",
+      "track": "تابع التقدم"
+    }
+  },
+  "PlanApprovedStatus": {
+    "approvedItAsAdministrator": "اعتمدها {approver} بصفته مسؤولًا",
+    "approvedByAdministration": "اعتمدتها الإدارة",
+    "approvedBy": "اعتمدها {approver}",
+    "youApprovedPlanAsAdministrator": "اعتمدتَ خطة {whose} بصفتك مسؤولًا",
+    "youApprovedPlan": "اعتمدتَ خطة {whose}",
+    "approvedLocked": "معتمدة ومقفلة"
+  },
+  "PlanDirectionSection": {
+    "noDirectionLinkedYet": "لا توجه مرتبط بعد",
+    "direction": "التوجه",
+    "open": "فتح {title}"
+  },
+  "PlanReviewerSection": {
+    "noReviewerAssigned": "لا مراجع مسند",
+    "reviewer": "المراجع",
+    "returned": "أعاد خطتك"
+  },
+  "PlanStateBadge": {
+    "draft": "مسودة",
+    "submitted": "مُرسلة",
+    "approved": "معتمدة"
+  },
+  "NotStartedBadge": {
+    "notStarted": "لم تبدأ"
+  },
+  "PlanWeightStrip": {
+    "weight": "الوزن",
+    "ofPlanWeightAllocated": "من وزن الخطة موزّع"
+  },
+  "PlanObjectiveRow": {
+    "alignedTo": "مرتبط بـ",
+    "standaloneRoleObjective": "هدف وظيفي مستقل",
+    "actionsFor": "إجراءات {title}",
+    "editObjective": "تعديل الهدف",
+    "removeObjective": "حذف الهدف",
+    "view": "عرض {title}",
+    "measurement": "القياس",
+    "target": "الهدف",
+    "milestones": "المراحل",
+    "singlePercentage": "نسبة واحدة",
+    "measure": "المقياس",
+    "duration": "المدة",
+    "weight": "الوزن",
+    "updateProgress": "تحديث التقدم",
+    "view2": "عرض",
+    "direction": "التوجه"
+  },
+  "MilestoneStrip": {
+    "ofDone": "{done} من {length} منجزة",
+    "milestone": "{length} مرحلة",
+    "milestones": "{length} مراحل"
+  },
+  "ExecutionState": {
+    "ofMilestone": "{done} من {total} مراحل",
+    "s": "",
+    "completed": "مكتملة",
+    "updated": "محدّثة",
+    "overdue": "· {overdue} متأخرة",
+    "nextDue": "· الاستحقاق التالي {nextDue}",
+    "updated2": "حُدّث {updated}",
+    "milestoneProgress": "تقدم المراحل",
+    "currentProgress": "التقدم الحالي",
+    "currentValue": "القيمة الحالية"
+  },
+  "PlanProgressCard": {
+    "noProgressReportedYet": "لم يُبلّغ عن أي تقدم بعد",
+    "planProgress": "تقدم الخطة",
+    "weightedAcrossObjectives": "موزون عبر {length} أهداف"
+  },
+  "StatusMixLine": {
+    "onTrack": "{onTrack} على المسار",
+    "atRisk": "{atRisk} في خطر",
+    "offTrack": "{offTrack} خارج المسار",
+    "notReported": "{notReported} بلا تحديث"
+  },
+  "ObjectiveProgressRing": {
+    "overallProgress": "التقدم الإجمالي"
+  },
+  "PlanRail": {
+    "status": "الحالة",
+    "planProgressBeginsOnceYou": "يبدأ تقدم الخطة بمجرد تحديث أهدافك.",
+    "startsOnceThePlanIs": "يبدأ بعد اعتماد الخطة",
+    "planProgress": "تقدم الخطة"
+  },
+  "StatusBody": {
+    "yourReviewer": "مراجعك",
+    "submitted": "مُرسلة",
+    "returnedForChanges": "أُعيدت للتعديل",
+    "draft": "مسودة",
+    "notStarted": "لم تبدأ",
+    "due": "الاستحقاق",
+    "inReview": "قيد المراجعة",
+    "waitingForYourDecision": "بانتظار قرارك",
+    "isReviewing": "يراجعها",
+    "approved": "معتمدة",
+    "readOnlyWhileInReview": "للقراءة فقط أثناء المراجعة",
+    "they": "هم",
+    "you": "أنت"
+  },
+  "ReturnNote": {
+    "yourReviewer": "مراجعك",
+    "you": "أنت",
+    "ofChange": "{addressed} من {total} تغييرات",
+    "s": "",
+    "addressed": "عولجت",
+    "by": "بواسطة {subjectFirstName}",
+    "revised": "مُعدّلة"
+  },
+  "ResubmissionOutcome": {
+    "addressedOfChange": "عالج {who} {addressed} من {length} تغييرات",
+    "s": "",
+    "objectiveRemoved": "حُذف الهدف · «{text}»"
+  },
+  "ClampedText": {
+    "showLess": "عرض أقل",
+    "readMore": "قراءة المزيد"
+  },
+  "PlanRecordPage": {
+    "sPlan": "خطة {name}",
+    "plan": "الخطة",
+    "planUnavailable": "الخطة غير متاحة",
+    "theCycle": "الدورة"
+  },
+  "PlanReview": {
+    "planUnavailable": "الخطة غير متاحة",
+    "theEmployee": "الموظف"
+  },
+  "ReviewStateBadge": {
+    "approved": "معتمدة",
+    "returned": "مُعادة",
+    "submitted": "مُرسلة"
+  },
+  "ReviewHeading": {
+    "employee": "الموظف",
+    "trackingExecution": "متابعة التنفيذ"
+  },
+  "ObjectiveLedgerReadOnly": {
+    "objectives": "الأهداف"
+  },
+  "ReviewDecision": {
+    "returnWithChange": "إعادة مع {length} تغيير",
+    "returnWithChanges": "إعادة مع {length} تغييرات",
+    "returnPlan": "إعادة الخطة",
+    "requestChanges": "طلب تعديلات",
+    "theWholePlanReopensFor": "تُفتح الخطة كاملة لـ{firstName} لتعديلها وإعادة إرسالها.",
+    "aNoteForTheWhole": "ملاحظة للخطة كاملة (اختياري)",
+    "whatShouldChange": "ما الذي يجب أن يغيّره {firstName}؟",
+    "cancel": "إلغاء",
+    "planReturnedToForChanges": "أُعيدت الخطة إلى {firstName} للتعديل.",
+    "approvePlan": "اعتماد الخطة",
+    "approveThisPlan": "اعتماد هذه الخطة؟",
+    "approving": "الاعتماد",
+    "locksSPlan": "يقفل خطة {firstName}",
+    "asTheAgreedBaselineFor": "كأساس متفق عليه لـ",
+    "it": ". ",
+    "cantBeEditedAfterward": "لا يمكن تعديلها بعد ذلك",
+    "withoutAnAdministrator": "دون مسؤول.",
+    "planApprovedAndLocked": "اعتُمدت الخطة وأُقفلت.",
+    "couldNotReturnThePlan": "تعذّرت إعادة الخطة.",
+    "couldNotApproveThePlan": "تعذّر اعتماد الخطة.",
+    "objective": "الهدف"
+  },
+  "ExceptionalApproval": {
+    "approveAsAdministrator": "الاعتماد بصفة مسؤول",
+    "approveSPlanAsAdministrator": "اعتماد خطة {firstName} بصفة مسؤول",
+    "remainsThePlansReviewer": "يبقى {reviewerName} مراجع الخطة.",
+    "thisApprovalIsRecordedAs": "يُسجّل هذا الاعتماد باسمك، مع سببك.",
+    "reasonForApprovingOnThe": "سبب الاعتماد نيابة عن المراجع",
+    "whyTheReviewerCantDecide": "لماذا لا يستطيع المراجع اتخاذ القرار",
+    "cancel": "إلغاء",
+    "approvePlan": "اعتماد الخطة",
+    "planApprovedByAdministration": "اعتمدت الإدارة الخطة.",
+    "couldNotApproveThePlan": "تعذّر اعتماد الخطة."
+  },
+  "PlanSurfaceSkeleton": {
+    "loadingYourPlan": "جارٍ تحميل خطتك"
+  },
+  "PlanEmptySkeleton": {
+    "loadingYourPlan": "جارٍ تحميل خطتك"
+  },
+  "PlanSubmissionChecks": {
+    "check": "{passedCount} فحوصات",
+    "s": "",
+    "passed": "ناجحة",
+    "hideChecks": "إخفاء الفحوصات",
+    "viewChecks": "عرض الفحوصات",
+    "check2": "{length} فحوصات",
+    "need": "تحتاج إلى",
+    "attention": "انتباه",
+    "submissionChecks": "فحوصات الإرسال"
+  },
+  "TargetRange": {
+    "decreaseTo": "خفض إلى",
+    "increaseTo": "زيادة إلى"
+  },
+  "checks": {
+    "objective": {
+      "label": "تحتوي الخطة على هدف واحد على الأقل",
+      "detail": "أضف هدفًا إلى خطتك"
+    },
+    "weightAssigned": {
+      "label": "لكل هدف وزن",
+      "detail": "امنح كل هدف وزنًا أكبر من صفر"
+    },
+    "weightTotal": {
+      "label": "مجموع الأوزان 100%",
+      "remaining": "لا يزال {remaining}% من وزن الخطة غير موزّع",
+      "over": "يتجاوز وزن الخطة بـ{over}%"
+    }
+  },
+  "leaveGuard": "المغادرة دون إرسال طلبات التغيير؟"
+}

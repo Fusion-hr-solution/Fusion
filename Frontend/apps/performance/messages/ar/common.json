@@ -1,0 +1,147 @@
+{
+  "PerformanceError": {
+    "thisPageCouldntLoad": "تعذّر تحميل هذه الصفحة",
+    "goToOverview": "الانتقال إلى النظرة العامة"
+  },
+  "PagesLayout": {
+    "loadingPerformance": "جارٍ تحميل الأداء"
+  },
+  "PagesLoading": {
+    "loading": "جارٍ التحميل"
+  },
+  "PerformanceNotFound": {
+    "nothingHere": "لا شيء هنا",
+    "thisAddressDoesntMatchAnything": "لا يطابق هذا العنوان أي شيء في الأداء.",
+    "goToOverview": "الانتقال إلى النظرة العامة"
+  },
+  "CompetencyCatalog": {
+    "competencies": "الكفاءات",
+    "newRoundsCanUseThese": "يمكن للجولات الجديدة استخدام هذه الكفاءات. تحتفظ الجولات المطلقة بالتفاصيل التي بدأت بها.",
+    "addCompetency": "إضافة كفاءة",
+    "competencyName": "اسم الكفاءة",
+    "name": "الاسم",
+    "description": "الوصف",
+    "whatThisCompetencyMeans": "ما تعنيه هذه الكفاءة",
+    "observableBehaviors": "السلوكيات الملاحظة",
+    "observableBehaviorsOnePerLine": "السلوكيات الملاحظة، واحد في كل سطر (اختياري)",
+    "cancel": "إلغاء",
+    "saveCompetency": "حفظ الكفاءة",
+    "editCompetency": "تعديل الكفاءة",
+    "newCompetency": "كفاءة جديدة",
+    "loadingCompetencies": "جارٍ تحميل الكفاءات…",
+    "archived": "مؤرشفة",
+    "usedInALaunchedRound": "مستخدمة في جولة مطلقة",
+    "edit": "تعديل",
+    "archive": "أرشفة",
+    "competencyArchived": "أُرشفت الكفاءة.",
+    "delete": "حذف",
+    "no": "لا",
+    "competencies2": "كفاءات",
+    "activeCompetencies": "كفاءات نشطة",
+    "yet": "بعد.",
+    "showArchived": "عرض المؤرشفة",
+    "deleteThisCompetency": "حذف هذه الكفاءة؟",
+    "willBeRemovedFromThe": "ستُحذف «{name}» من الفهرس. لا يمكن التراجع عن هذا الإجراء.",
+    "deleteCompetency": "حذف الكفاءة",
+    "competencyDeleted": "حُذفت الكفاءة.",
+    "couldNotSaveCompetency": "تعذّر حفظ الكفاءة.",
+    "couldNotArchiveCompetency": "تعذّرت أرشفة الكفاءة.",
+    "couldNotDeleteCompetency": "تعذّر حذف الكفاءة."
+  },
+  "ContentUnavailable": {
+    "temporarilyUnavailable": "غير متاح مؤقتًا",
+    "couldNotBeLoadedBecause": "تعذّر تحميل {subject} لأن الخدمة غير متاحة مؤقتًا. سيعود عند عودة الخدمة.",
+    "retry": "إعادة المحاولة",
+    "unavailable": "{subject} غير متاح"
+  },
+  "CycleContextBar": {
+    "planningBy": "التخطيط قبل",
+    "state": {
+      "Draft": "قيد الإعداد",
+      "Active": "نشطة",
+      "Closed": "مغلقة"
+    },
+    "phase": {
+      "Planning": "التخطيط",
+      "Execution": "التنفيذ",
+      "Review": "التقييم"
+    }
+  },
+  "PersonPage": {
+    "person": "الشخص",
+    "openCoreHrRecord": "فتح السجل في الموارد البشرية الأساسية",
+    "giveFeedback": "تقديم ملاحظات"
+  },
+  "PerformanceCycleContext": {
+    "switchCycle": "تبديل الدورة",
+    "state": {
+      "Draft": "قيد الإعداد",
+      "Active": "نشطة",
+      "Closed": "مغلقة"
+    }
+  },
+  "PerformanceWorkspaceAccessBoundary": {
+    "checkingPerformanceAccess": "جارٍ التحقق من الوصول إلى الأداء",
+    "performanceIsACustomerWorkspace": "الأداء مساحة عمل للعملاء",
+    "platformAdministrationIsKeptSeparate": "إدارة المنصة منفصلة عن بيانات أداء العملاء.",
+    "performanceIsNotAvailableTo": "الأداء غير متاح لمسؤولي المنصة",
+    "useThePlatformControlPlane": "استخدم لوحة تحكم المنصة للإدارة على مستوى المنصة.",
+    "openPlatform": "فتح المنصة",
+    "youDontHaveAccessTo": "ليس لديك وصول إلى الأداء",
+    "askATenantAdministratorFor": "اطلب من مسؤول المؤسسة الوصول إلى الأداء.",
+    "openFusion": "فتح Fusion",
+    "performanceIsNotAvailable": "الأداء غير متاح",
+    "performanceIsNotEnabledFor": "الأداء غير مفعّل لهذه المؤسسة."
+  },
+  "failure": {
+    "stale": "تغيّر هذا منذ أن فتحته",
+    "unavailable": "هذا السجل غير متاح",
+    "generic": "تعذّر إتمام هذا الإجراء."
+  },
+  "words": {
+    "method": {
+      "ManualPercentage": "نسبة يدوية",
+      "NumericTarget": "هدف رقمي",
+      "WeightedMilestones": "مراحل موزونة"
+    },
+    "milestone": {
+      "StrategicDirectionPublished": "نُشر التوجه",
+      "PopulationConfirmed": "تأكدت الفئة المشمولة",
+      "PlanningOpened": "فُتح التخطيط",
+      "PlanningCompleted": "اكتمل التخطيط",
+      "PerformanceEndReached": "نهاية فترة الأداء",
+      "ClosureReady": "جاهزة للإغلاق"
+    },
+    "issue": {
+      "InactiveEmployment": "التوظيف غير نشط بتاريخ {date}.",
+      "NoPrimaryAssignment": "لا إسناد رئيسي نشط بتاريخ {date}.",
+      "MissingManager": "يلزم مدير صالح لمراجعة الخطط.",
+      "InactiveManager": "المدير المسند غير نشط بتاريخ {date}."
+    },
+    "milestones": "{count, plural, one {مرحلة واحدة} two {مرحلتان} other {# مراحل}}",
+    "planState": {
+      "Draft": "مسودة",
+      "Submitted": "بانتظار القرار",
+      "Approved": "معتمدة"
+    },
+    "companyStrategy": "استراتيجية الشركة",
+    "organizational": "تنظيمي",
+    "direction": "التوجه"
+  },
+  "nav": {
+    "overview": "نظرة عامة",
+    "myPlan": "خطتي",
+    "myTeam": "فريقي",
+    "oneOnOnes": "اللقاءات الفردية",
+    "feedback": "الملاحظات",
+    "reviews": "التقييمات",
+    "direction": "توجه المؤسسة",
+    "administration": "الإدارة",
+    "cycle": "الدورة",
+    "settings": "الإعدادات"
+  },
+  "metadata": {
+    "title": "الأداء — Fusion",
+    "description": "مساحة عمل الأداء"
+  }
+}

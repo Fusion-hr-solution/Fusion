@@ -1,0 +1,24 @@
+{
+  "CoachTrigger": {
+    "suggesting": "جارٍ الاقتراح",
+    "suggestImprovements": "اقتراح تحسينات"
+  },
+  "CoachSuggestion": {
+    "suggested": "{label} مقترح",
+    "apply": "تطبيق",
+    "suggested2": "{label} مقترح",
+    "dismissSuggested": "تجاهل {label} المقترح"
+  },
+  "CoachField": {
+    "apply": "تطبيق",
+    "suggested": "{label} مقترح",
+    "dismissSuggested": "تجاهل {label} المقترح",
+    "suggested2": "{label} مقترح"
+  },
+  "CoachNothing": {
+    "noSuggestionsForThisObjective": "لا اقتراحات لهذا الهدف"
+  },
+  "AiSuggestedTag": {
+    "aiSuggested": "مقترح بالذكاء الاصطناعي"
+  }
+}

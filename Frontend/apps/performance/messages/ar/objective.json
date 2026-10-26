@@ -1,0 +1,182 @@
+{
+  "ObjectiveEditor": {
+    "addATitleFirst": "أضف عنوانًا أولًا",
+    "chooseAnAccountablePerson": "اختر شخصًا مسؤولًا",
+    "theEndDateMustBe": "يجب أن يكون تاريخ النهاية بعد تاريخ البداية",
+    "keepTheDatesWithinThe": "أبقِ التواريخ ضمن فترة الدورة",
+    "moveMilestoneDueDatesInside": "انقل مواعيد المراحل إلى داخل تواريخ الهدف",
+    "setABaselineTargetAnd": "حدّد البداية والهدف ووحدة القياس",
+    "giveEachMilestoneAWeight": "امنح كل مرحلة وزنًا بمجموع 100%",
+    "completeTheMeasurement": "أكمل القياس",
+    "milestone": "{named} مرحلة · {weightSum}%",
+    "milestones": "{named} مراحل · {weightSum}%",
+    "manualPercentage": "نسبة يدوية",
+    "editStrategicObjective": "تعديل الهدف الاستراتيجي",
+    "newStrategicObjective": "هدف استراتيجي جديد",
+    "title": "العنوان",
+    "growRecurringRevenue": "تنمية الإيرادات المتكررة",
+    "description": "الوصف",
+    "optional": "(اختياري)",
+    "theOutcomeThisDirectionCommits": "النتيجة التي يُلزم بها هذا التوجه الشركة.",
+    "objective": "الهدف",
+    "accountablePerson": "الشخص المسؤول",
+    "accountability": "المسؤولية",
+    "start": "البداية",
+    "end": "النهاية",
+    "timeline": "الجدول الزمني",
+    "outcome": "النتيجة",
+    "measurement": "القياس",
+    "howWillProgressOnThis": "كيف سيُقاس التقدم في هذا الهدف؟",
+    "cancel": "إلغاء",
+    "saveDraft": "حفظ المسودة",
+    "publishDirection": "نشر التوجه",
+    "saveObjective": "حفظ الهدف",
+    "addToDirection": "إضافة إلى التوجه",
+    "couldNotSaveTheObjective": "تعذّر حفظ الهدف."
+  },
+  "RecordProgressMode": {
+    "backToObjectiveDetails": "العودة إلى تفاصيل الهدف",
+    "recordProgress": "تسجيل التقدم",
+    "loadingProgress": "جارٍ تحميل التقدم",
+    "progressUnavailable": "التقدم غير متاح",
+    "cancel": "إلغاء"
+  },
+  "ObjectiveRecordSheet": {
+    "loadingObjective": "جارٍ تحميل الهدف",
+    "thisObjectiveIsntAvailableTo": "هذا الهدف غير متاح لك",
+    "thisObjectiveCouldNotBe": "تعذّر تحميل هذا الهدف",
+    "tryAgain": "أعد المحاولة",
+    "objectiveRecordFor": "سجل الهدف {title}."
+  },
+  "RecordLoading": {
+    "objective": "الهدف",
+    "loadingTheObjective": "جارٍ تحميل الهدف."
+  },
+  "RecordUnavailable": {
+    "tryAgain": "أعد المحاولة"
+  },
+  "RecordActions": {
+    "edit": "تعديل",
+    "remove": "حذف",
+    "draftObjectiveRemoved": "حُذف الهدف المسودة.",
+    "archive": "أرشفة",
+    "archiving": "جارٍ الأرشفة…",
+    "objectiveArchived": "أُرشف الهدف.",
+    "openInOrganizationDirection": "فتح في توجه المؤسسة",
+    "publish": "نشر",
+    "theObjectiveCouldNotBe": "تعذّر حذف الهدف.",
+    "theObjectiveCouldNotBe2": "تعذّرت أرشفة الهدف.",
+    "theObjectiveCouldNotBe3": "تعذّر نشر الهدف.",
+    "publishedCompany": "نُشر كتوجه للشركة.",
+    "publishedOrg": "نُشر كتوجه تنظيمي."
+  },
+  "AlignedChildrenSection": {
+    "unassigned": "غير مسند",
+    "planObjectives": "أهداف الخطة",
+    "alignedObjectives": "الأهداف المرتبطة · {value}"
+  },
+  "AlignmentSection": {
+    "viewOnMap": "عرض على الخريطة",
+    "alignment": "الارتباط",
+    "archived": "· مؤرشف",
+    "supports": "يدعم"
+  },
+  "ContributionSection": {
+    "baselineLocked": "الأساس مقفل",
+    "contributionBaseline": "أساس المساهمة",
+    "noAlignedObjectivesContributeYet": "لا أهداف مرتبطة تساهم بعد.",
+    "contributionOf": "مساهمة {title}",
+    "fullyAllocated": "موزّع بالكامل",
+    "toAssign": "{value}% للتوزيع",
+    "over": "تجاوز بـ{value}%",
+    "save": "حفظ",
+    "contributionSaved": "حُفظت المساهمة.",
+    "lockBaseline": "قفل الأساس",
+    "everyContributingObjectiveMustBe": "يجب نشر كل هدف مساهم أولًا",
+    "contributionBaselineLocked": "أُقفل أساس المساهمة.",
+    "couldNotSave": "تعذّر الحفظ.",
+    "couldNotLock": "تعذّر القفل."
+  },
+  "DescriptionSection": {
+    "description": "الوصف"
+  },
+  "FeedbackSection": {
+    "askForFeedbackOnThis": "طلب ملاحظات على هذا",
+    "giveFeedback": "تقديم ملاحظات",
+    "noFeedbackAboutThisObjective": "لا ملاحظات على هذا الهدف بعد",
+    "feedback": "الملاحظات · {length}",
+    "feedback2": "الملاحظات"
+  },
+  "MeasureFacts": {
+    "contributingObjectives": "الأهداف المساهمة",
+    "measuredBy": "يُقاس بـ",
+    "target": "الهدف",
+    "measure": "المقياس"
+  },
+  "MeasurementSection": {
+    "measurement": "القياس"
+  },
+  "ObjectiveFactsSection": {
+    "runs": "المدة",
+    "ofThePlan": "{planWeight}% من الخطة",
+    "weight": "الوزن",
+    "aboutThisObjective": "حول هذا الهدف"
+  },
+  "ProgressSection": {
+    "ofMilestoneCompletedOfTotal": "اكتملت {length} من {length} مرحلة · {derived}% من الوزن الإجمالي",
+    "ofMilestonesCompletedOfTotal": "اكتملت {length} من {length} مراحل · {derived}% من الوزن الإجمالي",
+    "ofContributingWeightReported": "أُبلغ عن {coverage}% من الوزن المساهم",
+    "noProgressReportedYet": "لم يُبلّغ عن أي تقدم بعد",
+    "currentProgress": "التقدم الحالي",
+    "recordProgress": "تسجيل التقدم",
+    "noUpdatesRecordedYet": "لم تُسجّل أي تحديثات بعد",
+    "progressHistory": "سجل التقدم",
+    "updated": "حُدّث {formatDate}"
+  },
+  "StatusSection": {
+    "theReviewer": "المراجع",
+    "reported": "أُبلغ",
+    "whatsInTheWay": "ما الذي يعيق التقدم",
+    "acknowledgedBy": "اطّلع عليه",
+    "acknowledge": "اطّلاع",
+    "howItsGoing": "كيف تسير الأمور",
+    "couldNotAcknowledgeTheStatus": "تعذّر الاطلاع على الحالة."
+  },
+  "ObjectiveSummary": {
+    "accountable": "المسؤول ·",
+    "unassigned": "غير مسند"
+  },
+  "model": {
+    "kind": {
+      "company": "هدف استراتيجي للشركة",
+      "team": "هدف {unit}",
+      "aligned": "هدف مرتبط",
+      "standalone": "هدف وظيفي مستقل"
+    },
+    "organizational": "تنظيمي",
+    "companyStrategy": "استراتيجية الشركة",
+    "status": {
+      "Approved": "معتمد",
+      "Submitted": "مُرسل",
+      "DraftPlan": "خطة مسودة",
+      "Published": "منشور",
+      "Archived": "مؤرشف",
+      "Draft": "مسودة"
+    },
+    "measure": {
+      "percentage": "نسبة مئوية",
+      "in": "بـ{unit}",
+      "numeric": "قيمة رقمية",
+      "milestones": "{count, plural, one {مرحلة واحدة} two {مرحلتان} other {# مراحل}}",
+      "single": "نسبة واحدة"
+    },
+    "planWaiting": "خطة بانتظار الاعتماد",
+    "planDraft": "خطة مسودة"
+  },
+  "back": {
+    "myPlan": "خطتي",
+    "theirPlan": "خطة {name}",
+    "their": "خطتهم",
+    "direction": "توجه المؤسسة"
+  }
+}

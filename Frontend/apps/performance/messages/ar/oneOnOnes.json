@@ -1,0 +1,260 @@
+{
+  "NotesEditor": {
+    "saving": "جارٍ الحفظ…",
+    "saved": "تم الحفظ",
+    "notSaved": "لم يُحفظ",
+    "onlyYouSeeThis": "أنت وحدك ترى هذا",
+    "startWriting": "ابدأ الكتابة",
+    "theseNotesChangedWhileYou": "تغيّرت هذه الملاحظات أثناء تعديلك.",
+    "keepMyVersion": "الإبقاء على نسختي",
+    "useTheirs": "استخدام نسختهم",
+    "trySavingAgain": "إعادة محاولة الحفظ",
+    "empty": "(فارغ)"
+  },
+  "RhythmScale": {
+    "today": "اليوم"
+  },
+  "RhythmStrip": {
+    "heldMissedInTheLast": "{label}: {held} عُقدت، {missed} فاتت خلال الأسابيع الستة الأخيرة"
+  },
+  "OneOnOnesWorkspace": {
+    "your11s": "لقاءاتك الفردية"
+  },
+  "Workspace": {
+    "n11s": "اللقاءات الفردية",
+    "youHaveNoManagerOr": "ليس لديك مدير أو مرؤوسون مباشرون في الموارد البشرية الأساسية.",
+    "yourReportingLineCouldntBe": "تعذّر تحميل خط تبعيتك. أعد المحاولة قريبًا.",
+    "yourTeam": "فريقك",
+    "withYourManager": "مع مديرك",
+    "yourReportingLineCouldntBe2": "تعذّر تحميل خط تبعيتك، فلا يمكن بدء شيء جديد حتى يُحمّل.",
+    "notMeetingYet": "لا لقاءات بعد",
+    "noManagerInCoreHr": "لا مدير في الموارد البشرية الأساسية",
+    "actionsYouOwe": "إجراءات عليك{value}",
+    "thisWeek": "هذا الأسبوع"
+  },
+  "NextUp": {
+    "nextUp": "التالي · {howSoon}",
+    "open11": "فتح اللقاء الفردي",
+    "onTheAgenda": "على جدول الأعمال",
+    "nothingYet": "لا شيء بعد",
+    "more": "+{value} أخرى",
+    "sinceYouMet": "منذ لقائكما · {lastMetAt}",
+    "readyToDiscuss": "جاهز للنقاش",
+    "nothingNew": "لا جديد",
+    "action": "{overdueActions} إجراءات",
+    "s": "",
+    "overdue": "متأخرة",
+    "yourManager": "مديرك",
+    "since": {
+      "Objective": "{count, plural, one {هدف واحد في خطر} two {هدفان في خطر} other {# أهداف في خطر}}",
+      "UpdateRequest": "{count, plural, one {تحديث واحد مطلوب} two {تحديثان مطلوبان} other {# تحديثات مطلوبة}}",
+      "Feedback": "{count} ملاحظات",
+      "Praise": "{count} إشادات"
+    }
+  },
+  "RhythmTable": {
+    "person": "الشخص",
+    "next": "التالي"
+  },
+  "RhythmRow": {
+    "overdue": "· {overdueActions} متأخرة",
+    "open": "· {openActions} مفتوحة",
+    "n11sWith": "لقاءات فردية مع {displayName}",
+    "notSet": "غير محدد"
+  },
+  "StartRow": {
+    "notMeetingYet": "لا لقاءات بعد",
+    "start11s": "بدء اللقاءات الفردية"
+  },
+  "EndedLine": {
+    "ended": "انتهت",
+    "ended2": "· انتهت {endedAt}",
+    "showHistory": "عرض السجل"
+  },
+  "ManagerCard": {
+    "notScheduled": "غير مجدول",
+    "onTheAgenda": "{agendaCount} على جدول الأعمال"
+  },
+  "OwedActions": {
+    "nothingOpen": "لا شيء مفتوح",
+    "n11With": "لقاء فردي مع {displayName}",
+    "overdue": "متأخر",
+    "more": "+{value} أخرى"
+  },
+  "ThisWeek": {
+    "yourManager": "مديرك",
+    "onTheAgenda": "{agendaCount} على جدول الأعمال",
+    "nothingOnTheAgendaYet": "لا شيء على جدول الأعمال بعد"
+  },
+  "OneOnOnesSkeleton": {
+    "loadingYour11s": "جارٍ تحميل لقاءاتك الفردية"
+  },
+  "SeriesRecord": {
+    "this11": "هذا اللقاء الفردي"
+  },
+  "SeriesView": {
+    "n11With": "لقاء فردي مع {displayName}",
+    "someoneLeftTheCompanyYou": "غادر أحدكما الشركة · التقيتما {toLowerCase}، {startedAt} – {value}",
+    "theReportingLineChangedYou": "تغيّر خط التبعية · التقيتما {toLowerCase}، {startedAt} – {value}",
+    "ended": "انتهت",
+    "reschedule": "تغيير الموعد",
+    "completeMeeting": "إكمال اللقاء",
+    "earlierMeetings": "اللقاءات السابقة",
+    "since": "{value} منذ {startedAt}"
+  },
+  "MeetingTrack": {
+    "notHeld": "لم يُعقد",
+    "ended": "انتهت",
+    "meetings": "اللقاءات",
+    "point": "{length} نقطة",
+    "points": "{length} نقاط"
+  },
+  "UpcomingMeeting": {
+    "talkingPoints": "نقاط النقاش",
+    "fromSYear": "من عام {reportFirstName}",
+    "fromYourYear": "من عامك",
+    "actions": "الإجراءات",
+    "notes": "الملاحظات"
+  },
+  "TalkingPoints": {
+    "nothingOnTheAgenda": "لا شيء على جدول الأعمال",
+    "addedBy": "أضافه {value}",
+    "remove": "حذف {text}",
+    "talkedAbout": "نوقش: {text}",
+    "addATalkingPoint": "إضافة نقطة نقاش",
+    "add": "إضافة"
+  },
+  "Suggestions": {
+    "add": "إضافة",
+    "addToTheTalkingPoints": "إضافة {label} إلى نقاط النقاش"
+  },
+  "Actions": {
+    "noActions": "لا إجراءات",
+    "done": "منجز: {text}",
+    "from": "من {createdInMeetingAt}",
+    "overdue": "متأخر",
+    "due": "الاستحقاق",
+    "newAction": "إجراء جديد",
+    "addAnAction": "إضافة إجراء",
+    "owner": "المالك",
+    "dueDate": "تاريخ الاستحقاق",
+    "add": "إضافة"
+  },
+  "MeetingNotes": {
+    "sharedWith": "مشتركة مع {value}",
+    "onlyYou": "أنت فقط"
+  },
+  "History": {
+    "lastMeeting": "آخر لقاء",
+    "noMeetingWasHeld": "لم يُعقد أي لقاء.",
+    "earlierMeetings": "اللقاءات السابقة",
+    "meetings": "اللقاءات"
+  },
+  "EarlierMeetings": {
+    "notHeld": "لم يُعقد",
+    "noTalkingPoints": "لا نقاط نقاش",
+    "missed": "فات",
+    "talkingPoints": "{count, plural, one {+نقطة نقاش واحدة} two {+نقطتا نقاش} other {+# نقاط نقاش}}",
+    "actions": "{count, plural, one {إجراء واحد} two {إجراءان} other {# إجراءات}}",
+    "notes": "ملاحظات"
+  },
+  "MeetingDetail": {
+    "talkedAbout": "نوقش",
+    "noTalkingPoints": "لا نقاط نقاش",
+    "notReached": "لم يُتطرق إليه",
+    "actions": "الإجراءات",
+    "notes": "الملاحظات",
+    "none": "لا شيء",
+    "onlyYou": "أنت فقط"
+  },
+  "MeetingNotesStacked": {
+    "sharedWith": "مشتركة مع {value}",
+    "onlyYou": "أنت فقط"
+  },
+  "SeriesSidebar": {
+    "meetingsHeld": "لقاءات عُقدت",
+    "actionsDone": "إجراءات أُنجزت",
+    "overTheSeries": "على مدى السلسلة",
+    "objective": "{length} أهداف",
+    "s": "",
+    "atRisk": "{atRisk} في خطر",
+    "noneAtRisk": "لا شيء في خطر",
+    "open": "فتح",
+    "their": "خطتهم",
+    "your": "خطتك",
+    "plan": "",
+    "noPlanInTheCurrent": "لا خطة في الدورة الحالية",
+    "year": "عام {value}{value2}",
+    "recognition": "التقدير",
+    "howOften": "التكرار",
+    "heldOf": "عُقد {held} من {meetings} ·",
+    "since": "منذ {startedAt}",
+    "rhythm": "الإيقاع",
+    "unshared": {
+      "NotStarted": "لا خطة بعد",
+      "Draft": "خطة مسودة",
+      "ReturnedForChanges": "خطة أُعيدت للتعديل",
+      "Submitted": "خطة بانتظار الاعتماد",
+      "Approved": "لا أهداف"
+    }
+  },
+  "RescheduleDialog": {
+    "moveTheNextMeeting": "نقل اللقاء التالي",
+    "date": "التاريخ",
+    "time": "الوقت",
+    "cancel": "إلغاء",
+    "moveMeeting": "نقل اللقاء"
+  },
+  "SeriesSkeleton": {
+    "loadingThis11": "جارٍ تحميل هذا اللقاء الفردي"
+  },
+  "StartForm": {
+    "howOften": "التكرار",
+    "firstMeeting": "أول لقاء",
+    "time": "الوقت",
+    "firstAgenda": "جدول الأعمال الأول",
+    "picked": "{value} مختارة",
+    "putOnTheFirstAgenda": "وضع {label} على جدول الأعمال الأول",
+    "remove": "حذف {text}",
+    "addYourOwnTalkingPoint": "أضف نقطة نقاش خاصة بك",
+    "addYourOwn": "أضف نقطتك",
+    "add": "إضافة",
+    "cancel": "إلغاء",
+    "start11s": "بدء اللقاءات الفردية"
+  },
+  "StartWithManager": {
+    "n11sWith": "لقاءات فردية مع {displayName}",
+    "yourManager": "مديرك"
+  },
+  "StartOneOnOnesDialog": {
+    "n11sWith": "لقاءات فردية مع {displayName}"
+  },
+  "lib": {
+    "cadence": {
+      "Weekly": "أسبوعيًا",
+      "EveryTwoWeeks": "كل أسبوعين",
+      "Monthly": "شهريًا"
+    },
+    "then": {
+      "Weekly": "ثم كل أسبوع",
+      "EveryTwoWeeks": "ثم كل أسبوعين",
+      "Monthly": "ثم كل شهر"
+    },
+    "source": {
+      "Objective": "هدف",
+      "UpdateRequest": "طلب تحديث",
+      "Feedback": "ملاحظات",
+      "Praise": "إشادة"
+    },
+    "todayAt": "اليوم {time}",
+    "tomorrowAt": "غدًا {time}",
+    "dayAt": "{day} · {time}",
+    "today": "اليوم",
+    "tomorrow": "غدًا",
+    "overdue": "متأخر",
+    "inMinutes": "بعد {count} د",
+    "inHours": "{count, plural, one {بعد ساعة} two {بعد ساعتين} other {بعد # ساعات}}",
+    "tomorrowSoon": "غدًا",
+    "inDays": "{count, plural, one {بعد يوم} two {بعد يومين} other {بعد # أيام}}"
+  }
+}

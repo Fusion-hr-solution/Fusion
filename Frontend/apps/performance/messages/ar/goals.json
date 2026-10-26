@@ -1,0 +1,275 @@
+{
+  "MapSkeleton": {
+    "loadingTheAlignmentMap": "جارٍ تحميل خريطة الارتباط"
+  },
+  "GoalsPage": {
+    "loadingGoals": "جارٍ تحميل الأهداف"
+  },
+  "GoalsWorkspace": {
+    "loadingPerformance": "جارٍ تحميل الأداء",
+    "performanceWorkspace": "مساحة عمل الأداء",
+    "loadingCycle": "جارٍ تحميل الدورة",
+    "theCycle": "الدورة",
+    "noCycleYet": "لا دورة بعد",
+    "organizationDirectionOpensOnceA": "يُفتح توجه المؤسسة عند وجود دورة أداء.",
+    "draftObjectiveRemoved": "حُذف الهدف المسودة.",
+    "publishedAsCompanyDirection": "نُشر كتوجه للشركة.",
+    "map": "الخريطة",
+    "mapView": "عرض الخريطة",
+    "list": "القائمة",
+    "listView": "عرض القائمة",
+    "organizationDirectionView": "عرض توجه المؤسسة",
+    "createCompanyObjective": "إنشاء هدف للشركة",
+    "organizationDirection": "توجه المؤسسة",
+    "overview": "نظرة عامة",
+    "theAlignmentMap": "خريطة الارتباط",
+    "noPublishedDirectionForThis": "لا توجه منشور لهذه الدورة",
+    "openTheList": "فتح القائمة",
+    "loadingGoals": "جارٍ تحميل الأهداف",
+    "organizationDirectionUnavailable": "توجه المؤسسة غير متاح"
+  },
+  "DirectionNode": {
+    "personal": "{total} شخصية",
+    "hideThem": "{counts}. إخفاؤها",
+    "showThem": "{counts}. إظهارها",
+    "collapse": "طي {title}",
+    "expandHiddenObjective": "توسيع {title}، {hiddenCount} هدف مخفي",
+    "expandHiddenObjectives": "توسيع {title}، {hiddenCount} أهداف مخفية"
+  },
+  "PersonalNode": {
+    "you": "أنت",
+    "personalObjective": "هدف شخصي"
+  },
+  "HiddenNode": {
+    "notVisibleToYou": "+{count} غير مرئية لك"
+  },
+  "AlignmentMap": {
+    "statusKey": "مفتاح الحالات"
+  },
+  "CompanyComposerHost": {
+    "thisObjectiveCantBeEdited": "لا يمكن تعديل هذا الهدف.",
+    "openingObjective": "جارٍ فتح الهدف…",
+    "published": "نُشر توجه الشركة.",
+    "updated": "حُدّث الهدف.",
+    "savedDraft": "حُفظ هدف الشركة كمسودة."
+  },
+  "ObjectiveWorkspace": {
+    "workingScope": "نطاق العمل"
+  },
+  "ObjectiveBlockView": {
+    "organizationalAlignment": "الارتباط التنظيمي",
+    "alignedObjectives": "الأهداف المرتبطة",
+    "theseOrganizationalObjectivesSupportThe": "تدعم هذه الأهداف التنظيمية التوجه الاستراتيجي للشركة."
+  },
+  "SubjectCard": {
+    "accountable": "المسؤول",
+    "objective": "هدف {value}"
+  },
+  "SubjectMenu": {
+    "objectiveActions": "إجراءات الهدف",
+    "viewDetails": "عرض التفاصيل",
+    "edit": "تعديل",
+    "publishDirection": "نشر التوجه",
+    "resumeEditing": "استئناف التعديل",
+    "removeDraft": "حذف المسودة"
+  },
+  "DirectionStrip": {
+    "alignedTo": "مرتبط بـ",
+    "objective": "هدف {value}"
+  },
+  "ObjectiveRow": {
+    "openObjective": "فتح الهدف",
+    "organizationalUnit": "الوحدة التنظيمية",
+    "accountable": "المسؤول",
+    "child": "فرعي",
+    "objective": "هدف",
+    "objectives": "أهداف"
+  },
+  "RowMenu": {
+    "objectiveActions": "إجراءات الهدف",
+    "viewDetails": "عرض التفاصيل",
+    "addAlignedObjective": "إضافة هدف مرتبط",
+    "resumeEditing": "استئناف التعديل",
+    "removeDraft": "حذف المسودة"
+  },
+  "AddAligned": {
+    "addAlignedObjective": "إضافة هدف مرتبط"
+  },
+  "GroupHeader": {
+    "direct": "مباشرة",
+    "objective": "هدف",
+    "objectives": "أهداف"
+  },
+  "EmptyChildren": {
+    "noAlignedChildObjectivesYet": "لا أهداف فرعية مرتبطة بعد.",
+    "noDownstreamObjectivesYet": "لا أهداف تابعة بعد."
+  },
+  "ContextHeader": {
+    "directlyAssigned": "مسندة مباشرة"
+  },
+  "FocusTrail": {
+    "direction": "التوجه",
+    "directionPath": "مسار التوجه"
+  },
+  "EmptyUnitContext": {
+    "noObjectiveForYet": "لا هدف لـ{name} بعد",
+    "defineAnObjectiveAlignedTo": "حدّد هدفًا مرتبطًا بـ",
+    "createObjectiveFor": "إنشاء هدف لـ{name}"
+  },
+  "DirectionSelector": {
+    "alignUnder": "الربط تحت"
+  },
+  "NoPublishedDirection": {
+    "companyDirection": "توجه الشركة",
+    "establishCompanyDirection": "حدّد توجه الشركة",
+    "defineTheStrategicObjectiveThat": "حدّد الهدف الاستراتيجي الذي سترتبط به الأهداف التنظيمية خلال هذه الدورة.",
+    "createCompanyObjective": "إنشاء هدف للشركة",
+    "goToCycleSetup": "الانتقال إلى إعداد الدورة",
+    "setTheStrategicDirection": "حدّد التوجه الاستراتيجي",
+    "defineTheCompanysFocusFor": "حدّد تركيز الشركة لدورة الأداء.",
+    "enableOrganizationalAlignment": "مكّن الارتباط التنظيمي",
+    "helpTeamsAlignTheirGoals": "ساعد الفرق على ربط أهدافها بما يهم أكثر.",
+    "createSharedFocus": "أنشئ تركيزًا مشتركًا",
+    "makeTheOrganizationsPrioritiesClear": "اجعل أولويات المؤسسة واضحة طوال الدورة.",
+    "organizationalAlignment": "الارتباط التنظيمي",
+    "organizationalObjectivesWillAppearHere": "ستظهر الأهداف التنظيمية هنا بعد تحديد توجه الشركة.",
+    "alignedObjectivesWillAppearHere": "ستظهر الأهداف المرتبطة هنا",
+    "onceYouCreateTheCompany": "بعد إنشاء هدف الشركة، يمكنك إضافة أهداف تنظيمية تدعم التوجه الاستراتيجي."
+  },
+  "PersonLine": {
+    "unassigned": "غير مسند"
+  },
+  "MeasurementFact": {
+    "measurement": "القياس"
+  },
+  "ProgressFact": {
+    "calculatedProgress": "التقدم المحسوب",
+    "notStarted": "لم يبدأ",
+    "progress": "التقدم"
+  },
+  "OrgComposerHost": {
+    "thisObjectiveCantBeEdited": "لا يمكن تعديل هذا الهدف."
+  },
+  "ComposerSkeleton": {
+    "createTeamObjective": "إنشاء هدف للفريق",
+    "editTeamObjective": "تعديل هدف الفريق",
+    "loadingObjective": "جارٍ تحميل الهدف"
+  },
+  "OrgObjectiveComposer": {
+    "milestoneWeightsTotalAssignMore": "مجموع أوزان المراحل {weightSum}% — أسند {value}% إضافية للنشر.",
+    "milestoneWeightsTotalRemoveTo": "مجموع أوزان المراحل {weightSum}% — احذف {value}% للنشر.",
+    "draftSaved": "حُفظت المسودة.",
+    "teamObjectivePublished": "نُشر هدف الفريق.",
+    "editTeamObjective": "تعديل هدف الفريق",
+    "createTeamObjective": "إنشاء هدف للفريق",
+    "owningTeam": "الفريق المالك",
+    "companyStrategy": "استراتيجية الشركة",
+    "organizational": "تنظيمي",
+    "title": "العنوان",
+    "improveTalentDevelopmentExecution": "تحسين تنفيذ تطوير المواهب",
+    "description": "الوصف",
+    "optional": "(اختياري)",
+    "theContributionThisObjectiveMakes": "مساهمة هذا الهدف في التوجه أعلاه.",
+    "objectiveDefinition": "تعريف الهدف",
+    "organizationalScope": "النطاق التنظيمي",
+    "owningUnit": "الوحدة المالكة",
+    "chooseTheOwningTeamAbove": "اختر الفريق المالك أعلاه",
+    "accountablePerson": "الشخص المسؤول",
+    "thisTeamHasNoEligible": "لا مالكين مؤهلين في هذا الفريق للدورة.",
+    "start": "البداية",
+    "end": "النهاية",
+    "scopeAccountability": "النطاق والمسؤولية",
+    "measureDirectly": "القياس مباشرة",
+    "trackThisObjectiveWithIts": "تابع هذا الهدف بمقياس أعمال خاص به.",
+    "calculateFromContributors": "الحساب من المساهمين",
+    "rollUpFromPublishedDirect": "التجميع من الأهداف الفرعية المباشرة المنشورة.",
+    "readyToPublish": "جاهز للنشر",
+    "progressRollsUpFromThe": "يُجمّع التقدم من الأهداف المرتبطة تحت هذا الهدف.",
+    "measurement": "القياس",
+    "howWillProgressOnThis": "كيف سيُقاس التقدم في هذا الهدف؟",
+    "cancel": "إلغاء",
+    "saving": "جارٍ الحفظ…",
+    "saveAsDraft": "حفظ كمسودة",
+    "publishing": "جارٍ النشر…",
+    "publishObjective": "نشر الهدف",
+    "couldNotSaveTheDraft": "تعذّر حفظ المسودة.",
+    "couldNotSaveTheObjective": "تعذّر حفظ الهدف."
+  },
+  "AlignmentEditor": {
+    "alignment": "الارتباط",
+    "chooseTheOrganizationalDirectionThis": "اختر التوجه التنظيمي الذي يدعمه هذا الهدف.",
+    "alignToOrganizationalDirection": "الربط بالتوجه التنظيمي",
+    "connectThisObjectiveToA": "اربط هذا الهدف بهدف أعلى منشور.",
+    "standaloneTeamObjective": "هدف فريق مستقل",
+    "keepThisObjectiveWithinMy": "أبقِ هذا الهدف ضمن فريقي دون ربط بهدف أعلى.",
+    "upstreamObjective": "الهدف الأعلى",
+    "teamOptionsCouldNotBe": "تعذّر تحميل خيارات الفريق. أغلق وأعد المحاولة.",
+    "noPublishedUpstreamObjectivesAre": "لا أهداف أعلى منشورة متاحة. لا يزال بإمكانك إنشاء هدف مستقل."
+  },
+  "AlignmentTargetPicker": {
+    "organizationalDirection": "التوجه التنظيمي",
+    "noOwner": "بلا مالك",
+    "to": "· من {startDate} إلى {endDate}",
+    "noAlignment": "بلا ارتباط",
+    "company": "الشركة",
+    "organizational": "تنظيمي",
+    "chooseAnUpstreamObjective": "اختر هدفًا أعلى",
+    "standalone": "مستقل",
+    "createATeamObjectiveWithout": "أنشئ هدف فريق دون ربط بهدف أعلى."
+  },
+  "OwnerPicker": {
+    "teamMember": "عضو الفريق",
+    "activeTeamMemberAtCycle": "عضو فريق نشط عند بدء الدورة",
+    "chooseAnAccountableOwner": "اختر مالكًا مسؤولًا",
+    "searchTeamMembers": "البحث في أعضاء الفريق…",
+    "noEligibleTeamMembersMatch": "لا أعضاء مؤهلين يطابقون بحثك.",
+    "noEligibleTeamMembers": "لا أعضاء مؤهلين."
+  },
+  "WorkingScopeSelector": {
+    "organizationWide": "على مستوى المؤسسة",
+    "searchOrganization": "البحث في الهيكل التنظيمي…",
+    "searchWorkingScope": "البحث في نطاق العمل",
+    "loadingOrganization": "جارٍ تحميل الهيكل التنظيمي…",
+    "noOrganizationalUnitsMatch": "لا وحدات تنظيمية مطابقة."
+  },
+  "lib": {
+    "state": {
+      "Draft": "مسودة",
+      "Published": "منشور",
+      "Archived": "مؤرشف"
+    },
+    "company": "الشركة",
+    "orgUnit": "وحدة تنظيمية",
+    "employee": "موظف",
+    "yourUnit": "{type} الخاص بك",
+    "yourOrganization": "مؤسستك",
+    "orgStrategic": "هدف {orgName} الاستراتيجي",
+    "companyObjective": "هدف الشركة",
+    "companyStrategy": "استراتيجية الشركة",
+    "individual": "فردي",
+    "organizational": "تنظيمي"
+  },
+  "map": {
+    "status": {
+      "OnTrack": "على المسار",
+      "AtRisk": "في خطر",
+      "OffTrack": "خارج المسار"
+    },
+    "notReported": "بلا تحديث",
+    "noProgress": "لا تقدم بعد",
+    "percent": "{value}%",
+    "company": "الشركة",
+    "yourObjective": "هدفك",
+    "personalObjective": "هدف شخصي",
+    "unit": "الوحدة",
+    "companyObjective": "هدف الشركة",
+    "unitObjective": "هدف {scope}",
+    "accessible": "{scope}، {title}، {status}، {progress}",
+    "onTrack": "{count} على المسار",
+    "atRisk": "{count} في خطر",
+    "offTrack": "{count} خارج المسار",
+    "noStatus": "{count} بلا تحديث",
+    "personal": "{count, plural, one {هدف شخصي واحد} two {هدفان شخصيان} other {# أهداف شخصية}}",
+    "personalWithParts": "{count, plural, one {هدف شخصي واحد} two {هدفان شخصيان} other {# أهداف شخصية}}: {parts}"
+  }
+}

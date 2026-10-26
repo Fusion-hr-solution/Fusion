@@ -1,0 +1,188 @@
+{
+  "CyclePage": {
+    "administrationOnly": "للإدارة فقط",
+    "cycleAdministrationIsAvailableTo": "إدارة الدورة متاحة لمسؤولي الأداء.",
+    "performanceWorkspace": "مساحة عمل الأداء",
+    "theCycle": "الدورة",
+    "closed": "مغلقة",
+    "status": "الحالة",
+    "insights": "الرؤى",
+    "cycleViews": "عروض الدورة",
+    "closureReadiness": "جاهزية الإغلاق",
+    "phase": {
+      "Planning": "التخطيط",
+      "Execution": "التنفيذ",
+      "Review": "التقييم"
+    }
+  },
+  "CloseCycleAction": {
+    "closeCycle": "إغلاق الدورة",
+    "close": "إغلاق {name}؟",
+    "planningProgressAndEvidenceStop": "يتوقف التخطيط والتقدم والأدلة. تبقى الدورة قابلة للقراءة كسجل.",
+    "approvedPlans": "الخطط المعتمدة",
+    "of": "{approvedCount} من {participantCount}",
+    "ends": "تنتهي",
+    "whyCloseBefore": "لماذا الإغلاق قبل {endDate}؟",
+    "reasonRecordedForThe1": "سبب مسجّل للمشارك الوحيد بلا خطة معتمدة",
+    "reasonRecordedForTheParticipants": "سبب مسجّل للمشاركين ({unresolved}) بلا خطة معتمدة",
+    "cancel": "إلغاء",
+    "isClosed": "أُغلقت {name}.",
+    "couldNotCloseTheCycle": "تعذّر إغلاق الدورة."
+  },
+  "ClosureSection": {
+    "closedWithExceptions": "أُغلقت مع استثناءات",
+    "closedWithEveryPlanApproved": "أُغلقت وكل الخطط معتمدة",
+    "withoutAnApprovedPlan": "بلا خطة معتمدة",
+    "ofApproved": "{approvedCount} من {participantCount} معتمدة",
+    "closedEarly": "أُغلقت مبكرًا ·",
+    "everyParticipantHasAnApproved": "لكل مشارك خطة معتمدة.",
+    "standing": {
+      "NotStarted": "لم تبدأ",
+      "Draft": "مسودة",
+      "ReturnedForChanges": "أُعيدت",
+      "Submitted": "بانتظار القرار",
+      "Approved": "معتمدة"
+    }
+  },
+  "CycleInsights": {
+    "insights": "الرؤى",
+    "final": "نهائية",
+    "asOf": "بتاريخ {asOf}"
+  },
+  "UnitFilter": {
+    "unit": "الوحدة",
+    "theWholeOrganization": "المؤسسة كاملة"
+  },
+  "FactStrip": {
+    "resultsReleased": "النتائج المنشورة",
+    "notReleasedYet": "لم تُنشر بعد",
+    "acknowledged": "اطُّلع عليها",
+    "notYet": "{value} لم يطّلعوا بعد",
+    "managerReviewsOnTime": "تقييمات المديرين في الموعد",
+    "changedInCalibration": "تغيّرت في المعايرة",
+    "raisedLowered": "{value} رُفعت · {value2} خُفضت",
+    "plansApproved": "الخطط المعتمدة",
+    "neverApproved": "{neverApproved} لم تُعتمد قط",
+    "updatedInTheLast30": "حُدّثت خلال آخر 30 يومًا",
+    "withoutAnUpdate": "{withoutRecentUpdate} بلا تحديث",
+    "atRiskOrOffTrack": "في خطر أو خارج المسار",
+    "atRiskOffTrack": "{atRisk} في خطر · {offTrack} خارج المسار",
+    "alignedToCompanyDirection": "مرتبطة بتوجه الشركة",
+    "participants": "المشاركون",
+    "personCount": "{count, plural, one {شخص واحد} two {شخصان} other {# أشخاص}}",
+    "objectiveCount": "{count, plural, one {هدف واحد} two {هدفان} other {# أهداف}}",
+    "of": "من {total}",
+    "lateAfter": "{late} بعد {day}",
+    "theDueDate": "تاريخ الاستحقاق",
+    "rating": "{count, plural, one {تقدير} other {تقديرات}}",
+    "ofObjectives": "من {objectives}",
+    "alignedOf": "{aligned} من {total}"
+  },
+  "StatusBar": {
+    "onTrackAtRiskOff": "{onTrack} على المسار، {atRisk} في خطر، {offTrack} خارج المسار، {noStatus} بلا حالة بعد"
+  },
+  "ByUnit": {
+    "unit": "الوحدة",
+    "people": "الأشخاص",
+    "managerReviewsOnTime": "تقييمات المديرين في الموعد",
+    "acknowledged": "اطُّلع عليها",
+    "calibration": "المعايرة",
+    "plansApproved": "الخطط المعتمدة",
+    "updatedInTheLast30": "حُدّثت خلال آخر 30 يومًا",
+    "objectiveStatusAsOwnersSet": "حالة الأهداف كما حددها أصحابها",
+    "aligned": "مرتبطة",
+    "allOf": "كل {scopeName}",
+    "allUnits": "كل الوحدات",
+    "peopleIn": "{people} أشخاص في {name}",
+    "of": "{value} من {value2}",
+    "late": "· {late} متأخرة",
+    "managerReviewsLateIn": "تقييمات المديرين المتأخرة في {name}",
+    "notAcknowledgedIn": "لم يُطّلع عليها في {name}",
+    "ratedIn": "بتقدير {value} في {name}",
+    "raisedIn": "رُفعت في {name}",
+    "loweredIn": "خُفضت في {name}",
+    "of2": "{plansApproved} من {people}",
+    "plansNotApprovedIn": "الخطط غير المعتمدة في {name}",
+    "notUpdatedIn": "لم تُحدّث في {name}",
+    "atRiskOrOff": "في خطر أو خارج المسار",
+    "of3": "· من {value}",
+    "atRiskOrOffTrack": "في خطر أو خارج المسار في {name}",
+    "byUnit": "حسب الوحدة",
+    "finalRatingsAfterCalibrationPeople": "التقديرات النهائية بعد المعايرة · الأشخاص في كل مستوى",
+    "onTrack": "على المسار",
+    "atRisk": "في خطر",
+    "offTrack": "خارج المسار",
+    "noStatusYet": "بلا حالة بعد"
+  },
+  "CompanyDirection": {
+    "companyObjective": "هدف الشركة",
+    "owner": "المالك",
+    "alignedObjectives": "الأهداف المرتبطة",
+    "unitsContributing": "الوحدات المساهمة",
+    "progress": "التقدم",
+    "of": "{unitsContributing} من {units}",
+    "notAlignedToAnyCompany": "غير مرتبطة بأي هدف للشركة",
+    "companyDirection": "توجه الشركة"
+  },
+  "ByManager": {
+    "manager": "المدير",
+    "people": "الأشخاص",
+    "lateManagerReviews": "تقييمات المديرين المتأخرة",
+    "acknowledged": "اطُّلع عليها",
+    "after": "{late} بعد",
+    "theDueDate": "تاريخ الاستحقاق",
+    "lateReviewsBy": "التقييمات المتأخرة لـ{name}",
+    "allOnTime": "كلها في الموعد",
+    "of": "{acknowledged} من {released}",
+    "notAcknowledgedFor": "لم يُطّلع عليها لـ{name}",
+    "ofManagersMostLateFirst": "{length} من {length2} مديرين، الأكثر تأخرًا أولًا",
+    "showFewer": "عرض أقل",
+    "showAll": "عرض الكل ({length})",
+    "byManager": "حسب المدير"
+  },
+  "PeopleDrawer": {
+    "loadingPeople": "جارٍ تحميل الأشخاص",
+    "noOne": "لا أحد",
+    "pageOf": "الصفحة {page} من {pages}",
+    "previous": "السابق",
+    "next": "التالي",
+    "rated": "بتقدير {level}",
+    "manager": "المدير {managerName}"
+  },
+  "InsightsSkeleton": {
+    "loadingInsights": "جارٍ تحميل الرؤى"
+  },
+  "metric": {
+    "people": "الأشخاص",
+    "plans-approved": "الخطط المعتمدة",
+    "plans-not-approved": "الخطط غير المعتمدة",
+    "updated": "حُدّثت خلال آخر 30 يومًا",
+    "not-updated": "بلا تحديث منذ 30 يومًا",
+    "at-risk-or-off-track": "أهداف في خطر أو خارج المسار",
+    "reviews": "التقييمات",
+    "on-time": "تقييمات المديرين في الموعد",
+    "late": "تقييمات المديرين المتأخرة",
+    "released": "النتائج المنشورة",
+    "acknowledged": "اطُّلع عليها",
+    "not-acknowledged": "لم يُطّلع عليها",
+    "level": "بتقدير",
+    "raised": "رُفعت في المعايرة",
+    "lowered": "خُفضت في المعايرة"
+  },
+  "facts": {
+    "submitted": "أُرسل في {day}",
+    "notSubmitted": "لم يُرسل",
+    "due": "مستحق في {day}",
+    "released": "نُشر في {day}",
+    "acknowledged": "اطُّلع عليه في {day}",
+    "rated": "بتقدير {level}",
+    "noPlan": "بلا خطة",
+    "plan": {
+      "Draft": "خطة مسودة",
+      "ReturnedForChanges": "خطة مُعادة",
+      "Submitted": "خطة مُرسلة",
+      "Approved": "خطة معتمدة"
+    },
+    "updated": "حُدّث في {day}"
+  }
+}

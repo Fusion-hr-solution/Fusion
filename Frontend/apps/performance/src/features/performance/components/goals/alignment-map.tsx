@@ -520,6 +520,8 @@ export default function AlignmentMap({
   return (
     <div className="relative h-full min-h-[420px] overflow-hidden rounded-surface border border-border bg-section">
       <ReactFlow<MapFlowNode, Edge>
+        // React Flow positions in physical pixels and breaks right to left; the map reads left to right in every language.
+        dir="ltr"
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}

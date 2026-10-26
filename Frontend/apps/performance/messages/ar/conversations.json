@@ -1,0 +1,278 @@
+{
+  "ColleaguePicker": {
+    "typeAtLeastTwoLetters": "اكتب حرفين على الأقل من الاسم",
+    "colleaguesCouldntBeLoadedTry": "تعذّر تحميل الزملاء. أعد المحاولة.",
+    "typeANameToSearch": "اكتب اسمًا للبحث",
+    "noColleaguesMatch": "لا زملاء يطابقون «{typed}»"
+  },
+  "ColleaguesPicker": {
+    "remove": "إزالة {displayName}",
+    "searchColleagues": "البحث في الزملاء",
+    "addAnother": "إضافة آخر"
+  },
+  "SubjectPicker": {
+    "nothingSpecific": "لا شيء محدد",
+    "about": "بخصوص"
+  },
+  "VisibilityChoice": {
+    "shared": "مشتركة",
+    "managerOnly": "للمدير فقط",
+    "whoReadsIt": "من يقرؤها",
+    "they": "هو",
+    "sharedWho": "{name} ومديره",
+    "managerOnlyWho": "مدير {name} فقط",
+    "managerOnlyWhoAnon": "مديره فقط"
+  },
+  "FeedbackComposer": {
+    "giveFeedback": "تقديم ملاحظات",
+    "change": "تغيير",
+    "to": "إلى",
+    "about": "بخصوص",
+    "feedback": "الملاحظات",
+    "whoReadsIt": "من يقرؤها",
+    "cantBeChangedOnceSent": "لا يمكن تغييرها بعد الإرسال",
+    "cancel": "إلغاء",
+    "sendTo": "إرسال إلى {displayName}",
+    "sendFeedback": "إرسال الملاحظات",
+    "feedbackSentTo": "أُرسلت الملاحظات إلى {displayName}."
+  },
+  "RequestComposer": {
+    "askForFeedback": "طلب ملاحظات",
+    "howIsLanding": "كيف يُستقبل «{title}»؟",
+    "yourQuestion": "سؤالك",
+    "ask": "اسأل",
+    "about": "بخصوص",
+    "answerBy": "الرد قبل",
+    "cancel": "إلغاء",
+    "askColleagues": "اسأل {length} زملاء",
+    "sendRequest": "إرسال الطلب",
+    "askedColleague": "سُئل {length} زميل.",
+    "askedColleagues": "سُئل {length} زملاء."
+  },
+  "PraiseComposer": {
+    "whatTheyDidInYour": "ما فعلوه، بكلماتك.",
+    "givePraise": "تقديم إشادة",
+    "who": "من",
+    "value": "القيمة",
+    "for": "لأجل",
+    "whatTheyDid": "ما فعلوه",
+    "everyoneWillSee": "سيراها الجميع",
+    "cancel": "إلغاء",
+    "praisePeople": "الإشادة بـ{length} أشخاص",
+    "praiseShared": "نُشرت الإشادة."
+  },
+  "DueBlock": {
+    "overdue": "متأخر",
+    "due": "الاستحقاق",
+    "today": "اليوم",
+    "tomorrow": "غدًا"
+  },
+  "FeedbackDrawer": {
+    "aColleague": "زميل",
+    "from": "من",
+    "to": "إلى",
+    "about": "بخصوص",
+    "only": "{value} فقط",
+    "andTheirManager": "{name} ومديره",
+    "whoReadsIt": "من يقرؤها",
+    "answers": "الردود",
+    "thisFeedbackIsntAvailableTo": "هذه الملاحظات غير متاحة لك.",
+    "loadingFeedback": "جارٍ تحميل الملاحظات",
+    "feedback": "ملاحظات · {sentAt}",
+    "feedback2": "الملاحظات",
+    "fixedOnceSent": "ثابتة بعد الإرسال"
+  },
+  "AddToNextOneOnOne": {
+    "onTheNext11": "في اللقاء الفردي القادم",
+    "addToNext11": "إضافة إلى اللقاء الفردي القادم",
+    "addedToYourNext1": "أُضيف إلى لقائك الفردي القادم مع {displayName}."
+  },
+  "PraiseDrawer": {
+    "thisPraiseWasRemoved": "حُذفت هذه الإشادة.",
+    "from": "من",
+    "aColleague": "زميل",
+    "deleteThisPraise": "حذف هذه الإشادة؟",
+    "itDisappearsFromTheFeed": "تختفي من الموجز والرئيسية وملف {recipients} لدى الجميع.",
+    "keepIt": "الإبقاء عليها",
+    "deletePraise": "حذف الإشادة",
+    "praiseDeleted": "حُذفت الإشادة.",
+    "thisPraiseIsntAvailable": "هذه الإشادة غير متاحة.",
+    "loadingPraise": "جارٍ تحميل الإشادة",
+    "praise": "إشادة",
+    "couldNotDelete": "تعذّر حذف هذه الإشادة."
+  },
+  "FeedbackWorkspace": {
+    "yourTeam": "فريقك",
+    "feedback": "الملاحظات",
+    "askForFeedback": "طلب ملاحظات",
+    "giveFeedback": "تقديم ملاحظات",
+    "toAnswer": "{toAnswer} للرد",
+    "noFeedbackAboutYourTeam": "لا ملاحظات عن فريقك بعد",
+    "youHaventGivenFeedbackYet": "لم تقدّم ملاحظات بعد",
+    "tabs": {
+      "received": "الواردة",
+      "given": "المقدّمة",
+      "requests": "الطلبات",
+      "praise": "الإشادات",
+      "team": "فريقك"
+    }
+  },
+  "ReceivedTab": {
+    "noFeedbackYet": "لا ملاحظات بعد",
+    "askAbout": "اسأل عن {title}",
+    "askForFeedback": "طلب ملاحظات"
+  },
+  "ReceivedBand": {
+    "fromColleague": "من {fromCount} زملاء",
+    "s": "",
+    "nothingSpecific": "لا شيء محدد",
+    "toAnswer": "{toAnswer} للرد",
+    "requestsWaitingOnYou": "طلبات بانتظارك",
+    "yourFeedbackAtAGlance": "ملاحظاتك في لمحة"
+  },
+  "ReceivedSidebar": {
+    "noFeedbackYet": "لا ملاحظات بعد",
+    "pieceOfFeedback": "{feedback} ملاحظة",
+    "piecesOfFeedback": "{feedback} ملاحظات",
+    "ask": "اسأل",
+    "askAbout": "اسأل عن",
+    "feedback": "ملاحظات",
+    "praise": "إشادة",
+    "givenByYou": "قدّمتها أنت"
+  },
+  "FeedbackPage": {
+    "feedback": "الملاحظات",
+    "showOlder": "عرض الأقدم"
+  },
+  "FeedbackCard": {
+    "to": "إلى",
+    "to2": "إلى",
+    "aColleague": "زميل",
+    "managerOnly": "للمدير فقط",
+    "answerTo": "رد على «{requestQuestion}»"
+  },
+  "RequestsTab": {
+    "feedbackRequests": "طلبات الملاحظات",
+    "askedOfYou": "مطلوبة منك",
+    "nothingToAnswer": "لا شيء للرد عليه",
+    "lastAnsweredFor": "· آخر رد لـ{name}",
+    "yours": "طلباتك",
+    "open": "{length} مفتوحة",
+    "noOpenRequests": "لا طلبات مفتوحة",
+    "closed": "مغلقة",
+    "asked": "سأل {name}:",
+    "answered": "تم الرد",
+    "declined": "اعتذر",
+    "answer": "{answered} رد",
+    "answers": "{answered} ردود"
+  },
+  "AskedOfYou": {
+    "askedYou": "سألك · {requestedAt}",
+    "answer": "الرد"
+  },
+  "YourRequest": {
+    "overdue": "متأخر",
+    "due": "الاستحقاق",
+    "noAnswersYet": "لا ردود بعد",
+    "answered": "تم الرد",
+    "declined": "اعتذر",
+    "waiting": "بانتظار الرد",
+    "asked": "طُلب",
+    "ofAnswered": "ردّ {answered} من {invited}"
+  },
+  "PraiseTab": {
+    "showPraise": "عرض الإشادات",
+    "praise": "الإشادات",
+    "filters": {
+      "all": "الجميع",
+      "forMe": "لك",
+      "byMe": "منك"
+    }
+  },
+  "GivePraiseBar": {
+    "praiseAColleagueFor": "أشد بزميل لأجل…",
+    "praiseSomeoneFor": "أشد بشخص لأجل {name}",
+    "givePraise": "تقديم إشادة"
+  },
+  "PraiseSidebar": {
+    "whatWeCelebrateLastDays": "ما نحتفي به · آخر {windowDays} يومًا",
+    "received": "واردة",
+    "given": "مقدّمة",
+    "yourPraise": "إشاداتك"
+  },
+  "PraisePage": {
+    "praise": "الإشادات",
+    "noPraiseYet": "لا إشادات بعد",
+    "giveTheFirst": "قدّم الأولى",
+    "noPraiseForYouYet": "لا إشادات لك بعد",
+    "youHaventGivenPraiseYet": "لم تقدّم إشادة بعد",
+    "showOlder": "عرض الأقدم"
+  },
+  "RequestRecord": {
+    "thisRequest": "هذا الطلب"
+  },
+  "RequestView": {
+    "requests": "الطلبات",
+    "askedYou": "سألك {name}",
+    "open": "مفتوح",
+    "closed": "مغلق",
+    "asked": "طُلب {requestedAt}",
+    "due": "· مستحق في {dueDate}",
+    "closed2": "· أُغلق {closedAt}",
+    "closeRequest": "إغلاق الطلب"
+  },
+  "FullView": {
+    "asked": "طُلب",
+    "answered": "ردّ {answered}",
+    "declined": "· اعتذر {declined}",
+    "waiting": "· {length} بانتظار الرد",
+    "answers": "الردود",
+    "hasntAnsweredYet": "لم يرد {name} بعد",
+    "noAnswers": "لا ردود",
+    "declined2": "اعتذر {name}: {declineReason}",
+    "statusAnswered": "تم الرد",
+    "answeredOn": "ردّ في {day}",
+    "statusDeclined": "اعتذر",
+    "statusWaiting": "بانتظار الرد"
+  },
+  "InviteeView": {
+    "answered": "تم الرد {sentAt}",
+    "yourAnswer": "ردك",
+    "youDeclinedThisRequest": "اعتذرت عن هذا الطلب.",
+    "closedThisRequest": "أغلق {name} هذا الطلب.",
+    "yourFeedbackFor": "ملاحظاتك لـ{name}",
+    "yourAnswerFor": "ردك لـ{name}",
+    "andTheirManagerReadIt": "يقرؤه {name} ومديره، مع اسمك",
+    "decline": "اعتذار",
+    "sendAnswer": "إرسال الرد",
+    "reason": "السبب",
+    "optional": "(اختياري)",
+    "declineRequest": "الاعتذار عن الطلب"
+  },
+  "RequestSkeleton": {
+    "loadingThisRequest": "جارٍ تحميل هذا الطلب"
+  },
+  "RequestUpdateDialog": {
+    "askForAnUpdate": "طلب تحديث من {personName}",
+    "onTheWholePlan": "على الخطة كاملة",
+    "note": "ملاحظة",
+    "optional": "(اختياري)",
+    "cancel": "إلغاء",
+    "sendRequest": "إرسال الطلب",
+    "updateRequestedFrom": "طُلب تحديث من {personName}."
+  },
+  "RequestUpdateAction": {
+    "updateRequested": "طُلب تحديث",
+    "withdraw": "سحب",
+    "requestUpdate": "طلب تحديث",
+    "couldNotWithdrawTheRequest": "تعذّر سحب الطلب."
+  },
+  "RequestBand": {
+    "askedForAnUpdate": "طلب {requestedByName} تحديثًا",
+    "recordingProgressAnswersIt": "تسجيل التقدم يجيب عنه.",
+    "recordProgress": "تسجيل التقدم"
+  },
+  "ObjectiveRequestMarker": {
+    "asked": "طلب {value} · {formatDate}"
+  }
+}
