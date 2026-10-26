@@ -1,5 +1,9 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// Reads the language from NEXT_LOCALE through `src/i18n/request.ts`.
+const withNextIntl = createNextIntlPlugin();
 
 const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
 const output =
@@ -14,7 +18,7 @@ const nextConfig: NextConfig = {
   // directories make the two incapable of colliding.
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   outputFileTracingRoot: frontendWorkspaceRoot,
-  transpilePackages: ["@repo/ds", "@repo/auth", "@repo/api", "@repo/performance-ui"],
+  transpilePackages: ["@repo/ds", "@repo/auth", "@repo/api", "@repo/i18n", "@repo/performance-ui"],
   experimental: {
     // The shell reverse-proxies module documents to each MFE via `rewrites()`.
     // Next's rewrite proxy defaults to a 30s timeout; when a Next dev server
@@ -103,4 +107,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

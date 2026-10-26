@@ -2,16 +2,65 @@
 
 import { useState } from "react";
 import { Check, ChevronRight, Lock } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { ApiError, type NotificationGroupKey, type NotificationPreferenceGroup } from "@repo/api";
 import { useNotificationPreferences, useUpdateNotificationPreferences } from "@repo/api/query";
 import { cn, Switch } from "@repo/ds";
 import { FUSION_MODULE_ICONS, PageError, SettingsBlock, SettingsPage, SettingsSaved } from "@repo/ds/shell";
 
+/**
+ * Performance serves its groups and lines from a fixed English catalogue with no codes for the lines
+ * (NotificationPreferenceCatalog). The screen names them from its own catalogue: groups by key, summaries and lines
+ * by the server's English. Anything the catalogue doesn't know yet is shown as the server sent it.
+ */
+const SUMMARIES: Record<string, string> = {
+  "Your plan approved or returned, updates asked of you, development goals added": "plansAndGoals",
+  "Plans waiting for your decision, your plan approved or returned, objectives at risk on your team": "plansAndGoalsLeader",
+  "Your self-assessment opens, peer input asked of you, your review released": "reviews",
+  "Reviews to write, peers to approve, your own review": "reviewsLeader",
+  "A 1:1 started or moved, actions assigned to you": "oneOnOnes",
+  "Feedback and praise you receive, requests for your feedback": "feedback",
+  "Feedback and praise for you and your team, requests and answers": "feedbackLeader",
+  "Something of yours is due soon or late": "deadlines",
+};
+
+const LINES: Record<string, string> = {
+  "A review of yours is due tomorrow or late": "reminder",
+  "Plans waiting for your decision": "plansWaiting",
+  "Objectives at risk on your team": "objectivesAtRisk",
+  "Answers to the updates you asked for": "updateAnswers",
+  "Your plan approved or returned": "planApprovedOrReturned",
+  "Updates asked of you": "updatesAsked",
+  "Development goals added to your plan": "developmentGoals",
+  "A review to write opens": "reviewToWrite",
+  "Someone submitted their self-assessment": "selfAssessmentSubmitted",
+  "Peers to approve": "peersToApprove",
+  "Someone acknowledged their review": "reviewAcknowledged",
+  "Calibration ready, calibration finalized": "calibration",
+  "Your self-assessment opens, your peers approved, your review released": "ownReview",
+  "Peer input asked of you, a peer declined, a due date moved": "peerInput",
+  "A 1:1 started or moved": "oneOnOneMoved",
+  "Actions assigned to you": "actionsAssigned",
+  "Feedback and praise for your team": "teamFeedback",
+  "Feedback and praise you receive": "feedbackReceived",
+  "Requests for your feedback": "feedbackRequests",
+  "Answers to your requests": "requestAnswers",
+};
+
+type NotificationsT = ReturnType<typeof useTranslations<"settings.notifications">>;
+
+/** A catalogue line when the server's words are known, else the words as sent. */
+function known(t: NotificationsT, group: "groups" | "summaries" | "lines", key: string | undefined, sent: string): string {
+  const path = `${group}.${key}` as Parameters<NotificationsT>[0];
+  return key && t.has(path) ? t(path) : sent;
+}
+
 function Always() {
+  const t = useTranslations("settings.notifications");
   return (
     <span className="inline-flex items-center gap-1.5 type-meta font-semibold text-muted-foreground">
       <Lock aria-hidden className="size-3.5" />
-      Always
+      {t("always")}
     </span>
   );
 }
@@ -25,8 +74,10 @@ function GroupRow({
   saving: boolean;
   onEmailChange: (email: boolean) => void;
 }) {
+  const t = useTranslations("settings.notifications");
   const [open, setOpen] = useState(false);
   const panelId = `notification-group-${group.key}`;
+  const label = known(t, "groups", group.key, group.label);
   return (
     <li className="border-b border-border last:border-b-0">
       <div className="grid grid-cols-[minmax(0,1fr)_96px_104px] items-center gap-4 px-5 py-3.5">
@@ -35,28 +86,28 @@ function GroupRow({
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
-          className="flex min-w-0 items-start gap-2.5 rounded-control text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-w-0 items-start gap-2.5 rounded-control text-start outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronRight
             aria-hidden
             className={cn("mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-150", open && "rotate-90")}
           />
           <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="type-label font-semibold text-foreground">{group.label}</span>
+            <span className="type-label font-semibold text-foreground">{label}</span>
             <span className="type-meta text-muted-foreground">
-              {open ? (group.count === 1 ? "1 notification" : `${group.count} notifications`) : group.summary}
+              {open ? t("count", { count: group.count }) : known(t, "summaries", SUMMARIES[group.summary], group.summary)}
             </span>
           </span>
         </button>
         <span className="flex justify-center">
-          <Check aria-label="Always in Fusion" className="size-4 text-muted-foreground" />
+          <Check aria-label={t("alwaysInFusion")} className="size-4 text-muted-foreground" />
         </span>
         <span className="flex justify-center">
           {group.locked ? (
             <Always />
           ) : (
             <Switch
-              aria-label={`Email for ${group.label}`}
+              aria-label={t("emailFor", { group: label })}
               checked={group.email}
               disabled={saving}
               onCheckedChange={onEmailChange}
@@ -65,13 +116,13 @@ function GroupRow({
         </span>
       </div>
       {open ? (
-        <ul id={panelId} className="flex flex-col gap-1 px-5 pb-4 pl-[46px]">
+        <ul id={panelId} className="flex flex-col gap-1 px-5 pb-4 ps-[46px]">
           {group.items.map((item) => (
             <li key={item.label} className="grid grid-cols-[minmax(0,1fr)_104px] items-center gap-4 py-1.5">
               <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground/90">
-                {item.label}
+                {known(t, "lines", LINES[item.label], item.label)}
                 {item.team ? (
-                  <span className="rounded-control bg-inlay px-1.5 py-0.5 type-meta text-muted-foreground">Your team</span>
+                  <span className="rounded-control bg-inlay px-1.5 py-0.5 type-meta text-muted-foreground">{t("yourTeam")}</span>
                 ) : null}
               </span>
               <span className="flex justify-center">{item.always && !group.locked ? <Always /> : null}</span>
@@ -88,6 +139,8 @@ function GroupRow({
  * Deadline reminders are always emailed. Each choice saves the moment it changes.
  */
 export function Notifications() {
+  const t = useTranslations("settings.notifications");
+  const locale = useLocale();
   const preferences = useNotificationPreferences();
   const update = useUpdateNotificationPreferences();
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -116,22 +169,28 @@ export function Notifications() {
 
   if (preferences.isError && !unavailable) {
     return (
-      <SettingsPage title="Notifications">
-        <PageError title="Notifications didn't load" onRetry={() => void preferences.refetch()} />
-      </SettingsPage>
+      <div lang={locale} className="contents">
+        <SettingsPage title={t("title")}>
+          <PageError title={t("didNotLoad")} onRetry={() => void preferences.refetch()} />
+        </SettingsPage>
+      </div>
     );
   }
 
   const PerformanceIcon = FUSION_MODULE_ICONS.performance;
   return (
-    <SettingsPage title="Notifications" loading={preferences.isPending && !unavailable} aside={<SettingsSaved at={savedAt} />}>
+    <div lang={locale} className="contents">
+    <SettingsPage title={t("title")} loading={preferences.isPending && !unavailable} aside={<SettingsSaved at={savedAt} />}>
       {data?.emailAddress ? (
         <p className="-mt-6 type-meta text-muted-foreground">
-          Email goes to <span className="font-semibold text-foreground">{data.emailAddress}</span>
+          {t.rich("emailGoesTo", {
+            address: data.emailAddress,
+            b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+          })}
         </p>
       ) : null}
       {unavailable || !data ? (
-        <p className="type-body-secondary text-muted-foreground">None of your modules send notifications yet.</p>
+        <p className="type-body-secondary text-muted-foreground">{t("none")}</p>
       ) : (
         <SettingsBlock
           title={
@@ -145,14 +204,14 @@ export function Notifications() {
         >
           {failed ? (
             <p role="alert" className="type-meta text-destructive">
-              That change didn&apos;t save. Your choices are as shown.
+              {t("notSaved")}
             </p>
           ) : null}
           <div className="overflow-hidden rounded-surface border border-border bg-card">
             <div className="grid grid-cols-[minmax(0,1fr)_96px_104px] gap-4 border-b border-border bg-inlay px-5 py-2.5 type-meta font-semibold text-muted-foreground">
-              <span>About</span>
-              <span className="text-center">In Fusion</span>
-              <span className="text-center">Email</span>
+              <span>{t("about")}</span>
+              <span className="text-center">{t("inFusion")}</span>
+              <span className="text-center">{t("email")}</span>
             </div>
             <ul>
               {data.groups.map((group) => (
@@ -168,5 +227,6 @@ export function Notifications() {
         </SettingsBlock>
       )}
     </SettingsPage>
+    </div>
   );
 }

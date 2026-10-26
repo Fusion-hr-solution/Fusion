@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import type { AuthUser } from "@repo/auth";
 import type { FusionUpcoming, FusionWorkItem, PersonPerformanceSummaryDto } from "@repo/api";
+import { IntlTestProvider } from "@repo/ds/testing";
+import { shellMessages } from "@/test/intl";
 import { FusionHome } from "./fusion-home";
 
 type ModuleState = { key: string; label: string; status: "loading" | "ready" | "error" };
@@ -27,9 +29,13 @@ vi.mock("@repo/api", async (importOriginal) => ({
   createPerformanceApi: () => ({ getPersonSummary: async () => mocks.summary }),
 }));
 
-function render(ui: ReactElement) {
+function render(ui: ReactElement, locale: "en" | "fr" = "en") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return baseRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return baseRender(
+    <IntlTestProvider locale={locale} messages={shellMessages[locale]}>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </IntlTestProvider>,
+  );
 }
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn() }) }));
@@ -132,6 +138,20 @@ describe("FusionHome", () => {
     expect(screen.getByRole("heading", { name: "Also needs you" })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Update progress on Ship the playbook/ }).getAttribute("href")).toBe("/performance/plan");
     expect(mocks.requested).toEqual(["core", "performance"]);
+  });
+
+  it("speaks French around the work, which keeps the server's words", () => {
+    mocks.work = {
+      modules: [ready[0]!, { key: "performance", label: "Performance", status: "error" }],
+      items: [{ id: "a", module: "core", kind: "access", title: "12 people don't have Fusion access yet", dueOn: "2099-01-02", href: "/core/workforce-access" }],
+    };
+    render(<FusionHome />, "fr");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/^(Bonjour|Bon après-midi|Bonsoir), Nour$/);
+    expect(screen.getByRole("link", { name: /^Accueil/ })).toBeTruthy();
+    expect(screen.getByText("Les deux prochaines semaines")).toBeTruthy();
+    expect(screen.getByText(/jours restants/)).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "12 people don't have Fusion access yet" })).toBeTruthy();
+    expect(screen.getByText(/^[A-Z][a-zé]+ \d{1,2} [a-zéû]+ · QA Automation Engineer, Consulting A$/)).toBeTruthy();
   });
 
   it("says nothing needs the person and nothing is scheduled when there is neither", () => {

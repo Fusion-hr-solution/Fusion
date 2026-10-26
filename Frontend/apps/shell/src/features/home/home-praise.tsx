@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight, HeartHandshake, Lightbulb, PartyPopper, ThumbsUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { usePraiseFeed, useReactToPraise } from "@repo/api/query";
 import { resolveFusionAttentionModules, useAuth } from "@repo/auth";
 import { Skeleton } from "@repo/ds";
@@ -23,6 +24,7 @@ const PRAISE_TAB = "/performance/feedback?tab=praise";
  * never touches the home.
  */
 export function HomePraise() {
+  const t = useTranslations("home.praise");
   const { user } = useAuth();
   const entitled = resolveFusionAttentionModules(user).includes("performance");
   const feed = usePraiseFeed({ scope: "all", limit: 2 }, { enabled: entitled && Boolean(user?.tenantId) });
@@ -32,15 +34,15 @@ export function HomePraise() {
   return (
     <section aria-labelledby="home-praise-heading" className="space-y-3">
       <div className="flex min-h-9 items-center justify-between gap-4">
-        <h2 id="home-praise-heading" className="type-section-title text-foreground">Praise</h2>
+        <h2 id="home-praise-heading" className="type-section-title text-foreground">{t("title")}</h2>
         <Button asChild variant="outline" size="sm">
-          <a href={`${PRAISE_TAB}&compose=praise`}>Give praise</a>
+          <a href={`${PRAISE_TAB}&compose=praise`}>{t("give")}</a>
         </Button>
       </div>
       {feed.error ? (
-        <p className="type-body-secondary text-muted-foreground">Praise couldn&apos;t be loaded</p>
+        <p className="type-body-secondary text-muted-foreground">{t("failed")}</p>
       ) : !feed.data ? (
-        <div aria-label="Loading praise" className="space-y-3">
+        <div aria-label={t("loading")} className="space-y-3">
           <Skeleton className="h-28 w-full rounded-surface" />
           <Skeleton className="h-28 w-full rounded-surface" />
         </div>
@@ -53,11 +55,11 @@ export function HomePraise() {
           onReact={(praise, kind, add) => react.mutate({ praiseId: praise.id, kind, add })}
           // Praise opens in Performance's drawer; it's another app, so this is a full navigation.
           onOpen={(praise) => window.location.assign(`${PRAISE_TAB}&praise=${praise.id}`)}
-          empty={<p className="type-body-secondary text-muted-foreground">No praise yet</p>}
+          empty={<p className="type-body-secondary text-muted-foreground">{t("empty")}</p>}
         />
       )}
       <a href={PRAISE_TAB} className="inline-flex items-center gap-1 type-label text-foreground hover:text-primary">
-        All praise <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+        {t("all")} <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
       </a>
     </section>
   );

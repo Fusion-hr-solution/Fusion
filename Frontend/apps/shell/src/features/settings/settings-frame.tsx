@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { User } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useFusionNavigation, useFusionSettings, useSettingsReturn } from "@repo/api/query";
 import { useFusionViewer } from "@repo/api/react";
 import { useAuth } from "@repo/auth";
@@ -11,6 +12,7 @@ import { ShellNotificationBell } from "@/features/home/shell-notification-bell";
 
 /** The shell's settings sidebar: You, then each module group the person can view, and the way back. */
 function SettingsSidebar() {
+  const t = useTranslations("ds.sidebar");
   const { logout } = useAuth();
   const { viewer, isLoading } = useFusionViewer();
   const navigation = useFusionNavigation(null, []);
@@ -28,7 +30,7 @@ function SettingsSidebar() {
       person={{
         ...navigation.person,
         pending: isLoading,
-        links: viewer?.canOpenOwnProfile ? [{ label: "My profile", href: "/core/profile", icon: User }] : [],
+        links: viewer?.canOpenOwnProfile ? [{ label: t("myProfile"), href: "/core/profile", icon: User }] : [],
         onSignOut: async () => {
           await logout();
           window.location.href = "/auth/signin";

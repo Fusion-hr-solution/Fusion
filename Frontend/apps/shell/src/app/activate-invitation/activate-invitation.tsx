@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Alert,
   AlertDescription,
@@ -56,6 +57,7 @@ import {
   type ActivationOutcome,
   errorFor,
   passwordChecks,
+  useActivationSay,
   validateForm,
 } from "../../lib/activation";
 
@@ -76,6 +78,7 @@ export function ActivateInvitation({
   journey?: ActivationJourney;
 } = {}) {
   const searchParams = useSearchParams();
+  const locale = useLocale();
 
   // Read once and held. Scrubbing the address bar changes the search params, so
   // reading them on every render would hand the request an empty credential the
@@ -125,9 +128,11 @@ export function ActivateInvitation({
   // instead of a split with an empty half.
   if (phase.kind === "terminal") {
     return (
-      <InvitationTransactionTerminalFrame>
-        <Terminal outcome={phase.outcome} journey={journey} />
-      </InvitationTransactionTerminalFrame>
+      <div lang={locale} className="contents">
+        <InvitationTransactionTerminalFrame>
+          <Terminal outcome={phase.outcome} journey={journey} />
+        </InvitationTransactionTerminalFrame>
+      </div>
     );
   }
 
@@ -136,16 +141,18 @@ export function ActivateInvitation({
   }
 
   return (
-    <InvitationTransactionFrame
-      context={<TenantContext entry={phase.entry} journey={journey} />}
-    >
-      <AccountForm
-        entry={phase.entry}
-        credential={credential}
-        journey={journey}
-        onTerminal={(outcome) => setPhase({ kind: "terminal", outcome })}
-      />
-    </InvitationTransactionFrame>
+    <div lang={locale} className="contents">
+      <InvitationTransactionFrame
+        context={<TenantContext entry={phase.entry} journey={journey} />}
+      >
+        <AccountForm
+          entry={phase.entry}
+          credential={credential}
+          journey={journey}
+          onTerminal={(outcome) => setPhase({ kind: "terminal", outcome })}
+        />
+      </InvitationTransactionFrame>
+    </div>
   );
 }
 
@@ -166,34 +173,39 @@ function TenantContext({
   entry: ActivationEntry;
   journey: ActivationJourney;
 }) {
-  const tenantName = entry.tenantName ?? "your organization";
+  const say = useActivationSay();
+  const locale = useLocale();
+  const tenantName = entry.tenantName ?? say("yourOrganization");
   // Prefer the role the invitation carries when it is a presentable label;
   // fall back to the journey's default rather than surfacing a raw role key.
+  // The service names roles in English, so other languages use the journey's.
   const role =
-    entry.role && entry.role.includes(" ") ? entry.role : journey.roleLabel;
+    locale === "en" && entry.role && entry.role.includes(" ")
+      ? entry.role
+      : say(`journeys.${journey.key}.role`);
 
   return (
     <InvitationContextPanel
-      eyebrow="You're invited"
+      eyebrow={say("context.eyebrow")}
       // The organization carries the display size: it is what the recipient
       // is checking, so the tenant is the hero.
-      heading={`Join ${tenantName}`}
-      lead={`You've been invited to set up your Fusion account and get started with ${tenantName}.`}
+      heading={say("context.heading", { tenant: tenantName })}
+      lead={say("context.lead", { tenant: tenantName })}
       rows={[
-        { icon: Building2, label: "Organization", value: tenantName },
-        { icon: Users, label: "Assigned role", value: role },
+        { icon: Building2, label: say("context.organization"), value: tenantName },
+        { icon: Users, label: say("context.role"), value: role },
         ...(entry.invitedEmail
           ? [
               {
                 icon: Mail,
-                label: "Invitation sent to",
+                label: say("context.sentTo"),
                 value: entry.invitedEmail,
               },
             ]
           : []),
       ]}
-      securityNote="This invitation is secure and tied to the invited email address. Only the intended recipient can use this link."
-      footerLabel="People work together"
+      securityNote={say("context.security")}
+      footerLabel={say("context.footer")}
     />
   );
 }
@@ -222,7 +234,8 @@ function Terminal({
   outcome: ActivationOutcome;
   journey: ActivationJourney;
 }) {
-  const state = journeyTerminalState(journey, outcome);
+  const say = useActivationSay();
+  const state = journeyTerminalState(journey, outcome, say);
 
   return (
     <InvitationTerminalCard
@@ -250,6 +263,9 @@ function AccountForm({
   journey: ActivationJourney;
   onTerminal: (outcome: ActivationOutcome) => void;
 }) {
+  const say = useActivationSay();
+  const t = useTranslations("activation.form");
+  const locale = useLocale();
   const [form, setForm] = useState<ActivationForm>(() => ({
     firstName: entry.firstName ?? "",
     lastName: entry.lastName ?? "",
@@ -262,13 +278,13 @@ function AccountForm({
   const [retryable, setRetryable] = useState<string | null>(null);
 
   const summaryRef = useRef<HTMLDivElement>(null);
-  const checks = passwordChecks(form.password, entry.passwordRequirements);
+  const checks = passwordChecks(form.password, entry.passwordRequirements, say);
   const passwordsMatch =
     Boolean(form.password) && form.confirmPassword === form.password;
   const passwordError = errorFor(errors, "password");
   const confirmError = errorFor(errors, "confirmPassword");
-  const tenantName = entry.tenantName ?? "your organization";
-  const lead = journey.formLead.replace("{tenant}", tenantName);
+  const tenantName = entry.tenantName ?? say("yourOrganization");
+  const lead = say(`journeys.${journey.key}.lead`, { tenant: tenantName });
 
   // The CTA is only actionable once every field the recipient controls is
   // valid; the service still revalidates on submit.
@@ -288,7 +304,7 @@ function AccountForm({
   async function submit(event: React.FormEvent) {
     event.preventDefault();
 
-    const found = validateForm(form, entry.passwordRequirements);
+    const found = validateForm(form, entry.passwordRequirements, say);
     setErrors(found);
     setRetryable(null);
     if (found.length > 0) return;
@@ -342,15 +358,16 @@ function AccountForm({
       if (reason === "invalid_details") {
         const fields = (body?.data?.fieldErrors ??
           []) as ActivationFieldError[];
+        // The service words its field errors in English; other languages say
+        // which field it refused in their own words.
+        const notAccepted = (field: string) =>
+          say(field === "password" ? "errors.passwordNotAccepted" : "errors.valueNotAccepted");
         setErrors(
           fields.length > 0
-            ? fields
-            : [
-                {
-                  field: "password",
-                  message: "This password was not accepted.",
-                },
-              ]
+            ? fields.map((error) =>
+                locale === "en" ? error : { ...error, message: notAccepted(error.field) }
+              )
+            : [{ field: "password", message: say("errors.passwordNotAccepted") }]
         );
         setPending(false);
         summaryRef.current?.focus();
@@ -377,10 +394,10 @@ function AccountForm({
 
       // Nothing about the invitation changed, so the recipient keeps their form
       // and can try again without retyping.
-      setRetryable("Your account could not be created just now. Try again.");
+      setRetryable(say("errors.retry"));
       setPending(false);
     } catch {
-      setRetryable("Your account could not be created just now. Try again.");
+      setRetryable(say("errors.retry"));
       setPending(false);
     }
   }
@@ -389,7 +406,7 @@ function AccountForm({
     <form onSubmit={submit} noValidate>
       <header>
         <h2 className="font-heading text-[1.875rem] font-semibold leading-[1.15] tracking-[-0.02em] text-foreground">
-          {journey.formHeading}
+          {say(`journeys.${journey.key}.heading`)}
         </h2>
         <p className="mt-2 text-[0.9375rem] leading-6 text-muted-foreground">
           {lead}
@@ -416,7 +433,7 @@ function AccountForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
             id="firstName"
-            label="First name"
+            label={say("form.firstName")}
             autoComplete="given-name"
             value={form.firstName}
             error={errorFor(errors, "firstName")}
@@ -424,7 +441,7 @@ function AccountForm({
           />
           <TextField
             id="lastName"
-            label="Last name"
+            label={say("form.lastName")}
             autoComplete="family-name"
             value={form.lastName}
             error={errorFor(errors, "lastName")}
@@ -434,7 +451,7 @@ function AccountForm({
 
         {entry.invitedEmail ? (
           <Field>
-            <FieldLabel htmlFor="workEmail">Work email</FieldLabel>
+            <FieldLabel htmlFor="workEmail">{say("form.workEmail")}</FieldLabel>
             {/* The invited address as a fact, not a field to change. It is shown
                 so the recipient can confirm the invitation is theirs and see the
                 address they will sign in with. */}
@@ -451,7 +468,7 @@ function AccountForm({
               />
               <InputGroupAddon align="inline-end">
                 <InputGroupText className="text-[0.6875rem] font-medium uppercase tracking-[0.1em]">
-                  Read only
+                  {say("form.readOnly")}
                 </InputGroupText>
               </InputGroupAddon>
             </InputGroup>
@@ -460,7 +477,7 @@ function AccountForm({
 
         <PasswordStrengthField
           id="password"
-          label="Create password"
+          label={say("form.createPassword")}
           value={form.password}
           checks={checks}
           error={passwordError}
@@ -468,7 +485,7 @@ function AccountForm({
         />
 
         <Field data-invalid={confirmError ? true : undefined}>
-          <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
+          <FieldLabel htmlFor="confirmPassword">{say("form.confirmPassword")}</FieldLabel>
           <InputGroup className="h-11">
             <InputGroupAddon>
               <Lock />
@@ -488,7 +505,7 @@ function AccountForm({
                 size="icon-sm"
                 onClick={() => setRevealConfirm((shown) => !shown)}
                 aria-label={
-                  revealConfirm ? "Hide characters" : "Show characters"
+                  revealConfirm ? say("form.hideCharacters") : say("form.showCharacters")
                 }
               >
                 {revealConfirm ? <EyeOff /> : <Eye />}
@@ -508,7 +525,7 @@ function AccountForm({
               ) : (
                 <X aria-hidden="true" className="size-3.5 text-muted-foreground/60" />
               )}
-              {passwordsMatch ? "Passwords match" : "Passwords do not match yet"}
+              {passwordsMatch ? say("form.passwordsMatch") : say("form.passwordsDoNotMatch")}
             </p>
           ) : null}
           {confirmError ? <FieldError>{confirmError}</FieldError> : null}
@@ -519,14 +536,14 @@ function AccountForm({
           size="lg"
           disabled={pending || !canSubmit}
           aria-busy={pending}
-          aria-label={pending ? "Set up account" : undefined}
+          aria-label={pending ? say("form.submit") : undefined}
           className="relative h-12 w-full text-[0.9375rem] font-semibold"
         >
           <span
             className={cn("inline-flex items-center gap-2", pending && "invisible")}
             aria-hidden={pending}
           >
-            Set up account
+            {say("form.submit")}
             <ArrowRight />
           </span>
           {pending ? (
@@ -537,14 +554,13 @@ function AccountForm({
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">
-          Already have a Fusion account?{" "}
-          <a
-            href="/auth/signin"
-            className="font-medium text-primary hover:underline"
-          >
-            Sign in
-          </a>{" "}
-          to continue
+          {t.rich("haveAccount", {
+            signIn: (chunks) => (
+              <a href="/auth/signin" className="font-medium text-primary hover:underline">
+                {chunks}
+              </a>
+            ),
+          })}
         </p>
       </FieldGroup>
     </form>

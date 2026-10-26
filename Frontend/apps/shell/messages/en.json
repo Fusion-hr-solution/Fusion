@@ -1,0 +1,253 @@
+{
+  "settings": {
+    "preferences": {
+      "title": "Preferences",
+      "appearance": "Appearance",
+      "thisDevice": "This device",
+      "dark": "Dark",
+      "light": "Light",
+      "system": "Match this device",
+      "language": "Language",
+      "yourAccount": "Your account",
+      "languageNotSaved": "Couldn't save your language. Try again."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "didNotLoad": "Notifications didn't load",
+      "emailGoesTo": "Email goes to <b>{address}</b>",
+      "none": "None of your modules send notifications yet.",
+      "notSaved": "That change didn't save. Your choices are as shown.",
+      "about": "About",
+      "inFusion": "In Fusion",
+      "email": "Email",
+      "alwaysInFusion": "Always in Fusion",
+      "always": "Always",
+      "emailFor": "Email for {group}",
+      "count": "{count, plural, one {# notification} other {# notifications}}",
+      "yourTeam": "Your team",
+      "groups": {
+        "plans-and-goals": "Plans and goals",
+        "reviews-and-calibration": "Reviews and calibration",
+        "one-on-ones": "1:1s",
+        "feedback-and-praise": "Feedback and praise",
+        "deadline-reminders": "Deadline reminders"
+      },
+      "summaries": {
+        "plansAndGoals": "Your plan approved or returned, updates asked of you, development goals added",
+        "plansAndGoalsLeader": "Plans waiting for your decision, your plan approved or returned, objectives at risk on your team",
+        "reviews": "Your self-assessment opens, peer input asked of you, your review released",
+        "reviewsLeader": "Reviews to write, peers to approve, your own review",
+        "oneOnOnes": "A 1:1 started or moved, actions assigned to you",
+        "feedback": "Feedback and praise you receive, requests for your feedback",
+        "feedbackLeader": "Feedback and praise for you and your team, requests and answers",
+        "deadlines": "Something of yours is due soon or late"
+      },
+      "lines": {
+        "reminder": "A review of yours is due tomorrow or late",
+        "plansWaiting": "Plans waiting for your decision",
+        "objectivesAtRisk": "Objectives at risk on your team",
+        "updateAnswers": "Answers to the updates you asked for",
+        "planApprovedOrReturned": "Your plan approved or returned",
+        "updatesAsked": "Updates asked of you",
+        "developmentGoals": "Development goals added to your plan",
+        "reviewToWrite": "A review to write opens",
+        "selfAssessmentSubmitted": "Someone submitted their self-assessment",
+        "peersToApprove": "Peers to approve",
+        "reviewAcknowledged": "Someone acknowledged their review",
+        "calibration": "Calibration ready, calibration finalized",
+        "ownReview": "Your self-assessment opens, your peers approved, your review released",
+        "peerInput": "Peer input asked of you, a peer declined, a due date moved",
+        "oneOnOneMoved": "A 1:1 started or moved",
+        "actionsAssigned": "Actions assigned to you",
+        "teamFeedback": "Feedback and praise for your team",
+        "feedbackReceived": "Feedback and praise you receive",
+        "feedbackRequests": "Requests for your feedback",
+        "requestAnswers": "Answers to your requests"
+      }
+    }
+  },
+  "activation": {
+    "signIn": "Sign in",
+    "yourOrganization": "your organization",
+    "terminal": {
+      "expired": {
+        "title": "This invitation has expired",
+        "detail": "No account was created. Ask the organization that invited you to send a new invitation."
+      },
+      "revoked": {
+        "title": "This invitation was cancelled",
+        "detail": "No account was created. Ask the organization that invited you to send a new invitation."
+      },
+      "superseded": {
+        "title": "This invitation was replaced",
+        "detail": "A newer invitation was sent. Open the most recent message, or ask the organization that invited you to send it again."
+      },
+      "alreadyAccepted": {
+        "title": "This invitation has already been used",
+        "detail": "The administrator account for this organization already exists."
+      },
+      "existingAccount": {
+        "title": "An account already exists for this address",
+        "detail": "This invitation creates a new administrator account, so it cannot use an address that is already registered. Ask the organization that invited you to send the invitation to a different address."
+      },
+      "sessionUnavailable": {
+        "title": "Your administrator account was created",
+        "detail": "Sign in to continue."
+      },
+      "invalid": {
+        "title": "This invitation link does not work",
+        "detail": "No account was created. Ask the organization that invited you to send a new invitation."
+      }
+    },
+    "password": {
+      "minimumLength": "{count} characters or more",
+      "letter": "A letter",
+      "uppercase": "An uppercase letter",
+      "lowercase": "A lowercase letter",
+      "number": "A number",
+      "symbol": "A symbol"
+    },
+    "errors": {
+      "firstName": "Enter your first name.",
+      "lastName": "Enter your last name.",
+      "password": "Choose a password.",
+      "passwordRequirements": "This password does not meet the requirements.",
+      "confirmPassword": "This does not match the password above.",
+      "passwordNotAccepted": "This password was not accepted.",
+      "valueNotAccepted": "This was not accepted.",
+      "retry": "Your account could not be created just now. Try again."
+    },
+    "context": {
+      "eyebrow": "You're invited",
+      "heading": "Join {tenant}",
+      "lead": "You've been invited to set up your Fusion account and get started with {tenant}.",
+      "organization": "Organization",
+      "role": "Assigned role",
+      "sentTo": "Invitation sent to",
+      "security": "This invitation is secure and tied to the invited email address. Only the intended recipient can use this link.",
+      "footer": "People work together"
+    },
+    "form": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "workEmail": "Work email",
+      "readOnly": "Read only",
+      "createPassword": "Create password",
+      "confirmPassword": "Confirm password",
+      "showCharacters": "Show characters",
+      "hideCharacters": "Hide characters",
+      "passwordsMatch": "Passwords match",
+      "passwordsDoNotMatch": "Passwords do not match yet",
+      "submit": "Set up account",
+      "haveAccount": "Already have a Fusion account? <signIn>Sign in</signIn> to continue"
+    },
+    "journeys": {
+      "bootstrap": {
+        "role": "Tenant Administrator",
+        "heading": "Set up your account",
+        "lead": "Accept your invitation from {tenant} to create your Fusion account."
+      },
+      "administrator": {
+        "role": "Tenant Administrator",
+        "heading": "Set up your account",
+        "lead": "Accept your invitation from {tenant} to create your Fusion account.",
+        "terminal": {
+          "expired": {
+            "title": "This invitation has expired",
+            "detail": "No account was created. Contact the Tenant Administrator who invited you to request another invitation."
+          },
+          "revoked": {
+            "title": "This invitation was revoked",
+            "detail": "It can no longer be accepted, and no account was created."
+          },
+          "existingAccount": {
+            "title": "An account already exists for this address",
+            "detail": "This email already belongs to a Fusion account and cannot complete this new-account invitation. Contact the administrator who invited you so they can send it to a different address."
+          }
+        }
+      },
+      "recovery": {
+        "role": "Tenant Administrator",
+        "heading": "Set up your account",
+        "lead": "Restore administrator access for {tenant} by creating your Fusion account.",
+        "terminal": {
+          "expired": {
+            "title": "This recovery invitation has expired",
+            "detail": "No account was created and administrator access has not been recovered. Contact Fusion support to start recovery again."
+          },
+          "revoked": {
+            "title": "This recovery invitation was cancelled",
+            "detail": "No account was created and administrator access has not been recovered."
+          },
+          "alreadyAccepted": {
+            "title": "Administrator access has already been recovered",
+            "detail": "This tenant is administered again."
+          },
+          "existingAccount": {
+            "title": "An account already exists for this address",
+            "detail": "Recovery creates a new administrator account, so it cannot use an address that is already registered. Contact Fusion support so recovery can be sent to a different address."
+          }
+        }
+      }
+    }
+  },
+  "home": {
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "greetingNamed": "{greeting}, {name}",
+    "loadingWork": "Loading your work",
+    "alsoNeedsYou": "Also needs you",
+    "nextTwoWeeks": "Next two weeks",
+    "loadingNextTwoWeeks": "Loading your next two weeks",
+    "sideColumn": "Your year and praise",
+    "year": {
+      "title": "Your year",
+      "loading": "Loading your year",
+      "failed": "Couldn't be loaded",
+      "myPlan": "My Plan",
+      "ring": "Plan at {percent}",
+      "objectives": "{count, plural, one {# objective} other {# objectives}}",
+      "onTrack": "{count} on track",
+      "atRisk": "{count} at risk",
+      "offTrack": "{count} off track",
+      "noStatus": "No status yet",
+      "reviewWith": "Your review is with {name}",
+      "lastUpdate": "Last update {when}",
+      "noUpdate": "No update yet",
+      "today": "today",
+      "yesterday": "yesterday",
+      "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+      "weights": " · weights at {percent}",
+      "approves": "{name} approves it",
+      "plan": {
+        "NotStarted": "Your plan isn't started",
+        "Draft": "Your plan is a draft",
+        "ReturnedForChanges": "Your plan came back with changes",
+        "Submitted": "Your plan is submitted",
+        "Approved": "Your plan is approved"
+      }
+    },
+    "praise": {
+      "title": "Praise",
+      "give": "Give praise",
+      "failed": "Praise couldn't be loaded",
+      "loading": "Loading praise",
+      "empty": "No praise yet",
+      "all": "All praise"
+    }
+  },
+  "app": {
+    "error": {
+      "title": "Something went wrong",
+      "fallback": "An unexpected error occurred.",
+      "retry": "Try Again"
+    },
+    "notFound": {
+      "detail": "The page you're looking for doesn't exist.",
+      "home": "Back to Home"
+    }
+  }
+}

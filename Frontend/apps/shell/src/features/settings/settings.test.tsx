@@ -1,15 +1,22 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { useState } from "react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { NotificationPreferences } from "@repo/api";
+import { IntlTestProvider } from "@repo/ds/testing";
+import { renderWithIntl as render, shellMessages } from "@/test/intl";
 import { Notifications } from "./notifications";
 import { Preferences } from "./preferences";
 
 const mocks = vi.hoisted(() => ({
   theme: "light",
   setTheme: vi.fn(),
-  locale: "en",
-  setLocale: vi.fn(),
+  language: "en" as "en" | "fr",
+  setLanguage: vi.fn<(next: "en" | "fr") => Promise<void>>(),
   preferences: undefined as NotificationPreferences | undefined,
   mutate: vi.fn(),
 }));
@@ -17,7 +24,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@repo/ds/shell", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useTheme: () => ({ theme: mocks.theme, setTheme: mocks.setTheme }),
-  useFusionLocale: () => [mocks.locale, mocks.setLocale, true],
+}));
+
+vi.mock("@repo/auth", () => ({
+  useLanguage: () => [mocks.language, mocks.setLanguage, false],
 }));
 
 vi.mock("@repo/api/query", () => ({
@@ -36,7 +46,26 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+/**
+ * Preferences as the app runs it: a saved language becomes the account's, and the next render (router.refresh)
+ * reads the new language's catalogue.
+ */
+function RefreshingApp() {
+  const [locale, setLocale] = useState<"en" | "fr">("en");
+  mocks.language = locale;
+  mocks.setLanguage.mockImplementation(async (next) => setLocale(next));
+  return (
+    <IntlTestProvider locale={locale} messages={shellMessages[locale]}>
+      <Preferences />
+    </IntlTestProvider>
+  );
+}
+
 describe("Preferences", () => {
+  afterEach(() => {
+    mocks.language = "en";
+  });
+
   it("binds appearance to the device theme and confirms with Saved", () => {
     render(<Preferences />);
     expect(screen.getByRole("heading", { level: 1, name: "Preferences" })).toBeTruthy();
@@ -46,12 +75,63 @@ describe("Preferences", () => {
     expect(screen.getByRole("status").textContent).toContain("Saved");
   });
 
-  it("offers Match this device and English or Français", () => {
+  it("offers Match this device, and the account's language between English and Français", () => {
     render(<Preferences />);
     fireEvent.click(screen.getByRole("radio", { name: "Match this device" }));
     expect(mocks.setTheme).toHaveBeenCalledWith("system");
-    fireEvent.click(screen.getByRole("radio", { name: "Français" }));
-    expect(mocks.setLocale).toHaveBeenCalledWith("fr");
+    expect(screen.getByText("Your account")).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "English" }).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("saves Français to the account and re-renders in French", async () => {
+    // As the app does it: the hook resolves, then the next render reads the French catalogue.
+    const { container } = render(<RefreshingApp />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "Français" }));
+    });
+
+    expect(mocks.setLanguage).toHaveBeenCalledWith("fr");
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1, name: "Préférences" })).toBeTruthy());
+    expect(screen.getByRole("radio", { name: "Sombre" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Français" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("status").textContent).toContain("Enregistré");
+    expect(container.querySelector("[lang='fr']")).toBeTruthy();
+  });
+
+  it("keeps English selected and says so when the save fails", async () => {
+    mocks.setLanguage.mockRejectedValueOnce(new Error("Identity is unavailable"));
+    render(<Preferences />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "Français" }));
+    });
+
+    expect(screen.getByRole("alert").textContent).toBe("Couldn't save your language. Try again.");
+    expect(screen.getByRole("radio", { name: "English" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("heading", { level: 1, name: "Preferences" })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).not.toContain("Saved");
+  });
+});
+
+describe("the catalogue check", () => {
+  const script = path.resolve(__dirname, "../../../scripts/check-messages.cjs");
+
+  function check(en: object, fr: object) {
+    const dir = mkdtempSync(path.join(tmpdir(), "shell-messages-"));
+    writeFileSync(path.join(dir, "en.json"), JSON.stringify(en));
+    writeFileSync(path.join(dir, "fr.json"), JSON.stringify(fr));
+    return spawnSync(process.execPath, [script, dir], { encoding: "utf8" });
+  }
+
+  it("passes the shell's own catalogues", () => {
+    expect(spawnSync(process.execPath, [script], { encoding: "utf8" }).status).toBe(0);
+  });
+
+  it("fails and names a key missing in French", () => {
+    const result = check({ settings: { title: "Settings", saved: "Saved" } }, { settings: { title: "Paramètres" } });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("missing in fr.json: settings.saved");
   });
 });
 
@@ -129,5 +209,25 @@ describe("Notifications", () => {
     expect(screen.getByText("13 notifications")).toBeTruthy();
     const row = screen.getByText("A review to write opens").closest("li")!;
     expect(within(row).getByText("Your team")).toBeTruthy();
+  });
+
+  it("names Performance's groups and lines in French, and an unknown line as the server sent it", () => {
+    mocks.preferences = {
+      ...PREFERENCES,
+      groups: PREFERENCES.groups.map((group) =>
+        group.key === "one-on-ones"
+          ? { ...group, items: [...group.items, { label: "A brand-new line", team: false, always: false, count: 1 }] }
+          : group,
+      ),
+    };
+    render(<Notifications />, { locale: "fr" });
+    expect(screen.getByRole("heading", { level: 1, name: "Notifications" })).toBeTruthy();
+    expect(screen.getByText("Les e-mails sont envoyés à").textContent).toContain("aicha.bouazizi@example.test");
+    expect(screen.getByRole("switch", { name: "E-mail pour Plans et objectifs" })).toBeTruthy();
+    expect(screen.getByText("Un entretien commencé ou déplacé, les actions qui vous sont attribuées")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Entretiens individuels/ }));
+    expect(screen.getByText("3 notifications")).toBeTruthy();
+    expect(screen.getByText("Un entretien commencé ou déplacé")).toBeTruthy();
+    expect(screen.getByText("A brand-new line")).toBeTruthy();
   });
 });

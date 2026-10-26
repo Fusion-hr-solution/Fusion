@@ -2,27 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { isLocale, type Locale } from "@repo/i18n/config";
+import { useLanguage } from "@repo/auth";
 import { cn, RadioGroup, RadioGroupItem, ToggleGroup, ToggleGroupItem } from "@repo/ds";
-import {
-  SettingsBlock,
-  SettingsPage,
-  SettingsRow,
-  SettingsRows,
-  SettingsSaved,
-  useFusionLocale,
-  useTheme,
-  type FusionLocale,
-} from "@repo/ds/shell";
+import { SettingsBlock, SettingsPage, SettingsRow, SettingsRows, SettingsSaved, useTheme } from "@repo/ds/shell";
 
 type Appearance = "dark" | "light" | "system";
 
-const APPEARANCES: { value: Appearance; label: string; icon: LucideIcon }[] = [
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "light", label: "Light", icon: Sun },
-  { value: "system", label: "Match this device", icon: Monitor },
+const APPEARANCES: { value: Appearance; icon: LucideIcon }[] = [
+  { value: "dark", icon: Moon },
+  { value: "light", icon: Sun },
+  { value: "system", icon: Monitor },
 ];
 
-const LANGUAGES: { value: FusionLocale; label: string }[] = [
+/** Each language names itself, whatever the page's language. */
+const LANGUAGES: { value: Locale; label: string }[] = [
   { value: "en", label: "English" },
   { value: "fr", label: "Français" },
 ];
@@ -64,82 +59,109 @@ function AppearancePreview({ value }: { value: Appearance }) {
   );
 }
 
-/** Settings › Preferences: appearance and language, kept on this device and saved the moment they change. */
+/**
+ * Settings › Preferences, in the person's language: appearance, kept on this device, and language, kept on their
+ * account. Both save the moment they change.
+ */
 export function Preferences() {
+  const t = useTranslations("settings.preferences");
+  const locale = useLocale();
   const { theme, setTheme } = useTheme();
-  const [locale, setLocale, localeReady] = useFusionLocale();
+  const [language, setLanguage, savingLanguage] = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [languageFailed, setLanguageFailed] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const appearance = mounted && (theme === "dark" || theme === "light" || theme === "system") ? theme : undefined;
 
-  return (
-    <SettingsPage title="Preferences" aside={<SettingsSaved at={savedAt} />}>
-      <SettingsBlock title="Appearance" meta="This device">
-        <RadioGroup
-          aria-label="Appearance"
-          value={appearance ?? ""}
-          onValueChange={(next) => {
-            setTheme(next);
-            setSavedAt(Date.now());
-          }}
-          className="grid grid-cols-3 gap-3"
-        >
-          {APPEARANCES.map((option) => {
-            const Icon = option.icon;
-            const selected = appearance === option.value;
-            return (
-              <label
-                key={option.value}
-                htmlFor={`appearance-${option.value}`}
-                className={cn(
-                  "flex cursor-pointer flex-col gap-3 rounded-surface border bg-card p-2.5 transition-colors",
-                  selected ? "border-primary ring-1 ring-primary" : "border-border hover:border-foreground/30",
-                )}
-              >
-                <AppearancePreview value={option.value} />
-                <span className="flex items-center gap-2.5 px-1 pb-0.5">
-                  <RadioGroupItem id={`appearance-${option.value}`} value={option.value} />
-                  <span className="flex-1 type-label font-semibold text-foreground">{option.label}</span>
-                  <Icon aria-hidden className="size-4 text-muted-foreground" />
-                </span>
-              </label>
-            );
-          })}
-        </RadioGroup>
-      </SettingsBlock>
+  const chooseLanguage = async (next: Locale) => {
+    setLanguageFailed(false);
+    try {
+      await setLanguage(next);
+      setSavedAt(Date.now());
+    } catch {
+      setLanguageFailed(true);
+    }
+  };
 
-      <SettingsBlock title="Language" meta="This device">
-        <SettingsRows>
-          <SettingsRow label="Language">
-            <ToggleGroup
-              type="single"
-              aria-label="Language"
-              value={localeReady ? locale : ""}
-              onValueChange={(next) => {
-                if (next !== "en" && next !== "fr") return;
-                setLocale(next);
-                setSavedAt(Date.now());
-              }}
-              className="rounded-control border border-border bg-inlay p-0.5"
-              spacing={1}
-              size="sm"
-            >
-              {LANGUAGES.map((language) => (
-                <ToggleGroupItem
-                  key={language.value}
-                  value={language.value}
-                  lang={language.value}
-                  className="rounded-nested px-3 font-semibold data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-raised"
+  return (
+    <div lang={locale} className="contents">
+      <SettingsPage title={t("title")} aside={<SettingsSaved at={savedAt} />}>
+        <SettingsBlock title={t("appearance")} meta={t("thisDevice")}>
+          <RadioGroup
+            aria-label={t("appearance")}
+            value={appearance ?? ""}
+            onValueChange={(next) => {
+              setTheme(next);
+              setSavedAt(Date.now());
+            }}
+            className="grid grid-cols-3 gap-3"
+          >
+            {APPEARANCES.map((option) => {
+              const Icon = option.icon;
+              const selected = appearance === option.value;
+              return (
+                <label
+                  key={option.value}
+                  htmlFor={`appearance-${option.value}`}
+                  className={cn(
+                    "flex cursor-pointer flex-col gap-3 rounded-surface border bg-card p-2.5 transition-colors",
+                    selected ? "border-primary ring-1 ring-primary" : "border-border hover:border-foreground/30",
+                  )}
                 >
-                  {language.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </SettingsRow>
-        </SettingsRows>
-      </SettingsBlock>
-    </SettingsPage>
+                  <AppearancePreview value={option.value} />
+                  <span className="flex items-center gap-2.5 px-1 pb-0.5">
+                    <RadioGroupItem id={`appearance-${option.value}`} value={option.value} />
+                    <span className="flex-1 type-label font-semibold text-foreground">{t(option.value)}</span>
+                    <Icon aria-hidden className="size-4 text-muted-foreground" />
+                  </span>
+                </label>
+              );
+            })}
+          </RadioGroup>
+        </SettingsBlock>
+
+        <SettingsBlock title={t("language")} meta={t("yourAccount")}>
+          <SettingsRows>
+            <SettingsRow
+              label={t("language")}
+              description={
+                languageFailed ? (
+                  <span role="alert" className="text-destructive">
+                    {t("languageNotSaved")}
+                  </span>
+                ) : undefined
+              }
+            >
+              <ToggleGroup
+                type="single"
+                aria-label={t("language")}
+                value={mounted ? language : ""}
+                disabled={savingLanguage}
+                onValueChange={(next) => {
+                  if (!isLocale(next) || next === language) return;
+                  void chooseLanguage(next);
+                }}
+                className="rounded-control border border-border bg-inlay p-0.5"
+                spacing={1}
+                size="sm"
+              >
+                {LANGUAGES.map((language) => (
+                  <ToggleGroupItem
+                    key={language.value}
+                    value={language.value}
+                    lang={language.value}
+                    className="rounded-nested px-3 font-semibold data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-raised"
+                  >
+                    {language.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </SettingsRow>
+          </SettingsRows>
+        </SettingsBlock>
+      </SettingsPage>
+    </div>
   );
 }

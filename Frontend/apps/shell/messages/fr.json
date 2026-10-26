@@ -1,0 +1,253 @@
+{
+  "settings": {
+    "preferences": {
+      "title": "Préférences",
+      "appearance": "Apparence",
+      "thisDevice": "Cet appareil",
+      "dark": "Sombre",
+      "light": "Clair",
+      "system": "Comme cet appareil",
+      "language": "Langue",
+      "yourAccount": "Votre compte",
+      "languageNotSaved": "Impossible d’enregistrer votre langue. Réessayez."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "didNotLoad": "Impossible de charger les notifications",
+      "emailGoesTo": "Les e-mails sont envoyés à <b>{address}</b>",
+      "none": "Aucun de vos modules n’envoie encore de notifications.",
+      "notSaved": "Cette modification n’a pas été enregistrée. Vos choix sont ceux affichés.",
+      "about": "Sujet",
+      "inFusion": "Dans Fusion",
+      "email": "E-mail",
+      "alwaysInFusion": "Toujours dans Fusion",
+      "always": "Toujours",
+      "emailFor": "E-mail pour {group}",
+      "count": "{count, plural, one {# notification} other {# notifications}}",
+      "yourTeam": "Votre équipe",
+      "groups": {
+        "plans-and-goals": "Plans et objectifs",
+        "reviews-and-calibration": "Évaluations et calibrage",
+        "one-on-ones": "Entretiens individuels",
+        "feedback-and-praise": "Feedback et reconnaissances",
+        "deadline-reminders": "Rappels d’échéance"
+      },
+      "summaries": {
+        "plansAndGoals": "Votre plan approuvé ou renvoyé, les mises à jour qu’on vous demande, les objectifs de développement ajoutés",
+        "plansAndGoalsLeader": "Les plans qui attendent votre décision, votre plan approuvé ou renvoyé, les objectifs à risque dans votre équipe",
+        "reviews": "L’ouverture de votre auto-évaluation, les avis qu’on vous demande en tant que pair, la publication de votre évaluation",
+        "reviewsLeader": "Les évaluations à rédiger, les pairs à approuver, votre propre évaluation",
+        "oneOnOnes": "Un entretien commencé ou déplacé, les actions qui vous sont attribuées",
+        "feedback": "Le feedback et les reconnaissances que vous recevez, les demandes de feedback",
+        "feedbackLeader": "Le feedback et les reconnaissances pour vous et votre équipe, les demandes et leurs réponses",
+        "deadlines": "Une échéance proche ou dépassée"
+      },
+      "lines": {
+        "reminder": "Une de vos évaluations est due demain ou en retard",
+        "plansWaiting": "Plans qui attendent votre décision",
+        "objectivesAtRisk": "Objectifs à risque dans votre équipe",
+        "updateAnswers": "Réponses aux mises à jour que vous avez demandées",
+        "planApprovedOrReturned": "Votre plan approuvé ou renvoyé",
+        "updatesAsked": "Mises à jour qu’on vous demande",
+        "developmentGoals": "Objectifs de développement ajoutés à votre plan",
+        "reviewToWrite": "Une évaluation à rédiger s’ouvre",
+        "selfAssessmentSubmitted": "Un collaborateur a soumis son auto-évaluation",
+        "peersToApprove": "Pairs à approuver",
+        "reviewAcknowledged": "Un collaborateur a pris connaissance de son évaluation",
+        "calibration": "Calibrage prêt, calibrage finalisé",
+        "ownReview": "Ouverture de votre auto-évaluation, vos pairs approuvés, votre évaluation publiée",
+        "peerInput": "Avis demandé en tant que pair, un pair a décliné, une échéance a changé",
+        "oneOnOneMoved": "Un entretien commencé ou déplacé",
+        "actionsAssigned": "Actions qui vous sont attribuées",
+        "teamFeedback": "Feedback et reconnaissances pour votre équipe",
+        "feedbackReceived": "Feedback et reconnaissances que vous recevez",
+        "feedbackRequests": "Demandes de feedback",
+        "requestAnswers": "Réponses à vos demandes"
+      }
+    }
+  },
+  "activation": {
+    "signIn": "Se connecter",
+    "yourOrganization": "votre organisation",
+    "terminal": {
+      "expired": {
+        "title": "Cette invitation a expiré",
+        "detail": "Aucun compte n’a été créé. Demandez à l’organisation à l’origine de l’invitation de vous en envoyer une nouvelle."
+      },
+      "revoked": {
+        "title": "Cette invitation a été annulée",
+        "detail": "Aucun compte n’a été créé. Demandez à l’organisation à l’origine de l’invitation de vous en envoyer une nouvelle."
+      },
+      "superseded": {
+        "title": "Cette invitation a été remplacée",
+        "detail": "Une invitation plus récente a été envoyée. Ouvrez le dernier message reçu, ou demandez à l’organisation à l’origine de l’invitation de la renvoyer."
+      },
+      "alreadyAccepted": {
+        "title": "Cette invitation a déjà été utilisée",
+        "detail": "Le compte administrateur de cette organisation existe déjà."
+      },
+      "existingAccount": {
+        "title": "Un compte existe déjà pour cette adresse",
+        "detail": "Cette invitation crée un nouveau compte administrateur ; elle ne peut donc pas utiliser une adresse déjà enregistrée. Demandez à l’organisation à l’origine de l’invitation de l’envoyer à une autre adresse."
+      },
+      "sessionUnavailable": {
+        "title": "Votre compte administrateur a été créé",
+        "detail": "Connectez-vous pour continuer."
+      },
+      "invalid": {
+        "title": "Ce lien d’invitation ne fonctionne pas",
+        "detail": "Aucun compte n’a été créé. Demandez à l’organisation à l’origine de l’invitation de vous en envoyer une nouvelle."
+      }
+    },
+    "password": {
+      "minimumLength": "{count} caractères ou plus",
+      "letter": "Une lettre",
+      "uppercase": "Une majuscule",
+      "lowercase": "Une minuscule",
+      "number": "Un chiffre",
+      "symbol": "Un symbole"
+    },
+    "errors": {
+      "firstName": "Saisissez votre prénom.",
+      "lastName": "Saisissez votre nom.",
+      "password": "Choisissez un mot de passe.",
+      "passwordRequirements": "Ce mot de passe ne respecte pas les exigences.",
+      "confirmPassword": "Ne correspond pas au mot de passe ci-dessus.",
+      "passwordNotAccepted": "Ce mot de passe n’a pas été accepté.",
+      "valueNotAccepted": "Cette valeur n’a pas été acceptée.",
+      "retry": "Votre compte n’a pas pu être créé pour le moment. Réessayez."
+    },
+    "context": {
+      "eyebrow": "Votre invitation",
+      "heading": "Rejoignez {tenant}",
+      "lead": "Vous avez reçu une invitation à créer votre compte Fusion pour démarrer avec {tenant}.",
+      "organization": "Organisation",
+      "role": "Rôle attribué",
+      "sentTo": "Invitation envoyée à",
+      "security": "Cette invitation est sécurisée et liée à l’adresse e-mail invitée. Seul son destinataire peut utiliser ce lien.",
+      "footer": "Travailler ensemble"
+    },
+    "form": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "workEmail": "E-mail professionnel",
+      "readOnly": "Lecture seule",
+      "createPassword": "Créer un mot de passe",
+      "confirmPassword": "Confirmer le mot de passe",
+      "showCharacters": "Afficher les caractères",
+      "hideCharacters": "Masquer les caractères",
+      "passwordsMatch": "Les mots de passe correspondent",
+      "passwordsDoNotMatch": "Les mots de passe ne correspondent pas encore",
+      "submit": "Créer mon compte",
+      "haveAccount": "Vous avez déjà un compte Fusion ? <signIn>Connectez-vous</signIn> pour continuer"
+    },
+    "journeys": {
+      "bootstrap": {
+        "role": "Administrateur de l’organisation",
+        "heading": "Créez votre compte",
+        "lead": "Acceptez l’invitation de {tenant} pour créer votre compte Fusion."
+      },
+      "administrator": {
+        "role": "Administrateur de l’organisation",
+        "heading": "Créez votre compte",
+        "lead": "Acceptez l’invitation de {tenant} pour créer votre compte Fusion.",
+        "terminal": {
+          "expired": {
+            "title": "Cette invitation a expiré",
+            "detail": "Aucun compte n’a été créé. Contactez l’administrateur à l’origine de l’invitation pour en recevoir une nouvelle."
+          },
+          "revoked": {
+            "title": "Cette invitation a été révoquée",
+            "detail": "Elle ne peut plus être acceptée et aucun compte n’a été créé."
+          },
+          "existingAccount": {
+            "title": "Un compte existe déjà pour cette adresse",
+            "detail": "Cette adresse e-mail appartient déjà à un compte Fusion et ne peut pas servir à cette invitation, qui crée un nouveau compte. Contactez l’administrateur à l’origine de l’invitation pour qu’il l’envoie à une autre adresse."
+          }
+        }
+      },
+      "recovery": {
+        "role": "Administrateur de l’organisation",
+        "heading": "Créez votre compte",
+        "lead": "Rétablissez l’accès administrateur de {tenant} en créant votre compte Fusion.",
+        "terminal": {
+          "expired": {
+            "title": "Cette invitation de récupération a expiré",
+            "detail": "Aucun compte n’a été créé et l’accès administrateur n’a pas été rétabli. Contactez le support Fusion pour relancer la récupération."
+          },
+          "revoked": {
+            "title": "Cette invitation de récupération a été annulée",
+            "detail": "Aucun compte n’a été créé et l’accès administrateur n’a pas été rétabli."
+          },
+          "alreadyAccepted": {
+            "title": "L’accès administrateur a déjà été rétabli",
+            "detail": "Cette organisation a de nouveau un administrateur."
+          },
+          "existingAccount": {
+            "title": "Un compte existe déjà pour cette adresse",
+            "detail": "La récupération crée un nouveau compte administrateur ; elle ne peut donc pas utiliser une adresse déjà enregistrée. Contactez le support Fusion pour que la récupération soit envoyée à une autre adresse."
+          }
+        }
+      }
+    }
+  },
+  "home": {
+    "greeting": {
+      "morning": "Bonjour",
+      "afternoon": "Bon après-midi",
+      "evening": "Bonsoir"
+    },
+    "greetingNamed": "{greeting}, {name}",
+    "loadingWork": "Chargement de vos tâches",
+    "alsoNeedsYou": "Vous attend aussi",
+    "nextTwoWeeks": "Les deux prochaines semaines",
+    "loadingNextTwoWeeks": "Chargement de vos deux prochaines semaines",
+    "sideColumn": "Votre année et reconnaissances",
+    "year": {
+      "title": "Votre année",
+      "loading": "Chargement de votre année",
+      "failed": "Chargement impossible",
+      "myPlan": "Mon plan",
+      "ring": "Plan à {percent}",
+      "objectives": "{count, plural, one {# objectif} other {# objectifs}}",
+      "onTrack": "{count, plural, one {# en bonne voie} other {# en bonne voie}}",
+      "atRisk": "{count, plural, one {# à risque} other {# à risque}}",
+      "offTrack": "{count, plural, one {# en difficulté} other {# en difficulté}}",
+      "noStatus": "Aucun statut pour l’instant",
+      "reviewWith": "Votre évaluation est entre les mains de {name}",
+      "lastUpdate": "Dernière mise à jour {when}",
+      "noUpdate": "Aucune mise à jour pour l’instant",
+      "today": "aujourd’hui",
+      "yesterday": "hier",
+      "daysAgo": "{count, plural, one {il y a # jour} other {il y a # jours}}",
+      "weights": " · pondération à {percent}",
+      "approves": "{name} l’approuve",
+      "plan": {
+        "NotStarted": "Votre plan n’est pas commencé",
+        "Draft": "Votre plan est un brouillon",
+        "ReturnedForChanges": "Votre plan vous a été renvoyé pour modifications",
+        "Submitted": "Votre plan est soumis",
+        "Approved": "Votre plan est approuvé"
+      }
+    },
+    "praise": {
+      "title": "Reconnaissances",
+      "give": "Féliciter",
+      "failed": "Impossible de charger les reconnaissances",
+      "loading": "Chargement des reconnaissances",
+      "empty": "Aucune reconnaissance pour l’instant",
+      "all": "Toutes les reconnaissances"
+    }
+  },
+  "app": {
+    "error": {
+      "title": "Une erreur est survenue",
+      "fallback": "Une erreur inattendue s’est produite.",
+      "retry": "Réessayer"
+    },
+    "notFound": {
+      "detail": "La page que vous cherchez n’existe pas.",
+      "home": "Retour à l’accueil"
+    }
+  }
+}

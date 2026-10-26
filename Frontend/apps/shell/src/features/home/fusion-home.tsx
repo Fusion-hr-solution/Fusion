@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { FUSION_ATTENTION_MODULES } from "@repo/api";
 import { useFusionUpcoming, useFusionWork, useMyCard } from "@repo/api/query";
 import { resolveFusionAttentionModules, useAuth } from "@repo/auth";
@@ -18,27 +19,35 @@ import { FusionSidebar } from "./fusion-sidebar";
 import { HomePraise } from "./home-praise";
 import { ShellNotificationBell } from "./shell-notification-bell";
 import { YourYear } from "./your-year";
+import { dateFormatter } from "@repo/ds/lib/dates";
 
-function greeting(now: Date): string {
+function greeting(now: Date): "morning" | "afternoon" | "evening" {
   const hour = now.getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "morning";
+  if (hour < 18) return "afternoon";
+  return "evening";
 }
 
 function firstName(fullName: string | undefined): string | null {
   return fullName?.trim().split(/\s+/)[0] || null;
 }
 
-const DAY = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
+const DAY = { weekday: "long", day: "numeric", month: "long" } as const;
 
-/** "Tuesday 20 October · QA Automation Engineer, Consulting A": the day, and the job and unit when Core HR has them. */
+/** French writes weekdays in lower case; the day line starts the line, so it starts with a capital. */
+const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
+ * "Tuesday 20 October · QA Automation Engineer, Consulting A" ("mardi 20 octobre · …"): the day, and the job and unit
+ * when Core HR has them.
+ */
 function DayLine({ now }: { now: Date }) {
+  const locale = useLocale();
   const card = useMyCard();
   const job = [card.data?.jobTitle, card.data?.orgUnitName].filter(Boolean).join(", ");
   return (
     <p className="type-body-secondary text-muted-foreground">
-      {DAY.format(now).replace(",", "")}
+      {capitalized(dateFormatter(DAY, locale).format(now).replace(",", ""))}
       {job ? ` · ${job}` : ""}
     </p>
   );
@@ -51,6 +60,7 @@ const labelOf = (key: string) => FUSION_ATTENTION_MODULES.find((module) => modul
  * person, and their next two weeks across modules.
  */
 export function HomeWork() {
+  const t = useTranslations("home");
   const { user } = useAuth();
   const modules = resolveFusionAttentionModules(user);
   const enabled = Boolean(user?.tenantId);
@@ -65,7 +75,7 @@ export function HomeWork() {
   return (
     <div className="space-y-10">
       {(workBusy || (!lead && datesBusy)) && lead?.kind !== "work" ? (
-        <Skeleton aria-label="Loading your work" className="h-36 w-full rounded-surface" />
+        <Skeleton aria-label={t("loadingWork")} className="h-36 w-full rounded-surface" />
       ) : (
         <LeadFocus lead={lead} moduleLabel={labelOf} today={today} />
       )}
@@ -73,7 +83,7 @@ export function HomeWork() {
       {rest.length > 0 || work.failedModules.length > 0 || (workBusy && lead?.kind === "work") ? (
         <section aria-labelledby="home-work-heading" className="space-y-3">
           <h2 id="home-work-heading" className="type-section-title text-foreground">
-            Also needs you
+            {t("alsoNeedsYou")}
           </h2>
           <WorkList items={rest} modules={work.modules} today={today} />
         </section>
@@ -81,10 +91,10 @@ export function HomeWork() {
 
       <section aria-labelledby="home-agenda-heading" className="space-y-3">
         <h2 id="home-agenda-heading" className="type-section-title text-foreground">
-          Next two weeks
+          {t("nextTwoWeeks")}
         </h2>
         {datesBusy && upcoming.items.length === 0 ? (
-          <Skeleton aria-label="Loading your next two weeks" className="h-24 w-full rounded-surface" />
+          <Skeleton aria-label={t("loadingNextTwoWeeks")} className="h-24 w-full rounded-surface" />
         ) : (
           <HomeAgenda work={work.items} moments={upcoming.items} lead={lead} modules={upcoming.modules} today={today} />
         )}
@@ -99,6 +109,7 @@ export function HomeWork() {
  * the work sits in one column.
  */
 export function FusionHome() {
+  const t = useTranslations("home");
   const { user } = useAuth();
   const name = firstName(user?.fullName);
   const now = new Date();
@@ -116,15 +127,16 @@ export function FusionHome() {
         <PageContainer className="space-y-8">
           <div className="space-y-2">
             <h1 className="type-display text-foreground">
-              {greeting(now)}
-              {name ? `, ${name}` : ""}
+              {name
+                ? t("greetingNamed", { greeting: t(`greeting.${greeting(now)}`), name })
+                : t(`greeting.${greeting(now)}`)}
             </h1>
             <DayLine now={now} />
           </div>
           {performance ? (
             <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_352px]">
               <HomeWork />
-              <aside aria-label="Your year and praise" className="space-y-10">
+              <aside aria-label={t("sideColumn")} className="space-y-10">
                 <YourYear employeeId={user?.employeeId} enabled={performance} />
                 <HomePraise />
               </aside>

@@ -1,8 +1,24 @@
+import { formatDateTime } from "@repo/ds/lib/dates";
+import { englishSay, useSay, type Say } from "@repo/ds/lib/say";
+import en from "../../messages/en.json";
+
 /**
  * The public activation surface's vocabulary and rules, kept out of the
  * component so they can be tested without rendering and so every state has one
- * definition rather than a string written twice.
+ * definition rather than a string written twice. The words live in the shell's
+ * `activation` catalogue; every function takes the person's {@link Say}, English
+ * by default.
  */
+
+export type { Say };
+
+/** The catalogue in English, for code outside a translated tree (and tests). */
+export const sayInEnglish: Say = englishSay(en, "activation");
+
+/** The catalogue in the person's language, for the activation surface's components. */
+export function useActivationSay(): Say {
+  return useSay("activation");
+}
 
 export type ActivationEntryState =
   | "account_creation"
@@ -69,6 +85,29 @@ export interface TerminalState {
   action?: { label: string; href: string };
 }
 
+/** Each stopping point's lines in the catalogue (`terminal.<group>`); anything unrecognised is the neutral refusal. */
+const TERMINAL_GROUP: Partial<Record<ActivationOutcome, string>> = {
+  expired: "expired",
+  revoked: "revoked",
+  superseded: "superseded",
+  already_accepted: "alreadyAccepted",
+  existing_account: "existingAccount",
+  // Activation committed. Saying anything that implies otherwise would send the
+  // recipient back to repeat work that already succeeded.
+  session_unavailable: "sessionUnavailable",
+};
+
+/** The stopping points whose one real recovery is signing in. */
+const SIGN_IN_OUTCOMES = new Set<ActivationOutcome>(["already_accepted", "session_unavailable"]);
+
+function terminalLines(group: string, outcome: ActivationOutcome, say: Say): TerminalState {
+  return {
+    title: say(`${group}.title`),
+    detail: say(`${group}.detail`),
+    ...(SIGN_IN_OUTCOMES.has(outcome) ? { action: { label: say("signIn"), href: "/auth/signin" } } : {}),
+  };
+}
+
 /**
  * What each stopping point says.
  *
@@ -76,59 +115,8 @@ export interface TerminalState {
  * says what happened, whether an account or access was created, and who to go
  * to. None of them names a service, a status code or an identifier.
  */
-export function terminalState(outcome: ActivationOutcome): TerminalState {
-  switch (outcome) {
-    case "expired":
-      return {
-        title: "This invitation has expired",
-        detail:
-          "No account was created. Ask the organization that invited you to send a new invitation.",
-      };
-
-    case "revoked":
-      return {
-        title: "This invitation was cancelled",
-        detail:
-          "No account was created. Ask the organization that invited you to send a new invitation.",
-      };
-
-    case "superseded":
-      return {
-        title: "This invitation was replaced",
-        detail:
-          "A newer invitation was sent. Open the most recent message, or ask the organization that invited you to send it again.",
-      };
-
-    case "already_accepted":
-      return {
-        title: "This invitation has already been used",
-        detail: "The administrator account for this organization already exists.",
-        action: { label: "Sign in", href: "/auth/signin" },
-      };
-
-    case "existing_account":
-      return {
-        title: "An account already exists for this address",
-        detail:
-          "This invitation creates a new administrator account, so it cannot use an address that is already registered. Ask the organization that invited you to send the invitation to a different address.",
-      };
-
-    case "session_unavailable":
-      return {
-        // Activation committed. Saying anything that implies otherwise would
-        // send the recipient back to repeat work that already succeeded.
-        title: "Your administrator account was created",
-        detail: "Sign in to continue.",
-        action: { label: "Sign in", href: "/auth/signin" },
-      };
-
-    default:
-      return {
-        title: "This invitation link does not work",
-        detail:
-          "No account was created. Ask the organization that invited you to send a new invitation.",
-      };
-  }
+export function terminalState(outcome: ActivationOutcome, say: Say = sayInEnglish): TerminalState {
+  return terminalLines(`terminal.${TERMINAL_GROUP[outcome] ?? "invalid"}`, outcome, say);
 }
 
 export interface PasswordCheck {
@@ -142,32 +130,33 @@ export interface PasswordCheck {
  */
 export function passwordChecks(
   password: string,
-  requirements: PasswordRequirements | null
+  requirements: PasswordRequirements | null,
+  say: Say = sayInEnglish
 ): PasswordCheck[] {
   if (!requirements) return [];
 
   const checks: PasswordCheck[] = [
     {
-      label: `${requirements.minimumLength} characters or more`,
+      label: say("password.minimumLength", { count: requirements.minimumLength }),
       satisfied: password.length >= requirements.minimumLength,
     },
   ];
 
   if (requirements.requiresLetter) {
-    checks.push({ label: "A letter", satisfied: /[a-zA-Z]/.test(password) });
+    checks.push({ label: say("password.letter"), satisfied: /[a-zA-Z]/.test(password) });
   }
   if (requirements.requiresUppercase) {
-    checks.push({ label: "An uppercase letter", satisfied: /[A-Z]/.test(password) });
+    checks.push({ label: say("password.uppercase"), satisfied: /[A-Z]/.test(password) });
   }
   if (requirements.requiresLowercase) {
-    checks.push({ label: "A lowercase letter", satisfied: /[a-z]/.test(password) });
+    checks.push({ label: say("password.lowercase"), satisfied: /[a-z]/.test(password) });
   }
   if (requirements.requiresDigit) {
-    checks.push({ label: "A number", satisfied: /[0-9]/.test(password) });
+    checks.push({ label: say("password.number"), satisfied: /[0-9]/.test(password) });
   }
   if (requirements.requiresSymbol) {
     checks.push({
-      label: "A symbol",
+      label: say("password.symbol"),
       satisfied: /[^a-zA-Z0-9]/.test(password),
     });
   }
@@ -190,23 +179,24 @@ export interface ActivationForm {
  */
 export function validateForm(
   form: ActivationForm,
-  requirements: PasswordRequirements | null
+  requirements: PasswordRequirements | null,
+  say: Say = sayInEnglish
 ): ActivationFieldError[] {
   const errors: ActivationFieldError[] = [];
 
   if (!form.firstName.trim()) {
-    errors.push({ field: "firstName", message: "Enter your first name." });
+    errors.push({ field: "firstName", message: say("errors.firstName") });
   }
   if (!form.lastName.trim()) {
-    errors.push({ field: "lastName", message: "Enter your last name." });
+    errors.push({ field: "lastName", message: say("errors.lastName") });
   }
   if (!form.password) {
-    errors.push({ field: "password", message: "Choose a password." });
-  } else if (passwordChecks(form.password, requirements).some((check) => !check.satisfied)) {
-    errors.push({ field: "password", message: "This password does not meet the requirements." });
+    errors.push({ field: "password", message: say("errors.password") });
+  } else if (passwordChecks(form.password, requirements, say).some((check) => !check.satisfied)) {
+    errors.push({ field: "password", message: say("errors.passwordRequirements") });
   }
   if (form.password && form.confirmPassword !== form.password) {
-    errors.push({ field: "confirmPassword", message: "This does not match the password above." });
+    errors.push({ field: "confirmPassword", message: say("errors.confirmPassword") });
   }
 
   return errors;
@@ -242,15 +232,12 @@ export function monogramFor(tenantName: string | null): string {
  * The expiry as a date the recipient can act on. Falls back to nothing rather
  * than to an invented value.
  */
-export function formatExpiry(value: string | null): string | null {
+export function formatExpiry(value: string | null, locale?: string): string | null {
   if (!value) return null;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
 
-  return parsed.toLocaleString(undefined, {
-    dateStyle: "long",
-    timeStyle: "short",
-  });
+  return formatDateTime(parsed, { year: "always", locale });
 }
 
 /**
@@ -283,6 +270,9 @@ export function scrubbedUrl(href: string): string | null {
  * flow to drift apart. Only the words and the endpoint change.
  */
 export interface ActivationJourney {
+  /** Its words in the catalogue: `journeys.<key>` (role, heading, lead with `{tenant}`). */
+  key: "bootstrap" | "administrator" | "recovery";
+
   /** Read-only inspection of the credential (GET, with `?credential=`). */
   inspectPath: string;
 
@@ -292,34 +282,17 @@ export interface ActivationJourney {
   /** Where the new administrator lands once the session is established. */
   destination: string;
 
-  /** The line above the tenant name on the context panel. */
-  contextLead: string;
-
-  /** Why this person is here, in one sentence. */
-  contextBody: string;
-
-  /** The access this invitation grants, shown on the context panel. */
-  roleLabel: string;
-
-  /** The form heading. */
-  formHeading: string;
-
   /**
-   * The sentence under the form heading. `{tenant}` is replaced with the
-   * inviting organization's name.
+   * Stopping points where this journey says something different from the
+   * tenant's first activation (`journeys.<key>.terminal`). Anything else falls
+   * through to the shared wording.
    */
-  formLead: string;
-
-  /**
-   * Copy for stopping points where this journey has to say something different
-   * from the tenant's first activation. Anything omitted falls through to the
-   * shared wording.
-   */
-  terminalOverrides?: Partial<Record<ActivationOutcome, TerminalState>>;
+  terminalOverrides?: readonly ActivationOutcome[];
 }
 
 /** The tenant's first administrator, from Platform provisioning. */
 export const BOOTSTRAP_JOURNEY: ActivationJourney = {
+  key: "bootstrap",
   inspectPath: "/api/identity/tenant-activation",
   acceptPath: "/api/identity/tenant-activation",
   // Canonical tenant-foundation orientation, reached only after the
@@ -327,42 +300,15 @@ export const BOOTSTRAP_JOURNEY: ActivationJourney = {
   // Getting Started reads canonical Organization readiness and shows the
   // truthful state; a brand-new tenant is not yet Ready.
   destination: "/getting-started",
-  contextLead: "Create administrator access for",
-  contextBody:
-    "You have been invited to become this tenant's first administrator. Create your account to continue.",
-  roleLabel: "Tenant Administrator",
-  formHeading: "Set up your account",
-  formLead: "Accept your invitation from {tenant} to create your Fusion account.",
 };
 
 /** An additional administrator, invited by an existing one. */
 export const ADMINISTRATOR_JOURNEY: ActivationJourney = {
+  key: "administrator",
   inspectPath: "/api/identity/tenant-access/invitations/inspect",
   acceptPath: "/api/identity/tenant-access/invitations/accept",
   destination: "/core/access",
-  contextLead: "Create administrator access for",
-  contextBody:
-    "You have been invited to administer this tenant. Create your account to continue.",
-  roleLabel: "Tenant Administrator",
-  formHeading: "Set up your account",
-  formLead: "Accept your invitation from {tenant} to create your Fusion account.",
-  terminalOverrides: {
-    expired: {
-      title: "This invitation has expired",
-      detail:
-        "No account was created. Contact the Tenant Administrator who invited you to request another invitation.",
-    },
-    revoked: {
-      title: "This invitation was revoked",
-      detail: "It can no longer be accepted, and no account was created.",
-    },
-    existing_account: {
-      title: "An account already exists for this address",
-      detail:
-        "This email already belongs to a Fusion account and cannot complete this new-account invitation. " +
-        "Contact the administrator who invited you so they can send it to a different address.",
-    },
-  },
+  terminalOverrides: ["expired", "revoked", "existing_account"],
 };
 
 /**
@@ -373,45 +319,20 @@ export const ADMINISTRATOR_JOURNEY: ActivationJourney = {
  * Platform operators get nothing from it.
  */
 export const RECOVERY_JOURNEY: ActivationJourney = {
+  key: "recovery",
   inspectPath: "/api/identity/tenant-access/invitations/inspect",
   acceptPath: "/api/identity/tenant-access/invitations/accept",
   destination: "/getting-started",
-  contextLead: "Recover administrator access for",
-  contextBody:
-    "This tenant has no administrator who can sign in. Completing this restores customer-controlled " +
-    "administration. Fusion Platform operators do not receive access to this tenant.",
-  roleLabel: "Tenant Administrator",
-  formHeading: "Set up your account",
-  formLead: "Restore administrator access for {tenant} by creating your Fusion account.",
-  terminalOverrides: {
-    expired: {
-      title: "This recovery invitation has expired",
-      detail:
-        "No account was created and administrator access has not been recovered. Contact Fusion support to start recovery again.",
-    },
-    revoked: {
-      title: "This recovery invitation was cancelled",
-      detail:
-        "No account was created and administrator access has not been recovered.",
-    },
-    already_accepted: {
-      title: "Administrator access has already been recovered",
-      detail: "This tenant is administered again.",
-      action: { label: "Sign in", href: "/auth/signin" },
-    },
-    existing_account: {
-      title: "An account already exists for this address",
-      detail:
-        "Recovery creates a new administrator account, so it cannot use an address that is already registered. " +
-        "Contact Fusion support so recovery can be sent to a different address.",
-    },
-  },
+  terminalOverrides: ["expired", "revoked", "already_accepted", "existing_account"],
 };
 
 /** The stopping-point copy for one journey, with its overrides applied. */
 export function journeyTerminalState(
   journey: ActivationJourney,
-  outcome: ActivationOutcome
+  outcome: ActivationOutcome,
+  say: Say = sayInEnglish
 ): TerminalState {
-  return journey.terminalOverrides?.[outcome] ?? terminalState(outcome);
+  return journey.terminalOverrides?.includes(outcome)
+    ? terminalLines(`journeys.${journey.key}.terminal.${TERMINAL_GROUP[outcome]}`, outcome, say)
+    : terminalState(outcome, say);
 }

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { createTranslator } from "next-intl";
+import fr from "../../messages/fr.json";
 import {
   type PasswordRequirements,
   ADMINISTRATOR_JOURNEY,
@@ -9,9 +11,14 @@ import {
   monogramFor,
   passwordChecks,
   scrubbedUrl,
+  journeyTerminalState,
   terminalState,
   validateForm,
+  type Say,
 } from "./activation";
+
+const french = createTranslator({ locale: "fr", messages: fr, namespace: "activation" });
+const sayInFrench: Say = (key, values) => french(key as never, values as never);
 
 const REQUIREMENTS: PasswordRequirements = {
   minimumLength: 8,
@@ -204,6 +211,29 @@ describe("terminalState for a late refusal", () => {
     expect(state.title).toBe("This invitation link does not work");
     expect(state.detail).toContain("No account was created");
     expect(state.action).toBeUndefined();
+  });
+});
+
+describe("in French", () => {
+  it("says each stopping point and its recovery in French", () => {
+    const state = terminalState("already_accepted", sayInFrench);
+    expect(state.title).toBe("Cette invitation a déjà été utilisée");
+    expect(state.action).toEqual({ label: "Se connecter", href: "/auth/signin" });
+    expect(journeyTerminalState(RECOVERY_JOURNEY, "expired", sayInFrench).title).toBe(
+      "Cette invitation de récupération a expiré"
+    );
+  });
+
+  it("states the password rules and the form's errors in French", () => {
+    expect(passwordChecks("", REQUIREMENTS, sayInFrench).map((check) => check.label)).toEqual([
+      "8 caractères ou plus",
+      "Une majuscule",
+      "Une minuscule",
+      "Un chiffre",
+      "Un symbole",
+    ]);
+    const errors = validateForm({ firstName: "", lastName: "", password: "", confirmPassword: "" }, REQUIREMENTS, sayInFrench);
+    expect(errorFor(errors, "firstName")).toBe("Saisissez votre prénom.");
   });
 });
 
