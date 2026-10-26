@@ -110,7 +110,7 @@ export function OrganizationOutline({
         <span role="columnheader">Organizational unit</span>
         <span role="columnheader">Type</span>
         <span role="columnheader">Business code</span>
-        <span role="columnheader" className="text-right">Effective</span>
+        <span role="columnheader" className="text-end">Effective</span>
       </div>
       {rows.map((row, index) => {
         const selected = row.unit.id === selectedId;
@@ -143,15 +143,15 @@ export function OrganizationOutline({
           >
             <div role="gridcell" className="flex min-w-0 items-center" style={{ paddingInlineStart: `${row.depth * 24}px` }}>
               {row.hasChildren ? (
-                <button type="button" aria-label={`${row.expanded ? "Collapse" : "Expand"} ${row.unit.name}`} onClick={() => onToggle(row.unit.id)} className="mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-control-sm text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+                <button type="button" aria-label={`${row.expanded ? "Collapse" : "Expand"} ${row.unit.name}`} onClick={() => onToggle(row.unit.id)} className="me-1 grid h-7 w-7 shrink-0 place-items-center rounded-control-sm text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
                   {row.expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 </button>
-              ) : <span className="mr-1 h-7 w-7 shrink-0" />}
-              <button type="button" onClick={() => onSelect(row.unit.id)} className="min-w-0 truncate text-left font-medium outline-none focus-visible:underline">
+              ) : <span className="me-1 h-7 w-7 shrink-0" />}
+              <button type="button" onClick={() => onSelect(row.unit.id)} className="min-w-0 truncate text-start font-medium outline-none focus-visible:underline">
                 {row.unit.name}
               </button>
               {dragMovable ? (
-                <div className="ml-auto flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                <div className="ms-auto flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
                   <Button variant="ghost" size="icon-sm" aria-label={`Add child to ${row.unit.name}`} onClick={() => onAddChild(row.unit.id)}><Plus className="h-3.5 w-3.5" /></Button>
                   {canDragRow ? (
                     <span
@@ -176,7 +176,7 @@ export function OrganizationOutline({
             </div>
             <span role="gridcell" className="text-muted-foreground">{row.unit.typeName}</span>
             <span role="gridcell" className="font-mono text-xs text-muted-foreground">{row.unit.code}</span>
-            <span role="gridcell" className="text-right text-xs text-muted-foreground">{row.unit.effectiveFrom}</span>
+            <span role="gridcell" className="text-end text-xs text-muted-foreground">{row.unit.effectiveFrom}</span>
           </div>
         );
       })}

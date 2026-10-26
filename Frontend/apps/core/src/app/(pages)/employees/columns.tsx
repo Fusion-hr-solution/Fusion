@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { EmployeeFieldVisibility } from "@/features/employees/shared/employee-field-visibility";
 import type { EmployeeRosterItem } from "./employee-roster.types";
+import { formatDateParts } from "@repo/ds/lib/dates";
 
 function SortHeader({
   label,
@@ -24,7 +25,7 @@ function SortHeader({
     <Button
       variant="ghost"
       size="sm"
-      className="-ml-2 h-7 gap-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      className="-ms-2 h-7 gap-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
       onClick={() => column.toggleSorting(sorted === "asc")}
     >
       {label}
@@ -50,7 +51,7 @@ function formatDate(value: string): string {
   if (!value?.trim()) return "—";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "—";
-  return parsed.toLocaleDateString("en-GB", {
+  return formatDateParts(parsed, {
     day: "numeric",
     month: "short",
     year: "numeric",

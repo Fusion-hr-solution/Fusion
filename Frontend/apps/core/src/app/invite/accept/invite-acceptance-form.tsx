@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { ApiError, type AccountPasswordRequirementsDto } from "@repo/api";
 import { login as apiLogin, persistAuth } from "@repo/auth";
 import type { AuthUser, StoredAuth } from "@repo/auth";
@@ -53,6 +54,8 @@ import {
 } from "./use-invite";
 import { resolveInviteAcceptanceDestination } from "./invite-acceptance-routing";
 
+type InviteT = ReturnType<typeof useTranslations<"invite">>;
+
 // ---------------------------------------------------------------------------
 // Password requirements → checkable state
 // ---------------------------------------------------------------------------
@@ -64,33 +67,34 @@ import { resolveInviteAcceptanceDestination } from "./invite-acceptance-routing"
  */
 function passwordChecks(
   password: string,
-  requirements: AccountPasswordRequirementsDto | null | undefined
+  requirements: AccountPasswordRequirementsDto | null | undefined,
+  t: InviteT
 ): PasswordCheck[] {
   if (!requirements) return [];
 
   const checks: PasswordCheck[] = [
     {
-      label: `${requirements.minimumLength} characters or more`,
+      label: t("password.minimumLength", { count: requirements.minimumLength }),
       satisfied: password.length >= requirements.minimumLength,
     },
   ];
   if (requirements.requiresUppercase) {
     checks.push({
-      label: "An uppercase letter",
+      label: t("password.uppercase"),
       satisfied: /[A-Z]/.test(password),
     });
   }
   if (requirements.requiresLowercase) {
     checks.push({
-      label: "A lowercase letter",
+      label: t("password.lowercase"),
       satisfied: /[a-z]/.test(password),
     });
   }
   if (requirements.requiresDigit) {
-    checks.push({ label: "A number", satisfied: /[0-9]/.test(password) });
+    checks.push({ label: t("password.number"), satisfied: /[0-9]/.test(password) });
   }
   if (requirements.requiresSymbol) {
-    checks.push({ label: "A symbol", satisfied: /[^a-zA-Z0-9]/.test(password) });
+    checks.push({ label: t("password.symbol"), satisfied: /[^a-zA-Z0-9]/.test(password) });
   }
 
   return checks;
@@ -100,51 +104,26 @@ function passwordChecks(
 // Terminal states — the stopping points that share one card composition
 // ---------------------------------------------------------------------------
 
+/** A stopping point: its lines are `invite.terminal.<state>`, the detail sometimes replaced by a sharper one. */
 interface TerminalDescriptor {
   variant: "resolved" | "error";
   icon: LucideIcon;
-  title: string;
-  detail: string;
-  action?: { label: string; href: string };
+  state: "invalid" | "expired" | "revoked" | "used" | "verifyFailed";
+  /** `invite.terminal.<detail>` in place of the state's own detail. */
+  detail?: "askForNew" | "checkConnection" | "refreshOrRetry" | "refresh";
+  /** Offers sign-in. */
+  signIn?: boolean;
 }
 
-const INVALID_LINK: TerminalDescriptor = {
-  variant: "error",
-  icon: TriangleAlert,
-  title: "This invitation link does not work",
-  detail: "Open the invitation link from your email and try again.",
-};
+const INVALID_LINK: TerminalDescriptor = { variant: "error", icon: TriangleAlert, state: "invalid" };
 
-const EXPIRED: TerminalDescriptor = {
-  variant: "error",
-  icon: Clock,
-  title: "This invitation has expired",
-  detail: "Ask your administrator for a new invitation link.",
-};
+const EXPIRED: TerminalDescriptor = { variant: "error", icon: Clock, state: "expired" };
 
-const REVOKED: TerminalDescriptor = {
-  variant: "error",
-  icon: Ban,
-  title: "This invitation was cancelled",
-  detail:
-    "This link is no longer valid. Ask your administrator for a new invitation link.",
-};
+const REVOKED: TerminalDescriptor = { variant: "error", icon: Ban, state: "revoked" };
 
-const ALREADY_USED: TerminalDescriptor = {
-  variant: "resolved",
-  icon: CircleCheck,
-  title: "This invitation has already been used",
-  detail: "Sign in with your account to continue.",
-  action: { label: "Sign in", href: "/auth/signin" },
-};
+const ALREADY_USED: TerminalDescriptor = { variant: "resolved", icon: CircleCheck, state: "used", signIn: true };
 
-const VERIFY_FAILED: TerminalDescriptor = {
-  variant: "error",
-  icon: TriangleAlert,
-  title: "We couldn't verify this invitation",
-  detail:
-    "Try again in a moment. If the problem continues, contact your administrator.",
-};
+const VERIFY_FAILED: TerminalDescriptor = { variant: "error", icon: TriangleAlert, state: "verifyFailed" };
 
 function hasErrorMessage(error: ApiError, fragment: string): boolean {
   return error.errors.some((message) =>
@@ -157,86 +136,64 @@ function validationTerminal(error: unknown): TerminalDescriptor | null {
   if (!error) return null;
 
   if (!(error instanceof ApiError)) {
-    return {
-      ...VERIFY_FAILED,
-      detail: "Check your connection and try again.",
-    };
+    return { ...VERIFY_FAILED, detail: "checkConnection" };
   }
 
   if (error.status === 404) {
-    return {
-      ...INVALID_LINK,
-      detail: "Ask your administrator for a new invitation link.",
-    };
+    return { ...INVALID_LINK, detail: "askForNew" };
   }
   if (error.status === 410 && hasErrorMessage(error, "used")) return ALREADY_USED;
   if (error.status === 410 && hasErrorMessage(error, "expired")) return EXPIRED;
   if (error.status === 410 && hasErrorMessage(error, "revoked")) return REVOKED;
   if (error.status >= 500) return VERIFY_FAILED;
 
-  return {
-    ...VERIFY_FAILED,
-    detail: "Refresh the page or try again in a moment.",
-  };
+  return { ...VERIFY_FAILED, detail: "refreshOrRetry" };
 }
 
-/** Submit-time failures the recipient sees inline, keeping their form intact. */
+/**
+ * Submit-time failures the recipient sees inline, keeping their form intact. The service words other refusals in
+ * English: they read as sent in English and as a plain line in other languages.
+ */
 function submitErrorMessages(
   error: unknown,
-  step: "accept" | "sign-in"
+  step: "accept" | "sign-in",
+  t: InviteT,
+  english: boolean
 ): string[] {
   if (!(error instanceof ApiError)) {
-    return [
-      "We couldn't complete your request. Check your connection and try again.",
-    ];
+    return [t("errors.connection")];
   }
 
   if (step === "sign-in") {
-    return [
-      error.status === 401 || error.status === 403
-        ? "Your account was created, but automatic sign-in failed. Sign in with your new account to continue."
-        : "Your account was created, but we couldn't finish signing you in. Try signing in to continue.",
-    ];
+    return [t(error.status === 401 || error.status === 403 ? "errors.signInRefused" : "errors.signInFailed")];
   }
 
   if (error.status === 410 && hasErrorMessage(error, "used")) {
-    return [
-      "This invitation has already been used. Sign in with your account to continue.",
-    ];
+    return [t("errors.used")];
   }
   if (error.status === 410 && hasErrorMessage(error, "expired")) {
-    return [
-      "This invitation has expired. Ask your administrator for a new invitation link.",
-    ];
+    return [t("errors.expired")];
   }
   if (error.status === 410 && hasErrorMessage(error, "revoked")) {
-    return [
-      "This invitation was cancelled. Ask your administrator for a new invitation link.",
-    ];
+    return [t("errors.revoked")];
   }
   if (
     error.status === 400 &&
     hasErrorMessage(error, "email is already registered")
   ) {
-    return [
-      "This email already has an account. Sign in instead, or ask your administrator for a fresh invitation if needed.",
-    ];
+    return [t("errors.registered")];
   }
   // The account or the employee record was claimed since this invitation was
   // issued. Recoverable only through an administrator, never by creating a
   // duplicate here.
   if (error.status === 409) {
-    return [
-      "This invitation can no longer be completed on its own. Your administrator needs to review workforce access before you can activate.",
-    ];
+    return [t("errors.claimed")];
   }
   if (error.errors.length > 0 && error.status < 500) {
-    return error.errors;
+    return english ? error.errors : [t("errors.notAccepted")];
   }
 
-  return [
-    "We couldn't finish setting up your account. Try again in a moment or contact your administrator.",
-  ];
+  return [t("errors.failed")];
 }
 
 // ---------------------------------------------------------------------------
@@ -251,6 +208,7 @@ interface FormValues {
 }
 
 export function InviteAcceptanceForm({ token }: { token: string | null }) {
+  const locale = useLocale();
   const {
     data: invite,
     isLoading: isValidating,
@@ -259,50 +217,34 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
 
   const isInviteLoading = !!token && (isValidating || (!invite && !validateError));
 
-  if (!token) {
-    return <TerminalScreen descriptor={INVALID_LINK} />;
-  }
+  const screen = (() => {
+    if (!token) return <TerminalScreen descriptor={INVALID_LINK} />;
+    if (isInviteLoading) return <InvitationTransactionLoading />;
+    const validationTerminalState = validationTerminal(validateError);
+    if (validationTerminalState) return <TerminalScreen descriptor={validationTerminalState} />;
+    if (!invite) return <TerminalScreen descriptor={{ ...VERIFY_FAILED, detail: "refresh" }} />;
+    if (invite.isExpired) return <TerminalScreen descriptor={EXPIRED} />;
+    if (invite.isUsed) return <TerminalScreen descriptor={ALREADY_USED} />;
+    return <AcceptanceForm token={token} invite={invite} />;
+  })();
 
-  if (isInviteLoading) {
-    return <InvitationTransactionLoading />;
-  }
-
-  const validationTerminalState = validationTerminal(validateError);
-  if (validationTerminalState) {
-    return <TerminalScreen descriptor={validationTerminalState} />;
-  }
-
-  if (!invite) {
-    return (
-      <TerminalScreen
-        descriptor={{
-          ...VERIFY_FAILED,
-          detail: "Refresh the page and try again.",
-        }}
-      />
-    );
-  }
-
-  if (invite.isExpired) {
-    return <TerminalScreen descriptor={EXPIRED} />;
-  }
-
-  if (invite.isUsed) {
-    return <TerminalScreen descriptor={ALREADY_USED} />;
-  }
-
-  return <AcceptanceForm token={token} invite={invite} />;
+  return (
+    <div lang={locale} className="contents">
+      {screen}
+    </div>
+  );
 }
 
 function TerminalScreen({ descriptor }: { descriptor: TerminalDescriptor }) {
+  const t = useTranslations("invite.terminal");
   return (
     <InvitationTransactionTerminalFrame>
       <InvitationTerminalCard
         variant={descriptor.variant}
         icon={descriptor.icon}
-        title={descriptor.title}
-        detail={descriptor.detail}
-        action={descriptor.action}
+        title={t(`${descriptor.state}.title`)}
+        detail={descriptor.detail ? t(descriptor.detail) : t(`${descriptor.state}.detail`)}
+        action={descriptor.signIn ? { label: t("signIn"), href: "/auth/signin" } : undefined}
       />
     </InvitationTransactionTerminalFrame>
   );
@@ -322,6 +264,8 @@ function AcceptanceForm({
   // Narrowed to the validated invite shape the form needs.
   invite: NonNullable<ReturnType<typeof useValidateInvite>["data"]>;
 }) {
+  const t = useTranslations("invite");
+  const english = useLocale() === "en";
   const router = useRouter();
   const accept = useAcceptInvite();
 
@@ -329,8 +273,8 @@ function AcceptanceForm({
   // a password only. Administrator invitations create a new account and collect
   // the name here.
   const isWorkforce = invite.role === "Employee" || invite.role === "Manager";
-  const accessLabel = invite.role === "Manager" ? "Manager" : "Employee";
-  const tenantName = invite.tenantName || "your organization";
+  const accessLabel = t(invite.role === "Manager" ? "workforce.roles.Manager" : "workforce.roles.Employee");
+  const tenantName = invite.tenantName || t("yourOrganization");
 
   const [form, setForm] = useState<FormValues>(() => ({
     firstName: invite.firstName ?? "",
@@ -349,8 +293,8 @@ function AcceptanceForm({
   );
 
   const checks = useMemo(
-    () => passwordChecks(form.password, invite.passwordRequirements),
-    [form.password, invite.passwordRequirements]
+    () => passwordChecks(form.password, invite.passwordRequirements, t),
+    [form.password, invite.passwordRequirements, t]
   );
   const passwordsMatch =
     Boolean(form.password) && form.confirmPassword === form.password;
@@ -429,7 +373,7 @@ function AcceptanceForm({
       router.replace(resolveInviteAcceptanceDestination(user));
     } catch (err) {
       setProgress("idle");
-      setServerErrors(submitErrorMessages(err, step));
+      setServerErrors(submitErrorMessages(err, step, t, english));
     }
   }
 
@@ -438,29 +382,29 @@ function AcceptanceForm({
       context={
         isWorkforce ? (
           <InvitationContextPanel
-            eyebrow="Your access"
+            eyebrow={t("workforce.eyebrow")}
             heading={tenantName}
-            lead="Activate the account connected to your employee record. Your organization owns the identity and work details shown in Fusion."
+            lead={t("workforce.lead")}
             rows={[
-              { icon: Building2, label: "Organization", value: tenantName },
-              { icon: Users, label: "Access", value: accessLabel },
-              { icon: Mail, label: "Account email", value: invite.email },
+              { icon: Building2, label: t("organization"), value: tenantName },
+              { icon: Users, label: t("workforce.access"), value: accessLabel },
+              { icon: Mail, label: t("workforce.accountEmail"), value: invite.email },
             ]}
-            securityNote="This invitation is secure and tied to your work email address. Only you can use this link."
-            footerLabel="People work together"
+            securityNote={t("workforce.security")}
+            footerLabel={t("footer")}
           />
         ) : (
           <InvitationContextPanel
-            eyebrow="You're invited"
-            heading={`Join ${tenantName}`}
-            lead={`You've been invited to set up your Fusion account and get started with ${tenantName}.`}
+            eyebrow={t("administrator.eyebrow")}
+            heading={t("administrator.heading", { tenant: tenantName })}
+            lead={t("administrator.lead", { tenant: tenantName })}
             rows={[
-              { icon: Building2, label: "Organization", value: tenantName },
-              { icon: Users, label: "Assigned role", value: "Administrator" },
-              { icon: Mail, label: "Invitation sent to", value: invite.email },
+              { icon: Building2, label: t("organization"), value: tenantName },
+              { icon: Users, label: t("administrator.role"), value: t("administrator.roleValue") },
+              { icon: Mail, label: t("administrator.sentTo"), value: invite.email },
             ]}
-            securityNote="This invitation is secure and tied to the invited email address. Only the intended recipient can use this link."
-            footerLabel="People work together"
+            securityNote={t("administrator.security")}
+            footerLabel={t("footer")}
           />
         )
       }
@@ -468,12 +412,12 @@ function AcceptanceForm({
       <form onSubmit={submit} noValidate>
         <header>
           <h2 className="font-heading text-[1.875rem] font-semibold leading-[1.15] tracking-[-0.02em] text-foreground">
-            {isWorkforce ? "Activate your account" : "Set up your account"}
+            {isWorkforce ? t("workforce.heading") : t("administrator.formHeading")}
           </h2>
           <p className="mt-2 text-[0.9375rem] leading-6 text-muted-foreground">
             {isWorkforce
-              ? `${tenantName} has set up your Fusion access. Choose a password to activate your account.`
-              : `Accept your invitation from ${tenantName} to create your Fusion account.`}
+              ? t("workforce.formLead", { tenant: tenantName })
+              : t("administrator.formLead", { tenant: tenantName })}
           </p>
         </header>
 
@@ -496,7 +440,7 @@ function AcceptanceForm({
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
                 id="firstName"
-                label="First name"
+                label={t("firstName")}
                 autoComplete="given-name"
                 value={form.firstName}
                 disabled={pending}
@@ -504,7 +448,7 @@ function AcceptanceForm({
               />
               <TextField
                 id="lastName"
-                label="Last name"
+                label={t("lastName")}
                 autoComplete="family-name"
                 value={form.lastName}
                 disabled={pending}
@@ -515,7 +459,7 @@ function AcceptanceForm({
 
           <Field>
             <FieldLabel htmlFor="workEmail">
-              {isWorkforce ? "Work email" : "Invitation email"}
+              {isWorkforce ? t("workforce.email") : t("administrator.email")}
             </FieldLabel>
             {/* The invited address as a fact, not a field to change: the recipient
                 confirms the invitation is theirs and sees the address they will
@@ -533,7 +477,7 @@ function AcceptanceForm({
               />
               <InputGroupAddon align="inline-end">
                 <InputGroupText className="text-[0.6875rem] font-medium uppercase tracking-[0.1em]">
-                  Read only
+                  {t("readOnly")}
                 </InputGroupText>
               </InputGroupAddon>
             </InputGroup>
@@ -541,14 +485,14 @@ function AcceptanceForm({
 
           <PasswordStrengthField
             id="password"
-            label={isWorkforce ? "Create password" : "Create password"}
+            label={t("createPassword")}
             value={form.password}
             checks={checks}
             onChange={(value) => update("password", value)}
           />
 
           <Field>
-            <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
+            <FieldLabel htmlFor="confirmPassword">{t("confirmPassword")}</FieldLabel>
             <InputGroup className="h-11">
               <InputGroupAddon>
                 <Lock />
@@ -568,7 +512,7 @@ function AcceptanceForm({
                   size="icon-sm"
                   onClick={() => setRevealConfirm((shown) => !shown)}
                   aria-label={
-                    revealConfirm ? "Hide characters" : "Show characters"
+                    revealConfirm ? t("hideCharacters") : t("showCharacters")
                   }
                 >
                   {revealConfirm ? <EyeOff /> : <Eye />}
@@ -591,9 +535,7 @@ function AcceptanceForm({
                     className="size-3.5 text-muted-foreground/60"
                   />
                 )}
-                {passwordsMatch
-                  ? "Passwords match"
-                  : "Passwords do not match yet"}
+                {passwordsMatch ? t("passwordsMatch") : t("passwordsDoNotMatch")}
               </p>
             ) : null}
           </Field>
@@ -609,30 +551,29 @@ function AcceptanceForm({
               <span className="inline-flex items-center gap-2">
                 <Spinner aria-hidden="true" />
                 {progress === "signing-in"
-                  ? "Signing you in…"
+                  ? t("signingIn")
                   : progress === "opening"
-                    ? "Opening Fusion…"
+                    ? t("opening")
                     : isWorkforce
-                      ? "Activating your account…"
-                      : "Creating your account…"}
+                      ? t("workforce.submitting")
+                      : t("administrator.submitting")}
               </span>
             ) : (
               <span className="inline-flex items-center gap-2">
-                {isWorkforce ? "Activate account" : "Set up account"}
+                {isWorkforce ? t("workforce.submit") : t("administrator.submit")}
                 <ArrowRight />
               </span>
             )}
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            Already have a Fusion account?{" "}
-            <a
-              href="/auth/signin"
-              className="font-medium text-primary-ink hover:underline"
-            >
-              Sign in
-            </a>{" "}
-            to continue
+            {t.rich("haveAccount", {
+              signIn: (chunks) => (
+                <a href="/auth/signin" className="font-medium text-primary-ink hover:underline">
+                  {chunks}
+                </a>
+              ),
+            })}
           </p>
         </FieldGroup>
       </form>

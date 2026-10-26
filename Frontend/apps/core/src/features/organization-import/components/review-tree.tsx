@@ -122,12 +122,12 @@ export function ReviewTree({
             onClick={() => onSelect(node.id)}
             onKeyDown={(event) => onKeyDown(event, row, index)}
             className={cn(
-              "group relative flex cursor-default items-center rounded-control py-1.5 pr-3 outline-none transition-colors",
+              "group relative flex cursor-default items-center rounded-control py-1.5 pe-3 outline-none transition-colors",
               "hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
               highlighted && "bg-warning-subtle",
               selected && "bg-primary/10 ring-1 ring-primary/30"
             )}
-            style={{ paddingLeft: depth * INDENT + 4 }}
+            style={{ paddingInlineStart: depth * INDENT + 4 }}
           >
             <Guides depth={depth} />
             <span className="grid size-6 shrink-0 place-items-center">
@@ -198,11 +198,11 @@ export function ReviewTree({
 function Guides({ depth }: { depth: number }) {
   if (depth === 0) return null;
   return (
-    <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0">
+    <span aria-hidden className="pointer-events-none absolute inset-y-0 inset-s-0">
       {Array.from({ length: depth }, (_, level) => (
         <span
           key={level}
-          className="absolute inset-y-0 border-l border-border"
+          className="absolute inset-y-0 border-s border-border"
           style={{ left: level * INDENT + 4 + 11 }}
         />
       ))}

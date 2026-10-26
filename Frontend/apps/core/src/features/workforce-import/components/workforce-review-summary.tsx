@@ -45,7 +45,7 @@ export function WorkforceReviewBanner({
     <section
       aria-label="Review status"
       className={cn(
-        "flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-surface border p-4 sm:pr-5",
+        "flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-surface border p-4 sm:pe-5",
         state === "blocked"
           ? "border-destructive/35 bg-linear-to-r from-destructive/[0.08] via-card to-card"
           : state === "noop"
@@ -171,14 +171,14 @@ export function WorkforceReviewNotices({ notices, onView }: { notices: ReviewNot
                   {notice.count ?? 0}
                 </span>
               </div>
-              <div className="min-w-0 flex-1 border-border sm:border-l sm:pl-5">
+              <div className="min-w-0 flex-1 border-border sm:border-s sm:ps-5">
                 <p className="type-label font-semibold text-foreground">{notice.title}</p>
                 <p className="mt-0.5 type-body text-muted-foreground">{notice.detail}</p>
               </div>
               <Button
                 variant={primary ? "default" : "outline"}
                 onClick={() => onView(notice)}
-                className={cn("ml-auto shrink-0 font-semibold", !primary && "text-primary-foreground dark:text-primary")}
+                className={cn("ms-auto shrink-0 font-semibold", !primary && "text-primary-foreground dark:text-primary")}
               >
                 {notice.action}
                 <ArrowRight aria-hidden />

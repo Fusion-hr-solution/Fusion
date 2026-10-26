@@ -52,14 +52,14 @@ export function WorkforceProposal({
         </h2>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative w-full sm:w-96">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Search className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               type="search"
               value={search}
               onChange={(e) => onSearch(e.target.value)}
               placeholder="Search employees, employee number, or email…"
               aria-label="Search employees"
-              className="h-10 pl-9"
+              className="h-10 ps-9"
             />
           </div>
           <div role="group" aria-label="Show" className="flex flex-wrap items-center gap-2">
@@ -160,7 +160,7 @@ function ProposalRows({
             onClick={() => onSelect(row)}
             className={cn(
               GRID,
-              "w-full border-b border-border/60 px-5 py-2.5 text-left outline-none transition-colors duration-[var(--duration-fast)] last:border-b-0 focus-visible:bg-muted/50",
+              "w-full border-b border-border/60 px-5 py-2.5 text-start outline-none transition-colors duration-[var(--duration-fast)] last:border-b-0 focus-visible:bg-muted/50",
               active ? "bg-primary/[0.06]" : "hover:bg-muted/40"
             )}
           >
@@ -258,7 +258,7 @@ function ResultPill({ row, reason }: { row: WorkforceReviewRowDto; reason: strin
         <Icon className={cn("size-4 shrink-0", pill.iconClass)} aria-hidden />
         {pill.label}
       </span>
-      {reason ? <span className="mt-1 block pl-1 text-[0.6875rem] leading-tight text-muted-foreground">{reason}</span> : null}
+      {reason ? <span className="mt-1 block ps-1 text-[0.6875rem] leading-tight text-muted-foreground">{reason}</span> : null}
     </span>
   );
 }

@@ -1,3 +1,5 @@
+import { formatDateParts } from "@repo/ds/lib/dates";
+
 export function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -16,7 +18,7 @@ export function formatBytes(value: number) {
 export function formatHumanDate(value: string) {
   const date = new Date(`${value.slice(0, 10)}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-GB", {
+  return formatDateParts(date, {
     day: "numeric",
     month: "short",
     year: "numeric",

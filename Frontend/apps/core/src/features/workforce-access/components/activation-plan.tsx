@@ -255,10 +255,10 @@ export function ActivationPlan({
     <div className="space-y-7">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-5">
         <Button variant="ghost" size="sm" onClick={onBack} disabled={running}>
-          <ArrowLeft className="mr-1.5 size-4" /> Back to selection
+          <ArrowLeft className="me-1.5 size-4" /> Back to selection
         </Button>
         <p className="type-body text-muted-foreground">
-          <span className="type-metric mr-2 text-foreground">
+          <span className="type-metric me-2 text-foreground">
             {people.length}
           </span>
           {people.length === 1 ? "person reviewed" : "people reviewed"}
@@ -308,10 +308,10 @@ function ActivationPlanLoading({
     <div className="space-y-7" aria-busy="true" aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-5">
         <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="mr-1.5 size-4" /> Back to selection
+          <ArrowLeft className="me-1.5 size-4" /> Back to selection
         </Button>
         <p className="type-body text-muted-foreground">
-          <span className="type-metric mr-2 text-foreground">
+          <span className="type-metric me-2 text-foreground">
             {peopleCount}
           </span>
           {peopleCount === 1 ? "person selected" : "people selected"}
@@ -447,7 +447,7 @@ function PlanSection({
           <h3 className="type-label text-foreground">
             {group.kind === "attention" ? <AttentionMark /> : null}
             {group.title}{" "}
-            <span className="ml-1 tabular-nums text-muted-foreground">
+            <span className="ms-1 tabular-nums text-muted-foreground">
               {group.people.length}
             </span>
           </h3>
@@ -557,9 +557,9 @@ function PlanRow({
           />
         </div>
       ) : (
-        <div className="min-w-0 sm:text-right">
+        <div className="min-w-0 sm:text-end">
           {blocked ? (
-            <div className="text-left sm:text-right">
+            <div className="text-start sm:text-end">
               <p className="type-meta text-muted-foreground">
                 {blockedReason(candidate)}
               </p>
@@ -571,7 +571,7 @@ function PlanRow({
               </a>
             </div>
           ) : showAccountComparison ? (
-            <div className="mb-2 text-left sm:text-right">
+            <div className="mb-2 text-start sm:text-end">
               <p className="type-meta text-muted-foreground">
                 Employee record: {candidate?.workEmail || "Work email missing"}
               </p>
@@ -695,7 +695,7 @@ function InlineWorkEmailEditor({
 
   if (rechecking) {
     return (
-      <div className="text-left sm:text-right" role="status" aria-live="polite">
+      <div className="text-start sm:text-end" role="status" aria-live="polite">
         <p className="type-meta font-medium text-foreground">
           Work email saved
         </p>
@@ -708,7 +708,7 @@ function InlineWorkEmailEditor({
 
   if (!editing) {
     return (
-      <div className="text-left sm:text-right">
+      <div className="text-start sm:text-end">
         <button
           type="button"
           onClick={() => {
@@ -726,7 +726,7 @@ function InlineWorkEmailEditor({
 
   return (
     <form
-      className="w-full max-w-md space-y-3 rounded-surface border bg-inlay p-3 text-left"
+      className="w-full max-w-md space-y-3 rounded-surface border bg-inlay p-3 text-start"
       onSubmit={(event) => {
         event.preventDefault();
         void save();
@@ -768,7 +768,7 @@ function InlineWorkEmailEditor({
         <Button type="submit" size="sm" disabled={!draft.trim() || busy}>
           {busy ? (
             <>
-              <Spinner className="mr-1.5 size-3.5" /> Saving…
+              <Spinner className="me-1.5 size-3.5" /> Saving…
             </>
           ) : (
             "Save work email"
@@ -851,7 +851,7 @@ function DecisionSummary({
       >
         {running ? (
           <>
-            <Spinner className="mr-2" /> Confirming workforce access
+            <Spinner className="me-2" /> Confirming workforce access
           </>
         ) : (
           "Confirm workforce access"
@@ -999,7 +999,7 @@ function Receipt({
           {tallies.map(([label, value]) => (
             <div key={label}>
               <span className="type-metric text-foreground">{value}</span>
-              <span className="ml-2 type-meta text-muted-foreground">
+              <span className="ms-2 type-meta text-muted-foreground">
                 {label}
               </span>
             </div>
@@ -1054,7 +1054,7 @@ function ReceiptGroup({
           <h3 className="type-label">
             {attention ? <AttentionMark /> : null}
             {title}{" "}
-            <span className="ml-1 text-muted-foreground">{items.length}</span>
+            <span className="ms-1 text-muted-foreground">{items.length}</span>
           </h3>
           <p className="mt-1 type-meta text-muted-foreground">{hint}</p>
         </div>
@@ -1123,5 +1123,5 @@ export function receiptGroupExpansionStep(attention: boolean): number {
 
 /** A group that needs a decision, marked by a warning dot before its title (DESIGN §9: a mark, never a side stripe). */
 function AttentionMark() {
-  return <span aria-label="Needs attention" role="img" className="mr-2 inline-block size-2 rounded-full bg-warning align-middle" />;
+  return <span aria-label="Needs attention" role="img" className="me-2 inline-block size-2 rounded-full bg-warning align-middle" />;
 }

@@ -283,7 +283,7 @@ export default function WorkforceAccessWorkspace() {
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={clearCohort}>
-            Show all <X className="ml-1.5 size-3.5" aria-hidden />
+            Show all <X className="ms-1.5 size-3.5" aria-hidden />
           </Button>
         </div>
       ) : null}
@@ -292,7 +292,7 @@ export default function WorkforceAccessWorkspace() {
         <div className="relative min-w-[16rem] flex-1">
           <Search
             aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             value={search}
@@ -301,7 +301,7 @@ export default function WorkforceAccessWorkspace() {
               setPage(1);
             }}
             placeholder="Search by name, email, or employee number"
-            className="pl-9"
+            className="ps-9"
             aria-label="Search workforce"
           />
         </div>
@@ -474,7 +474,7 @@ function StatusBand({
           onClick={() => onSelect(null)}
           aria-pressed={active === null}
           className={cn(
-            "flex min-w-28 items-baseline gap-2 border-r px-4 py-3.5 text-left transition-colors",
+            "flex min-w-28 items-baseline gap-2 border-e px-4 py-3.5 text-start transition-colors",
             active === null
               ? "border-b-2 border-b-primary bg-primary/10 text-foreground"
               : "hover:bg-muted/40"
@@ -501,7 +501,7 @@ function StatusBand({
               type="button"
               onClick={() => onSelect(state)}
               aria-pressed={selected}
-              className={`flex min-w-32 items-baseline gap-2 border-r px-4 py-3.5 text-left transition-colors last:border-r-0 ${
+              className={`flex min-w-32 items-baseline gap-2 border-e px-4 py-3.5 text-start transition-colors last:border-e-0 ${
                 selected
                   ? "border-b-2 border-b-primary bg-primary/10 text-foreground"
                   : "hover:bg-muted/40"

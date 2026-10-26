@@ -199,7 +199,7 @@ export function ActivityLogPageSkeleton() {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-80 max-w-full" />
       </div>
-      <div className="space-y-4 border-l pl-6">
+      <div className="space-y-4 border-s ps-6">
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i} className="flex items-baseline justify-between gap-4">
             <Skeleton className="h-4 w-72 max-w-full" />

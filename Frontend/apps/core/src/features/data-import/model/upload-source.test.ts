@@ -64,8 +64,8 @@ describe("file metadata", () => {
     expect(formatFileSize(742 * 1024)).toBe("742 KB");
     expect(formatFileSize(3.25 * 1024 * 1024)).toBe("3.3 MB");
     const now = new Date(2027, 8, 1, 15, 0);
-    expect(formatModified(new Date(2027, 8, 1, 10, 24).getTime(), now)).toBe("Modified today at 10:24 AM");
-    expect(formatModified(new Date(2027, 7, 31, 9, 5).getTime(), now)).toBe("Modified yesterday at 9:05 AM");
+    expect(formatModified(new Date(2027, 8, 1, 10, 24).getTime(), now)).toBe("Modified today at 10:24");
+    expect(formatModified(new Date(2027, 7, 31, 9, 5).getTime(), now)).toBe("Modified yesterday at 09:05");
     expect(formatModified(new Date(2027, 0, 3).getTime(), now)).toBe("Modified 3 Jan 2027");
   });
 });

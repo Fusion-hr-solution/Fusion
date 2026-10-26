@@ -51,7 +51,7 @@ export function ImportMatchNextSteps({
         </ol>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-border pt-5 sm:w-44 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-5">
+      <div className="flex flex-col gap-3 border-t border-border pt-5 sm:w-44 sm:border-t-0 sm:border-s sm:pt-0 sm:ps-5">
         <div className="flex items-center gap-3">
           <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
             <CircleHelp className="size-4.5" strokeWidth={1.75} />

@@ -63,6 +63,7 @@ import {
   type WorkforceMeContext,
 } from "@/features/overview/api/use-workforce-me";
 import type { EmployeeRosterItem } from "@/app/(pages)/employees/employee-roster.types";
+import { formatDateParts } from "@repo/ds/lib/dates";
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ type HrefFn = (href: string) => string;
 function formatCompactDate(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "Date unavailable";
-  return parsed.toLocaleDateString("en-GB", {
+  return formatDateParts(parsed, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -131,7 +132,7 @@ function buildWorkforceAnalytics(items: EmployeeRosterItem[]) {
   const dept = new Map<string, number>();
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    return { key: `${d.getFullYear()}-${d.getMonth()}`, name: d.toLocaleDateString("en-GB", { month: "short" }), value: 0 };
+    return { key: `${d.getFullYear()}-${d.getMonth()}`, name: formatDateParts(d, { month: "short" }), value: 0 };
   });
   const monthIndex = new Map(months.map((m, i) => [m.key, i]));
   const tenure = TENURE_BUCKETS.map((b) => ({ name: b.name, value: 0 }));
@@ -182,7 +183,7 @@ function buildWorkforceAnalytics(items: EmployeeRosterItem[]) {
       const days = Math.round((next.getTime() - today.getTime()) / 86_400_000);
       const years = next.getFullYear() - hire.getFullYear();
       if (days < 0 || days > 45 || years < 1) return null;
-      return { employee: e, years, days, dateLabel: next.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) };
+      return { employee: e, years, days, dateLabel: formatDateParts(next, { day: "numeric", month: "short" }) };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
     .sort((a, b) => a.days - b.days)
@@ -449,7 +450,7 @@ function WorkforceDashboard({
                           {employee.jobTitle || employee.orgUnitName || employee.email}
                         </span>
                       </span>
-                      <span className="shrink-0 text-right text-xs text-muted-foreground">
+                      <span className="shrink-0 text-end text-xs text-muted-foreground">
                         <span className="block">{formatCompactDate(employee.hireDate)}</span>
                         {getNewHireLabel(employee.hireDate) ? (
                           <span className="block">{getNewHireLabel(employee.hireDate)}</span>
@@ -616,7 +617,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
                   className="flex items-center justify-between rounded-control border border-border px-3 py-2 text-sm"
                 >
                   <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="truncate pl-2 font-medium">{value}</dd>
+                  <dd className="truncate ps-2 font-medium">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -701,7 +702,7 @@ function EmployeeDashboard({ me }: { me: WorkforceMeContext }) {
                   className="flex items-center justify-between rounded-control border border-border px-3 py-2 text-sm"
                 >
                   <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="truncate pl-2 font-medium">{value}</dd>
+                  <dd className="truncate ps-2 font-medium">{value}</dd>
                 </div>
               ))}
             </dl>

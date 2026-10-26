@@ -108,10 +108,10 @@ export function WorkerProfile({
       <section className="relative overflow-hidden rounded-surface border bg-card p-6 sm:p-7">
         <div
           aria-hidden
-          className="pointer-events-none absolute right-0 top-0 h-44 w-80 overflow-hidden"
+          className="pointer-events-none absolute inset-e-0 top-0 h-44 w-80 overflow-hidden"
         >
-          <div className="absolute -right-28 -top-32 size-72 rounded-full border border-primary/25" />
-          <div className="absolute -right-20 -top-28 size-56 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -inset-e-28 -top-32 size-72 rounded-full border border-primary/25" />
+          <div className="absolute -inset-e-20 -top-28 size-56 rounded-full bg-primary/10 blur-3xl" />
         </div>
 
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-x-6">
@@ -554,7 +554,7 @@ function HeroFact({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 lg:px-6 lg:first:pl-0 lg:last:pr-0">
+    <div className="flex min-w-0 items-center gap-3 lg:px-6 lg:first:ps-0 lg:last:pe-0">
       <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground/80">
         <Icon className="size-4" aria-hidden />
       </span>
@@ -671,7 +671,7 @@ function UpcomingCard({
         <Button
           size="sm"
           variant="ghost"
-          className="-ml-2 self-start text-muted-foreground group-hover:text-foreground"
+          className="-ms-2 self-start text-muted-foreground group-hover:text-foreground"
           onClick={onView}
         >
           View as of {formatWorkforceDate(item.effectiveDate)}
@@ -704,7 +704,7 @@ function ProfileTimeline({ events }: { events: PeopleTimelineEventDto[] }) {
         >
           <span
             className={cn(
-              "w-[5.5rem] shrink-0 pt-0.5 text-right type-meta tabular-nums",
+              "w-[5.5rem] shrink-0 pt-0.5 text-end type-meta tabular-nums",
               event.isFuture ? "text-primary-ink" : "text-muted-foreground"
             )}
           >

@@ -1,0 +1,273 @@
+{
+  "didNotLoad": "Impossible de charger les paramètres Core HR",
+  "company": {
+    "didNotLoad": "Impossible de charger les informations de l’entreprise",
+    "note": "Définies à l’arrivée de {name} sur Fusion. Votre fournisseur Fusion les modifie.",
+    "name": "Nom de l’entreprise",
+    "workspace": "Adresse de l’espace de travail",
+    "industry": "Secteur",
+    "language": "Langue et formats",
+    "languageDetail": "Dates, nombres et e-mails envoyés par Fusion",
+    "timeZone": "Fuseau horaire",
+    "timeZoneDetail": "Les échéances et rappels le suivent",
+    "modules": "Modules",
+    "modulesOn": "{count, plural, one {# activé} other {# activés}}"
+  },
+  "employeeFields": {
+    "didNotLoad": "Impossible de charger les champs collaborateur",
+    "notSaved": "Les champs collaborateur n’ont pas été enregistrés. Réessayez.",
+    "leave": "Quitter sans enregistrer ? Vos modifications des champs collaborateur seront perdues.",
+    "onProfile": "Sur un profil",
+    "field": "Champ",
+    "columns": {
+      "required": "Obligatoire",
+      "visibleToEmployee": "Le collaborateur",
+      "visibleToManager": "Son manager"
+    },
+    "hr": "RH",
+    "cell": "{field} : {column}",
+    "hrAlways": "{field} : toujours visible par les RH",
+    "yes": "Oui",
+    "no": "Non",
+    "seesIt": "Visible",
+    "hidden": "Masqué",
+    "canChange": "Les collaborateurs peuvent modifier",
+    "selfService": {
+      "canEditPreferredName": {
+        "label": "Leur nom d’usage",
+        "their": "leur nom d’usage"
+      },
+      "canEditPhone": {
+        "label": "Leur numéro de téléphone",
+        "their": "leur numéro de téléphone"
+      }
+    },
+    "fields": {
+      "firstName": {
+        "label": "Prénom",
+        "their": "leur prénom",
+        "plural": "les prénoms"
+      },
+      "lastName": {
+        "label": "Nom",
+        "their": "leur nom",
+        "plural": "les noms"
+      },
+      "email": {
+        "label": "E-mail professionnel",
+        "their": "leur e-mail professionnel",
+        "plural": "les e-mails professionnels"
+      },
+      "hireDate": {
+        "label": "Date d’embauche",
+        "their": "leur date d’embauche",
+        "plural": "les dates d’embauche"
+      },
+      "phone": {
+        "label": "Téléphone",
+        "their": "leur numéro de téléphone",
+        "plural": "les numéros de téléphone"
+      },
+      "jobTitle": {
+        "label": "Intitulé de poste",
+        "their": "leur intitulé de poste",
+        "plural": "les intitulés de poste"
+      },
+      "workLocation": {
+        "label": "Lieu de travail",
+        "their": "leur lieu de travail",
+        "plural": "les lieux de travail"
+      },
+      "employmentType": {
+        "label": "Type de contrat",
+        "their": "leur type de contrat",
+        "plural": "les types de contrat"
+      }
+    },
+    "consequence": {
+      "managersSee": "Les managers voient {nouns} sur les profils de leur équipe.",
+      "managersStop": "Les managers ne voient plus {nouns} sur les profils de leur équipe.",
+      "employeesSee": "Les collaborateurs voient {their} sur Mon profil.",
+      "employeesStop": "Les collaborateurs ne voient plus {their} sur Mon profil.",
+      "required": "{label} devient obligatoire sur les fiches créées ou modifiées.",
+      "optional": "{label} n’est plus obligatoire.",
+      "canChange": "Les collaborateurs peuvent modifier {their} sur Mon profil.",
+      "cannotChange": "Les collaborateurs ne peuvent plus modifier {their}.",
+      "more": "{sentences} Et {count, plural, one {# autre modification} other {# autres modifications}}."
+    }
+  },
+  "invitations": {
+    "didNotLoad": "Impossible de charger les invitations",
+    "notSaved": "Les invitations n’ont pas été enregistrées. Réessayez.",
+    "leave": "Quitter sans enregistrer ? Vos modifications des invitations seront perdues.",
+    "reinvite": {
+      "RefreshExisting": {
+        "label": "Envoyer un nouveau lien",
+        "detail": "Le lien précédent cesse de fonctionner"
+      },
+      "KeepExisting": {
+        "label": "Conserver le premier lien",
+        "detail": "Rien n’est renvoyé"
+      }
+    },
+    "expiresAfter": "L’invitation expire après",
+    "expiresAfterInDays": "L’invitation expire après, en jours",
+    "cooldown": "Délai avant de demander un nouveau lien",
+    "cooldownInHours": "Délai avant de demander un nouveau lien, en heures",
+    "days": "jours",
+    "hours": "heures",
+    "dayCount": "{count, plural, one {# jour} other {# jours}}",
+    "hourCount": "{count, plural, one {# heure} other {# heures}}",
+    "role": "Rôle des nouveaux comptes",
+    "reinviteTitle": "Inviter une personne qui a déjà une invitation",
+    "consequence": {
+      "expiry": "Les invitations envoyées à partir de maintenant expirent après {count, plural, one {# jour} other {# jours}}.",
+      "cooldown": "Il faut attendre {count, plural, one {# heure} other {# heures}} avant de demander un nouveau lien.",
+      "role": "Les nouveaux comptes reçoivent le rôle « {role} ».",
+      "chosenRole": "Les nouveaux comptes reçoivent le rôle choisi.",
+      "keep": "Une nouvelle invitation conserve le premier lien.",
+      "fresh": "Une nouvelle invitation envoie un nouveau lien et désactive le précédent."
+    }
+  },
+  "roles": {
+    "didNotLoad": "Impossible de charger les rôles",
+    "newRole": "Nouveau rôle",
+    "list": "Rôles",
+    "builtIn": "Intégrés",
+    "yours": "Les vôtres",
+    "people": "{count, plural, one {# personne} other {# personnes}}",
+    "name": "Nom",
+    "purpose": "À quoi il sert",
+    "create": "Créer le rôle",
+    "cancel": "Annuler",
+    "notCreated": "Le rôle n’a pas été créé.",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "done": "Terminé",
+    "holdsOne": "{name} a ce rôle",
+    "holdsMany": "{count, plural, one {{name} et # autre personne ont ce rôle} other {{name} et # autres personnes ont ce rôle}}",
+    "nobody": "Personne n’a ce rôle",
+    "holdCount": "{count, plural, one {# personne a ce rôle} other {# personnes ont ce rôle}}",
+    "manageInAccess": "Gérer dans Accès",
+    "leave": "Quitter sans enregistrer ? Vos modifications de « {role} » seront perdues.",
+    "notSaved": "Le rôle n’a pas été enregistré.",
+    "levels": {
+      "None": "Aucun",
+      "View": "Lecture",
+      "Manage": "Gestion"
+    },
+    "consequence": {
+      "None": "Les titulaires du rôle « {role} » ne voient plus {what}.",
+      "View": "Les titulaires du rôle « {role} » peuvent voir {what}.",
+      "Manage": "Les titulaires du rôle « {role} » peuvent gérer {what}.",
+      "more": "{sentence} Et {count} de plus."
+    },
+    "areas": {
+      "cycles": {
+        "label": "Cycles",
+        "what": "les cycles"
+      },
+      "performance-settings": {
+        "label": "Paramètres Performance",
+        "what": "les paramètres Performance"
+      },
+      "company-objectives": {
+        "label": "Objectifs de l’entreprise",
+        "what": "les objectifs de l’entreprise"
+      },
+      "company-direction": {
+        "label": "Orientation de l’entreprise",
+        "what": "l’orientation de l’entreprise"
+      },
+      "calibration": {
+        "label": "Calibrage",
+        "what": "le calibrage"
+      },
+      "people": {
+        "label": "Collaborateurs",
+        "what": "les collaborateurs"
+      },
+      "organization": {
+        "label": "Organisation",
+        "what": "l’organisation"
+      },
+      "employee-fields": {
+        "label": "Champs collaborateur",
+        "what": "les champs collaborateur"
+      },
+      "roles": {
+        "label": "Rôles et accès",
+        "what": "les rôles et accès"
+      },
+      "invitations": {
+        "label": "Invitations",
+        "what": "les invitations"
+      },
+      "change-history": {
+        "label": "Historique des modifications",
+        "what": "l’historique des modifications"
+      }
+    }
+  },
+  "changeHistory": {
+    "didNotLoad": "Impossible de charger l’historique des modifications",
+    "section": "Section",
+    "person": "Auteur",
+    "allSections": "Toutes les sections",
+    "anyone": "Tout le monde",
+    "empty": "Aucun paramètre n’a encore été modifié.",
+    "noMatch": "Aucune modification ne correspond.",
+    "clearFilters": "Effacer les filtres",
+    "thisWeek": "Cette semaine",
+    "changedTo": "remplacé par",
+    "someone": "Quelqu’un",
+    "andMore": "{sentence}, et {count} de plus",
+    "roleChange": "A modifié un rôle ou ses titulaires",
+    "settingsChange": "A modifié des paramètres",
+    "audience": {
+      "visibleToManager": {
+        "label": "son manager",
+        "who": "les managers"
+      },
+      "visibleToEmployee": {
+        "label": "le collaborateur",
+        "who": "les collaborateurs"
+      }
+    },
+    "fieldAudience": "{field} · {audience}",
+    "seesIt": "Visible",
+    "hidden": "Masqué",
+    "nowSee": "{field} : {who} le voient désormais",
+    "noLongerSee": "{field} : {who} ne le voient plus",
+    "requiredLabel": "{field} · obligatoire",
+    "required": "Obligatoire",
+    "optional": "Facultatif",
+    "nowRequired": "{field} : désormais obligatoire",
+    "nowOptional": "{field} : n’est plus obligatoire",
+    "selfNouns": {
+      "Phone": "leur numéro de téléphone",
+      "PreferredName": "leur nom d’usage"
+    },
+    "selfLabel": "Les collaborateurs modifient {their}",
+    "yes": "Oui",
+    "no": "Non",
+    "selfCan": "Les collaborateurs peuvent modifier {their}",
+    "selfCannot": "Les collaborateurs ne peuvent plus modifier {their}",
+    "expiryLabel": "L’invitation expire après",
+    "days": "{count, plural, one {# jour} other {# jours}}",
+    "expirySentence": "Expiration passée de {before} à {after} jours",
+    "cooldownLabel": "Délai avant de demander un nouveau lien",
+    "hours": "{count, plural, one {# heure} other {# heures}}",
+    "cooldownSentence": "Délai pour un nouveau lien passé de {before} à {after} heures",
+    "reinviteLabel": "Nouvelle invitation",
+    "keep": "Conserver le premier lien",
+    "fresh": "Envoyer un nouveau lien",
+    "reinviteSentence": "Nouvelle invitation : {choice}",
+    "roleLabel": "Rôle des nouveaux comptes",
+    "chosenRole": "Un rôle choisi",
+    "defaultRole": "Employee",
+    "roleSentence": "Rôle des nouveaux comptes modifié",
+    "none": "Aucun",
+    "otherSentence": "{name} modifié"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "yourOrganization": "votre organisation",
+  "password": {
+    "minimumLength": "{count} caractères ou plus",
+    "uppercase": "Une majuscule",
+    "lowercase": "Une minuscule",
+    "number": "Un chiffre",
+    "symbol": "Un symbole"
+  },
+  "terminal": {
+    "invalid": {
+      "title": "Ce lien d’invitation ne fonctionne pas",
+      "detail": "Ouvrez le lien d’invitation reçu par e-mail et réessayez."
+    },
+    "expired": {
+      "title": "Cette invitation a expiré",
+      "detail": "Demandez un nouveau lien d’invitation à votre administrateur."
+    },
+    "revoked": {
+      "title": "Cette invitation a été annulée",
+      "detail": "Ce lien n’est plus valide. Demandez un nouveau lien d’invitation à votre administrateur."
+    },
+    "used": {
+      "title": "Cette invitation a déjà été utilisée",
+      "detail": "Connectez-vous avec votre compte pour continuer."
+    },
+    "verifyFailed": {
+      "title": "Impossible de vérifier cette invitation",
+      "detail": "Réessayez dans un instant. Si le problème persiste, contactez votre administrateur."
+    },
+    "askForNew": "Demandez un nouveau lien d’invitation à votre administrateur.",
+    "checkConnection": "Vérifiez votre connexion et réessayez.",
+    "refreshOrRetry": "Actualisez la page ou réessayez dans un instant.",
+    "refresh": "Actualisez la page et réessayez.",
+    "signIn": "Se connecter"
+  },
+  "errors": {
+    "connection": "Votre demande n’a pas pu aboutir. Vérifiez votre connexion et réessayez.",
+    "signInRefused": "Votre compte a été créé, mais la connexion automatique a échoué. Connectez-vous avec votre nouveau compte pour continuer.",
+    "signInFailed": "Votre compte a été créé, mais la connexion n’a pas pu aboutir. Connectez-vous pour continuer.",
+    "used": "Cette invitation a déjà été utilisée. Connectez-vous avec votre compte pour continuer.",
+    "expired": "Cette invitation a expiré. Demandez un nouveau lien d’invitation à votre administrateur.",
+    "revoked": "Cette invitation a été annulée. Demandez un nouveau lien d’invitation à votre administrateur.",
+    "registered": "Cette adresse e-mail a déjà un compte. Connectez-vous, ou demandez une nouvelle invitation à votre administrateur si besoin.",
+    "claimed": "Cette invitation ne peut plus être finalisée seule. Votre administrateur doit vérifier les accès avant que vous puissiez activer votre compte.",
+    "notAccepted": "Vos informations n’ont pas été acceptées. Vérifiez-les et réessayez.",
+    "failed": "La création de votre compte n’a pas pu aboutir. Réessayez dans un instant ou contactez votre administrateur."
+  },
+  "workforce": {
+    "eyebrow": "Votre accès",
+    "lead": "Activez le compte lié à votre fiche collaborateur. Votre organisation gère l’identité et les informations professionnelles affichées dans Fusion.",
+    "access": "Accès",
+    "accountEmail": "E-mail du compte",
+    "security": "Cette invitation est sécurisée et liée à votre adresse e-mail professionnelle. Ce lien ne peut être utilisé que par vous.",
+    "roles": {
+      "Employee": "Collaborateur",
+      "Manager": "Manager"
+    },
+    "heading": "Activez votre compte",
+    "formLead": "{tenant} a préparé votre accès à Fusion. Choisissez un mot de passe pour activer votre compte.",
+    "submit": "Activer mon compte",
+    "submitting": "Activation de votre compte…",
+    "email": "E-mail professionnel"
+  },
+  "administrator": {
+    "eyebrow": "Votre invitation",
+    "heading": "Rejoignez {tenant}",
+    "lead": "Vous avez reçu une invitation à créer votre compte Fusion pour démarrer avec {tenant}.",
+    "role": "Rôle attribué",
+    "roleValue": "Administrateur",
+    "sentTo": "Invitation envoyée à",
+    "security": "Cette invitation est sécurisée et liée à l’adresse e-mail invitée. Seul son destinataire peut utiliser ce lien.",
+    "formHeading": "Créez votre compte",
+    "formLead": "Acceptez l’invitation de {tenant} pour créer votre compte Fusion.",
+    "submit": "Créer mon compte",
+    "submitting": "Création de votre compte…",
+    "email": "E-mail de l’invitation"
+  },
+  "organization": "Organisation",
+  "footer": "Travailler ensemble",
+  "firstName": "Prénom",
+  "lastName": "Nom",
+  "readOnly": "Lecture seule",
+  "createPassword": "Créer un mot de passe",
+  "confirmPassword": "Confirmer le mot de passe",
+  "showCharacters": "Afficher les caractères",
+  "hideCharacters": "Masquer les caractères",
+  "passwordsMatch": "Les mots de passe correspondent",
+  "passwordsDoNotMatch": "Les mots de passe ne correspondent pas encore",
+  "signingIn": "Connexion en cours…",
+  "opening": "Ouverture de Fusion…",
+  "haveAccount": "Vous avez déjà un compte Fusion ? <signIn>Connectez-vous</signIn> pour continuer"
+}

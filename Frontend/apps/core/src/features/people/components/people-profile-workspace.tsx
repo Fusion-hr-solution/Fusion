@@ -236,7 +236,7 @@ export default function PeopleProfileWorkspace({
           onClick={() => setWorkEmailEditorOpen(true)}
         >
           Add work email
-          <ChevronRight className="ml-1 size-3.5" aria-hidden />
+          <ChevronRight className="ms-1 size-3.5" aria-hidden />
         </Button>
       ) : undefined
     ) : undefined;
@@ -273,7 +273,7 @@ export default function PeopleProfileWorkspace({
           hasHeaderActions ? (
             <>
               {isAsOf ? (
-                <div className="inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-primary/[0.06] py-1.5 pl-3.5 pr-1.5 motion-safe:animate-in motion-safe:fade-in">
+                <div className="inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-primary/[0.06] py-1.5 ps-3.5 pe-1.5 motion-safe:animate-in motion-safe:fade-in">
                   <span className="type-label">
                     As of{" "}
                     {formatWorkforceDate(employee.viewedDate, {
@@ -355,7 +355,7 @@ export default function PeopleProfileWorkspace({
               onClick={() => setWorkEmailEditorOpen(true)}
             >
               {view.workEmail ? "Edit work email" : "Add work email"}
-              <ChevronRight className="ml-1 size-3.5" aria-hidden />
+              <ChevronRight className="ms-1 size-3.5" aria-hidden />
             </Button>
           ) : undefined
         }

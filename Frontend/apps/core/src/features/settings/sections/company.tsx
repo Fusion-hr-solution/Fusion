@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   createFusionNavigationApi,
   createPlatformApiClient,
@@ -18,21 +19,27 @@ import {
   SettingsRow,
   SettingsRows,
   SettingsValue,
+  useSettingsSectionName,
 } from "@repo/ds/shell";
+import { dateFormatter } from "@repo/ds/lib/dates";
 
-/** "English (United States)" for "en-US"; the code itself when the browser can't name it. */
-export function languageName(locale: string): string {
+/**
+ * "English (United States)" for "en-US", named in the person's language ("Anglais (États-Unis)"); the code itself
+ * when the browser can't name it.
+ */
+export function languageName(locale: string, language = "en"): string {
   try {
-    return new Intl.DisplayNames(["en"], { type: "language", languageDisplay: "standard" }).of(locale) ?? locale;
+    const name = new Intl.DisplayNames([language], { type: "language", languageDisplay: "standard" }).of(locale) ?? locale;
+    return name.charAt(0).toUpperCase() + name.slice(1);
   } catch {
     return locale;
   }
 }
 
 /** "Africa/Tunis · UTC+1": the zone and its current offset. */
-export function timeZoneLabel(timeZone: string, now: Date = new Date()): string {
+export function timeZoneLabel(timeZone: string, now: Date = new Date(), language?: string): string {
   try {
-    const offset = new Intl.DateTimeFormat("en-GB", { timeZone, timeZoneName: "shortOffset" })
+    const offset = dateFormatter({ timeZone, timeZoneName: "shortOffset" }, language)
       .formatToParts(now)
       .find((part) => part.type === "timeZoneName")?.value;
     return offset ? `${timeZone} · ${offset.replace("GMT", "UTC") || "UTC"}` : timeZone;
@@ -46,6 +53,10 @@ export function timeZoneLabel(timeZone: string, now: Date = new Date()): string 
  * the modules that are on. Nothing here is editable.
  */
 export function CompanySettings({ section }: { section: FusionSettingsSection }) {
+  const t = useTranslations("settings.company");
+  const describe = useTranslations("ds.sidebar.moduleDescriptions");
+  const locale = useLocale();
+  const title = useSettingsSectionName()(section);
   const { viewer } = useFusionViewer();
   const api = useMemo(() => createFusionNavigationApi(createPlatformApiClient()), []);
   const tenant = useApiQuery(
@@ -60,8 +71,8 @@ export function CompanySettings({ section }: { section: FusionSettingsSection })
 
   if (tenant.error) {
     return (
-      <SettingsPage title={section.label}>
-        <PageError title="Company details didn't load" onRetry={() => void tenant.refetch()} />
+      <SettingsPage title={title}>
+        <PageError title={t("didNotLoad")} onRetry={() => void tenant.refetch()} />
       </SettingsPage>
     );
   }
@@ -69,39 +80,39 @@ export function CompanySettings({ section }: { section: FusionSettingsSection })
   const facts = tenant.data;
   return (
     <SettingsPage
-      title={section.label}
-      note={facts ? `Set when ${facts.name} joined Fusion. Your Fusion provider changes these.` : undefined}
+      title={title}
+      note={facts ? t("note", { name: facts.name }) : undefined}
       loading={!facts}
     >
       {facts ? (
         <>
           <SettingsRows>
-            <SettingsRow label="Company name">
+            <SettingsRow label={t("name")}>
               <SettingsValue>{facts.name}</SettingsValue>
             </SettingsRow>
             {facts.slug ? (
-              <SettingsRow label="Workspace address">
+              <SettingsRow label={t("workspace")}>
                 <SettingsValue className="type-code">{facts.slug}</SettingsValue>
               </SettingsRow>
             ) : null}
             {facts.industry ? (
-              <SettingsRow label="Industry">
+              <SettingsRow label={t("industry")}>
                 <SettingsValue>{facts.industry}</SettingsValue>
               </SettingsRow>
             ) : null}
             {facts.locale ? (
-              <SettingsRow label="Language and formats" description="Dates, numbers and emails Fusion sends">
-                <SettingsValue>{languageName(facts.locale)}</SettingsValue>
+              <SettingsRow label={t("language")} description={t("languageDetail")}>
+                <SettingsValue>{languageName(facts.locale, locale)}</SettingsValue>
               </SettingsRow>
             ) : null}
             {facts.timeZone ? (
-              <SettingsRow label="Time zone" description="Deadlines and reminders follow it">
-                <SettingsValue>{timeZoneLabel(facts.timeZone)}</SettingsValue>
+              <SettingsRow label={t("timeZone")} description={t("timeZoneDetail")}>
+                <SettingsValue>{timeZoneLabel(facts.timeZone, undefined, locale)}</SettingsValue>
               </SettingsRow>
             ) : null}
           </SettingsRows>
 
-          <SettingsBlock title="Modules" meta={`${modules.length} on`}>
+          <SettingsBlock title={t("modules")} meta={t("modulesOn", { count: modules.length })}>
             <ul className="grid gap-3 sm:grid-cols-2">
               {modules.map((module) => {
                 const Icon = FUSION_MODULE_ICONS[module.key];
@@ -112,7 +123,9 @@ export function CompanySettings({ section }: { section: FusionSettingsSection })
                     </span>
                     <span className="flex min-w-0 flex-col">
                       <span className="type-label font-semibold text-foreground">{module.label}</span>
-                      <span className="truncate type-meta text-muted-foreground">{module.description}</span>
+                      <span className="truncate type-meta text-muted-foreground">
+                        {describe.has(module.key as never) ? describe(module.key as never) : module.description}
+                      </span>
                     </span>
                   </li>
                 );

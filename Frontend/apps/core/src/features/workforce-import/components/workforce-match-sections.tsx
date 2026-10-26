@@ -358,7 +358,7 @@ function InterpretationDecision({
             disabled={disabled}
             onClick={() => void edit(kind, choice.key, choice.change)}
             className={cn(
-              "rounded-control border border-border bg-inlay px-3 py-2 text-left type-label font-medium text-foreground transition-colors",
+              "rounded-control border border-border bg-inlay px-3 py-2 text-start type-label font-medium text-foreground transition-colors",
               "hover:border-primary/60 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
               pending === choice.key && "border-primary bg-primary/10"
             )}

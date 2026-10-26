@@ -56,7 +56,7 @@ export function ImportFilePreview({
       </header>
 
       <div className="mt-4 overflow-x-auto rounded-control border border-border">
-        <table className="w-full min-w-[24rem] border-collapse text-left">
+        <table className="w-full min-w-[24rem] border-collapse text-start">
           <thead className="bg-inlay">
             <tr className="type-eyebrow text-muted-foreground">
               {columns.map((column) => (

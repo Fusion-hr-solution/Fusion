@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { cn } from "@repo/ds";
 import { StatusBadge, type StatusTone } from "@repo/ds/shell";
 import type { PeopleEmploymentState } from "@repo/api";
+import { dateFormatter } from "@repo/ds/lib/dates";
 
 /**
  * Workforce-local composition grammar for Slice 1 People surfaces.
@@ -317,7 +318,7 @@ export function formatWorkforceDate(
   const iso = value.length <= 10 ? `${value}T00:00:00Z` : value;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-GB", {
+  return dateFormatter({
     day: "numeric",
     month: options?.month ?? "short",
     year: "numeric",

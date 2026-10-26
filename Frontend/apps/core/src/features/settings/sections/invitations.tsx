@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { ApiError, type FusionSettingsSection, type ProvisioningSettingsDto } from "@repo/api";
+import type { FusionSettingsSection, ProvisioningSettingsDto } from "@repo/api";
 import { useSettingsConflictSaver } from "@repo/api/query";
 import { useStagedSettings } from "@repo/api/react";
 import { cn, Input, NativeSelect, NativeSelectOption, RadioGroup, RadioGroupItem } from "@repo/ds";
@@ -13,35 +13,36 @@ import {
   SettingsRows,
   SettingsSaveBar,
   SettingsValue,
+  useSettingsSectionName,
 } from "@repo/ds/shell";
 import { useAccessProfiles } from "@/features/access/api/use-core-access";
 import {
   useProvisioningSettings,
   useUpdateProvisioningSettings,
 } from "@/features/settings/api/use-tenant-settings";
+import { sayInEnglish, useSaveFailure, useSettingsSay, type Say } from "@/features/settings/say";
 
-const REINVITE = [
-  { value: "RefreshExisting", label: "Send a fresh one", detail: "The earlier link stops working" },
-  { value: "KeepExisting", label: "Keep the first one", detail: "Nothing is sent again" },
-] as const;
+/** Each choice's words are `invitations.reinvite.<value>` in the catalogue. */
+const REINVITE = ["RefreshExisting", "KeepExisting"] as const;
 
+/** The built-in role new accounts get when none is chosen: a role's name, as the tenant's data holds it. */
 const DEFAULT_ROLE = "Employee";
 
-/** What saving does, from what changed. */
-export function invitationsConsequence(saved: ProvisioningSettingsDto, draft: ProvisioningSettingsDto, roleName: string): string {
+/** What saving does, from what changed. `roleName` is null while the chosen role isn't known. */
+export function invitationsConsequence(
+  saved: ProvisioningSettingsDto,
+  draft: ProvisioningSettingsDto,
+  roleName: string | null,
+  say: Say = sayInEnglish
+): string {
+  const said = (key: string, values?: Record<string, string | number>) => say(`invitations.consequence.${key}`, values);
   const sentences: string[] = [];
-  if (saved.inviteExpiryDays !== draft.inviteExpiryDays)
-    sentences.push(`Invitations sent from now on expire after ${draft.inviteExpiryDays} ${draft.inviteExpiryDays === 1 ? "day" : "days"}.`);
-  if (saved.resendCooldownHours !== draft.resendCooldownHours)
-    sentences.push(`People wait ${draft.resendCooldownHours} ${draft.resendCooldownHours === 1 ? "hour" : "hours"} before asking for a new link.`);
+  if (saved.inviteExpiryDays !== draft.inviteExpiryDays) sentences.push(said("expiry", { count: draft.inviteExpiryDays }));
+  if (saved.resendCooldownHours !== draft.resendCooldownHours) sentences.push(said("cooldown", { count: draft.resendCooldownHours }));
   if (saved.defaultAccessProfileId !== draft.defaultAccessProfileId)
-    sentences.push(`New accounts get the ${roleName} role.`);
+    sentences.push(roleName ? said("role", { role: roleName }) : said("chosenRole"));
   if (saved.pendingInviteBehavior !== draft.pendingInviteBehavior)
-    sentences.push(
-      draft.pendingInviteBehavior === "KeepExisting"
-        ? "Inviting someone again keeps their first link."
-        : "Inviting someone again sends a fresh link and stops the earlier one."
-    );
+    sentences.push(said(draft.pendingInviteBehavior === "KeepExisting" ? "keep" : "fresh"));
   return sentences.join(" ");
 }
 
@@ -80,13 +81,11 @@ function NumberField({
   );
 }
 
-function failure(error: unknown): string | null {
-  if (!error) return null;
-  return error instanceof ApiError && error.errors[0] ? error.errors[0] : "Invitations didn't save. Try again.";
-}
-
 /** Settings › Invitations: how Fusion invites new people. */
 export function InvitationsSettings({ section }: { section: FusionSettingsSection }) {
+  const say = useSettingsSay();
+  const failure = useSaveFailure();
+  const title = useSettingsSectionName()(section);
   const editable = section.access === "manage";
   const query = useProvisioningSettings();
   const profiles = useAccessProfiles();
@@ -100,21 +99,21 @@ export function InvitationsSettings({ section }: { section: FusionSettingsSectio
   );
   const staged = useStagedSettings(saved, save, {
     onReload: () => void query.refetch(),
-    leaveMessage: "Leave without saving? Your changes to Invitations are discarded.",
+    leaveMessage: say("invitations.leave"),
   });
   const saver = useSettingsConflictSaver("core", [section.id], staged.conflict);
   const draft = staged.draft;
 
   const roleName = useCallback(
-    (id: string | null) => (id ? profiles.data?.find((profile) => profile.id === id)?.name ?? "chosen" : DEFAULT_ROLE),
+    (id: string | null) => (id ? profiles.data?.find((profile) => profile.id === id)?.name ?? null : DEFAULT_ROLE),
     [profiles.data]
   );
   const roles = useMemo(() => profiles.data ?? [], [profiles.data]);
 
   if (query.error && !query.data) {
     return (
-      <SettingsPage title={section.label}>
-        <PageError title="Invitations didn't load" onRetry={() => void query.refetch()} />
+      <SettingsPage title={title}>
+        <PageError title={say("invitations.didNotLoad")} onRetry={() => void query.refetch()} />
       </SettingsPage>
     );
   }
@@ -123,7 +122,7 @@ export function InvitationsSettings({ section }: { section: FusionSettingsSectio
 
   return (
     <SettingsPage
-      title={section.label}
+      title={title}
       lastChange={section.lastChange}
       setUpAt={section.setUpAt}
       viewOnly={!editable}
@@ -132,37 +131,37 @@ export function InvitationsSettings({ section }: { section: FusionSettingsSectio
       {draft ? (
         <>
           <SettingsRows>
-            <SettingsRow label="Invitation expires after" htmlFor={editable ? "invite-expiry" : undefined}>
+            <SettingsRow label={say("invitations.expiresAfter")} htmlFor={editable ? "invite-expiry" : undefined}>
               {editable ? (
                 <NumberField
                   id="invite-expiry"
-                  label="Invitation expires after, in days"
+                  label={say("invitations.expiresAfterInDays")}
                   value={draft.inviteExpiryDays}
-                  unit="days"
+                  unit={say("invitations.days")}
                   min={1}
                   max={90}
                   onChange={(value) => set({ inviteExpiryDays: value })}
                 />
               ) : (
-                <SettingsValue>{draft.inviteExpiryDays} days</SettingsValue>
+                <SettingsValue>{say("invitations.dayCount", { count: draft.inviteExpiryDays })}</SettingsValue>
               )}
             </SettingsRow>
-            <SettingsRow label="People can ask for a new one after" htmlFor={editable ? "invite-cooldown" : undefined}>
+            <SettingsRow label={say("invitations.cooldown")} htmlFor={editable ? "invite-cooldown" : undefined}>
               {editable ? (
                 <NumberField
                   id="invite-cooldown"
-                  label="People can ask for a new one after, in hours"
+                  label={say("invitations.cooldownInHours")}
                   value={draft.resendCooldownHours}
-                  unit="hours"
+                  unit={say("invitations.hours")}
                   min={0}
                   max={720}
                   onChange={(value) => set({ resendCooldownHours: value })}
                 />
               ) : (
-                <SettingsValue>{draft.resendCooldownHours} hours</SettingsValue>
+                <SettingsValue>{say("invitations.hourCount", { count: draft.resendCooldownHours })}</SettingsValue>
               )}
             </SettingsRow>
-            <SettingsRow label="Role for new accounts" htmlFor={editable ? "invite-role" : undefined}>
+            <SettingsRow label={say("invitations.role")} htmlFor={editable ? "invite-role" : undefined}>
               {editable ? (
                 <NativeSelect
                   id="invite-role"
@@ -180,34 +179,34 @@ export function InvitationsSettings({ section }: { section: FusionSettingsSectio
                     ))}
                 </NativeSelect>
               ) : (
-                <SettingsValue>{roleName(draft.defaultAccessProfileId)}</SettingsValue>
+                <SettingsValue>{roleName(draft.defaultAccessProfileId) ?? "–"}</SettingsValue>
               )}
             </SettingsRow>
           </SettingsRows>
 
-          <SettingsBlock title="Inviting someone who already has an invitation">
+          <SettingsBlock title={say("invitations.reinviteTitle")}>
             {editable ? (
               <RadioGroup
-                aria-label="Inviting someone who already has an invitation"
+                aria-label={say("invitations.reinviteTitle")}
                 value={draft.pendingInviteBehavior}
                 onValueChange={(value) => set({ pendingInviteBehavior: value })}
                 className="gap-3"
               >
                 {REINVITE.map((option) => {
-                  const selected = draft.pendingInviteBehavior === option.value;
+                  const selected = draft.pendingInviteBehavior === option;
                   return (
                     <label
-                      key={option.value}
-                      htmlFor={`reinvite-${option.value}`}
+                      key={option}
+                      htmlFor={`reinvite-${option}`}
                       className={cn(
                         "flex cursor-pointer items-start gap-3 rounded-surface border px-5 py-4 transition-colors",
                         selected ? "border-primary bg-primary-tint" : "border-border bg-card hover:border-foreground/30"
                       )}
                     >
-                      <RadioGroupItem id={`reinvite-${option.value}`} value={option.value} className="mt-0.5" />
+                      <RadioGroupItem id={`reinvite-${option}`} value={option} className="mt-0.5" />
                       <span className="flex flex-col gap-0.5">
-                        <span className="type-label font-semibold text-foreground">{option.label}</span>
-                        <span className="type-meta text-muted-foreground">{option.detail}</span>
+                        <span className="type-label font-semibold text-foreground">{say(`invitations.reinvite.${option}.label`)}</span>
+                        <span className="type-meta text-muted-foreground">{say(`invitations.reinvite.${option}.detail`)}</span>
                       </span>
                     </label>
                   );
@@ -215,10 +214,14 @@ export function InvitationsSettings({ section }: { section: FusionSettingsSectio
               </RadioGroup>
             ) : (
               <SettingsRows>
-                <SettingsRow
-                  label={REINVITE.find((option) => option.value === draft.pendingInviteBehavior)?.label ?? draft.pendingInviteBehavior}
-                  description={REINVITE.find((option) => option.value === draft.pendingInviteBehavior)?.detail}
-                />
+                {(REINVITE as readonly string[]).includes(draft.pendingInviteBehavior) ? (
+                  <SettingsRow
+                    label={say(`invitations.reinvite.${draft.pendingInviteBehavior}.label`)}
+                    description={say(`invitations.reinvite.${draft.pendingInviteBehavior}.detail`)}
+                  />
+                ) : (
+                  <SettingsRow label={draft.pendingInviteBehavior} />
+                )}
               </SettingsRows>
             )}
           </SettingsBlock>
@@ -226,9 +229,9 @@ export function InvitationsSettings({ section }: { section: FusionSettingsSectio
           {editable && saved ? (
             <SettingsSaveBar
               changes={staged.changes}
-              consequence={invitationsConsequence(saved, draft, roleName(draft.defaultAccessProfileId))}
+              consequence={invitationsConsequence(saved, draft, roleName(draft.defaultAccessProfileId), say)}
               saving={staged.saving}
-              error={failure(staged.error)}
+              error={failure(staged.error, say("invitations.notSaved"))}
               conflict={saver}
               conflictPending={staged.conflict && !saver}
               onDiscard={staged.discard}

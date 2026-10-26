@@ -1,0 +1,93 @@
+{
+  "yourOrganization": "your organization",
+  "password": {
+    "minimumLength": "{count} characters or more",
+    "uppercase": "An uppercase letter",
+    "lowercase": "A lowercase letter",
+    "number": "A number",
+    "symbol": "A symbol"
+  },
+  "terminal": {
+    "invalid": {
+      "title": "This invitation link does not work",
+      "detail": "Open the invitation link from your email and try again."
+    },
+    "expired": {
+      "title": "This invitation has expired",
+      "detail": "Ask your administrator for a new invitation link."
+    },
+    "revoked": {
+      "title": "This invitation was cancelled",
+      "detail": "This link is no longer valid. Ask your administrator for a new invitation link."
+    },
+    "used": {
+      "title": "This invitation has already been used",
+      "detail": "Sign in with your account to continue."
+    },
+    "verifyFailed": {
+      "title": "We couldn't verify this invitation",
+      "detail": "Try again in a moment. If the problem continues, contact your administrator."
+    },
+    "askForNew": "Ask your administrator for a new invitation link.",
+    "checkConnection": "Check your connection and try again.",
+    "refreshOrRetry": "Refresh the page or try again in a moment.",
+    "refresh": "Refresh the page and try again.",
+    "signIn": "Sign in"
+  },
+  "errors": {
+    "connection": "We couldn't complete your request. Check your connection and try again.",
+    "signInRefused": "Your account was created, but automatic sign-in failed. Sign in with your new account to continue.",
+    "signInFailed": "Your account was created, but we couldn't finish signing you in. Try signing in to continue.",
+    "used": "This invitation has already been used. Sign in with your account to continue.",
+    "expired": "This invitation has expired. Ask your administrator for a new invitation link.",
+    "revoked": "This invitation was cancelled. Ask your administrator for a new invitation link.",
+    "registered": "This email already has an account. Sign in instead, or ask your administrator for a fresh invitation if needed.",
+    "claimed": "This invitation can no longer be completed on its own. Your administrator needs to review workforce access before you can activate.",
+    "notAccepted": "Your details weren't accepted. Check them and try again.",
+    "failed": "We couldn't finish setting up your account. Try again in a moment or contact your administrator."
+  },
+  "workforce": {
+    "eyebrow": "Your access",
+    "lead": "Activate the account connected to your employee record. Your organization owns the identity and work details shown in Fusion.",
+    "access": "Access",
+    "accountEmail": "Account email",
+    "security": "This invitation is secure and tied to your work email address. Only you can use this link.",
+    "roles": {
+      "Employee": "Employee",
+      "Manager": "Manager"
+    },
+    "heading": "Activate your account",
+    "formLead": "{tenant} has set up your Fusion access. Choose a password to activate your account.",
+    "submit": "Activate account",
+    "submitting": "Activating your account…",
+    "email": "Work email"
+  },
+  "administrator": {
+    "eyebrow": "You're invited",
+    "heading": "Join {tenant}",
+    "lead": "You've been invited to set up your Fusion account and get started with {tenant}.",
+    "role": "Assigned role",
+    "roleValue": "Administrator",
+    "sentTo": "Invitation sent to",
+    "security": "This invitation is secure and tied to the invited email address. Only the intended recipient can use this link.",
+    "formHeading": "Set up your account",
+    "formLead": "Accept your invitation from {tenant} to create your Fusion account.",
+    "submit": "Set up account",
+    "submitting": "Creating your account…",
+    "email": "Invitation email"
+  },
+  "organization": "Organization",
+  "footer": "People work together",
+  "firstName": "First name",
+  "lastName": "Last name",
+  "readOnly": "Read only",
+  "createPassword": "Create password",
+  "confirmPassword": "Confirm password",
+  "showCharacters": "Show characters",
+  "hideCharacters": "Hide characters",
+  "passwordsMatch": "Passwords match",
+  "passwordsDoNotMatch": "Passwords do not match yet",
+  "signingIn": "Signing you in…",
+  "opening": "Opening Fusion…",
+  "haveAccount": "Already have a Fusion account? <signIn>Sign in</signIn> to continue"
+}

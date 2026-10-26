@@ -89,14 +89,14 @@ export function OrganizationTree({
   return (
     <div>
       <div className="relative border-b border-border p-2.5">
-        <Search className="pointer-events-none absolute left-5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Search className="pointer-events-none absolute inset-s-5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
         <Input
           ref={searchRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search organization"
           aria-label="Search organization"
-          className="h-9 pl-9"
+          className="h-9 ps-9"
         />
       </div>
       <div className="max-h-72 overflow-y-auto p-1" role="tree" aria-label="Organization hierarchy">
@@ -219,10 +219,10 @@ function Row({
       aria-selected={selected}
       aria-expanded={hasChildren ? open : undefined}
       className={cn(
-        "flex items-center gap-1 rounded-control pr-2 transition-colors",
+        "flex items-center gap-1 rounded-control pe-2 transition-colors",
         selected ? "bg-primary/[0.08]" : "hover:bg-muted/70"
       )}
-      style={{ paddingLeft: `${0.25 + depth * 1}rem` }}
+      style={{ paddingInlineStart: `${0.25 + depth * 1}rem` }}
     >
       {hasChildren ? (
         <button
@@ -241,7 +241,7 @@ function Row({
       <button
         type="button"
         onClick={onSelect}
-        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-detail"
+        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-detail"
       >
         <Building2 className={cn("size-4 shrink-0", selected ? "text-primary-ink" : "text-muted-foreground")} aria-hidden />
         <span className="min-w-0">

@@ -89,12 +89,12 @@ const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<Orga
         aria-label={data.accessibleName}
         aria-pressed={data.selected}
         onClick={() => data.onSelect(data.id)}
-        className="flex h-full w-full flex-col justify-center gap-1 rounded-control px-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+        className="flex h-full w-full flex-col justify-center gap-1 rounded-control px-3.5 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
       >
-        <span className="truncate pr-14 text-sm font-semibold leading-tight text-foreground">
+        <span className="truncate pe-14 text-sm font-semibold leading-tight text-foreground">
           {data.name}
         </span>
-        <span className="flex min-w-0 items-center gap-1.5 pr-2 text-xs text-muted-foreground">
+        <span className="flex min-w-0 items-center gap-1.5 pe-2 text-xs text-muted-foreground">
           <span className="truncate">{data.typeName}</span>
           <span aria-hidden className="text-muted-foreground/50">·</span>
           <span className="shrink-0 font-mono text-[11px] uppercase tracking-wide">{data.code}</span>
@@ -122,7 +122,7 @@ const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<Orga
         </button>
       ) : null}
       {data.canManage && !data.readOnly ? (
-        <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-control border bg-popover p-0.5 opacity-0 shadow-raised transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="absolute inset-e-1.5 top-1.5 flex items-center gap-0.5 rounded-control border bg-popover p-0.5 opacity-0 shadow-raised transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <Button type="button" variant="ghost" size="icon-sm" className="h-6 w-6" aria-label={`Add child to ${data.name}`} onClick={(event) => { event.stopPropagation(); data.onAddChild(data.id); }}>
             <Plus className="h-3.5 w-3.5" />
           </Button>
@@ -501,7 +501,7 @@ export default function OrganizationChart({
             ariaLabel="Organization chart overview"
             pannable
             zoomable
-            className="!bottom-3 !right-14 !rounded-control !border !border-border !bg-popover !shadow-raised"
+            className="!bottom-3 !inset-e-14 !rounded-control !border !border-border !bg-popover !shadow-raised"
             maskColor="color-mix(in oklab, var(--muted) 66%, transparent)"
             nodeColor={(node) =>
               node.data?.root === true || node.data?.selected === true

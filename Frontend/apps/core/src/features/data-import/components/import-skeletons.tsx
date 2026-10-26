@@ -70,7 +70,7 @@ export function ImportUploadSkeleton({ domain = "organization" }: { domain?: Imp
           <Skeleton className="mt-7 h-4 w-28" />
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <Skeleton className="h-11 min-w-56 flex-1 basis-64 rounded-control sm:max-w-md" />
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ms-auto flex items-center gap-3">
               <Skeleton className="h-11 w-36" />
               <Skeleton className="h-11 w-20" />
             </div>
@@ -247,7 +247,7 @@ function PeopleReviewBody() {
   return (
     <>
       <PageContainer className="space-y-4 pt-2">
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-surface border border-border bg-card p-4 sm:pr-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-surface border border-border bg-card p-4 sm:pe-5">
           <div className="flex min-w-0 items-center gap-4">
             <Skeleton className="size-12 shrink-0 rounded-full" />
             <div className="min-w-0 space-y-2">
@@ -300,7 +300,7 @@ function Panel({ children }: { children: React.ReactNode }) {
 
 function BannerSkeleton({ metrics }: { metrics: number }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-8 gap-y-5 rounded-surface border border-border bg-card p-4 sm:pr-6">
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-5 rounded-surface border border-border bg-card p-4 sm:pe-6">
       <div className="flex min-w-0 flex-[2] basis-80 items-center gap-4">
         <Skeleton className="size-12 shrink-0 rounded-full" />
         <div className="min-w-0 flex-1 space-y-2">

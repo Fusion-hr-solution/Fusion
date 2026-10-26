@@ -192,12 +192,12 @@ export function Toolbar({
     <TableFilterToolbar
       search={
         <div className="relative min-w-[16rem] max-w-md flex-[1_1_18rem]">
-          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute inset-s-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={localSearch}
             onChange={(event) => setLocalSearch(event.target.value)}
             placeholder="Search name or email"
-            className="pl-8"
+            className="ps-8"
           />
         </div>
       }

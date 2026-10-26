@@ -233,7 +233,7 @@ function SearchPickerField<TOption extends { id: string }>({
             aria-invalid={fieldError ? true : undefined}
             aria-describedby={fieldError ? errorId : undefined}
             className={cn(
-              "h-auto min-h-12 w-full justify-between rounded-control px-3 py-2 text-left font-normal shadow-none",
+              "h-auto min-h-12 w-full justify-between rounded-control px-3 py-2 text-start font-normal shadow-none",
               !selectedOption && "text-muted-foreground",
               fieldError && "border-destructive"
             )}
@@ -256,7 +256,7 @@ function SearchPickerField<TOption extends { id: string }>({
                 </span>
               )}
             </span>
-            <ChevronsUpDown className="ml-3 size-4 shrink-0 text-muted-foreground" />
+            <ChevronsUpDown className="ms-3 size-4 shrink-0 text-muted-foreground" />
           </Button>
         </PopoverTrigger>
 
@@ -292,7 +292,7 @@ function SearchPickerField<TOption extends { id: string }>({
                         onOpenChange(false);
                       }}
                     >
-                      <div className="flex min-w-0 flex-1 flex-col text-left">
+                      <div className="flex min-w-0 flex-1 flex-col text-start">
                         <span className="truncate font-medium">
                           {clearOptionLabel}
                         </span>
@@ -324,7 +324,7 @@ function SearchPickerField<TOption extends { id: string }>({
                               onOpenChange(false);
                             }}
                           >
-                            <div className="flex min-w-0 flex-1 flex-col text-left">
+                            <div className="flex min-w-0 flex-1 flex-col text-start">
                               <span className="truncate font-medium">
                                 {primaryText}
                               </span>
@@ -545,7 +545,7 @@ export function EmployeeCreateDialog({
         showCloseButton={!isSubmitting}
         className="overflow-hidden p-0 sm:max-w-[720px]"
       >
-        <DialogHeader className="border-b px-6 py-5 text-left">
+        <DialogHeader className="border-b px-6 py-5 text-start">
           <DialogTitle className="text-xl font-semibold">
             Add employee
           </DialogTitle>
@@ -799,7 +799,7 @@ export function EmployeeCreateDialog({
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    <Spinner className="mr-2 h-4 w-4" />
+                    <Spinner className="me-2 h-4 w-4" />
                     Adding employee
                   </>
                 ) : (

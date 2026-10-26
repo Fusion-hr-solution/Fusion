@@ -1,3 +1,4 @@
+import { formatDateParts, formatTime } from "@repo/ds/lib/dates";
 
 /** The shape every import domain's error translation produces. */
 export type IntakeProblemInput = { kind: string; code: string | null; message: string };
@@ -109,16 +110,16 @@ export function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** "Modified today at 10:24 AM", "Modified yesterday at …", or "Modified 1 Sep 2027". */
+/** "Modified today at 10:24", "Modified yesterday at …", or "Modified 1 Sept 2027". */
 export function formatModified(lastModified: number, now = new Date()) {
   const date = new Date(lastModified);
   if (!lastModified || Number.isNaN(date.getTime())) return null;
-  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const time = formatTime(date);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const dayMs = 24 * 60 * 60 * 1000;
   if (date.getTime() >= startOfToday && date.getTime() < startOfToday + dayMs)
     return `Modified today at ${time}`;
   if (date.getTime() >= startOfToday - dayMs && date.getTime() < startOfToday)
     return `Modified yesterday at ${time}`;
-  return `Modified ${date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+  return `Modified ${formatDateParts(date, { day: "numeric", month: "short", year: "numeric" })}`;
 }

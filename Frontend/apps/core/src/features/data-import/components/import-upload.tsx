@@ -241,7 +241,7 @@ export function ImportUpload(props: ImportUploadProps) {
               disabled={busy || source.kind === "header"}
               className="h-11 min-w-56 flex-1 basis-64 rounded-control px-3 type-body text-foreground sm:max-w-md"
             />
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ms-auto flex items-center gap-3">
               <Button
                 size="lg"
                 className={cn("h-11 gap-2 px-5 text-base font-semibold", busy && "disabled:opacity-100")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { User } from "lucide-react";
 import { useFusionNavigation, useFusionSettings, useSettingsReturn } from "@repo/api/query";
 import { FusionSidebar, sectionPaths } from "@repo/ds/shell";
@@ -27,6 +28,7 @@ export function CoreSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/core/, "") || "/";
   const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const t = useTranslations("ds.sidebar");
   const canSeeSetup = canViewTenantAdministration(user);
   // Administrators (Feature 02) is visible only through tenant-administration
   // visibility — Access Profile configuration permissions alone must not expose it.
@@ -84,7 +86,7 @@ export function CoreSidebar() {
         ...navigation.person,
         pending: isAuthLoading,
         // Raw anchor, so the basePath is explicit.
-        links: canSeeMyProfile ? [{ label: "My profile", href: "/core/profile", icon: User }] : [],
+        links: canSeeMyProfile ? [{ label: t("myProfile"), href: "/core/profile", icon: User }] : [],
         onSignOut: async () => {
           await logout();
           window.location.href = "/auth/signin";

@@ -446,7 +446,7 @@ export function AccessProfilesWorkspace({
 
                 {canManageProfiles ? (
                   <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
-                    <Plus className="mr-1 size-4 " />
+                    <Plus className="me-1 size-4 " />
                     New profile
                   </Button>
                 ) : null}
@@ -475,7 +475,7 @@ export function AccessProfilesWorkspace({
                     key={profile.id}
                     type="button"
                     onClick={() => setSelectedProfileId(profile.id)}
-                    className={`w-full rounded-surface border px-3 py-3 text-left transition-all ${
+                    className={`w-full rounded-surface border px-3 py-3 text-start transition-all ${
                       isSelected
                         ? "border-primary/60 bg-primary/[3%] shadow-raised ring-1 ring-primary/15"
                         : "hover:border-primary/30 hover:bg-muted/10"
@@ -611,7 +611,7 @@ export function AccessProfilesWorkspace({
                               className="px-4"
                             >
                               <AccordionTrigger className="py-4 hover:no-underline">
-                                <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-4 text-left">
+                                <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pe-4 text-start">
                                   <p className="font-medium">
                                     {getPermissionGroupLabel(group.group)}
                                   </p>

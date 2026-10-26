@@ -69,6 +69,7 @@ import {
   OrgPath,
   formatWorkforceDate,
 } from "./workforce-ui";
+import { formatCount } from "@repo/ds/lib/numbers";
 
 const PAGE_SIZE = 10;
 const EMPLOYMENT_STATES: PeopleEmploymentState[] = ["Active", "Scheduled", "Former", "Incomplete"];
@@ -103,7 +104,7 @@ function EmploymentCell({ person }: { person: PeopleRowDto }) {
         <span aria-hidden className={cn("size-1.5 rounded-full", STATE_DOT[person.employmentState])} />
         {person.employmentState}
       </p>
-      <p className="mt-1 pl-3.5 type-meta text-muted-foreground">{employmentLabel(person)}</p>
+      <p className="mt-1 ps-3.5 type-meta text-muted-foreground">{employmentLabel(person)}</p>
     </div>
   );
 }
@@ -215,7 +216,7 @@ function PersonMobileRow({ person }: { person: PeopleRowDto }) {
         />
         <EmploymentStatus state={person.employmentState} />
       </div>
-      <div className="mt-3 space-y-2 pl-12">
+      <div className="mt-3 space-y-2 ps-12">
         <div>
           <p className="type-body">{person.work?.jobTitle ?? "Work details unavailable"}</p>
           {person.work ? (
@@ -365,7 +366,7 @@ function EstablishAction({
         <Icon className="size-5" />
       </span>
       <span className="type-label font-semibold">{label}</span>
-      <ArrowRight className="ml-auto size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+      <ArrowRight className="ms-auto size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
     </Link>
   );
 }
@@ -493,10 +494,10 @@ export default function PeopleWorkspace() {
 
       <section aria-label="Filter people" className="mb-5 flex flex-wrap items-center gap-2">
             <div className="relative min-w-[15rem] flex-1 md:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search people" aria-label="Search People" className="pl-9 pr-9" />
+              <Search className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search people" aria-label="Search People" className="ps-9 pe-9" />
               {search ? (
-                <Button type="button" variant="ghost" size="icon-xs" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setSearch("")}>
+                <Button type="button" variant="ghost" size="icon-xs" aria-label="Clear search" className="absolute inset-e-2 top-1/2 -translate-y-1/2" onClick={() => setSearch("")}>
                   <X className="size-3.5" />
                 </Button>
               ) : null}
@@ -517,7 +518,7 @@ export default function PeopleWorkspace() {
                 <RotateCcw className="size-4" /> Clear filters
               </Button>
             ) : null}
-            <div className="ml-auto flex items-center gap-2 text-muted-foreground">
+            <div className="ms-auto flex items-center gap-2 text-muted-foreground">
               <label htmlFor="people-sort" className="type-meta max-sm:sr-only">Sort</label>
               <NativeSelect id="people-sort" value={`${sort}:${direction}`} onChange={(event) => {
                 const [nextSort, nextDirection] = event.target.value.split(":") as [PeopleSortField, PeopleSortDirection];
@@ -591,7 +592,7 @@ function PeoplePagination({
   if (pageCount <= 1) {
     return (
       <p className="mt-4 type-meta text-muted-foreground">
-        <span className="tabular-nums text-foreground">{totalCount.toLocaleString()}</span> {totalCount === 1 ? "person" : "people"}
+        <span className="tabular-nums text-foreground">{formatCount(totalCount)}</span> {totalCount === 1 ? "person" : "people"}
       </p>
     );
   }
@@ -602,9 +603,9 @@ function PeoplePagination({
       className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-surface border border-border px-4 py-3"
     >
       <p aria-live="polite" className="text-sm text-muted-foreground">
-        Showing <span className="tabular-nums text-foreground">{from.toLocaleString()}</span>–
-        <span className="tabular-nums text-foreground">{to.toLocaleString()}</span> of{" "}
-        <span className="tabular-nums text-foreground">{totalCount.toLocaleString()}</span>{" "}
+        Showing <span className="tabular-nums text-foreground">{formatCount(from)}</span>–
+        <span className="tabular-nums text-foreground">{formatCount(to)}</span> of{" "}
+        <span className="tabular-nums text-foreground">{formatCount(totalCount)}</span>{" "}
         {totalCount === 1 ? "person" : "people"}
       </p>
 

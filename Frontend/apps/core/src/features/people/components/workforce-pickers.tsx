@@ -86,7 +86,7 @@ export function OrganizationPicker({
           <span className="flex min-w-0 items-center gap-2.5">
             <Building2 className="size-4 shrink-0 text-muted-foreground" />
             {selected ? (
-              <OrgPath name={selected.name} path={selected.path} className="text-left" showAncestry={false} />
+              <OrgPath name={selected.name} path={selected.path} className="text-start" showAncestry={false} />
             ) : (
               <span className="text-muted-foreground">Select organization</span>
             )}
@@ -136,7 +136,7 @@ export function ManagerPicker({
           {selected ? (
             <span className="flex min-w-0 items-center gap-2.5">
               <Monogram name={selected.displayName} size="sm" />
-              <span className="min-w-0 text-left">
+              <span className="min-w-0 text-start">
                 <span className="block truncate type-label">{selected.displayName}</span>
                 <span className="block truncate type-meta text-muted-foreground">{selected.jobTitle}</span>
               </span>
@@ -149,8 +149,8 @@ export function ManagerPicker({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[min(34rem,calc(100vw-2rem))] p-0">
         <div className="relative border-b p-3">
-          <Search className="pointer-events-none absolute left-6 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, Employee Number, or email" aria-label="Search managers" className="pl-9" />
+          <Search className="pointer-events-none absolute inset-s-6 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, Employee Number, or email" aria-label="Search managers" className="ps-9" />
         </div>
         <div className="max-h-72 overflow-y-auto p-1">
           {loading ? (
@@ -161,7 +161,7 @@ export function ManagerPicker({
               key={option.employeeId}
               onClick={() => onChange(option.employeeId)}
               aria-pressed={value === option.employeeId}
-              className="flex w-full items-center justify-between gap-3 rounded-control px-2.5 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-muted"
+              className="flex w-full items-center justify-between gap-3 rounded-control px-2.5 py-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-muted"
             >
               <EmployeeIdentity
                 name={option.displayName}

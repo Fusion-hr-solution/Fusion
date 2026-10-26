@@ -1,30 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale } from "next-intl";
 import { ChevronRight } from "lucide-react";
 import type { AccessAuditEventDto, FusionSettingsSection, SettingsAuditEventDto } from "@repo/api";
 import { cn, NativeSelect, NativeSelectOption } from "@repo/ds";
-import { formatDate, formatTime } from "@repo/ds/lib/dates";
-import { PageError, SettingsPage } from "@repo/ds/shell";
+import { formatDate, formatDateParts, formatTime } from "@repo/ds/lib/dates";
+import { PageError, SettingsPage, useSettingsSectionName } from "@repo/ds/shell";
 import { useAccessAudit } from "@/features/access/api/use-core-access";
 import { useSettingsAudit } from "@/features/settings/api/use-tenant-settings";
-import { AUDIT_SECTION_LABELS } from "@/features/settings/core-settings";
+import { AUDIT_SECTION_IDS } from "@/features/settings/core-settings";
+import { sayInEnglish, useSettingsSay, type Say } from "@/features/settings/say";
 
-const FIELD_LABELS: Record<string, string> = {
-  firstName: "First name",
-  lastName: "Last name",
-  email: "Work email",
-  hireDate: "Hire date",
-  phone: "Phone",
-  jobTitle: "Job title",
-  workLocation: "Work location",
-  employmentType: "Employment type",
-};
+/** The profile fields Employee fields names (`employeeFields.fields.<key>.label`). */
+const FIELDS = new Set(["firstName", "lastName", "email", "hireDate", "phone", "jobTitle", "workLocation", "employmentType"]);
 
-const AUDIENCE: Record<string, { label: string; who: string }> = {
-  visibleToManager: { label: "their manager", who: "managers" },
-  visibleToEmployee: { label: "the employee", who: "employees" },
-};
+/** The audiences a field's visibility is set for (`changeHistory.audience.<key>`). */
+const AUDIENCES = new Set(["visibleToManager", "visibleToEmployee"]);
 
 /** One before → after line of a change, in the words its page uses. */
 export interface ChangeLine {
@@ -38,7 +30,9 @@ export interface ChangeLine {
 export interface HistoryEntry {
   id: string;
   at: Date;
-  actor: string;
+  /** Null when the module couldn't name who made the change. */
+  actor: string | null;
+  /** The settings section's id, or the audit's own when Settings has no section for it. */
   section: string;
   headline: string;
   lines: ChangeLine[];
@@ -65,83 +59,119 @@ function parse(json: string | null): unknown {
 const IGNORED = /(^|\.)(version|downstreamConsumers|usesDefaultBranding|displayName|locale|timeZone|visible)$/;
 
 /** A changed value, described the way Settings shows it. */
-export function describeChange(path: string, before: unknown, after: unknown): ChangeLine {
+export function describeChange(path: string, before: unknown, after: unknown, say: Say = sayInEnglish): ChangeLine {
+  const said = (key: string, values?: Record<string, string | number>) => say(`changeHistory.${key}`, values);
   const field = /employeeFieldConfig\.(\w+)\.(\w+)$/.exec(path);
   if (field) {
-    const name = FIELD_LABELS[field[1]!] ?? field[1]!;
-    const audience = AUDIENCE[field[2]!];
-    if (audience) {
-      const seen = (value: unknown) => (value ? "Sees it" : "Hidden");
+    const name = FIELDS.has(field[1]!) ? say(`employeeFields.fields.${field[1]}.label`) : field[1]!;
+    if (AUDIENCES.has(field[2]!)) {
+      const audience = { label: said(`audience.${field[2]}.label`), who: said(`audience.${field[2]}.who`) };
+      const seen = (value: unknown) => said(value ? "seesIt" : "hidden");
       return {
-        label: `${name} · ${audience.label}`,
+        label: said("fieldAudience", { field: name, audience: audience.label }),
         before: seen(before),
         after: seen(after),
-        sentence: `${name}: ${audience.who} ${after ? "now see it" : "no longer see it"}`,
+        sentence: said(after ? "nowSee" : "noLongerSee", { field: name, who: audience.who }),
       };
     }
     if (field[2] === "required") {
-      const yes = (value: unknown) => (value ? "Required" : "Optional");
-      return { label: `${name} · required`, before: yes(before), after: yes(after), sentence: `${name}: now ${after ? "required" : "optional"}` };
+      const yes = (value: unknown) => said(value ? "required" : "optional");
+      return {
+        label: said("requiredLabel", { field: name }),
+        before: yes(before),
+        after: yes(after),
+        sentence: said(after ? "nowRequired" : "nowOptional", { field: name }),
+      };
     }
   }
   const self = /selfService\.canEdit(\w+)$/.exec(path);
   if (self) {
-    const what = self[1] === "Phone" ? "phone number" : "preferred name";
-    const can = (value: unknown) => (value ? "Yes" : "No");
+    const their = said(`selfNouns.${self[1] === "Phone" ? "Phone" : "PreferredName"}`);
+    const can = (value: unknown) => said(value ? "yes" : "no");
     return {
-      label: `Employees change their ${what}`,
+      label: said("selfLabel", { their }),
       before: can(before),
       after: can(after),
-      sentence: after ? `Employees can change their ${what}` : `Employees can no longer change their ${what}`,
+      sentence: said(after ? "selfCan" : "selfCannot", { their }),
     };
   }
+  const count = (value: unknown) => (typeof value === "number" ? value : Number(value));
   if (path.endsWith("inviteExpiryDays"))
-    return { label: "Invitation expires after", before: `${before} days`, after: `${after} days`, sentence: `Expiry from ${before} to ${after} days` };
+    return {
+      label: said("expiryLabel"),
+      before: said("days", { count: count(before) }),
+      after: said("days", { count: count(after) }),
+      sentence: said("expirySentence", { before: String(before), after: String(after) }),
+    };
   if (path.endsWith("resendCooldownHours"))
     return {
-      label: "People can ask for a new one after",
-      before: `${before} hours`,
-      after: `${after} hours`,
-      sentence: `New link wait from ${before} to ${after} hours`,
+      label: said("cooldownLabel"),
+      before: said("hours", { count: count(before) }),
+      after: said("hours", { count: count(after) }),
+      sentence: said("cooldownSentence", { before: String(before), after: String(after) }),
     };
   if (path.endsWith("pendingInviteBehavior")) {
-    const name = (value: unknown) => (value === "KeepExisting" ? "Keep the first one" : "Send a fresh one");
-    return { label: "Inviting someone again", before: name(before), after: name(after), sentence: `Inviting someone again: ${name(after).toLowerCase()}` };
+    const name = (value: unknown) => said(value === "KeepExisting" ? "keep" : "fresh");
+    const choice = name(after);
+    return {
+      label: said("reinviteLabel"),
+      before: name(before),
+      after: choice,
+      sentence: said("reinviteSentence", { choice: choice.charAt(0).toLowerCase() + choice.slice(1) }),
+    };
   }
-  if (path.endsWith("defaultAccessProfileId"))
-    return { label: "Role for new accounts", before: before ? "A chosen role" : "Employee", after: after ? "A chosen role" : "Employee", sentence: "Role for new accounts changed" };
-  const text = (value: unknown) => (value === null || value === undefined || value === "" ? "None" : String(value));
-  return { label: path.split(".").pop() ?? path, before: text(before), after: text(after), sentence: `${path.split(".").pop()} changed` };
+  if (path.endsWith("defaultAccessProfileId")) {
+    const role = (value: unknown) => said(value ? "chosenRole" : "defaultRole");
+    return { label: said("roleLabel"), before: role(before), after: role(after), sentence: said("roleSentence") };
+  }
+  const text = (value: unknown) => (value === null || value === undefined || value === "" ? said("none") : String(value));
+  const name = path.split(".").pop() ?? path;
+  return { label: name, before: text(before), after: text(after), sentence: said("otherSentence", { name }) };
 }
 
 /** The values a settings entry changed, as lines. */
-export function changeLines(beforeJson: string | null, afterJson: string | null): ChangeLine[] {
+export function changeLines(beforeJson: string | null, afterJson: string | null, say: Say = sayInEnglish): ChangeLine[] {
   const before = flatten(parse(beforeJson));
   const after = flatten(parse(afterJson));
   return Object.keys({ ...before, ...after })
     .filter((path) => !IGNORED.test(path) && JSON.stringify(before[path]) !== JSON.stringify(after[path]))
-    .map((path) => describeChange(path, before[path], after[path]));
+    .map((path) => describeChange(path, before[path], after[path], say));
 }
 
-function fromSettings(entry: SettingsAuditEventDto): HistoryEntry {
-  const lines = changeLines(entry.beforeJson, entry.afterJson);
+function actorOf(name: string | null | undefined): string | null {
+  return name && name !== "Unknown" ? name : null;
+}
+
+/**
+ * A settings change as an entry. Without lines it falls back to the audit's summary, which the service writes in
+ * English: other languages say a plain "Changed settings" instead.
+ */
+function fromSettings(entry: SettingsAuditEventDto, say: Say, english: boolean): HistoryEntry {
+  const lines = changeLines(entry.beforeJson, entry.afterJson, say);
   return {
     id: `settings:${entry.id}`,
     at: new Date(entry.occurredAt),
-    actor: entry.actorName && entry.actorName !== "Unknown" ? entry.actorName : "Someone",
-    section: AUDIT_SECTION_LABELS[entry.sectionId] ?? entry.sectionId,
-    headline: lines[0] ? (lines.length > 1 ? `${lines[0].sentence}, and ${lines.length - 1} more` : lines[0].sentence) : entry.summary,
+    actor: actorOf(entry.actorName),
+    section: AUDIT_SECTION_IDS[entry.sectionId] ?? entry.sectionId,
+    headline: lines[0]
+      ? lines.length > 1
+        ? say("changeHistory.andMore", { sentence: lines[0].sentence, count: lines.length - 1 })
+        : lines[0].sentence
+      : english
+        ? entry.summary
+        : say("changeHistory.settingsChange"),
     lines,
   };
 }
 
-function fromAccess(entry: AccessAuditEventDto): HistoryEntry {
+/** A role change: Identity's own wording in English (B-109 turns it into sentences), a plain line otherwise. */
+function fromAccess(entry: AccessAuditEventDto, say: Say, english: boolean): HistoryEntry {
   return {
     id: `access:${entry.id}`,
     at: new Date(entry.occurredAt),
-    actor: entry.actorName && entry.actorName !== "Unknown" ? entry.actorName : "Someone",
-    section: "Roles",
-    headline: entry.summary,
+    actor: actorOf(entry.actorName),
+    section: "roles",
+    headline: english ? entry.summary : say("changeHistory.roleChange"),
     lines: [],
   };
 }
@@ -151,10 +181,18 @@ export function isRoleChange(entry: Pick<AccessAuditEventDto, "action">): boolea
   return /^access\.(profile|assignment)\./.test(entry.action);
 }
 
+/** The week's period key; every other period is named by its month. */
+const THIS_WEEK = "this-week";
+
 /** "This week", then each month ("October", "October 2025" outside this year), newest first. */
-export function periodOf(at: Date, now: Date = new Date()): string {
-  if (now.getTime() - at.getTime() < 7 * 86_400_000) return "This week";
-  const month = at.toLocaleString("en-GB", { month: "long" });
+export function periodOf(at: Date, now: Date = new Date(), say: Say = sayInEnglish, locale?: string): string {
+  if (now.getTime() - at.getTime() < 7 * 86_400_000) return say("changeHistory.thisWeek");
+  return monthOf(at, now, locale);
+}
+
+function monthOf(at: Date, now: Date, locale?: string): string {
+  const name = formatDateParts(at, { month: "long" }, "–", locale);
+  const month = name.charAt(0).toUpperCase() + name.slice(1);
   return at.getFullYear() === now.getFullYear() ? month : `${month} ${at.getFullYear()}`;
 }
 
@@ -164,9 +202,15 @@ function initials(name: string): string {
 }
 
 function Entry({ entry, thisWeek }: { entry: HistoryEntry; thisWeek: boolean }) {
+  const say = useSettingsSay();
+  const locale = useLocale();
+  const sectionName = useSettingsSectionName();
   const [open, setOpen] = useState(false);
   const openable = entry.lines.length > 0;
-  const when = thisWeek ? `${formatDate(entry.at, { weekday: true }).split(" ")[0]} ${formatTime(entry.at)}` : formatDate(entry.at);
+  const actor = entry.actor ?? say("changeHistory.someone");
+  const when = thisWeek
+    ? `${formatDate(entry.at, { weekday: true, locale }).split(" ")[0]} ${formatTime(entry.at, "–", locale)}`
+    : formatDate(entry.at, { locale });
   const body = (
     <>
       <span className="w-[72px] shrink-0 whitespace-nowrap pt-0.5 type-meta tabular-nums text-muted-foreground">{when}</span>
@@ -174,12 +218,14 @@ function Entry({ entry, thisWeek }: { entry: HistoryEntry; thisWeek: boolean }) 
         aria-hidden
         className="grid size-7 shrink-0 place-items-center rounded-full bg-inlay text-[10px] font-semibold text-foreground/85 ring-1 ring-border"
       >
-        {initials(entry.actor)}
+        {initials(actor)}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex flex-wrap items-center gap-2">
-          <span className="type-label font-semibold text-foreground">{entry.actor}</span>
-          <span className="rounded-control bg-inlay px-1.5 py-0.5 type-meta text-muted-foreground">{entry.section}</span>
+          <span className="type-label font-semibold text-foreground">{actor}</span>
+          <span className="rounded-control bg-inlay px-1.5 py-0.5 type-meta text-muted-foreground">
+            {sectionName({ id: entry.section, label: entry.section })}
+          </span>
         </span>
         <span className="text-sm text-foreground/90">{entry.headline}</span>
         {open ? (
@@ -189,7 +235,7 @@ function Entry({ entry, thisWeek }: { entry: HistoryEntry; thisWeek: boolean }) 
                 <span className="text-muted-foreground">{line.label}</span>
                 <span className="text-muted-foreground line-through">{line.before}</span>
                 <span aria-hidden className="text-muted-foreground">→</span>
-                <span className="sr-only">changed to</span>
+                <span className="sr-only">{say("changeHistory.changedTo")}</span>
                 <span className="font-semibold text-foreground">{line.after}</span>
               </span>
             ))}
@@ -209,7 +255,7 @@ function Entry({ entry, thisWeek }: { entry: HistoryEntry; thisWeek: boolean }) 
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
           className={cn(
-            "flex w-full items-start gap-3 rounded-surface px-4 py-3 text-left outline-none transition-colors hover:bg-card focus-visible:ring-2 focus-visible:ring-ring",
+            "flex w-full items-start gap-3 rounded-surface px-4 py-3 text-start outline-none transition-colors hover:bg-card focus-visible:ring-2 focus-visible:ring-ring",
             open && "bg-card"
           )}
         >
@@ -224,53 +270,72 @@ function Entry({ entry, thisWeek }: { entry: HistoryEntry; thisWeek: boolean }) 
 
 /** Settings › Change history: every Core HR settings change, newest first. Read-only for everyone. */
 export function ChangeHistorySettings({ section }: { section: FusionSettingsSection }) {
+  const say = useSettingsSay();
+  const locale = useLocale();
+  const sectionName = useSettingsSectionName();
+  const title = sectionName(section);
   const settings = useSettingsAudit();
   const access = useAccessAudit();
   const [sectionFilter, setSectionFilter] = useState("");
   const [actorFilter, setActorFilter] = useState("");
 
+  const english = locale === "en";
   const entries = useMemo(
     () =>
-      [...(settings.data ?? []).map(fromSettings), ...(access.data ?? []).filter(isRoleChange).map(fromAccess)].sort(
-        (a, b) => b.at.getTime() - a.at.getTime()
-      ),
-    [settings.data, access.data]
+      [
+        ...(settings.data ?? []).map((entry) => fromSettings(entry, say, english)),
+        ...(access.data ?? []).filter(isRoleChange).map((entry) => fromAccess(entry, say, english)),
+      ].sort((a, b) => b.at.getTime() - a.at.getTime()),
+    [settings.data, access.data, say, english]
   );
-  const sections = useMemo(() => [...new Set(entries.map((entry) => entry.section))].sort(), [entries]);
-  const actors = useMemo(() => [...new Set(entries.map((entry) => entry.actor))].sort(), [entries]);
+  const name = (id: string) => sectionName({ id, label: id });
+  const actorName = (entry: HistoryEntry) => entry.actor ?? say("changeHistory.someone");
+  const sections = [...new Set(entries.map((entry) => entry.section))].sort((a, b) => name(a).localeCompare(name(b), locale));
+  const actors = [...new Set(entries.map(actorName))].sort((a, b) => a.localeCompare(b, locale));
   const shown = entries.filter(
-    (entry) => (!sectionFilter || entry.section === sectionFilter) && (!actorFilter || entry.actor === actorFilter)
+    (entry) => (!sectionFilter || entry.section === sectionFilter) && (!actorFilter || actorName(entry) === actorFilter)
   );
   const now = new Date();
-  const periods = shown.reduce<{ period: string; entries: HistoryEntry[] }[]>((groups, entry) => {
-    const period = periodOf(entry.at, now);
+  const periods = shown.reduce<{ key: string; period: string; entries: HistoryEntry[] }[]>((groups, entry) => {
+    const thisWeek = now.getTime() - entry.at.getTime() < 7 * 86_400_000;
+    const key = thisWeek ? THIS_WEEK : `${entry.at.getFullYear()}-${entry.at.getMonth()}`;
     const last = groups[groups.length - 1];
-    if (last?.period === period) last.entries.push(entry);
-    else groups.push({ period, entries: [entry] });
+    if (last?.key === key) last.entries.push(entry);
+    else groups.push({ key, period: periodOf(entry.at, now, say, locale), entries: [entry] });
     return groups;
   }, []);
 
   if (settings.error && !settings.data) {
     return (
-      <SettingsPage title={section.label}>
-        <PageError title="Change history didn't load" onRetry={() => void settings.refetch()} />
+      <SettingsPage title={title}>
+        <PageError title={say("changeHistory.didNotLoad")} onRetry={() => void settings.refetch()} />
       </SettingsPage>
     );
   }
 
   return (
-    <SettingsPage title={section.label} loading={settings.isLoading}>
+    <SettingsPage title={title} loading={settings.isLoading}>
       <div className="flex flex-wrap gap-2">
-        <NativeSelect aria-label="Section" value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value)} size="sm">
-          <NativeSelectOption value="">All sections</NativeSelectOption>
-          {sections.map((name) => (
-            <NativeSelectOption key={name} value={name}>
-              {name}
+        <NativeSelect
+          aria-label={say("changeHistory.section")}
+          value={sectionFilter}
+          onChange={(event) => setSectionFilter(event.target.value)}
+          size="sm"
+        >
+          <NativeSelectOption value="">{say("changeHistory.allSections")}</NativeSelectOption>
+          {sections.map((id) => (
+            <NativeSelectOption key={id} value={id}>
+              {name(id)}
             </NativeSelectOption>
           ))}
         </NativeSelect>
-        <NativeSelect aria-label="Person" value={actorFilter} onChange={(event) => setActorFilter(event.target.value)} size="sm">
-          <NativeSelectOption value="">Anyone</NativeSelectOption>
+        <NativeSelect
+          aria-label={say("changeHistory.person")}
+          value={actorFilter}
+          onChange={(event) => setActorFilter(event.target.value)}
+          size="sm"
+        >
+          <NativeSelectOption value="">{say("changeHistory.anyone")}</NativeSelectOption>
           {actors.map((name) => (
             <NativeSelectOption key={name} value={name}>
               {name}
@@ -280,10 +345,10 @@ export function ChangeHistorySettings({ section }: { section: FusionSettingsSect
       </div>
 
       {entries.length === 0 ? (
-        <p className="type-body-secondary text-muted-foreground">No settings have changed yet.</p>
+        <p className="type-body-secondary text-muted-foreground">{say("changeHistory.empty")}</p>
       ) : shown.length === 0 ? (
         <p className="type-body-secondary text-muted-foreground">
-          No changes match.{" "}
+          {say("changeHistory.noMatch")}{" "}
           <button
             type="button"
             className="font-semibold text-foreground hover:underline"
@@ -292,16 +357,16 @@ export function ChangeHistorySettings({ section }: { section: FusionSettingsSect
               setActorFilter("");
             }}
           >
-            Clear filters
+            {say("changeHistory.clearFilters")}
           </button>
         </p>
       ) : (
         periods.map((group) => (
-          <section key={group.period} aria-label={group.period} className="flex flex-col gap-1">
+          <section key={group.key} aria-label={group.period} className="flex flex-col gap-1">
             <h2 className="type-subsection-title">{group.period}</h2>
             <ul className="-mx-4 flex flex-col">
               {group.entries.map((entry) => (
-                <Entry key={entry.id} entry={entry} thisWeek={group.period === "This week"} />
+                <Entry key={entry.id} entry={entry} thisWeek={group.key === THIS_WEEK} />
               ))}
             </ul>
           </section>

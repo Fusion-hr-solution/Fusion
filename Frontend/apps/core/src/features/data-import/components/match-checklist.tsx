@@ -27,7 +27,7 @@ export function ImportMatchChecklist({ lines }: { lines: MatchChecklistLine[] })
             <span className="type-meta min-w-0 flex-1 text-foreground">{line.label}</span>
             <span
               className={cn(
-                "type-meta shrink-0 text-right tabular-nums",
+                "type-meta shrink-0 text-end tabular-nums",
                 line.done ? "text-muted-foreground" : "font-medium text-primary-foreground dark:text-primary"
               )}
             >

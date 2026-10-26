@@ -1,0 +1,273 @@
+{
+  "didNotLoad": "Core HR settings didn't load",
+  "company": {
+    "didNotLoad": "Company details didn't load",
+    "note": "Set when {name} joined Fusion. Your Fusion provider changes these.",
+    "name": "Company name",
+    "workspace": "Workspace address",
+    "industry": "Industry",
+    "language": "Language and formats",
+    "languageDetail": "Dates, numbers and emails Fusion sends",
+    "timeZone": "Time zone",
+    "timeZoneDetail": "Deadlines and reminders follow it",
+    "modules": "Modules",
+    "modulesOn": "{count} on"
+  },
+  "employeeFields": {
+    "didNotLoad": "Employee fields didn't load",
+    "notSaved": "Employee fields didn't save. Try again.",
+    "leave": "Leave without saving? Your changes to Employee fields are discarded.",
+    "onProfile": "On a profile",
+    "field": "Field",
+    "columns": {
+      "required": "Required",
+      "visibleToEmployee": "The employee",
+      "visibleToManager": "Their manager"
+    },
+    "hr": "HR",
+    "cell": "{field}: {column}",
+    "hrAlways": "{field}: HR always sees it",
+    "yes": "Yes",
+    "no": "No",
+    "seesIt": "Sees it",
+    "hidden": "Hidden",
+    "canChange": "Employees can change",
+    "selfService": {
+      "canEditPreferredName": {
+        "label": "Their preferred name",
+        "their": "their preferred name"
+      },
+      "canEditPhone": {
+        "label": "Their phone number",
+        "their": "their phone number"
+      }
+    },
+    "fields": {
+      "firstName": {
+        "label": "First name",
+        "their": "their first name",
+        "plural": "first names"
+      },
+      "lastName": {
+        "label": "Last name",
+        "their": "their last name",
+        "plural": "last names"
+      },
+      "email": {
+        "label": "Work email",
+        "their": "their work email",
+        "plural": "work emails"
+      },
+      "hireDate": {
+        "label": "Hire date",
+        "their": "their hire date",
+        "plural": "hire dates"
+      },
+      "phone": {
+        "label": "Phone",
+        "their": "their phone number",
+        "plural": "phone numbers"
+      },
+      "jobTitle": {
+        "label": "Job title",
+        "their": "their job title",
+        "plural": "job titles"
+      },
+      "workLocation": {
+        "label": "Work location",
+        "their": "their work location",
+        "plural": "work locations"
+      },
+      "employmentType": {
+        "label": "Employment type",
+        "their": "their employment type",
+        "plural": "employment types"
+      }
+    },
+    "consequence": {
+      "managersSee": "Managers see {nouns} on their team's profiles.",
+      "managersStop": "Managers stop seeing {nouns} on their team's profiles.",
+      "employeesSee": "Employees see {their} on My Profile.",
+      "employeesStop": "Employees stop seeing {their} on My Profile.",
+      "required": "{label} becomes required on new and edited records.",
+      "optional": "{label} becomes optional.",
+      "canChange": "Employees can change {their} on My Profile.",
+      "cannotChange": "Employees can no longer change {their}.",
+      "more": "{sentences} And {count, plural, one {# more change} other {# more changes}}."
+    }
+  },
+  "invitations": {
+    "didNotLoad": "Invitations didn't load",
+    "notSaved": "Invitations didn't save. Try again.",
+    "leave": "Leave without saving? Your changes to Invitations are discarded.",
+    "reinvite": {
+      "RefreshExisting": {
+        "label": "Send a fresh one",
+        "detail": "The earlier link stops working"
+      },
+      "KeepExisting": {
+        "label": "Keep the first one",
+        "detail": "Nothing is sent again"
+      }
+    },
+    "expiresAfter": "Invitation expires after",
+    "expiresAfterInDays": "Invitation expires after, in days",
+    "cooldown": "People can ask for a new one after",
+    "cooldownInHours": "People can ask for a new one after, in hours",
+    "days": "days",
+    "hours": "hours",
+    "dayCount": "{count, plural, one {# day} other {# days}}",
+    "hourCount": "{count, plural, one {# hour} other {# hours}}",
+    "role": "Role for new accounts",
+    "reinviteTitle": "Inviting someone who already has an invitation",
+    "consequence": {
+      "expiry": "Invitations sent from now on expire after {count, plural, one {# day} other {# days}}.",
+      "cooldown": "People wait {count, plural, one {# hour} other {# hours}} before asking for a new link.",
+      "role": "New accounts get the {role} role.",
+      "chosenRole": "New accounts get the chosen role.",
+      "keep": "Inviting someone again keeps their first link.",
+      "fresh": "Inviting someone again sends a fresh link and stops the earlier one."
+    }
+  },
+  "roles": {
+    "didNotLoad": "Roles didn't load",
+    "newRole": "New role",
+    "list": "Roles",
+    "builtIn": "Built in",
+    "yours": "Yours",
+    "people": "{count, plural, one {# person} other {# people}}",
+    "name": "Name",
+    "purpose": "What it is for",
+    "create": "Create role",
+    "cancel": "Cancel",
+    "notCreated": "The role wasn't created.",
+    "delete": "Delete",
+    "edit": "Edit",
+    "done": "Done",
+    "holdsOne": "{name} holds it",
+    "holdsMany": "{name} and {count} more hold it",
+    "nobody": "Nobody holds it",
+    "holdCount": "{count, plural, one {# person holds it} other {# people hold it}}",
+    "manageInAccess": "Manage in Access",
+    "leave": "Leave without saving? Your changes to {role} are discarded.",
+    "notSaved": "The role didn't save.",
+    "levels": {
+      "None": "None",
+      "View": "View",
+      "Manage": "Manage"
+    },
+    "consequence": {
+      "None": "People holding {role} lose {what}.",
+      "View": "People holding {role} can see {what}.",
+      "Manage": "People holding {role} can manage {what}.",
+      "more": "{sentence} And {count} more."
+    },
+    "areas": {
+      "cycles": {
+        "label": "Cycles",
+        "what": "cycles"
+      },
+      "performance-settings": {
+        "label": "Performance settings",
+        "what": "performance settings"
+      },
+      "company-objectives": {
+        "label": "Company objectives",
+        "what": "company objectives"
+      },
+      "company-direction": {
+        "label": "Company direction",
+        "what": "company direction"
+      },
+      "calibration": {
+        "label": "Calibration",
+        "what": "calibration"
+      },
+      "people": {
+        "label": "People",
+        "what": "people"
+      },
+      "organization": {
+        "label": "Organization",
+        "what": "organization"
+      },
+      "employee-fields": {
+        "label": "Employee fields",
+        "what": "employee fields"
+      },
+      "roles": {
+        "label": "Roles and access",
+        "what": "roles and access"
+      },
+      "invitations": {
+        "label": "Invitations",
+        "what": "invitations"
+      },
+      "change-history": {
+        "label": "Change history",
+        "what": "change history"
+      }
+    }
+  },
+  "changeHistory": {
+    "didNotLoad": "Change history didn't load",
+    "section": "Section",
+    "person": "Person",
+    "allSections": "All sections",
+    "anyone": "Anyone",
+    "empty": "No settings have changed yet.",
+    "noMatch": "No changes match.",
+    "clearFilters": "Clear filters",
+    "thisWeek": "This week",
+    "changedTo": "changed to",
+    "someone": "Someone",
+    "andMore": "{sentence}, and {count} more",
+    "roleChange": "Changed a role or who holds it",
+    "settingsChange": "Changed settings",
+    "audience": {
+      "visibleToManager": {
+        "label": "their manager",
+        "who": "managers"
+      },
+      "visibleToEmployee": {
+        "label": "the employee",
+        "who": "employees"
+      }
+    },
+    "fieldAudience": "{field} · {audience}",
+    "seesIt": "Sees it",
+    "hidden": "Hidden",
+    "nowSee": "{field}: {who} now see it",
+    "noLongerSee": "{field}: {who} no longer see it",
+    "requiredLabel": "{field} · required",
+    "required": "Required",
+    "optional": "Optional",
+    "nowRequired": "{field}: now required",
+    "nowOptional": "{field}: now optional",
+    "selfNouns": {
+      "Phone": "their phone number",
+      "PreferredName": "their preferred name"
+    },
+    "selfLabel": "Employees change {their}",
+    "yes": "Yes",
+    "no": "No",
+    "selfCan": "Employees can change {their}",
+    "selfCannot": "Employees can no longer change {their}",
+    "expiryLabel": "Invitation expires after",
+    "days": "{count} days",
+    "expirySentence": "Expiry from {before} to {after} days",
+    "cooldownLabel": "People can ask for a new one after",
+    "hours": "{count} hours",
+    "cooldownSentence": "New link wait from {before} to {after} hours",
+    "reinviteLabel": "Inviting someone again",
+    "keep": "Keep the first one",
+    "fresh": "Send a fresh one",
+    "reinviteSentence": "Inviting someone again: {choice}",
+    "roleLabel": "Role for new accounts",
+    "chosenRole": "A chosen role",
+    "defaultRole": "Employee",
+    "roleSentence": "Role for new accounts changed",
+    "none": "None",
+    "otherSentence": "{name} changed"
+  }
+}

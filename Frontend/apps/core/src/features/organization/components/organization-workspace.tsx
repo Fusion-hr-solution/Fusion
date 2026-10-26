@@ -113,6 +113,7 @@ import {
   UpcomingChangesSheet,
 } from "./organization-surfaces";
 import { useRecentRecord } from "@repo/api/react";
+import { dateFormatter } from "@repo/ds/lib/dates";
 
 const EMPTY_REVEAL: ReadonlySet<string> = new Set();
 
@@ -183,7 +184,7 @@ function toCalendarDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-const AS_OF_FORMAT = new Intl.DateTimeFormat("en-GB", {
+const AS_OF_FORMAT = dateFormatter({
   day: "numeric",
   month: "short",
   year: "numeric",
@@ -497,14 +498,14 @@ function InspectorContent({
                 </AlertDescription>
               </Alert>
             ) : businessEvents.length ? (
-              <ol className="relative space-y-0 before:absolute before:bottom-3 before:left-[5px] before:top-3 before:w-px before:bg-border">
+              <ol className="relative space-y-0 before:absolute before:bottom-3 before:inset-s-[5px] before:top-3 before:w-px before:bg-border">
                 {businessEvents.map((event) => {
                   const scheduled = event.effectiveDate > today;
                   return (
-                    <li key={event.id} className="group/history relative pb-5 pl-6">
+                    <li key={event.id} className="group/history relative pb-5 ps-6">
                       <span
                         className={cn(
-                          "absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-background",
+                          "absolute inset-s-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-background",
                           scheduled ? "bg-warning" : "bg-primary"
                         )}
                       />
@@ -533,7 +534,7 @@ function InspectorContent({
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
-                                className="-mr-1 h-7 w-7 shrink-0 text-muted-foreground opacity-0 group-hover/history:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                                className="-me-1 h-7 w-7 shrink-0 text-muted-foreground opacity-0 group-hover/history:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                                 aria-label={`Actions for ${eventLabel(event)} effective ${event.effectiveDate}`}
                               >
                                 <MoreHorizontal className="h-4 w-4" />
@@ -941,13 +942,13 @@ export default function OrganizationWorkspace() {
         <>
           <div className="flex shrink-0 items-center gap-3 border-b px-6 py-3">
             <div className="relative min-w-[280px] max-w-lg flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute inset-s-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 aria-label="Search Organization by name or business code"
                 value={urlState.search}
                 onChange={(event) => navigate({ search: event.target.value })}
                 placeholder="Find a unit by name or code"
-                className="pl-9 pr-9"
+                className="ps-9 pe-9"
               />
               {urlState.search ? (
                 <Button
@@ -955,13 +956,13 @@ export default function OrganizationWorkspace() {
                   size="icon-sm"
                   aria-label="Clear Organization search"
                   onClick={() => navigate({ search: "" })}
-                  className="absolute right-1 top-1/2 -translate-y-1/2"
+                  className="absolute inset-e-1 top-1/2 -translate-y-1/2"
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
               ) : null}
               {urlState.search.trim().length >= 2 ? (
-                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-80 overflow-y-auto rounded-surface border bg-popover p-1 shadow-overlay">
+                <div className="absolute inset-s-0 inset-e-0 top-[calc(100%+6px)] z-30 max-h-80 overflow-y-auto rounded-surface border bg-popover p-1 shadow-overlay">
                   {search.isLoading ? (
                     <div className="space-y-2 p-3">
                       <Skeleton className="h-9 w-full" />
@@ -976,7 +977,7 @@ export default function OrganizationWorkspace() {
                           select(unit.id);
                           navigate({ search: "", selectedId: unit.id });
                         }}
-                        className="flex w-full items-start gap-3 rounded-control px-3 py-2 text-left outline-none hover:bg-muted focus-visible:bg-muted"
+                        className="flex w-full items-start gap-3 rounded-control px-3 py-2 text-start outline-none hover:bg-muted focus-visible:bg-muted"
                       >
                         <Network className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                         <span className="min-w-0">
@@ -1046,7 +1047,7 @@ export default function OrganizationWorkspace() {
                 Add unit
               </Button>
             ) : null}
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ms-auto flex items-center gap-3">
               {canManage && !readOnly ? (
                 <Button asChild variant="outline">
                   <Link href="/organization/import">
@@ -1160,7 +1161,7 @@ export default function OrganizationWorkspace() {
             {model &&
             (editor !== null || (urlState.selectedId && inspectorOpen)) ? (
               <aside
-                className="min-h-0 w-[360px] shrink-0 border-l bg-card max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-overlay"
+                className="min-h-0 w-[360px] shrink-0 border-s bg-card max-xl:absolute max-xl:inset-y-0 max-xl:inset-e-0 max-xl:z-20 max-xl:shadow-overlay"
                 aria-label="Organization panel"
               >
                 {editor?.kind === "unit-form" ? (

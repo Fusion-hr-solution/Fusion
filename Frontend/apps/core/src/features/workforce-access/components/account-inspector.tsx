@@ -49,6 +49,7 @@ import {
   initialsOf,
   isCommandSuccess,
 } from "./access-language";
+import { formatDate } from "@repo/ds/lib/dates";
 
 /**
  * Context-preserving identity inspector. The drawer is deliberately composed as
@@ -219,7 +220,7 @@ function InspectorContent({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <SheetHeader className="border-b px-7 pb-6 pt-6 pr-16">
+      <SheetHeader className="border-b px-7 pb-6 pt-6 pe-16">
         <div className="flex items-start justify-between gap-4">
           <p className="type-eyebrow text-muted-foreground">Workforce access</p>
           <StatusBadge tone={CANDIDATE_STATE_TONE[data.accountState]} dot>
@@ -233,10 +234,10 @@ function InspectorContent({
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <SheetTitle className="truncate text-left text-xl tracking-tight">
+            <SheetTitle className="truncate text-start text-xl tracking-tight">
               {data.displayName}
             </SheetTitle>
-            <SheetDescription className="mt-1 truncate text-left type-body text-muted-foreground">
+            <SheetDescription className="mt-1 truncate text-start type-body text-muted-foreground">
               {data.jobTitle ?? data.employmentStatus}
             </SheetDescription>
             <p className="mt-1 type-meta text-muted-foreground">
@@ -386,7 +387,7 @@ function InspectorContent({
                         {line.summary}
                       </p>
                       <p className="mt-0.5 type-meta text-muted-foreground">
-                        {new Date(line.occurredAt).toLocaleDateString()}
+                        {formatDate(line.occurredAt)}
                       </p>
                     </div>
                   </li>

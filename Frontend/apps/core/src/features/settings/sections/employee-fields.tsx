@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { ApiError, type FusionSettingsSection, type PeopleDataSettingsDto } from "@repo/api";
+import type { FusionSettingsSection, PeopleDataSettingsDto } from "@repo/api";
 import { useSettingsConflictSaver } from "@repo/api/query";
 import { useStagedSettings } from "@repo/api/react";
 import { Checkbox, cn, Switch } from "@repo/ds";
@@ -13,11 +13,13 @@ import {
   SettingsRows,
   SettingsSaveBar,
   SettingsValue,
+  useSettingsSectionName,
 } from "@repo/ds/shell";
 import {
   usePeopleDataSettings,
   useUpdatePeopleDataSettings,
 } from "@/features/settings/api/use-tenant-settings";
+import { sayInEnglish, useSaveFailure, useSettingsSay, type Say } from "@/features/settings/say";
 
 type FieldKey = "firstName" | "lastName" | "email" | "hireDate" | "phone" | "jobTitle" | "workLocation" | "employmentType";
 type Audience = "required" | "visibleToEmployee" | "visibleToManager";
@@ -35,29 +37,23 @@ export interface EmployeeFieldsDraft {
 
 /**
  * The fields on a profile, in the order people meet them, with what can't change: names are always required and
- * seen by everyone, work email is always seen, hire date is always required (the server refuses otherwise).
+ * seen by everyone, work email is always seen, hire date is always required (the server refuses otherwise). Each
+ * field's words (`employeeFields.fields.<key>`: its label, "their …" and the plural) are in the catalogue.
  */
-const FIELDS: { key: FieldKey; label: string; noun: string; nouns: string; locked: readonly Audience[] }[] = [
-  { key: "firstName", label: "First name", noun: "first name", nouns: "first names", locked: ["required", "visibleToEmployee", "visibleToManager"] },
-  { key: "lastName", label: "Last name", noun: "last name", nouns: "last names", locked: ["required", "visibleToEmployee", "visibleToManager"] },
-  { key: "email", label: "Work email", noun: "work email", nouns: "work emails", locked: ["visibleToEmployee", "visibleToManager"] },
-  { key: "hireDate", label: "Hire date", noun: "hire date", nouns: "hire dates", locked: ["required"] },
-  { key: "phone", label: "Phone", noun: "phone number", nouns: "phone numbers", locked: [] },
-  { key: "jobTitle", label: "Job title", noun: "job title", nouns: "job titles", locked: [] },
-  { key: "workLocation", label: "Work location", noun: "work location", nouns: "work locations", locked: [] },
-  { key: "employmentType", label: "Employment type", noun: "employment type", nouns: "employment types", locked: [] },
+const FIELDS: { key: FieldKey; locked: readonly Audience[] }[] = [
+  { key: "firstName", locked: ["required", "visibleToEmployee", "visibleToManager"] },
+  { key: "lastName", locked: ["required", "visibleToEmployee", "visibleToManager"] },
+  { key: "email", locked: ["visibleToEmployee", "visibleToManager"] },
+  { key: "hireDate", locked: ["required"] },
+  { key: "phone", locked: [] },
+  { key: "jobTitle", locked: [] },
+  { key: "workLocation", locked: [] },
+  { key: "employmentType", locked: [] },
 ];
 
-const COLUMNS: { key: Audience; label: string }[] = [
-  { key: "required", label: "Required" },
-  { key: "visibleToEmployee", label: "The employee" },
-  { key: "visibleToManager", label: "Their manager" },
-];
+const COLUMNS: readonly Audience[] = ["required", "visibleToEmployee", "visibleToManager"];
 
-const SELF_SERVICE = [
-  { key: "canEditPreferredName", label: "Their preferred name", noun: "preferred name" },
-  { key: "canEditPhone", label: "Their phone number", noun: "phone number" },
-] as const;
+const SELF_SERVICE = ["canEditPreferredName", "canEditPhone"] as const;
 
 export function toDraft(settings: PeopleDataSettingsDto): EmployeeFieldsDraft {
   const fields = Object.fromEntries(
@@ -77,50 +73,40 @@ export function toDraft(settings: PeopleDataSettingsDto): EmployeeFieldsDraft {
 }
 
 /** What saving does, one sentence per change, at most two before "and N more". */
-export function employeeFieldsConsequence(saved: EmployeeFieldsDraft, draft: EmployeeFieldsDraft): string {
+export function employeeFieldsConsequence(saved: EmployeeFieldsDraft, draft: EmployeeFieldsDraft, say: Say = sayInEnglish): string {
+  const field = (key: FieldKey, word: "label" | "their" | "plural") => say(`employeeFields.fields.${key}.${word}`);
+  const said = (key: string, values: Record<string, string>) => say(`employeeFields.consequence.${key}`, values);
   const sentences: string[] = [];
-  for (const field of FIELDS) {
-    const before = saved.fields[field.key];
-    const after = draft.fields[field.key];
+  for (const { key } of FIELDS) {
+    const before = saved.fields[key];
+    const after = draft.fields[key];
     if (before.visibleToManager !== after.visibleToManager) {
-      sentences.push(
-        after.visibleToManager
-          ? `Managers see ${field.nouns} on their team's profiles.`
-          : `Managers stop seeing ${field.nouns} on their team's profiles.`
-      );
+      sentences.push(said(after.visibleToManager ? "managersSee" : "managersStop", { nouns: field(key, "plural") }));
     }
     if (before.visibleToEmployee !== after.visibleToEmployee) {
-      sentences.push(
-        after.visibleToEmployee
-          ? `Employees see their ${field.noun} on My Profile.`
-          : `Employees stop seeing their ${field.noun} on My Profile.`
-      );
+      sentences.push(said(after.visibleToEmployee ? "employeesSee" : "employeesStop", { their: field(key, "their") }));
     }
     if (before.required !== after.required) {
-      sentences.push(after.required ? `${field.label} becomes required on new and edited records.` : `${field.label} becomes optional.`);
+      sentences.push(said(after.required ? "required" : "optional", { label: field(key, "label") }));
     }
   }
   for (const option of SELF_SERVICE) {
-    if (saved.selfService[option.key] !== draft.selfService[option.key]) {
-      sentences.push(
-        draft.selfService[option.key]
-          ? `Employees can change their ${option.noun} on My Profile.`
-          : `Employees can no longer change their ${option.noun}.`
-      );
+    if (saved.selfService[option] !== draft.selfService[option]) {
+      const their = say(`employeeFields.selfService.${option}.their`);
+      sentences.push(said(draft.selfService[option] ? "canChange" : "cannotChange", { their }));
     }
   }
   if (sentences.length <= 2) return sentences.join(" ");
-  const more = sentences.length - 2;
-  return `${sentences.slice(0, 2).join(" ")} And ${more === 1 ? "1 more change" : `${more} more changes`}.`;
-}
-
-function failure(error: unknown): string | null {
-  if (!error) return null;
-  return error instanceof ApiError && error.errors[0] ? error.errors[0] : "Employee fields didn't save. Try again.";
+  return say("employeeFields.consequence.more", { sentences: sentences.slice(0, 2).join(" "), count: sentences.length - 2 });
 }
 
 /** Settings › Employee fields: who sees each profile field, and what employees change themselves. */
 export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSection }) {
+  const say = useSettingsSay();
+  const failure = useSaveFailure();
+  const title = useSettingsSectionName()(section);
+  const fieldLabel = (key: FieldKey) => say(`employeeFields.fields.${key}.label`);
+  const columnLabel = (column: Audience) => say(`employeeFields.columns.${column}`);
   const editable = section.access === "manage";
   const query = usePeopleDataSettings();
   const update = useUpdatePeopleDataSettings();
@@ -142,15 +128,15 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
   );
   const staged = useStagedSettings(saved, save, {
     onReload: () => void query.refetch(),
-    leaveMessage: "Leave without saving? Your changes to Employee fields are discarded.",
+    leaveMessage: say("employeeFields.leave"),
   });
   const saver = useSettingsConflictSaver("core", [section.id], staged.conflict);
   const draft = staged.draft;
 
   if (query.error && !query.data) {
     return (
-      <SettingsPage title={section.label}>
-        <PageError title="Employee fields didn't load" onRetry={() => void query.refetch()} />
+      <SettingsPage title={title}>
+        <PageError title={say("employeeFields.didNotLoad")} onRetry={() => void query.refetch()} />
       </SettingsPage>
     );
   }
@@ -163,7 +149,7 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
 
   return (
     <SettingsPage
-      title={section.label}
+      title={title}
       lastChange={section.lastChange}
       setUpAt={section.setUpAt}
       viewOnly={!editable}
@@ -171,18 +157,18 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
     >
       {draft ? (
         <>
-          <SettingsBlock title="On a profile">
+          <SettingsBlock title={say("employeeFields.onProfile")}>
             <div className="overflow-hidden rounded-surface border border-border bg-card">
               <table className="w-full table-fixed text-sm">
                 <thead className="bg-inlay">
                   <tr className="type-meta text-muted-foreground">
-                    <th scope="col" className="px-5 py-2.5 text-left font-semibold">Field</th>
+                    <th scope="col" className="px-5 py-2.5 text-start font-semibold">{say("employeeFields.field")}</th>
                     {COLUMNS.map((column) => (
-                      <th key={column.key} scope="col" className="w-[128px] px-2 py-2.5 text-center font-semibold">
-                        {column.label}
+                      <th key={column} scope="col" className="w-[128px] px-2 py-2.5 text-center font-semibold">
+                        {columnLabel(column)}
                       </th>
                     ))}
-                    <th scope="col" className="w-[96px] px-2 py-2.5 text-center font-semibold">HR</th>
+                    <th scope="col" className="w-[96px] px-2 py-2.5 text-center font-semibold">{say("employeeFields.hr")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -191,23 +177,25 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
                     const changed = saved ? JSON.stringify(saved.fields[field.key]) !== JSON.stringify(rule) : false;
                     return (
                       <tr key={field.key} className={cn("h-12", changed && "bg-primary-tint")}>
-                        <th scope="row" className="px-5 text-left type-label font-semibold text-foreground">
-                          {field.label}
+                        <th scope="row" className="px-5 text-start type-label font-semibold text-foreground">
+                          {fieldLabel(field.key)}
                         </th>
                         {COLUMNS.map((column) => {
-                          const value = rule[column.key];
+                          const value = rule[column];
                           return (
-                            <td key={column.key} className="px-2 text-center">
+                            <td key={column} className="px-2 text-center">
                               {editable ? (
                                 <Checkbox
-                                  aria-label={`${field.label}: ${column.label}`}
+                                  aria-label={say("employeeFields.cell", { field: fieldLabel(field.key), column: columnLabel(column) })}
                                   checked={value}
-                                  disabled={field.locked.includes(column.key)}
-                                  onCheckedChange={(next) => setRule(field.key, column.key, next === true)}
+                                  disabled={field.locked.includes(column)}
+                                  onCheckedChange={(next) => setRule(field.key, column, next === true)}
                                 />
                               ) : (
                                 <span className="text-foreground">
-                                  {column.key === "required" ? (value ? "Yes" : "No") : value ? "Sees it" : "Hidden"}
+                                  {column === "required"
+                                    ? say(value ? "employeeFields.yes" : "employeeFields.no")
+                                    : say(value ? "employeeFields.seesIt" : "employeeFields.hidden")}
                                 </span>
                               )}
                             </td>
@@ -215,9 +203,9 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
                         })}
                         <td className="px-2 text-center">
                           {editable ? (
-                            <Checkbox aria-label={`${field.label}: HR always sees it`} checked disabled />
+                            <Checkbox aria-label={say("employeeFields.hrAlways", { field: fieldLabel(field.key) })} checked disabled />
                           ) : (
-                            <span className="text-foreground">Sees it</span>
+                            <span className="text-foreground">{say("employeeFields.seesIt")}</span>
                           )}
                         </td>
                       </tr>
@@ -228,23 +216,27 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
             </div>
           </SettingsBlock>
 
-          <SettingsBlock title="Employees can change">
+          <SettingsBlock title={say("employeeFields.canChange")}>
             <SettingsRows>
               {SELF_SERVICE.map((option) => (
-                <SettingsRow key={option.key} label={option.label} htmlFor={editable ? `self-service-${option.key}` : undefined}>
+                <SettingsRow
+                  key={option}
+                  label={say(`employeeFields.selfService.${option}.label`)}
+                  htmlFor={editable ? `self-service-${option}` : undefined}
+                >
                   {editable ? (
                     <Switch
-                      id={`self-service-${option.key}`}
-                      checked={draft.selfService[option.key]}
+                      id={`self-service-${option}`}
+                      checked={draft.selfService[option]}
                       onCheckedChange={(next) =>
                         staged.update((current) => ({
                           ...current,
-                          selfService: { ...current.selfService, [option.key]: next },
+                          selfService: { ...current.selfService, [option]: next },
                         }))
                       }
                     />
                   ) : (
-                    <SettingsValue>{draft.selfService[option.key] ? "Yes" : "No"}</SettingsValue>
+                    <SettingsValue>{say(draft.selfService[option] ? "employeeFields.yes" : "employeeFields.no")}</SettingsValue>
                   )}
                 </SettingsRow>
               ))}
@@ -254,9 +246,9 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
           {editable && saved ? (
             <SettingsSaveBar
               changes={staged.changes}
-              consequence={employeeFieldsConsequence(saved, draft)}
+              consequence={employeeFieldsConsequence(saved, draft, say)}
               saving={staged.saving}
-              error={failure(staged.error)}
+              error={failure(staged.error, say("employeeFields.notSaved"))}
               conflict={saver}
               conflictPending={staged.conflict && !saver}
               onDiscard={staged.discard}

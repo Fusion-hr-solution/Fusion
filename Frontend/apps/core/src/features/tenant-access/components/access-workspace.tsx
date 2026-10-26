@@ -187,12 +187,12 @@ export default function AccessWorkspace() {
 
             <div className="sm:w-72 sm:pb-2">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder={view === "removed" ? "Search removed…" : "Search administrators…"}
-                  className="pl-9"
+                  className="ps-9"
                   aria-label="Search"
                 />
               </div>

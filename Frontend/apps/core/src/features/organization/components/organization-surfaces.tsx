@@ -133,7 +133,7 @@ function PickerTrigger({
         {children ?? (
           <span className="text-muted-foreground">{placeholder}</span>
         )}
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <ChevronsUpDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
     </PopoverTrigger>
   );
@@ -165,14 +165,14 @@ function TypePicker({
       </PickerTrigger>
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
         <div className="relative border-b">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute inset-s-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoFocus
             aria-label="Search unit types"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Find a type"
-            className="border-0 pl-9 shadow-none focus-visible:ring-0"
+            className="border-0 ps-9 shadow-none focus-visible:ring-0"
           />
         </div>
         <div role="listbox" aria-label="Unit types" className="max-h-56 overflow-y-auto p-1">
@@ -189,13 +189,13 @@ function TypePicker({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted",
+                  "flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-start text-sm outline-none hover:bg-muted focus-visible:bg-muted",
                   type.id === value && "bg-primary/[0.07]"
                 )}
               >
                 <Check className={cn("h-4 w-4", type.id === value ? "opacity-100" : "opacity-0")} />
                 <span className="font-medium">{type.displayName}</span>
-                <span className="ml-auto text-xs text-muted-foreground">
+                <span className="ms-auto text-xs text-muted-foreground">
                   {type.isBuiltIn ? "Built-in" : "Custom"}
                 </span>
               </button>
@@ -250,14 +250,14 @@ function HierarchyPicker({
       </PickerTrigger>
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
         <div className="relative border-b">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute inset-s-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoFocus
             aria-label={`Search ${label.toLocaleLowerCase()}`}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Find a unit"
-            className="border-0 pl-9 shadow-none focus-visible:ring-0"
+            className="border-0 ps-9 shadow-none focus-visible:ring-0"
           />
         </div>
         <div role="listbox" aria-label={label} className="max-h-56 overflow-y-auto p-1">
@@ -274,7 +274,7 @@ function HierarchyPicker({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-start gap-2 rounded-control px-2 py-1.5 text-left outline-none hover:bg-muted focus-visible:bg-muted",
+                  "flex w-full items-start gap-2 rounded-control px-2 py-1.5 text-start outline-none hover:bg-muted focus-visible:bg-muted",
                   unit.id === value && "bg-primary/[0.07]"
                 )}
               >
@@ -384,7 +384,7 @@ export function RootEstablishment({
         </div>
         <Link
           href="/organization/import"
-          className="group flex items-center gap-4 rounded-surface border bg-card p-4 pr-5 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group flex items-center gap-4 rounded-surface border bg-card p-4 pe-5 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-primary-tint text-primary-ink">
             <UploadCloud className="h-5 w-5" />
@@ -397,7 +397,7 @@ export function RootEstablishment({
       </div>
       <form
         onSubmit={submit}
-        className="space-y-5 border-l pl-8 max-lg:border-l-0 max-lg:border-t max-lg:pl-0 max-lg:pt-8"
+        className="space-y-5 border-s ps-8 max-lg:border-s-0 max-lg:border-t max-lg:ps-0 max-lg:pt-8"
       >
         <div className="space-y-1.5">
           <Label htmlFor="root-name">Name</Label>
@@ -435,7 +435,7 @@ export function RootEstablishment({
           <Label>Type</Label>
           <div className="flex h-9 items-center rounded-surface border bg-inlay px-3 text-sm">
             Organization{" "}
-            <span className="ml-auto text-xs text-muted-foreground">
+            <span className="ms-auto text-xs text-muted-foreground">
               System-defined
             </span>
           </div>
@@ -996,7 +996,7 @@ export function MoveReviewDialog({
                 <span className="min-w-0 truncate">
                   {to?.name}
                   {to ? (
-                    <span className="ml-1.5 font-mono text-xs text-muted-foreground">
+                    <span className="ms-1.5 font-mono text-xs text-muted-foreground">
                       {to.code}
                     </span>
                   ) : null}

@@ -317,7 +317,7 @@ function Field({
   return (
     <div className="flex items-baseline justify-between gap-4">
       <dt className="type-meta shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 truncate type-label text-right text-foreground">
+      <dd className="min-w-0 truncate type-label text-end text-foreground">
         {children}
       </dd>
     </div>
@@ -345,7 +345,7 @@ function ActionCard({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex w-full items-start gap-3 rounded-surface border p-3 text-left transition-colors",
+        "flex w-full items-start gap-3 rounded-surface border p-3 text-start transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
         "disabled:pointer-events-none disabled:opacity-45",
         destructive

@@ -231,7 +231,7 @@ export function ReviewStage() {
                 <div className="relative min-w-56 flex-1 sm:max-w-md">
                   <Search
                     aria-hidden
-                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                    className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
                   />
                   <Input
                     type="search"
@@ -239,14 +239,14 @@ export function ReviewStage() {
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search by name or business code"
                     aria-label="Search units"
-                    className="pl-9"
+                    className="ps-9"
                   />
                 </div>
                 {branchIds(tree).size > 0 ? (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="ml-auto"
+                    className="ms-auto"
                     disabled={Boolean(visible)}
                     aria-label={
                       collapsed.size > 0

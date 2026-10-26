@@ -79,7 +79,7 @@ export function WorkforceReviewInspector({
 
 function InspectorHeader({ row }: { row: WorkforceReviewRowDto }) {
   return (
-    <div className="flex items-center gap-3 border-b border-border py-4 pl-5 pr-12">
+    <div className="flex items-center gap-3 border-b border-border py-4 ps-5 pe-12">
       <Monogram name={row.employee.displayName} size="lg" accent={row.classification === "Create"} />
       <div className="min-w-0">
         <p className="truncate type-panel-title text-foreground">{row.employee.displayName}</p>
@@ -122,7 +122,7 @@ function Details({ row, baseline }: { row: WorkforceReviewRowDto; baseline: stri
         ) : (
           <span>
             {row.manager.display ?? "—"}
-            {row.manager.employeeNumber ? <span className="ml-1.5 type-meta text-muted-foreground">{row.manager.employeeNumber}</span> : null}
+            {row.manager.employeeNumber ? <span className="ms-1.5 type-meta text-muted-foreground">{row.manager.employeeNumber}</span> : null}
             {row.manager.subtext ? <span className="block type-meta text-muted-foreground">{row.manager.subtext}</span> : null}
           </span>
         )}
@@ -267,8 +267,8 @@ function OrganizationResolution({
         {suggested.length > 0 ? "All organizations" : "Which Organization does it mean?"}
       </p>
       <div className="relative mt-2">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search organization…" className="h-8 pl-8 type-meta" />
+        <Search className="pointer-events-none absolute inset-s-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search organization…" className="h-8 ps-8 type-meta" />
       </div>
       <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
         {rest.map((u) => (
@@ -300,7 +300,7 @@ function UnitButton({ unit, busy, onClick, suggested }: { unit: FlatUnit; busy: 
       disabled={busy}
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-left disabled:opacity-50",
+        "flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-start disabled:opacity-50",
         suggested ? "bg-primary/[0.04] ring-1 ring-inset ring-primary/15 hover:bg-primary/[0.08]" : "hover:bg-muted/60"
       )}
     >
@@ -365,8 +365,8 @@ function ManagerResolution({
       ) : null}
 
       <div className="relative mt-4">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people…" className="h-8 pl-8 type-meta" />
+        <Search className="pointer-events-none absolute inset-s-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people…" className="h-8 ps-8 type-meta" />
       </div>
 
       {importCandidates.length > 0 ? (
@@ -379,7 +379,7 @@ function ManagerResolution({
                   type="button"
                   disabled={busy}
                   onClick={() => pickImport(c.sourceRowNumber)}
-                  className="w-full rounded-control px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
+                  className="w-full rounded-control px-2 py-1.5 text-start hover:bg-muted/60 disabled:opacity-50"
                 >
                   <EmployeeIdentity
                     name={c.displayName}
@@ -404,7 +404,7 @@ function ManagerResolution({
                   type="button"
                   disabled={busy}
                   onClick={() => pickExisting(person.employeeKey)}
-                  className="w-full rounded-control px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
+                  className="w-full rounded-control px-2 py-1.5 text-start hover:bg-muted/60 disabled:opacity-50"
                 >
                   <EmployeeIdentity
                     name={person.displayName}

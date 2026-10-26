@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import {
-  ApiError,
   type AccessProfileSummaryDto,
   type CorePermissionCatalogItemDto,
   type FusionSettingsSection,
@@ -25,7 +24,7 @@ import {
   NativeSelectOption,
   Textarea,
 } from "@repo/ds";
-import { FUSION_MODULE_ICONS, PageError, SettingsPage, SettingsSaveBar } from "@repo/ds/shell";
+import { FUSION_MODULE_ICONS, PageError, SettingsPage, SettingsSaveBar, useSettingsSectionName } from "@repo/ds/shell";
 import {
   useAccessProfiles,
   useCorePermissionCatalog,
@@ -34,13 +33,13 @@ import {
   useUpdateAccessProfile,
   useUserAccessAssignments,
 } from "@/features/access/api/use-core-access";
+import { sayInEnglish, useSaveFailure, useSettingsSay, type Say } from "@/features/settings/say";
 
 export type Level = "None" | "View" | "Manage";
 
-/** One thing a role can see or change, as people name it, and the permissions behind it. */
+/** One thing a role can see or change, and the permissions behind it. Its words are `roles.areas.<id>`. */
 interface Area {
   id: string;
-  label: string;
   view?: string;
   manage?: string;
 }
@@ -51,23 +50,23 @@ export const ROLE_AREAS: { module: "performance" | "core"; label: string; areas:
     module: "performance",
     label: "Performance",
     areas: [
-      { id: "cycles", label: "Cycles", view: "performance.cycle.view", manage: "performance.cycle.manage" },
-      { id: "performance-settings", label: "Performance settings", view: "performance.settings.view", manage: "performance.settings.manage" },
-      { id: "company-objectives", label: "Company objectives", manage: "performance.objective.org.manage" },
-      { id: "company-direction", label: "Company direction", manage: "performance.strategy.publish" },
-      { id: "calibration", label: "Calibration", manage: "performance.review.calibrate" },
+      { id: "cycles", view: "performance.cycle.view", manage: "performance.cycle.manage" },
+      { id: "performance-settings", view: "performance.settings.view", manage: "performance.settings.manage" },
+      { id: "company-objectives", manage: "performance.objective.org.manage" },
+      { id: "company-direction", manage: "performance.strategy.publish" },
+      { id: "calibration", manage: "performance.review.calibrate" },
     ],
   },
   {
     module: "core",
     label: "Core HR",
     areas: [
-      { id: "people", label: "People", view: "core.employee.view", manage: "core.employee.manage" },
-      { id: "organization", label: "Organization", view: "core.organization.view", manage: "core.organization.manage" },
-      { id: "employee-fields", label: "Employee fields", view: "settings.peopleData.view", manage: "settings.peopleData.manage" },
-      { id: "roles", label: "Roles and access", view: "access.profiles.view", manage: "access.profiles.manage" },
-      { id: "invitations", label: "Invitations", view: "settings.provisioning.view", manage: "settings.provisioning.manage" },
-      { id: "change-history", label: "Change history", view: "settings.governance.view" },
+      { id: "people", view: "core.employee.view", manage: "core.employee.manage" },
+      { id: "organization", view: "core.organization.view", manage: "core.organization.manage" },
+      { id: "employee-fields", view: "settings.peopleData.view", manage: "settings.peopleData.manage" },
+      { id: "roles", view: "access.profiles.view", manage: "access.profiles.manage" },
+      { id: "invitations", view: "settings.provisioning.view", manage: "settings.provisioning.manage" },
+      { id: "change-history", view: "settings.governance.view" },
     ],
   },
 ];
@@ -112,17 +111,18 @@ export function grantsFor(
 }
 
 /** What saving a role does, in one sentence. */
-export function roleConsequence(name: string, saved: Record<string, Level>, draft: Record<string, Level>): string {
+export function roleConsequence(
+  name: string,
+  saved: Record<string, Level>,
+  draft: Record<string, Level>,
+  say: Say = sayInEnglish
+): string {
   const changed = ALL_AREAS.filter((area) => saved[area.id] !== draft[area.id]);
   if (changed.length === 0) return "";
   const first = changed[0]!;
-  const level = draft[first.id];
-  const what = first.label.charAt(0).toLowerCase() + first.label.slice(1);
-  const sentence =
-    level === "None"
-      ? `People holding ${name} lose ${what}.`
-      : `People holding ${name} can ${level === "Manage" ? "manage" : "see"} ${what}.`;
-  return changed.length > 1 ? `${sentence} And ${changed.length - 1} more.` : sentence;
+  const level = draft[first.id] ?? "None";
+  const sentence = say(`roles.consequence.${level}`, { role: name, what: say(`roles.areas.${first.id}.what`) });
+  return changed.length > 1 ? say("roles.consequence.more", { sentence, count: changed.length - 1 }) : sentence;
 }
 
 function isBuiltIn(profile: AccessProfileSummaryDto) {
@@ -145,6 +145,7 @@ function RoleList({
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
+  const say = useSettingsSay();
   if (roles.length === 0) return null;
   return (
     <div className="flex flex-col gap-0.5">
@@ -156,7 +157,7 @@ function RoleList({
           aria-current={role.id === selected ? "true" : undefined}
           onClick={() => onSelect(role.id)}
           className={cn(
-            "flex items-center gap-3 rounded-control px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+            "flex items-center gap-3 rounded-control px-3 py-2.5 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
             role.id === selected ? "bg-inlay" : "hover:bg-inlay/60"
           )}
         >
@@ -164,7 +165,7 @@ function RoleList({
             <span className="truncate type-label font-semibold text-foreground">{role.name}</span>
             {role.description ? <span className="truncate type-meta text-muted-foreground">{role.description}</span> : null}
           </span>
-          <span className="shrink-0 type-meta tabular-nums text-muted-foreground" aria-label={`${role.assignedUserCount} people`}>
+          <span className="shrink-0 type-meta tabular-nums text-muted-foreground" aria-label={say("roles.people", { count: role.assignedUserCount })}>
             {role.assignedUserCount}
           </span>
         </button>
@@ -182,15 +183,17 @@ function NewRoleDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: (id: string) => void;
 }) {
+  const say = useSettingsSay();
+  const failure = useSaveFailure();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const create = useCreateAccessProfile({ onSuccess: (role) => onCreated(role.id) });
-  const error = create.error instanceof ApiError ? create.error.errors[0] : create.error ? "The role wasn't created." : null;
+  const error = failure(create.error, say("roles.notCreated"));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New role</DialogTitle>
+          <DialogTitle>{say("roles.newRole")}</DialogTitle>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
@@ -200,20 +203,20 @@ function NewRoleDialog({
           }}
         >
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="role-name">Name</Label>
+            <Label htmlFor="role-name">{say("roles.name")}</Label>
             <Input id="role-name" value={name} onChange={(event) => setName(event.target.value)} required />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="role-description">What it is for</Label>
+            <Label htmlFor="role-description">{say("roles.purpose")}</Label>
             <Textarea id="role-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={2} />
           </div>
           {error ? <p role="alert" className="type-meta text-destructive">{error}</p> : null}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+              {say("roles.cancel")}
             </Button>
             <Button type="submit" disabled={!name.trim() || create.isLoading}>
-              Create role
+              {say("roles.create")}
             </Button>
           </DialogFooter>
         </form>
@@ -236,6 +239,8 @@ function RoleDetail({
   catalog: readonly CorePermissionCatalogItemDto[];
   onDeleted: () => void;
 }) {
+  const say = useSettingsSay();
+  const failure = useSaveFailure();
   const [editing, setEditing] = useState(false);
   const saved = useMemo(() => levelsOf(role), [role]);
   const update = useUpdateAccessProfile();
@@ -251,7 +256,7 @@ function RoleDetail({
     [mutateAsync, role, catalog]
   );
   const staged = useStagedSettings(saved, save, {
-    leaveMessage: `Leave without saving? Your changes to ${role.name} are discarded.`,
+    leaveMessage: say("roles.leave", { role: role.name }),
   });
   const saver = useSettingsConflictSaver("core", ["roles"], staged.conflict);
   const levels = staged.draft ?? saved;
@@ -271,11 +276,11 @@ function RoleDetail({
           <div className="flex shrink-0 gap-2">
             {role.assignedUserCount === 0 ? (
               <Button variant="ghost" size="sm" disabled={remove.isLoading} onClick={() => void remove.mutateAsync({ profileId: role.id })}>
-                Delete
+                {say("roles.delete")}
               </Button>
             ) : null}
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-              Edit
+              {say("roles.edit")}
             </Button>
           </div>
         ) : null}
@@ -290,16 +295,14 @@ function RoleDetail({
         <span className="min-w-0 flex-1 text-sm text-foreground">
           {holders && holders.length > 0
             ? holders.length === 1
-              ? `${holders[0]} holds it`
-              : `${holders[0]} and ${holders.length - 1} more hold it`
+              ? say("roles.holdsOne", { name: holders[0]! })
+              : say("roles.holdsMany", { name: holders[0]!, count: holders.length - 1 })
             : role.assignedUserCount === 0
-              ? "Nobody holds it"
-              : role.assignedUserCount === 1
-                ? "1 person holds it"
-                : `${role.assignedUserCount} people hold it`}
+              ? say("roles.nobody")
+              : say("roles.holdCount", { count: role.assignedUserCount })}
         </span>
         <a href="/core/workforce-access" className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-foreground hover:underline">
-          Manage in Access
+          {say("roles.manageInAccess")}
           <ArrowRight aria-hidden className="size-4" />
         </a>
       </div>
@@ -320,10 +323,10 @@ function RoleDetail({
                 const options: Level[] = ["None", ...(area.view ? (["View"] as Level[]) : []), ...(area.manage ? (["Manage"] as Level[]) : [])];
                 return (
                   <li key={area.id} className="flex min-h-11 items-center justify-between gap-4 py-2">
-                    <span className="type-label font-semibold text-foreground">{area.label}</span>
+                    <span className="type-label font-semibold text-foreground">{say(`roles.areas.${area.id}.label`)}</span>
                     {editing ? (
                       <NativeSelect
-                        aria-label={area.label}
+                        aria-label={say(`roles.areas.${area.id}.label`)}
                         size="sm"
                         value={level}
                         onChange={(event) =>
@@ -333,13 +336,13 @@ function RoleDetail({
                       >
                         {options.map((option) => (
                           <NativeSelectOption key={option} value={option}>
-                            {option}
+                            {say(`roles.levels.${option}`)}
                           </NativeSelectOption>
                         ))}
                       </NativeSelect>
                     ) : (
                       <span className={cn("text-sm", level === "None" ? "text-muted-foreground" : "font-semibold text-foreground")}>
-                        {level}
+                        {say(`roles.levels.${level}`)}
                       </span>
                     )}
                   </li>
@@ -354,9 +357,9 @@ function RoleDetail({
         staged.dirty || staged.conflict ? (
           <SettingsSaveBar
             changes={staged.changes}
-            consequence={roleConsequence(role.name, saved, levels)}
+            consequence={roleConsequence(role.name, saved, levels, say)}
             saving={staged.saving}
-            error={staged.error instanceof ApiError ? staged.error.errors[0] ?? "The role didn't save." : staged.error ? "The role didn't save." : null}
+            error={failure(staged.error, say("roles.notSaved"))}
             conflict={saver}
             conflictPending={staged.conflict && !saver}
             onDiscard={() => {
@@ -372,7 +375,7 @@ function RoleDetail({
         ) : (
           <div className="flex justify-end">
             <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
-              Done
+              {say("roles.done")}
             </Button>
           </div>
         )
@@ -383,6 +386,8 @@ function RoleDetail({
 
 /** Settings › Roles: built-in and tenant roles, what each grants per module; who holds them is managed in Access. */
 export function RolesSettings({ section }: { section: FusionSettingsSection }) {
+  const say = useSettingsSay();
+  const title = useSettingsSectionName()(section);
   const editable = section.access === "manage";
   const profiles = useAccessProfiles();
   const catalog = useCorePermissionCatalog();
@@ -403,15 +408,15 @@ export function RolesSettings({ section }: { section: FusionSettingsSection }) {
 
   if (profiles.error && !profiles.data) {
     return (
-      <SettingsPage title={section.label} wide>
-        <PageError title="Roles didn't load" onRetry={() => void profiles.refetch()} />
+      <SettingsPage title={title} wide>
+        <PageError title={say("roles.didNotLoad")} onRetry={() => void profiles.refetch()} />
       </SettingsPage>
     );
   }
 
   return (
     <SettingsPage
-      title={section.label}
+      title={title}
       lastChange={section.lastChange}
       setUpAt={section.setUpAt}
       viewOnly={!editable}
@@ -421,15 +426,15 @@ export function RolesSettings({ section }: { section: FusionSettingsSection }) {
         editable ? (
           <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
             <Plus aria-hidden className="size-4" />
-            New role
+            {say("roles.newRole")}
           </Button>
         ) : null
       }
     >
       <div className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <nav aria-label="Roles" className="flex flex-col gap-2 rounded-surface border border-border bg-card p-2">
-          <RoleList title="Built in" roles={builtIn} selected={current?.id ?? null} onSelect={setSelected} />
-          <RoleList title="Yours" roles={yours} selected={current?.id ?? null} onSelect={setSelected} />
+        <nav aria-label={say("roles.list")} className="flex flex-col gap-2 rounded-surface border border-border bg-card p-2">
+          <RoleList title={say("roles.builtIn")} roles={builtIn} selected={current?.id ?? null} onSelect={setSelected} />
+          <RoleList title={say("roles.yours")} roles={yours} selected={current?.id ?? null} onSelect={setSelected} />
         </nav>
         {current ? (
           <RoleDetail

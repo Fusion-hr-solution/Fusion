@@ -4,6 +4,7 @@ import type {
   TenantAdministratorStatus,
 } from "@repo/api";
 import type { StatusTone } from "@repo/ds/shell";
+import { dateFormatter } from "@repo/ds/lib/dates";
 
 /**
  * The one terminology source for Access.
@@ -159,12 +160,12 @@ export function actorLabel(actorName: string): string | null {
   return trimmed.length === 0 || trimmed === UNRESOLVED_ACTOR ? null : trimmed;
 }
 
-const DAY = new Intl.DateTimeFormat("en-GB", {
+const DAY = dateFormatter({
   day: "numeric",
   month: "short",
   year: "numeric",
 });
-const MOMENT = new Intl.DateTimeFormat("en-GB", {
+const MOMENT = dateFormatter({
   day: "numeric",
   month: "short",
   hour: "numeric",

@@ -36,7 +36,7 @@ export function ReviewStatusBanner({ review }: { review: OrganizationImportRevie
     <section
       aria-label="Review status"
       className={cn(
-        "flex flex-wrap items-center gap-x-8 gap-y-5 rounded-surface border p-4 sm:pr-6 xl:flex-nowrap xl:gap-x-6",
+        "flex flex-wrap items-center gap-x-8 gap-y-5 rounded-surface border p-4 sm:pe-6 xl:flex-nowrap xl:gap-x-6",
         blocked
           ? "border-destructive/35 bg-linear-to-r from-destructive/[0.08] via-card to-card"
           : "border-success/35 bg-linear-to-r from-success/[0.09] via-card to-card"
@@ -87,7 +87,7 @@ function Metric({
   labelFirst?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 lg:px-5 lg:first:pl-0 lg:last:pr-0 xl:shrink-0">
+    <div className="flex min-w-0 items-center gap-3 lg:px-5 lg:first:ps-0 lg:last:pe-0 xl:shrink-0">
       <Icon
         aria-hidden
         strokeWidth={1.75}
@@ -122,7 +122,7 @@ export function ReviewStructureSummary({ review }: { review: OrganizationImportR
       <ul className="mt-3 space-y-2">
         <Fact icon={Layers} value={summary.totalUnits} label={plural(summary.totalUnits, "unit", "units")} />
         {summary.existingUnits > 0 ? (
-          <li className="pl-8 type-meta text-muted-foreground">
+          <li className="ps-8 type-meta text-muted-foreground">
             {summary.newUnits} new · {summary.existingUnits} already in Organization
           </li>
         ) : null}
@@ -138,7 +138,7 @@ export function ReviewStructureSummary({ review }: { review: OrganizationImportR
           {[...summary.countsByType].sort((a, b) => typeRank(a.typeName) - typeRank(b.typeName)).map((type) => (
             <li key={`${type.typeId}-${type.typeName}`} className="flex items-center gap-3 type-body">
               <ReviewTypeIcon typeName={type.typeName} className="text-muted-foreground" />
-              <span className="w-6 text-right font-semibold tabular-nums text-foreground">{type.count}</span>
+              <span className="w-6 text-end font-semibold tabular-nums text-foreground">{type.count}</span>
               <span className="text-muted-foreground">{pluralType(type.typeName, type.count)}</span>
             </li>
           ))}

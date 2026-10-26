@@ -80,7 +80,7 @@ export function ContinuityBanner({
       </div>
 
       <div className="flex flex-wrap items-center gap-4 lg:justify-end lg:gap-8">
-        <div className="flex items-center gap-6 lg:gap-8 lg:border-l lg:pl-8">
+        <div className="flex items-center gap-6 lg:gap-8 lg:border-s lg:ps-8">
           <Stat label="Active" value={summary.activeAdministrators} dot="bg-success" />
           <Stat label="Pending" value={summary.pendingInvitations} dot="bg-warning" />
           <Stat

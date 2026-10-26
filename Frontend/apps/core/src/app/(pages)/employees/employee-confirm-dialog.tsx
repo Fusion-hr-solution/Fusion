@@ -65,7 +65,7 @@ export function EmployeeConfirmDialog({
           >
             {loading ? (
               <>
-                <Spinner className="mr-1.5 size-4" />
+                <Spinner className="me-1.5 size-4" />
                 {loadingLabel ?? confirmLabel}
               </>
             ) : (

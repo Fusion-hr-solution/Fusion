@@ -111,7 +111,7 @@ function CheckGroup({
         aria-expanded={expandable ? open : undefined}
         disabled={!expandable}
         className={cn(
-          "flex w-full items-center gap-3 px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          "flex w-full items-center gap-3 px-4 py-3 text-start outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           count > 0 && blocker && "bg-destructive/[0.06]",
           count > 0 && !blocker && "bg-warning-subtle"
         )}

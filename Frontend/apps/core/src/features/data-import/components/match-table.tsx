@@ -99,7 +99,7 @@ export function MappingStatusPill({ status, pending }: { status: MappingStatus; 
     );
   const { label, Icon, pill, icon } = STATUS[status];
   return (
-    <span className={cn("inline-flex w-fit items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-1 type-meta font-medium", pill)}>
+    <span className={cn("inline-flex w-fit items-center gap-1.5 rounded-full py-0.5 pe-2.5 ps-1 type-meta font-medium", pill)}>
       <Icon aria-hidden className={cn("size-4", icon)} strokeWidth={2.25} />
       {label}
     </span>

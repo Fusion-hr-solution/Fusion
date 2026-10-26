@@ -59,7 +59,7 @@ export function ImportMatchBanner({
   return (
     <section
       aria-label="Match summary"
-      className="flex flex-wrap items-center gap-x-8 gap-y-5 rounded-surface border border-primary/30 bg-linear-to-r from-primary/[0.07] via-card to-card p-4 sm:pr-6"
+      className="flex flex-wrap items-center gap-x-8 gap-y-5 rounded-surface border border-primary/30 bg-linear-to-r from-primary/[0.07] via-card to-card p-4 sm:pe-6"
     >
       <div className="flex min-w-0 flex-[2] basis-96 items-center gap-5">
         <span
@@ -89,7 +89,7 @@ export function ImportMatchBanner({
 function Fact({ value, label, emphasis }: MatchFact) {
   const tone = emphasis ? "text-primary-foreground dark:text-primary" : "text-foreground";
   return (
-    <div className="flex flex-col-reverse gap-1.5 sm:px-6 sm:py-1 sm:first:pl-0 sm:last:pr-2">
+    <div className="flex flex-col-reverse gap-1.5 sm:px-6 sm:py-1 sm:first:ps-0 sm:last:pe-2">
       <dt className={cn("type-meta sm:max-w-32", emphasis ? tone : "text-muted-foreground")}>{label}</dt>
       <dd className={cn("type-metric font-semibold whitespace-nowrap tabular-nums leading-none", tone)}>{value}</dd>
     </div>

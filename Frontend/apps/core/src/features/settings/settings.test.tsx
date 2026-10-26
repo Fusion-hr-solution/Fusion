@@ -24,6 +24,14 @@ vi.mock("@/features/settings/api/use-tenant-settings", () => ({
   useUpdatePeopleDataSettings: () => ({ mutateAsync: vi.fn() }),
 }));
 
+import { createTranslator } from "next-intl";
+import { IntlTestProvider } from "@repo/ds/testing";
+import dsFr from "@repo/ds/messages/fr.json";
+import { loadCoreMessages } from "@/i18n/messages";
+import type { Say } from "./say";
+import { describeChange, periodOf } from "./sections/change-history";
+import { invitationsConsequence } from "./sections/invitations";
+import { roleConsequence } from "./sections/roles";
 import { CoreSettingsSectionHost } from "./section-host";
 import { EmployeeFieldsSettings, employeeFieldsConsequence, toDraft } from "./sections/employee-fields";
 import { useEmployeeFieldPolicy } from "@/features/employees/shared/employee-field-visibility";
@@ -87,6 +95,56 @@ describe("Employee fields", () => {
     expect(
       employeeFieldsConsequence(draft, { ...draft, selfService: { ...draft.selfService, canEditPhone: false } })
     ).toBe("Employees can no longer change their phone number.");
+  });
+});
+
+const fr = await loadCoreMessages("fr");
+const french = createTranslator({ locale: "fr", messages: fr, namespace: "settings" });
+const sayInFrench: Say = (key, values) => french(key as never, values as never);
+
+describe("In French", () => {
+  it("renders Employee fields in French, naming the section from the catalogue", () => {
+    mocks.peopleData = PEOPLE_DATA;
+    render(
+      <IntlTestProvider locale="fr" messages={{ ...dsFr, ...fr }}>
+        <EmployeeFieldsSettings section={section("employee-fields", "view")} />
+      </IntlTestProvider>
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "Champs collaborateur" })).toBeInTheDocument();
+    expect(screen.getByText("Lecture seule")).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Téléphone/ })).toHaveTextContent("NonVisibleMasquéVisible");
+  });
+
+  it("says what saving does with French agreement", () => {
+    const saved = toDraft(PEOPLE_DATA);
+    const draft = toDraft({
+      ...PEOPLE_DATA,
+      employeeFieldConfig: { ...PEOPLE_DATA.employeeFieldConfig, hireDate: { ...PEOPLE_DATA.employeeFieldConfig.hireDate!, required: false } },
+    });
+    expect(employeeFieldsConsequence(saved, draft, sayInFrench)).toBe("Date d’embauche n’est plus obligatoire.");
+    expect(
+      invitationsConsequence(
+        { inviteExpiryDays: 7, resendCooldownHours: 24, defaultAccessProfileId: null, pendingInviteBehavior: "RefreshExisting" },
+        { inviteExpiryDays: 1, resendCooldownHours: 24, defaultAccessProfileId: null, pendingInviteBehavior: "KeepExisting" },
+        "Employee",
+        sayInFrench
+      )
+    ).toBe("Les invitations envoyées à partir de maintenant expirent après 1 jour. Une nouvelle invitation conserve le premier lien.");
+    expect(roleConsequence("Recruteur", { calibration: "None" }, { calibration: "Manage" }, sayInFrench)).toBe(
+      "Les titulaires du rôle « Recruteur » peuvent gérer le calibrage."
+    );
+  });
+
+  it("writes change history's lines in French", () => {
+    expect(describeChange("employeeFieldConfig.phone.visibleToManager", false, true, sayInFrench)).toEqual({
+      label: "Téléphone · son manager",
+      before: "Masqué",
+      after: "Visible",
+      sentence: "Téléphone : les managers le voient désormais",
+    });
+    expect(describeChange("provisioning.inviteExpiryDays", 7, 14, sayInFrench).after).toBe("14 jours");
+    expect(periodOf(new Date(2026, 8, 3), new Date(2026, 9, 24), sayInFrench, "fr")).toBe("Septembre");
+    expect(periodOf(new Date(2026, 9, 22), new Date(2026, 9, 24), sayInFrench, "fr")).toBe("Cette semaine");
   });
 });
 

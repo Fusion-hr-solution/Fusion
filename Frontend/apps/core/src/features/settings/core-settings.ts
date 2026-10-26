@@ -1,3 +1,5 @@
+import { useSettingsSectionName } from "@repo/ds/shell";
+
 /** Core HR's sections in Fusion Settings, in order (the server decides which a person sees). */
 export const CORE_SETTINGS_SECTIONS = [
   { id: "company", label: "Company" },
@@ -13,15 +15,17 @@ export function isCoreSettingsSectionId(value: string): value is CoreSettingsSec
   return CORE_SETTINGS_SECTIONS.some((section) => section.id === value);
 }
 
-export function coreSettingsLabel(id: string): string {
-  return CORE_SETTINGS_SECTIONS.find((section) => section.id === id)?.label ?? "Settings";
+/** A Core HR section's name in the person's language, before the server's list arrives. */
+export function useCoreSettingsLabel(): (id: string) => string {
+  const name = useSettingsSectionName();
+  return (id) => name({ id, label: CORE_SETTINGS_SECTIONS.find((section) => section.id === id)?.label ?? "Settings" });
 }
 
-/** Change history's section filter names the section an audit entry belongs to. */
-export const AUDIT_SECTION_LABELS: Record<string, string> = {
-  organization: "Company",
-  "people-data": "Employee fields",
-  provisioning: "Invitations",
-  "access-permissions": "Roles",
-  roles: "Roles",
+/** The settings section an audit entry belongs to, by the audit's own section id. */
+export const AUDIT_SECTION_IDS: Record<string, CoreSettingsSectionId> = {
+  organization: "company",
+  "people-data": "employee-fields",
+  provisioning: "invitations",
+  "access-permissions": "roles",
+  roles: "roles",
 };

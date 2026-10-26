@@ -115,7 +115,7 @@ export default function ActivityLogWorkspace() {
         <p className="type-body text-muted-foreground">Nothing has changed here yet.</p>
       ) : (
         <>
-          <ol className="border-l">
+          <ol className="border-s">
             {items.map((item) => (
               <ActivityEntry key={item.id} item={item} />
             ))}
@@ -138,10 +138,10 @@ function ActivityEntry({ item }: { item: AccessActivityItemDto }) {
   const actor = actorLabel(item.actorName);
 
   return (
-    <li className="relative py-3 pl-6">
+    <li className="relative py-3 ps-6">
       <span
         aria-hidden
-        className="absolute -left-[5px] top-4 size-2 rounded-full border-2 border-muted-foreground/40 bg-background"
+        className="absolute -inset-s-[5px] top-4 size-2 rounded-full border-2 border-muted-foreground/40 bg-background"
       />
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
         <p className="type-body text-foreground">

@@ -225,13 +225,13 @@ function TargetSearch({
       <div className="relative">
         <Search
           aria-hidden
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
         />
         <Input
           value={query}
           onChange={(event) => onQuery(event.target.value)}
           placeholder="Search people by name, email, or employee number"
-          className="pl-9"
+          className="ps-9"
           aria-label="Search for the corrected person"
         />
       </div>
@@ -249,7 +249,7 @@ function TargetSearch({
               key={person.employeeId}
               type="button"
               onClick={() => onChoose(person)}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/40"
             >
               <PersonLine
                 name={person.displayName}
