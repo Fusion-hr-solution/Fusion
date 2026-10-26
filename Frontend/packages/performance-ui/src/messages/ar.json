@@ -1,0 +1,124 @@
+{
+  "performanceUi": {
+    "SummarySkeleton": {
+      "loadingPerformance": "جارٍ تحميل الأداء"
+    },
+    "PersonPerformanceSummary": {
+      "performanceCouldntBeLoaded": "تعذّر تحميل الأداء.",
+      "tryAgain": "أعد المحاولة",
+      "theresNothingYouCanSee": "لا يوجد ما يمكنك رؤيته هنا بعد."
+    },
+    "PraiseCard": {
+      "aColleague": "زميل",
+      "from": "من {author} ·",
+      "toYou": "إليك",
+      "praised": "أشاد {author} بـ{recipients}"
+    },
+    "PraiseReactions": {
+      "reactions": "التفاعلات"
+    },
+    "SummaryOneOnOne": {
+      "next11": "اللقاء الفردي القادم",
+      "notScheduled": "غير مجدول"
+    },
+    "SummaryFeedback": {
+      "feedback": "الملاحظات",
+      "noFeedbackYet": "لا ملاحظات بعد",
+      "aColleague": "زميل",
+      "managerOnly": "للمدير فقط"
+    },
+    "SummaryPraise": {
+      "praise": "الإشادات",
+      "noPraiseYet": "لا إشادات بعد"
+    },
+    "SummaryDevelopment": {
+      "development": "التطوير",
+      "noDevelopmentGoalsYet": "لا أهداف تطوير بعد",
+      "by": "قبل {targetDate}"
+    },
+    "PlanFact": {
+      "noCycleYet": "لا دورة بعد",
+      "notPartOf": "غير مشمول في {cycleName}",
+      "n1Objective": "هدف واحد",
+      "objectives": "{length} أهداف",
+      "atRisk": "{cycle} في خطر"
+    },
+    "ReviewStepTrack": {
+      "noReviewInProgress": "لا تقييم جارٍ",
+      "reviewSteps": "مراحل تقييم {reviewRoundName}",
+      "due": "، مستحق في {dueDate}"
+    },
+    "ResultsOverTime": {
+      "noReleasedResultsYet": "لا نتائج منشورة بعد",
+      "noRating": "بلا تقدير"
+    },
+    "SummaryGlance": {
+      "plan": "الخطة، {cycleName}",
+      "plan2": "الخطة",
+      "review": "التقييم",
+      "results": "النتائج",
+      "atAGlance": "نظرة سريعة"
+    },
+    "SummaryObjectives": {
+      "objectives": "الأهداف",
+      "notPartOf": "غير مشمول في {cycleName}",
+      "noObjectivesSharedYet": "لا أهداف مشتركة بعد",
+      "alignedTo": "مرتبط بـ{alignedTo}",
+      "standalone": "مستقل"
+    },
+    "SummaryReviews": {
+      "due": "مستحق في {dueDate}",
+      "inProgress": "قيد التنفيذ",
+      "finalized": "اكتمل في {finalizedAt}",
+      "finalized2": "مكتمل",
+      "reviews": "التقييمات",
+      "noReviewsYet": "لا تقييمات بعد"
+    },
+    "words": {
+      "objectiveStatus": {
+        "OnTrack": "على المسار",
+        "AtRisk": "في خطر",
+        "OffTrack": "خارج المسار"
+      },
+      "planStatus": {
+        "NotStarted": "لم تبدأ",
+        "Draft": "مسودة",
+        "ReturnedForChanges": "أُعيدت للتعديل",
+        "Submitted": "بانتظار الموافقة",
+        "Approved": "معتمدة"
+      },
+      "developmentStatus": {
+        "NotStarted": "لم يبدأ",
+        "InProgress": "قيد التنفيذ",
+        "Done": "منجز"
+      },
+      "step": {
+        "SelfAssessment": "التقييم الذاتي",
+        "ManagerAssessment": "تقييم المراجع",
+        "Calibration": "المعايرة",
+        "ReadyToFinalize": "جاهز للاعتماد",
+        "Finalized": "مكتمل"
+      },
+      "mix": {
+        "onTrack": "{count} على المسار",
+        "atRisk": "{count} في خطر",
+        "offTrack": "{count} خارج المسار",
+        "notReported": "{count} بلا تحديث"
+      },
+      "aColleague": "زميل",
+      "namesAnd": "{first} و{last}",
+      "justNow": "الآن",
+      "minutesAgo": "منذ {count} د",
+      "hoursAgo": "منذ {count} س",
+      "yesterday": "أمس",
+      "closed": "مغلقة",
+      "noRating": "بلا تقدير",
+      "open11s": "فتح اللقاءات الفردية",
+      "overdue11": "لقاء فردي متأخر",
+      "openFeedback": "فتح الملاحظات",
+      "seeAllPraise": "عرض كل الإشادات",
+      "openDevelopment": "فتح التطوير",
+      "openPlan": "فتح الخطة"
+    }
+  }
+}

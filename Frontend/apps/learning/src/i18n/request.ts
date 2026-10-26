@@ -5,4 +5,6 @@ import { createI18nRequestConfig } from "@repo/i18n/request";
 export default createI18nRequestConfig({
   loadMessages: async (locale) =>
     (await import(`../../messages/${locale}.json`)).default,
+  // Learning speaks English and French; other languages read it in English.
+  locales: ["en", "fr"],
 });

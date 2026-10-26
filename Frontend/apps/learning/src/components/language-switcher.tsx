@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { LOCALES, type Locale } from "@repo/i18n";
 import { setLocale } from "@repo/i18n/locale";
 
-const SWITCH_LABEL_KEY: Record<Locale, "switchToEn" | "switchToFr"> = {
+const SWITCH_LABEL_KEY: Partial<Record<Locale, "switchToEn" | "switchToFr">> = {
   en: "switchToEn",
   fr: "switchToFr",
 };
@@ -30,7 +30,8 @@ export function LanguageSwitcher({
     });
   }
 
-  const buttons = LOCALES.map((code) => {
+  // Only the languages Learning has messages for.
+  const buttons = LOCALES.filter((code) => SWITCH_LABEL_KEY[code]).map((code) => {
     const isActive = code === locale;
     return (
       <button
@@ -40,7 +41,7 @@ export function LanguageSwitcher({
         onClick={() => switchTo(code)}
         disabled={isPending}
         aria-pressed={isActive}
-        aria-label={t(SWITCH_LABEL_KEY[code])}
+        aria-label={t(SWITCH_LABEL_KEY[code]!)}
         className={`rounded-md px-2 py-1 text-[10px] font-semibold uppercase transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
           isActive
             ? "bg-foreground text-background"

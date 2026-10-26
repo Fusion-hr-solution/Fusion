@@ -7,7 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Plus, Search, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { DateRange } from "react-day-picker";
-import { fr } from "react-day-picker/locale";
+import { ar, fr } from "react-day-picker/locale";
 import { Button } from "../components/ui/button";
 import { Calendar } from "../components/ui/calendar";
 import {
@@ -565,7 +565,7 @@ function DateRangeEditor({
   return (
     <Calendar
       mode="range"
-      locale={locale === "fr" ? fr : undefined}
+      locale={locale === "fr" ? fr : locale === "ar" ? ar : undefined}
       numberOfMonths={1}
       selected={selected}
       defaultMonth={from}

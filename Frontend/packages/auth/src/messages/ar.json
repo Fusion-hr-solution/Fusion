@@ -1,0 +1,22 @@
+{
+  "auth": {
+    "signIn": {
+      "title": "تسجيل الدخول",
+      "subtitle": "سجّل الدخول إلى حسابك",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "name@company.com",
+      "password": "كلمة المرور",
+      "showCharacters": "إظهار الأحرف",
+      "hideCharacters": "إخفاء الأحرف",
+      "rememberMe": "تذكرني",
+      "forgotPassword": "نسيت كلمة المرور؟",
+      "submit": "تسجيل الدخول",
+      "submitting": "جارٍ تسجيل الدخول…",
+      "or": "أو",
+      "sso": "تسجيل الدخول عبر SSO",
+      "agreement": "بتسجيل الدخول، فإنك توافق على <terms>الشروط</terms> و<privacy>سياسة الخصوصية</privacy>.",
+      "invalidCredentials": "بيانات الدخول غير صحيحة.",
+      "failed": "تعذّر تسجيل الدخول. أعد المحاولة."
+    }
+  }
+}

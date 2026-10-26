@@ -62,7 +62,7 @@ export function SummaryFeedback({ feedback, renderLink }: { feedback: PersonSumm
                   {item.visibility === "ManagerOnly" ? <StatusBadge tone="neutral">{t("managerOnly")}</StatusBadge> : null}
                   <span className="type-meta text-muted-foreground">{words.date(item.sentAt)}</span>
                 </div>
-                <p className="type-body line-clamp-2 text-foreground">{item.message}</p>
+                <p dir="auto" className="type-body line-clamp-2 text-foreground">{item.message}</p>
               </div>
             </li>
           ))}

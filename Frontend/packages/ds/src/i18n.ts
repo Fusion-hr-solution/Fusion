@@ -15,5 +15,7 @@ export function directionOf(locale: string): WritingDirection {
 
 /** @repo/ds's own messages (namespace `ds`), merged into each app's catalogue. Unknown locales get English. */
 export async function loadDsMessages(locale: string): Promise<DsMessages> {
-  return locale === "fr" ? (await import("./messages/fr.json")).default : en;
+  if (locale === "fr") return (await import("./messages/fr.json")).default;
+  if (locale === "ar") return (await import("./messages/ar.json")).default;
+  return en;
 }

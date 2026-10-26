@@ -10,7 +10,8 @@
 export const FORMAT_LOCALE = "en-GB";
 
 /** The formatting locale for each language Fusion speaks. Anything else formats in English. */
-const FORMAT_LOCALES: Record<string, string> = { en: FORMAT_LOCALE, fr: "fr-FR" };
+// Arabic formats with plain "ar", the locale the numbers inside Arabic messages use, so both write digits alike.
+const FORMAT_LOCALES: Record<string, string> = { en: FORMAT_LOCALE, fr: "fr-FR", ar: "ar" };
 
 /**
  * The formatting locale for a person's language ("en", "fr", as `useLocale()` gives it). Translated screens pass
@@ -59,14 +60,17 @@ export function formatDate(value: DateInput, options: DateFormatOptions & { fall
 /** "11:00". */
 export function formatTime(value: DateInput, fallback = "–", locale?: string): string {
   const date = toDate(value);
-  return date ? new Intl.DateTimeFormat(formatLocale(locale), { hour: "2-digit", minute: "2-digit" }).format(date) : fallback;
+  return date ? new Intl.DateTimeFormat(formatLocale(locale), { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date) : fallback;
 }
+
+/** What sits between the date and the time, per formatting locale; English and anything else use ", ". */
+const DATE_TIME_JOINERS: Record<string, string> = { "fr-FR": " à ", ar: "، " };
 
 /** "Tue 20 Oct, 11:00", "mar. 20 oct. à 11:00" (weekday by default, since a time is something to turn up to). */
 export function formatDateTime(value: DateInput, options: DateFormatOptions & { fallback?: string } = {}): string {
   const date = toDate(value);
   if (!date) return options.fallback ?? "–";
-  const joiner = formatLocale(options.locale) === "fr-FR" ? " à " : ", ";
+  const joiner = DATE_TIME_JOINERS[formatLocale(options.locale)] ?? ", ";
   return `${formatDate(date, { weekday: true, ...options })}${joiner}${formatTime(date, "–", options.locale)}`;
 }
 
@@ -88,7 +92,7 @@ export function formatDateRange(
 
 /**
  * A shape the grammar above has no name for ("Tuesday 20 October", "October", "Tue"), still in Fusion's one locale.
- * Prefer the named formatters; reach for this only when none of them fits.
+ * Prefer the named formatters; reach for this only when none of them fits. Times stay 24-hour in every language.
  */
 export function formatDateParts(
   value: DateInput,
@@ -97,12 +101,12 @@ export function formatDateParts(
   locale?: string,
 ): string {
   const date = toDate(value);
-  return date ? new Intl.DateTimeFormat(formatLocale(locale), options).format(date) : fallback;
+  return date ? new Intl.DateTimeFormat(formatLocale(locale), { hourCycle: "h23", ...options }).format(date) : fallback;
 }
 
 /** A formatter for a shape used many times (a list, a chart axis), in the person's language (English by default). */
 export function dateFormatter(options: Intl.DateTimeFormatOptions, locale?: string): Intl.DateTimeFormat {
-  return new Intl.DateTimeFormat(formatLocale(locale), options);
+  return new Intl.DateTimeFormat(formatLocale(locale), { hourCycle: "h23", ...options });
 }
 
 /** Whole calendar days from today to the value (negative once past). */

@@ -20,6 +20,7 @@ const APPEARANCES: { value: Appearance; icon: LucideIcon }[] = [
 const LANGUAGES: { value: Locale; label: string }[] = [
   { value: "en", label: "English" },
   { value: "fr", label: "Français" },
+  { value: "ar", label: "العربية" },
 ];
 
 /**

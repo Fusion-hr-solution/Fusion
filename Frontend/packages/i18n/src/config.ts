@@ -7,7 +7,7 @@
  * `@repo/i18n` and supplying their own message catalogs.
  */
 
-export const LOCALES = ["en", "fr"] as const;
+export const LOCALES = ["en", "fr", "ar"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";

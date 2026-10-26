@@ -38,7 +38,8 @@ export function PraiseCard({ praise, reactionIcons, onReact, onOpen, pendingReac
   const recipients = words.joinNames(praise.recipients.map((r) => r.name));
   const author = praise.author.name ?? t("aColleague");
   const message = (
-    <p className={cn(reading ? "type-narrative" : "type-body", "text-foreground", onOpen && "line-clamp-4")}>{praise.message}</p>
+    // Written in whatever language its author used, so it takes its direction from its own text.
+    <p dir="auto" className={cn(reading ? "type-narrative" : "type-body", "text-foreground", onOpen && "line-clamp-4")}>{praise.message}</p>
   );
   return (
     <article className="flex flex-col gap-3.5 rounded-surface bg-card p-5" aria-label={t("praised", { author, recipients })}>

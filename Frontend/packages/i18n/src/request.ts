@@ -16,6 +16,8 @@ export interface I18nRequestOptions {
   loadMessages: (locale: Locale) => Promise<Record<string, unknown>>;
   /** IANA time zone; defaults to {@link DEFAULT_TIME_ZONE} (Africa/Tunis). */
   timeZone?: string;
+  /** The languages the module has messages for, when not all of them; anything else renders in {@link DEFAULT_LOCALE}. */
+  locales?: readonly Locale[];
 }
 
 /** Resolve the active locale from the `NEXT_LOCALE` cookie (server-side). */
@@ -42,7 +44,8 @@ export async function resolveLocale(): Promise<Locale> {
  */
 export function createI18nRequestConfig(options: I18nRequestOptions) {
   return getRequestConfig(async () => {
-    const locale = await resolveLocale();
+    const resolved = await resolveLocale();
+    const locale = !options.locales || options.locales.includes(resolved) ? resolved : DEFAULT_LOCALE;
     return {
       locale,
       timeZone: options.timeZone ?? DEFAULT_TIME_ZONE,

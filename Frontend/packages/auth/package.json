@@ -8,7 +8,8 @@
     "./header": "./src/components/app-header.tsx",
     "./i18n": "./src/i18n.ts",
     "./messages/en.json": "./src/messages/en.json",
-    "./messages/fr.json": "./src/messages/fr.json"
+    "./messages/fr.json": "./src/messages/fr.json",
+    "./messages/ar.json": "./src/messages/ar.json"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",

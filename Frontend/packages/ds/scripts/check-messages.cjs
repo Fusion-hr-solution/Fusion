@@ -14,7 +14,7 @@ const fs = require("fs");
 const path = require("path");
 const { IntlMessageFormat } = require("intl-messageformat");
 
-const LOCALES = ["en", "fr"];
+const LOCALES = ["en", "fr", "ar"];
 
 function flatten(value, prefix, out) {
   for (const key of Object.keys(value)) {

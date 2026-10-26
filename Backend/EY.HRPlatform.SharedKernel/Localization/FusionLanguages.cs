@@ -8,13 +8,14 @@ public static class FusionLanguages
 {
     public const string English = "en";
     public const string French = "fr";
+    public const string Arabic = "ar";
 
     /// <summary>Used when neither the person nor their company names a supported language.</summary>
     public const string Default = English;
 
     public const int MaxLength = 8;
 
-    public static IReadOnlyList<string> Supported { get; } = [English, French];
+    public static IReadOnlyList<string> Supported { get; } = [English, French, Arabic];
 
     public static bool IsSupported(string? language)
         => language is not null && Supported.Contains(language, StringComparer.Ordinal);

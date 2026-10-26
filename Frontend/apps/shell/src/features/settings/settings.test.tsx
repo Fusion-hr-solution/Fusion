@@ -99,6 +99,13 @@ describe("Preferences", () => {
     expect(container.querySelector("[lang='fr']")).toBeTruthy();
   });
 
+  it("offers العربية and reads in Arabic", () => {
+    render(<Preferences />, { locale: "ar" });
+    expect(screen.getByRole("heading", { level: 1, name: "التفضيلات" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "داكن" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "العربية" }).getAttribute("lang")).toBe("ar");
+  });
+
   it("keeps English selected and says so when the save fails", async () => {
     mocks.setLanguage.mockRejectedValueOnce(new Error("Identity is unavailable"));
     render(<Preferences />);
@@ -121,6 +128,8 @@ describe("the catalogue check", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "shell-messages-"));
     writeFileSync(path.join(dir, "en.json"), JSON.stringify(en));
     writeFileSync(path.join(dir, "fr.json"), JSON.stringify(fr));
+    // Arabic complete, so only the French gap is reported.
+    writeFileSync(path.join(dir, "ar.json"), JSON.stringify(en));
     return spawnSync(process.execPath, [script, dir], { encoding: "utf8" });
   }
 

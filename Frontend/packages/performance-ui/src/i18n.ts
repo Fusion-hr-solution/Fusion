@@ -7,5 +7,7 @@ export type PerformanceUiMessages = typeof en;
 
 /** The catalogue in a language; anything but French gets English. */
 export async function loadPerformanceUiMessages(locale: string): Promise<PerformanceUiMessages> {
-  return locale === "fr" ? (await import("./messages/fr.json")).default : en;
+  if (locale === "fr") return (await import("./messages/fr.json")).default;
+  if (locale === "ar") return (await import("./messages/ar.json")).default;
+  return en;
 }

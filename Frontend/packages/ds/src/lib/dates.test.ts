@@ -46,6 +46,12 @@ describe("dates", () => {
     expect(formatDate("2026-10-20", { now, weekday: true, locale: "de" })).toBe("Tue 20 Oct");
   });
 
+  it("formats in Arabic with 24-hour times", () => {
+    const at = new Date(2026, 9, 20, 11, 0);
+    expect(formatDate("2026-10-20", { now, weekday: true, locale: "ar" })).toBe("الثلاثاء، 20 أكتوبر");
+    expect(formatDateTime(at, { now, locale: "ar" })).toBe("الثلاثاء، 20 أكتوبر، 11:00");
+  });
+
   it("names a moment's recency for translated screens to put into words", () => {
     expect(recencyOf(new Date(2026, 9, 23, 14, 48), now)).toEqual({ unit: "minutes", count: 12 });
     expect(recencyOf("2026-10-22", now)).toEqual({ unit: "yesterday" });

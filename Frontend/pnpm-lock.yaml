@@ -876,6 +876,9 @@ importers:
       '@fontsource-variable/lora':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource-variable/noto-sans-arabic':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@hugeicons/core-free-icons':
         specifier: ^4.3.5
         version: 4.3.5
@@ -1712,6 +1715,9 @@ packages:
 
   '@fontsource-variable/lora@5.3.0':
     resolution: {integrity: sha512-2ph8KiZ8Bn141hWuC3ErtpJ+Ui8p2MJQn8TJNRSRmLmnCIOCtHfiBM9R7WLRPeUG/q6hXyHOxWQ8DvRSX+ixvQ==}
+
+  '@fontsource-variable/noto-sans-arabic@5.3.0':
+    resolution: {integrity: sha512-Rz8+DBzza3//cmN+DBQajJhx3x+Dx12eUgnQsTOgPWbOT0+In6APmE8z4I/QQnUWfAx+s8l93+60qDT5vJH1sA==}
 
   '@formatjs/fast-memoize@3.1.6':
     resolution: {integrity: sha512-H5aexk1Le7T9TPmscacZ+1pR6CTa2n1wq+HDVGXhH8TzUlQQpeXzZs91dRtmFHrbeNbjPFPfQujUqm7MHgVoXQ==}
@@ -7381,6 +7387,8 @@ snapshots:
   '@fontsource-variable/geist@5.3.0': {}
 
   '@fontsource-variable/lora@5.3.0': {}
+
+  '@fontsource-variable/noto-sans-arabic@5.3.0': {}
 
   '@formatjs/fast-memoize@3.1.6': {}
 

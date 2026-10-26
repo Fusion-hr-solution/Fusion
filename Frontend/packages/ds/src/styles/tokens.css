@@ -2,6 +2,8 @@
 @import "@fontsource-variable/geist/wght.css";
 @import "@fontsource-variable/geist-mono/wght.css";
 @import "@fontsource-variable/lora/wght.css";
+/* Arabic letters, which Geist and Lora lack; its unicode range keeps it unloaded until Arabic text renders. */
+@import "@fontsource-variable/noto-sans-arabic/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -12,9 +14,9 @@
     /* Fusion's typography separates the system voice from the human voice:
        Geist carries product chrome and operational data; Lora is reserved for
        page openings, major moments, and authored narrative. */
-    --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-sans: "Geist Variable", "Noto Sans Arabic Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-heading: var(--font-sans);
-    --font-editorial: "Lora Variable", Georgia, "Times New Roman", serif;
+    --font-editorial: "Lora Variable", "Noto Sans Arabic Variable", Georgia, "Times New Roman", serif;
     --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     /* A quiet canvas step keeps working surfaces legible without turning the
        product into white/gray soup. Cards and overlays remain true white. */
@@ -301,6 +303,11 @@
 }
 
 @layer base {
+  /* Right to left, icons that point along the line mirror: Lucide's by name, others marked with data-rtl-flip.
+     Disclosure chevrons that rotate open are left alone: mirrored, their open state would point up. */
+  [dir="rtl"] :is(.cn-rtl-flip, [data-rtl-flip], .lucide-chevron-right, .lucide-chevron-left, .lucide-chevrons-right, .lucide-chevrons-left, .lucide-arrow-right, .lucide-arrow-left):not([class*="rotate"]) {
+    scale: -1 1;
+  }
   * {
     @apply border-border outline-ring/50;
     }

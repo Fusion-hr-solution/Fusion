@@ -7,5 +7,7 @@ export type AuthMessages = typeof en;
 
 /** @repo/auth's messages; unknown locales get English. */
 export async function loadAuthMessages(locale: string): Promise<AuthMessages> {
-  return locale === "fr" ? (await import("./messages/fr.json")).default : en;
+  if (locale === "fr") return (await import("./messages/fr.json")).default;
+  if (locale === "ar") return (await import("./messages/ar.json")).default;
+  return en;
 }
