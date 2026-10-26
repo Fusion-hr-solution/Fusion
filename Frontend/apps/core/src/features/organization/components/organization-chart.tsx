@@ -470,6 +470,8 @@ export default function OrganizationChart({
         </div>
       ) : null}
       <ReactFlow<OrganizationFlowNode, Edge>
+        // React Flow positions in physical pixels and breaks right to left; the chart reads left to right in every language.
+        dir="ltr"
         nodes={displayNodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -506,7 +508,7 @@ export default function OrganizationChart({
             ariaLabel={t("chart.overview")}
             pannable
             zoomable
-            className="!bottom-3 !inset-e-14 !rounded-control !border !border-border !bg-popover !shadow-raised"
+            className="!bottom-3 ltr:!right-14 !rounded-control !border !border-border !bg-popover !shadow-raised"
             maskColor="color-mix(in oklab, var(--muted) 66%, transparent)"
             nodeColor={(node) =>
               node.data?.root === true || node.data?.selected === true

@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "people": "الأفراد",
+    "administration": "الإدارة",
+    "overview": "نظرة عامة",
+    "myProfile": "ملفي الشخصي",
+    "myTeam": "فريقي",
+    "peopleDirectory": "الموظفون",
+    "organization": "الهيكل التنظيمي",
+    "gettingStarted": "البدء",
+    "workforceAccess": "وصول الموظفين",
+    "administrators": "المسؤولون",
+    "settings": "الإعدادات"
+  },
+  "breadcrumb": {
+    "import": "الاستيراد",
+    "match": "المطابقة",
+    "review": "المراجعة",
+    "hire": "توظيف",
+    "add-existing": "إضافة موظف حالي",
+    "change-work": "تغيير العمل",
+    "change-manager": "تغيير المدير",
+    "end-employment": "إنهاء التوظيف",
+    "performance": "الأداء",
+    "activity": "النشاط"
+  },
+  "metadata": {
+    "title": "الموارد البشرية الأساسية — Fusion",
+    "description": "منصة الموارد البشرية الأساسية لإدارة الموظفين والهيكل التنظيمي"
+  },
+  "loadingCoreHr": "جارٍ تحميل الموارد البشرية الأساسية",
+  "checkingAccess": "جارٍ التحقق من الوصول إلى الموارد البشرية الأساسية",
+  "loadingPage": "جارٍ تحميل الصفحة",
+  "error": {
+    "title": "حدث خطأ ما",
+    "description": "حدث خطأ غير متوقع. أعد المحاولة بعد قليل.",
+    "action": "أعد المحاولة"
+  },
+  "notFound": {
+    "description": "الصفحة التي تبحث عنها غير موجودة في الموارد البشرية الأساسية.",
+    "action": "العودة إلى الموارد البشرية الأساسية"
+  },
+  "boundary": {
+    "denied": {
+      "title": "الوصول مرفوض",
+      "description": "ليست لديك صلاحية فتح هذا القسم.",
+      "noticeTitle": "هذا القسم غير متاح لحسابك",
+      "noticeDescription": "افتح قسمًا آخر من Fusion يمكنك استخدامه، أو تواصل مع المسؤول إن كنت تتوقع الوصول.",
+      "action": "فتح Fusion"
+    },
+    "platform": {
+      "title": "الموارد البشرية الأساسية مساحة عمل للعملاء",
+      "description": "إدارة المنصة منفصلة عن بيانات موظفي العملاء.",
+      "noticeTitle": "الموارد البشرية الأساسية غير متاحة لمسؤولي المنصة",
+      "noticeDescription": "استخدم لوحة تحكم المنصة للإدارة على مستوى المنصة.",
+      "action": "فتح المنصة"
+    },
+    "unavailable": {
+      "title": "الموارد البشرية الأساسية غير متاحة",
+      "description": "وحدة الموارد البشرية الأساسية غير مفعّلة لهذه المؤسسة حاليًا.",
+      "noticeTitle": "الوحدة غير متاحة",
+      "noticeDescription": "تواصل مع مسؤول Fusion إن كان يجب تفعيل الموارد البشرية الأساسية لهذه المؤسسة.",
+      "action": "فتح Fusion"
+    }
+  },
+  "skeletons": {
+    "loadingTitle": "جارٍ تحميل {title}…",
+    "dashboard": "لوحة المتابعة",
+    "people": "الموظفون",
+    "loadingPeople": "جارٍ تحميل الموظفين",
+    "openingPerson": "جارٍ فتح تفاصيل الموظف",
+    "myTeam": "فريقي",
+    "loadingTeam": "جارٍ تحميل الفريق.",
+    "loadingYourTeam": "جارٍ تحميل فريقك…",
+    "orgChart": "المخطط التنظيمي",
+    "orgChartDescription": "هيكل القوى العاملة وخطوط التبعية.",
+    "accessProfiles": "ملفات الوصول",
+    "openingAccessProfiles": "جارٍ فتح إعدادات ملفات الوصول",
+    "setup": "الإعداد",
+    "setupDescription": "فعّل مساحة العمل التجريبية للبدء."
+  }
+}

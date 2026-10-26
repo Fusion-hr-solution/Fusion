@@ -1,0 +1,9 @@
+{
+  "status": {
+    "Active": "نشط",
+    "Inactive": "غير نشط",
+    "Ended": "منتهٍ"
+  },
+  "unassigned": "غير مسند",
+  "dateUnavailable": "التاريخ غير متاح"
+}

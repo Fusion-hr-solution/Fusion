@@ -1,0 +1,273 @@
+{
+  "didNotLoad": "تعذّر تحميل إعدادات الموارد البشرية الأساسية",
+  "company": {
+    "didNotLoad": "تعذّر تحميل تفاصيل الشركة",
+    "note": "ضُبطت عند انضمام {name} إلى Fusion. يغيّرها مزوّد Fusion الخاص بك.",
+    "name": "اسم الشركة",
+    "workspace": "عنوان مساحة العمل",
+    "industry": "القطاع",
+    "language": "اللغة والصيغ",
+    "languageDetail": "التواريخ والأرقام ورسائل البريد التي يرسلها Fusion",
+    "timeZone": "المنطقة الزمنية",
+    "timeZoneDetail": "تتبعها المواعيد النهائية والتذكيرات",
+    "modules": "الوحدات",
+    "modulesOn": "{count} مفعّلة"
+  },
+  "employeeFields": {
+    "didNotLoad": "تعذّر تحميل حقول الموظفين",
+    "notSaved": "لم تُحفظ حقول الموظفين. أعد المحاولة.",
+    "leave": "المغادرة دون حفظ؟ ستُتجاهل تغييراتك على حقول الموظفين.",
+    "onProfile": "في الملف",
+    "field": "الحقل",
+    "columns": {
+      "required": "إلزامي",
+      "visibleToEmployee": "الموظف",
+      "visibleToManager": "مديره"
+    },
+    "hr": "الموارد البشرية",
+    "cell": "{field}: {column}",
+    "hrAlways": "{field}: تراه الموارد البشرية دائمًا",
+    "yes": "نعم",
+    "no": "لا",
+    "seesIt": "يراه",
+    "hidden": "مخفي",
+    "canChange": "يمكن للموظفين تغيير",
+    "selfService": {
+      "canEditPreferredName": {
+        "label": "اسمهم المفضّل",
+        "their": "اسمهم المفضّل"
+      },
+      "canEditPhone": {
+        "label": "رقم هاتفهم",
+        "their": "رقم هاتفهم"
+      }
+    },
+    "fields": {
+      "firstName": {
+        "label": "الاسم الأول",
+        "their": "اسمهم الأول",
+        "plural": "الأسماء الأولى"
+      },
+      "lastName": {
+        "label": "اسم العائلة",
+        "their": "اسم عائلتهم",
+        "plural": "أسماء العائلات"
+      },
+      "email": {
+        "label": "البريد المهني",
+        "their": "بريدهم المهني",
+        "plural": "البريد المهني"
+      },
+      "hireDate": {
+        "label": "تاريخ التوظيف",
+        "their": "تاريخ توظيفهم",
+        "plural": "تواريخ التوظيف"
+      },
+      "phone": {
+        "label": "الهاتف",
+        "their": "رقم هاتفهم",
+        "plural": "أرقام الهواتف"
+      },
+      "jobTitle": {
+        "label": "المسمى الوظيفي",
+        "their": "مسماهم الوظيفي",
+        "plural": "المسميات الوظيفية"
+      },
+      "workLocation": {
+        "label": "موقع العمل",
+        "their": "موقع عملهم",
+        "plural": "مواقع العمل"
+      },
+      "employmentType": {
+        "label": "نوع التوظيف",
+        "their": "نوع توظيفهم",
+        "plural": "أنواع التوظيف"
+      }
+    },
+    "consequence": {
+      "managersSee": "يرى المديرون {nouns} في ملفات فرقهم.",
+      "managersStop": "يتوقف المديرون عن رؤية {nouns} في ملفات فرقهم.",
+      "employeesSee": "يرى الموظفون {their} في «ملفي الشخصي».",
+      "employeesStop": "يتوقف الموظفون عن رؤية {their} في «ملفي الشخصي».",
+      "required": "يصبح {label} إلزاميًا في السجلات الجديدة والمعدّلة.",
+      "optional": "يصبح {label} اختياريًا.",
+      "canChange": "يمكن للموظفين تغيير {their} في «ملفي الشخصي».",
+      "cannotChange": "لم يعد بإمكان الموظفين تغيير {their}.",
+      "more": "{sentences} و{count, plural, one {تغيير آخر} other {# تغييرات أخرى}}."
+    }
+  },
+  "invitations": {
+    "didNotLoad": "تعذّر تحميل الدعوات",
+    "notSaved": "لم تُحفظ الدعوات. أعد المحاولة.",
+    "leave": "المغادرة دون حفظ؟ ستُتجاهل تغييراتك على الدعوات.",
+    "reinvite": {
+      "RefreshExisting": {
+        "label": "إرسال دعوة جديدة",
+        "detail": "يتوقف الرابط السابق عن العمل"
+      },
+      "KeepExisting": {
+        "label": "الإبقاء على الأولى",
+        "detail": "لا يُرسل شيء مجددًا"
+      }
+    },
+    "expiresAfter": "تنتهي صلاحية الدعوة بعد",
+    "expiresAfterInDays": "تنتهي صلاحية الدعوة بعد، بالأيام",
+    "cooldown": "يمكن طلب دعوة جديدة بعد",
+    "cooldownInHours": "يمكن طلب دعوة جديدة بعد، بالساعات",
+    "days": "أيام",
+    "hours": "ساعات",
+    "dayCount": "{count, plural, one {يوم واحد} two {يومان} other {# أيام}}",
+    "hourCount": "{count, plural, one {ساعة واحدة} two {ساعتان} other {# ساعات}}",
+    "role": "دور الحسابات الجديدة",
+    "reinviteTitle": "دعوة شخص لديه دعوة بالفعل",
+    "consequence": {
+      "expiry": "تنتهي الدعوات المرسلة من الآن بعد {count, plural, one {يوم واحد} two {يومين} other {# أيام}}.",
+      "cooldown": "ينتظر الأشخاص {count, plural, one {ساعة واحدة} two {ساعتين} other {# ساعات}} قبل طلب رابط جديد.",
+      "role": "تحصل الحسابات الجديدة على دور {role}.",
+      "chosenRole": "تحصل الحسابات الجديدة على الدور المختار.",
+      "keep": "دعوة شخص مجددًا تُبقي رابطه الأول.",
+      "fresh": "دعوة شخص مجددًا ترسل رابطًا جديدًا وتوقف السابق."
+    }
+  },
+  "roles": {
+    "didNotLoad": "تعذّر تحميل الأدوار",
+    "newRole": "دور جديد",
+    "list": "الأدوار",
+    "builtIn": "مدمج",
+    "yours": "أدوارك",
+    "people": "{count, plural, one {شخص واحد} two {شخصان} other {# أشخاص}}",
+    "name": "الاسم",
+    "purpose": "الغرض منه",
+    "create": "إنشاء الدور",
+    "cancel": "إلغاء",
+    "notCreated": "لم يُنشأ الدور.",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "done": "تم",
+    "holdsOne": "يشغله {name}",
+    "holdsMany": "يشغله {name} و{count} آخرون",
+    "nobody": "لا أحد يشغله",
+    "holdCount": "{count, plural, one {يشغله شخص واحد} two {يشغله شخصان} other {يشغله # أشخاص}}",
+    "manageInAccess": "الإدارة في الوصول",
+    "leave": "المغادرة دون حفظ؟ ستُتجاهل تغييراتك على {role}.",
+    "notSaved": "لم يُحفظ الدور.",
+    "levels": {
+      "None": "لا شيء",
+      "View": "عرض",
+      "Manage": "إدارة"
+    },
+    "consequence": {
+      "None": "يفقد شاغلو {role} {what}.",
+      "View": "يمكن لشاغلي {role} رؤية {what}.",
+      "Manage": "يمكن لشاغلي {role} إدارة {what}.",
+      "more": "{sentence} و{count} أخرى."
+    },
+    "areas": {
+      "cycles": {
+        "label": "الدورات",
+        "what": "الدورات"
+      },
+      "performance-settings": {
+        "label": "إعدادات الأداء",
+        "what": "إعدادات الأداء"
+      },
+      "company-objectives": {
+        "label": "أهداف الشركة",
+        "what": "أهداف الشركة"
+      },
+      "company-direction": {
+        "label": "توجه الشركة",
+        "what": "توجه الشركة"
+      },
+      "calibration": {
+        "label": "المعايرة",
+        "what": "المعايرة"
+      },
+      "people": {
+        "label": "الموظفون",
+        "what": "الموظفين"
+      },
+      "organization": {
+        "label": "الهيكل التنظيمي",
+        "what": "الهيكل التنظيمي"
+      },
+      "employee-fields": {
+        "label": "حقول الموظفين",
+        "what": "حقول الموظفين"
+      },
+      "roles": {
+        "label": "الأدوار والوصول",
+        "what": "الأدوار والوصول"
+      },
+      "invitations": {
+        "label": "الدعوات",
+        "what": "الدعوات"
+      },
+      "change-history": {
+        "label": "سجل التغييرات",
+        "what": "سجل التغييرات"
+      }
+    }
+  },
+  "changeHistory": {
+    "didNotLoad": "تعذّر تحميل سجل التغييرات",
+    "section": "القسم",
+    "person": "الشخص",
+    "allSections": "كل الأقسام",
+    "anyone": "أي شخص",
+    "empty": "لم تتغير أي إعدادات بعد.",
+    "noMatch": "لا تغييرات مطابقة.",
+    "clearFilters": "مسح عوامل التصفية",
+    "thisWeek": "هذا الأسبوع",
+    "changedTo": "تغيّر إلى",
+    "someone": "شخص ما",
+    "andMore": "{sentence}، و{count} أخرى",
+    "roleChange": "عدّل دورًا أو شاغليه",
+    "settingsChange": "عدّل الإعدادات",
+    "audience": {
+      "visibleToManager": {
+        "label": "مديره",
+        "who": "المديرون"
+      },
+      "visibleToEmployee": {
+        "label": "الموظف",
+        "who": "الموظفون"
+      }
+    },
+    "fieldAudience": "{field} · {audience}",
+    "seesIt": "يراه",
+    "hidden": "مخفي",
+    "nowSee": "{field}: يراه {who} الآن",
+    "noLongerSee": "{field}: لم يعد {who} يرونه",
+    "requiredLabel": "{field} · إلزامي",
+    "required": "إلزامي",
+    "optional": "اختياري",
+    "nowRequired": "{field}: أصبح إلزاميًا",
+    "nowOptional": "{field}: أصبح اختياريًا",
+    "selfNouns": {
+      "Phone": "رقم هاتفهم",
+      "PreferredName": "اسمهم المفضّل"
+    },
+    "selfLabel": "يغيّر الموظفون {their}",
+    "yes": "نعم",
+    "no": "لا",
+    "selfCan": "يمكن للموظفين تغيير {their}",
+    "selfCannot": "لم يعد بإمكان الموظفين تغيير {their}",
+    "expiryLabel": "تنتهي صلاحية الدعوة بعد",
+    "days": "{count} أيام",
+    "expirySentence": "الصلاحية من {before} إلى {after} أيام",
+    "cooldownLabel": "يمكن طلب دعوة جديدة بعد",
+    "hours": "{count} ساعات",
+    "cooldownSentence": "انتظار الرابط الجديد من {before} إلى {after} ساعات",
+    "reinviteLabel": "دعوة شخص مجددًا",
+    "keep": "الإبقاء على الأولى",
+    "fresh": "إرسال دعوة جديدة",
+    "reinviteSentence": "دعوة شخص مجددًا: {choice}",
+    "roleLabel": "دور الحسابات الجديدة",
+    "chosenRole": "دور مختار",
+    "defaultRole": "موظف",
+    "roleSentence": "تغيّر دور الحسابات الجديدة",
+    "none": "لا شيء",
+    "otherSentence": "تغيّر {name}"
+  }
+}

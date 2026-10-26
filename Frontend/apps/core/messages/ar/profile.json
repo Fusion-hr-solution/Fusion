@@ -1,0 +1,153 @@
+{
+  "status": {
+    "Active": "نشط",
+    "Scheduled": "مجدول",
+    "Former": "سابق",
+    "Incomplete": "غير مكتمل",
+    "Ended": "منتهٍ"
+  },
+  "employmentType": {
+    "notSet": "غير محدد",
+    "FullTime": "دوام كامل",
+    "PartTime": "دوام جزئي",
+    "Contract": "عقد",
+    "Contractor": "متعاقد",
+    "Intern": "متدرب",
+    "Temporary": "مؤقت",
+    "Seasonal": "موسمي"
+  },
+  "line": {
+    "starts": "يبدأ في {date}",
+    "startsLater": "يبدأ لاحقًا",
+    "period": "{start} – {end}",
+    "ended": "انتهى في {date}",
+    "employmentEnded": "انتهى التوظيف",
+    "notEmployed": "غير موظف في هذا التاريخ",
+    "since": "منذ {date}",
+    "active": "نشط"
+  },
+  "access": {
+    "Active": "نشط",
+    "Suspended": "معلّق",
+    "NeedsReview": "يحتاج إلى مراجعة",
+    "InvitationPending": "الدعوة معلّقة",
+    "NoAccess": "لا وصول إلى Fusion"
+  },
+  "hero": {
+    "workEmail": "البريد المهني",
+    "workerId": "معرّف الموظف",
+    "location": "الموقع",
+    "manager": "المدير"
+  },
+  "upcoming": "قادم",
+  "workChange": "تغيير العمل",
+  "managerChange": "تغيير المدير",
+  "viewAsOf": "العرض بتاريخ {date}",
+  "assignment": {
+    "title": "الإسناد الحالي",
+    "unavailable": "تفاصيل العمل غير متاحة",
+    "displayTitle": "المسمى المعروض",
+    "notAssigned": "غير مسند",
+    "organization": "الهيكل التنظيمي",
+    "manager": "المدير",
+    "noManager": "لا مدير",
+    "since": "ساري منذ",
+    "status": "حالة الموظف"
+  },
+  "reporting": {
+    "title": "الهيكل التنظيمي والتبعية",
+    "manager": "المدير",
+    "noManager": "لا مدير مسند",
+    "directReports": "المرؤوسون المباشرون · {count}",
+    "directReportsOf": "المرؤوسون المباشرون · {shown} من {total}",
+    "more": "+{count} آخرون"
+  },
+  "employment": {
+    "title": "التوظيف",
+    "period": "فترة التوظيف",
+    "type": "نوع الموظف"
+  },
+  "fusionAccess": {
+    "title": "الوصول إلى Fusion",
+    "unavailable": "الحالة غير متاحة",
+    "retry": "إعادة المحاولة",
+    "status": "حالة الحساب",
+    "linked": "الحساب المرتبط",
+    "profile": "ملف الوصول",
+    "lastSignIn": "آخر تسجيل دخول"
+  },
+  "contact": {
+    "title": "معلومات الاتصال المهنية",
+    "workEmail": "البريد المهني",
+    "notSet": "غير محدد",
+    "emailRequired": "مطلوب قبل إعداد الوصول إلى Fusion.",
+    "phone": "الهاتف المهني",
+    "location": "الموقع"
+  },
+  "history": {
+    "title": "السجل",
+    "empty": "لا سجل توظيف بعد."
+  },
+  "record": {
+    "noAccess": "ليس لديك وصول إلى هذا الملف",
+    "noAccessDescription": "لا يسمح دورك بعرض هذا الموظف.",
+    "notFound": "الموظف غير موجود",
+    "transient": "تعذّر تحميل هذا الملف الآن. أعد المحاولة بعد قليل.",
+    "missing": "قد لا يكون هذا الموظف موجودًا أو متاحًا في هذه المؤسسة.",
+    "setUpAccess": "إعداد وصول الموظف",
+    "reviewAccess": "مراجعة وصول الموظف",
+    "addWorkEmail": "إضافة البريد المهني",
+    "editWorkEmail": "تعديل البريد المهني",
+    "hiredAnnouncement": "تم توظيف الموظف.",
+    "addedAnnouncement": "تمت إضافة الموظف.",
+    "back": "الموظفون",
+    "hired": "تم التوظيف",
+    "added": "تمت الإضافة",
+    "asOf": "بتاريخ {date}",
+    "today": "اليوم",
+    "changeWork": "تغيير العمل",
+    "changeManager": "تغيير المدير",
+    "more": "إجراءات أخرى",
+    "endEmployment": "إنهاء التوظيف",
+    "backToPeople": "العودة إلى الموظفين",
+    "retry": "إعادة المحاولة",
+    "asOfToday": "بتاريخ اليوم",
+    "viewAsOf": "العرض بتاريخ معيّن",
+    "viewAsOfDate": "العرض بتاريخ"
+  },
+  "workEmail": {
+    "required": "أدخل بريدًا مهنيًا.",
+    "updated": "حُدّث البريد المهني.",
+    "added": "أُضيف البريد المهني.",
+    "failed": "تعذّر حفظ البريد المهني. راجعه وأعد المحاولة.",
+    "label": "البريد المهني",
+    "placeholder": "name@company.com",
+    "hint": "القيمة المرجعية التي يعتمد عليها Fusion لتحديد وصول الموظف.",
+    "cancel": "إلغاء",
+    "saving": "جارٍ الحفظ…",
+    "save": "حفظ البريد المهني"
+  },
+  "self": {
+    "eyebrow": "الملف الشخصي",
+    "title": "الملف الشخصي",
+    "noLink": "لا سجل موظف مرتبط.",
+    "noLinkTitle": "لا ملف موظف مرتبط",
+    "noLinkDescription": "تواصل مع مسؤول الموارد البشرية في المؤسسة لربط سجلك.",
+    "notFound": "تعذّر العثور على ملفك",
+    "notFoundDescription": "ملف الموظف المرتبط بك غير متاح الآن.",
+    "unavailable": "الملف غير متاح.",
+    "unableTitle": "تعذّر تحميل الملف",
+    "unableDescription": "ملف الموظف الخاص بك غير متاح الآن.",
+    "edit": "تعديل التفاصيل",
+    "viewAll": "عرض كل المرؤوسين ({count})",
+    "updated": "حُدّثت تفاصيل الملف.",
+    "failed": "تعذّر حفظ تغييراتك.",
+    "dialogTitle": "تعديل التفاصيل الشخصية",
+    "preferredName": "الاسم المفضّل",
+    "preferredNameHint": "يُستخدم كاسم العرض في Fusion.",
+    "phone": "الهاتف",
+    "cancel": "إلغاء",
+    "saving": "جارٍ الحفظ",
+    "save": "حفظ التغييرات"
+  }
+}

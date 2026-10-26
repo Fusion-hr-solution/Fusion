@@ -19,12 +19,12 @@ export const englishMessages = { admins, common, dataImport, frame, invite, orgI
 
 export type CoreMessages = typeof englishMessages;
 
-/** Core HR's own catalogue in a language, merged by the request config beside @repo/ds's and @repo/auth's. Anything but French gets English. */
+/** Core HR's own catalogue in a language, merged by the request config beside @repo/ds's and @repo/auth's. Anything but French or Arabic gets English. */
 export async function loadCoreMessages(locale: string): Promise<CoreMessages> {
-  if (locale !== "fr") return englishMessages;
+  if (locale !== "fr" && locale !== "ar") return englishMessages;
   const namespaces = Object.keys(englishMessages);
   const files = await Promise.all(
-    namespaces.map(async (namespace) => [namespace, (await import(`../../messages/fr/${namespace}.json`)).default]),
+    namespaces.map(async (namespace) => [namespace, (await import(`../../messages/${locale}/${namespace}.json`)).default]),
   );
   return Object.fromEntries(files) as CoreMessages;
 }
