@@ -28,7 +28,7 @@ import { Button, cn } from "@repo/ds";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { PageContainer, PagePermissionNotice, StatusBadge } from "@repo/ds/shell";
 import { CONTINUITY_TONE } from "@/features/tenant-access/components/access-language";
-import { useEmployeeRoster } from "@/app/(pages)/employees/use-employees";
+import { useEmployeeRoster } from "@/features/people/api/use-employees";
 import { useTenantAccessSummary } from "@/features/tenant-access/api/use-tenant-access";
 import { useAccessRosterSummary } from "@/features/workforce-access/api/use-workforce-access";
 import { useCoreHRReadiness, useOrganizationReadiness } from "@/features/organization/api/use-organization";

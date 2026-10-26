@@ -56,13 +56,13 @@ import { OverviewPageSkeleton } from "@/shell/route-skeletons";
 import {
   useEmployeeRoster,
   useWorkforceReadinessSummary,
-} from "@/app/(pages)/employees/use-employees";
+} from "@/features/people/api/use-employees";
 import {
   useWorkforceMe,
   useWorkforceTeam,
   type WorkforceMeContext,
 } from "@/features/overview/api/use-workforce-me";
-import type { EmployeeRosterItem } from "@/app/(pages)/employees/employee-roster.types";
+import type { EmployeeRosterItem } from "@/features/people/api/employee-roster.types";
 import { formatDateParts } from "@repo/ds/lib/dates";
 import { useFormat, type Format } from "@repo/ds/lib/use-format";
 import { useTranslations } from "next-intl";

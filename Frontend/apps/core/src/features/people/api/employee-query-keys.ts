@@ -31,32 +31,12 @@ export const employeeRosterQueryKeys = {
       ...employeeRosterQueryKeys.lists(),
       normalizeEmployeeRosterQuery(params),
     ] as const,
-  managerOptions: (search: string) =>
-    [
-      ...employeeRosterQueryKeys.all(),
-      "manager-options",
-      normalizeEmployeeRosterSearch(search),
-    ] as const,
-  orgUnitOptions: (search: string) =>
-    [
-      ...employeeRosterQueryKeys.all(),
-      "org-unit-options",
-      normalizeEmployeeRosterSearch(search),
-    ] as const,
   reportingLines: (employeeId: string) =>
     [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId] as const,
-  details: (employeeKey: string) =>
-    [...employeeRosterQueryKeys.all(), "details", "by-key", employeeKey] as const,
   detailsById: (employeeId: string) =>
     [...employeeRosterQueryKeys.all(), "details", "by-id", employeeId] as const,
   myProfileContext: () =>
     [...employeeRosterQueryKeys.all(), "my-profile-context"] as const,
   readinessSummary: () =>
     [...employeeRosterQueryKeys.all(), "readiness-summary"] as const,
-  workforceAccounts: () =>
-    [...employeeRosterQueryKeys.all(), "workforce-accounts"] as const,
-  workforceAccountSummary: () =>
-    [...employeeRosterQueryKeys.workforceAccounts(), "summary"] as const,
-  workforceAccount: (employeeId: string) =>
-    [...employeeRosterQueryKeys.workforceAccounts(), employeeId] as const,
 };

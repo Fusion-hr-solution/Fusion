@@ -4,14 +4,11 @@ import { useCallback, useMemo } from "react";
 import {
   coreAccessPaths,
   coreAccessQueryKeys,
-  coreWorkforceQueryKeys,
   createPlatformApiClient,
   type AccessAuditEventDto,
   type AccessProfileSummaryDto,
-  type BulkSetUserAccessProfilesRequest,
   type CorePermissionCatalogItemDto,
   type CreateAccessProfileRequest,
-  type SetUserAccessProfilesRequest,
   type UpdateAccessProfileRequest,
   type UserAccessAssignmentDto,
 } from "@repo/api";
@@ -21,7 +18,6 @@ import {
   useApiQueryClient,
 } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
-import { employeeRosterQueryKeys } from "@/app/(pages)/employees/employee-query-keys";
 
 interface UpdateAccessProfileArgs {
   profileId: string;
@@ -31,11 +27,6 @@ interface UpdateAccessProfileArgs {
 
 interface DeleteAccessProfileArgs {
   profileId: string;
-}
-
-interface SetUserAccessProfilesArgs {
-  userId: string;
-  input: SetUserAccessProfilesRequest;
 }
 
 type ApiQueryClient = ReturnType<typeof useApiQueryClient>;
@@ -50,26 +41,6 @@ async function invalidateAccessProfileQueries(queryClient: ApiQueryClient) {
     }),
     queryClient.invalidateQueries({
       queryKey: coreAccessQueryKeys.audit(),
-    }),
-  ]);
-}
-
-async function invalidateAccessAssignmentQueries(queryClient: ApiQueryClient) {
-  await Promise.all([
-    queryClient.invalidateQueries({
-      queryKey: coreAccessQueryKeys.assignments(),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: coreAccessQueryKeys.profiles(),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: coreAccessQueryKeys.audit(),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: coreWorkforceQueryKeys.all(),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: employeeRosterQueryKeys.workforceAccounts(),
     }),
   ]);
 }
@@ -194,54 +165,6 @@ export function useDeleteAccessProfile(opts?: { onSuccess?: () => void }) {
       onSuccess: async () => {
         await invalidateAccessProfileQueries(queryClient);
         await opts?.onSuccess?.();
-      },
-    }
-  );
-}
-
-export function useSetUserAccessProfiles(opts?: {
-  onSuccess?: (data: UserAccessAssignmentDto) => void;
-}) {
-  const client = useMemo(() => createPlatformApiClient(), []);
-  const queryClient = useApiQueryClient();
-
-  return useApiMutation<UserAccessAssignmentDto, SetUserAccessProfilesArgs>(
-    ({ userId, input }) =>
-      client.put<UserAccessAssignmentDto>(
-        coreAccessPaths.assignment(userId),
-        input
-      ),
-    {
-      onSuccess: async (data) => {
-        queryClient.setQueriesData(
-          { queryKey: coreAccessQueryKeys.assignments() },
-          (current: UserAccessAssignmentDto[] | undefined) =>
-            current?.map((row) => (row.userId === data.userId ? data : row)) ??
-            current
-        );
-        await invalidateAccessAssignmentQueries(queryClient);
-        await opts?.onSuccess?.(data);
-      },
-    }
-  );
-}
-
-export function useBulkSetUserAccessProfiles(opts?: {
-  onSuccess?: (data: UserAccessAssignmentDto[]) => void;
-}) {
-  const client = useMemo(() => createPlatformApiClient(), []);
-  const queryClient = useApiQueryClient();
-
-  return useApiMutation<UserAccessAssignmentDto[], BulkSetUserAccessProfilesRequest>(
-    (input) =>
-      client.put<UserAccessAssignmentDto[]>(
-        coreAccessPaths.assignments(),
-        input
-      ),
-    {
-      onSuccess: async (data) => {
-        await invalidateAccessAssignmentQueries(queryClient);
-        await opts?.onSuccess?.(data);
       },
     }
   );

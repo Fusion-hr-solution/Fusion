@@ -17,7 +17,7 @@ import { canAccessTeamWorkspace } from "@/lib/employee-roster-access";
 import {
   useEmployeeDetailsById,
   useEmployeeReportingLines,
-} from "@/app/(pages)/employees/use-employees";
+} from "@/features/people/api/use-employees";
 
 export default function TeamWorkspace() {
   const { user, isLoading: isAuthLoading } = useAuth();

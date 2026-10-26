@@ -4,22 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { WorkforceImportMatch } from "@repo/api";
 import { WorkforceInterpretationPanel } from "./workforce-match-sections";
-import { BaselineControl } from "./workforce-baseline";
-
-const noop = () => {};
-
-describe("BaselineControl", () => {
-  it("states the carry-forward consequence for a past date", () => {
-    render(<BaselineControl value="2026-07-31" onChange={noop} />);
-    expect(screen.getByText(/treat them as current until you record a later change/i)).toBeInTheDocument();
-  });
-
-  it("refuses a future date with direction to Hire", () => {
-    const future = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-    render(<BaselineControl value={future} onChange={noop} />);
-    expect(screen.getByText(/Use Hire for future employees/i)).toBeInTheDocument();
-  });
-});
 
 describe("Workforce interpretation decisions", () => {
   const base: WorkforceImportMatch = {

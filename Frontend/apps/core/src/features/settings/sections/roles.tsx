@@ -32,7 +32,7 @@ import {
   useDeleteAccessProfile,
   useUpdateAccessProfile,
   useUserAccessAssignments,
-} from "@/features/access/api/use-core-access";
+} from "@/features/settings/api/use-core-access";
 import { sayInEnglish, useSaveFailure, useSettingsSay, type Say } from "@/features/settings/say";
 
 export type Level = "None" | "View" | "Manage";

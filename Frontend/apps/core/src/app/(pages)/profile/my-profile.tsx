@@ -32,13 +32,13 @@ import {
 } from "@/features/people/components/record-views";
 import { WorkerProfileSkeleton } from "@/features/people/components/worker-profile/worker-profile-skeleton";
 import { fromSelfDetails } from "@/features/people/components/worker-profile/worker-profile-view";
-import type { EmployeeDetailsDto } from "../employees/employee-roster.types";
+import type { EmployeeDetailsDto } from "@/features/people/api/employee-roster.types";
 import {
   useEmployeeDetailsById,
   useEmployeeReportingLines,
   useMyProfileContext,
   useUpdateMyProfile,
-} from "../employees/use-employees";
+} from "@/features/people/api/use-employees";
 
 /** The signed-in person's own record, as its Profile or Performance view. */
 export function MyProfile({

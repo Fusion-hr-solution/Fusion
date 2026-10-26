@@ -7,7 +7,7 @@ import type { AccessAuditEventDto, FusionSettingsSection, SettingsAuditEventDto 
 import { cn, NativeSelect, NativeSelectOption } from "@repo/ds";
 import { formatDate, formatDateParts, formatTime } from "@repo/ds/lib/dates";
 import { PageError, SettingsPage, useSettingsSectionName } from "@repo/ds/shell";
-import { useAccessAudit } from "@/features/access/api/use-core-access";
+import { useAccessAudit } from "@/features/settings/api/use-core-access";
 import { useSettingsAudit } from "@/features/settings/api/use-tenant-settings";
 import { AUDIT_SECTION_IDS } from "@/features/settings/core-settings";
 import { sayInEnglish, useSettingsSay, type Say } from "@/features/settings/say";

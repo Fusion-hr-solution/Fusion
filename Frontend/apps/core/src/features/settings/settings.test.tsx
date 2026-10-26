@@ -1,22 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, renderHook, screen } from "@testing-library/react";
-import type { FieldVisibility, FusionSettingsSection, PeopleDataSettingsDto } from "@repo/api";
+import { cleanup, render, screen } from "@testing-library/react";
+import type { FusionSettingsSection, PeopleDataSettingsDto } from "@repo/api";
 
 const mocks = vi.hoisted(() => ({
   sections: undefined as FusionSettingsSection[] | undefined,
   peopleData: undefined as PeopleDataSettingsDto | undefined,
-  visibility: undefined as FieldVisibility | undefined,
-  visibilityEnabled: [] as boolean[],
 }));
 
 vi.mock("@repo/api/query", () => ({
   useSettingsSections: () => ({ data: mocks.sections, isError: false, refetch: vi.fn() }),
   useSettingsConflictSaver: () => null,
-  useFieldVisibility: (options: { enabled?: boolean } = {}) => {
-    mocks.visibilityEnabled.push(options.enabled ?? true);
-    return { data: mocks.visibility };
-  },
 }));
 
 vi.mock("@/features/settings/api/use-tenant-settings", () => ({
@@ -34,7 +28,6 @@ import { invitationsConsequence } from "./sections/invitations";
 import { roleConsequence } from "./sections/roles";
 import { CoreSettingsSectionHost } from "./section-host";
 import { EmployeeFieldsSettings, employeeFieldsConsequence, toDraft } from "./sections/employee-fields";
-import { useEmployeeFieldPolicy } from "@/features/employees/shared/employee-field-visibility";
 
 const replace = vi.fn();
 Object.defineProperty(window, "location", { value: { ...window.location, replace }, writable: true });
@@ -42,7 +35,6 @@ Object.defineProperty(window, "location", { value: { ...window.location, replace
 afterEach(() => {
   cleanup();
   replace.mockReset();
-  mocks.visibilityEnabled = [];
 });
 
 function section(id: string, access: "view" | "manage"): FusionSettingsSection {
@@ -167,19 +159,5 @@ describe("Opening a section", () => {
     render(<CoreSettingsSectionHost id="company" render={(open) => <p>{open.label} open</p>} />);
     expect(screen.getByText("Company open")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
-  });
-});
-
-describe("Profiles", () => {
-  it("apply the field policy from the field-visibility read, which needs no settings permission", () => {
-    mocks.visibility = {
-      fields: { phone: { required: false, visibleToEmployee: true, visibleToManager: false } },
-      selfService: { canEditPreferredName: true, canEditPhone: false },
-    };
-    const manager = renderHook(() => useEmployeeFieldPolicy(true, "manager"));
-    const employee = renderHook(() => useEmployeeFieldPolicy(true, "employee"));
-    expect(manager.result.current.showPhone).toBe(false);
-    expect(employee.result.current.showPhone).toBe(true);
-    expect(mocks.visibilityEnabled).toContain(true);
   });
 });

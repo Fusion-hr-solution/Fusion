@@ -41,7 +41,7 @@ vi.mock("@/features/tenant-access/api/use-tenant-access", () => ({
   useTenantAccessSummary: mocks.summaryHook,
 }));
 
-vi.mock("@/app/(pages)/employees/use-employees", () => ({
+vi.mock("@/features/people/api/use-employees", () => ({
   useEmployeeRoster: mocks.rosterHook,
 }));
 

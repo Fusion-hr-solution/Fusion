@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   EmployeeDetailsDto,
   EmployeeReportingLinesDto,
-} from "@/app/(pages)/employees/employee-roster.types";
+} from "@/features/people/api/employee-roster.types";
 import { WorkerProfile } from "./worker-profile";
 import { fromSelfDetails } from "./worker-profile-view";
 

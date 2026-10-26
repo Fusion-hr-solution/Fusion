@@ -14,7 +14,7 @@ import type {
   EmployeeDetailsDto,
   EmployeeReportingLinesDto,
   MyFusionAccessDto,
-} from "@/app/(pages)/employees/employee-roster.types";
+} from "@/features/people/api/employee-roster.types";
 
 /**
  * The canonical worker-profile view model.

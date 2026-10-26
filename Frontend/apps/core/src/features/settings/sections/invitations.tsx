@@ -15,7 +15,7 @@ import {
   SettingsValue,
   useSettingsSectionName,
 } from "@repo/ds/shell";
-import { useAccessProfiles } from "@/features/access/api/use-core-access";
+import { useAccessProfiles } from "@/features/settings/api/use-core-access";
 import {
   useProvisioningSettings,
   useUpdateProvisioningSettings,
