@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
@@ -21,6 +22,7 @@ export function ImportMatchFooter({
   remaining: number;
   canContinue: boolean;
 }) {
+  const t = useTranslations("dataImport");
   const router = useRouter();
   return (
     <div className="sticky bottom-0 z-20 mt-8 border-t border-border bg-background">
@@ -28,17 +30,17 @@ export function ImportMatchFooter({
         <Button variant="outline" asChild>
           <Link href={uploadHref}>
             <ArrowLeft aria-hidden />
-            Back to upload
+            {t("matchFooter.back")}
           </Link>
         </Button>
         <div className="flex items-center gap-4">
           {remaining > 0 ? (
             <p className="hidden type-meta text-muted-foreground sm:block" aria-live="polite">
-              Resolve {remaining} remaining {remaining === 1 ? "item" : "items"} to continue.
+              {t("matchFooter.remaining", { count: remaining })}
             </p>
           ) : null}
           <Button disabled={!canContinue} onClick={() => router.push(reviewHref)}>
-            Continue to review
+            {t("matchFooter.continue")}
             <ArrowRight aria-hidden />
           </Button>
         </div>

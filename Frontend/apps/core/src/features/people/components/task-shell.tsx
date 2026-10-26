@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
@@ -33,6 +34,7 @@ export function TaskShell({
   children: ReactNode;
   aside?: ReactNode;
 }) {
+  const t = useTranslations("people.task");
   useBreadcrumbLabel(employeeKey, subjectName ?? undefined);
 
   return (
@@ -42,7 +44,7 @@ export function TaskShell({
           href={`/people/${employeeKey}`}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <ArrowLeft className="size-4" aria-hidden /> {subjectName ?? "Back"}
+          <ArrowLeft className="size-4" aria-hidden /> {subjectName ?? t("back")}
         </Link>
 
         <header className="mt-5 flex items-center gap-4 border-b pb-6">

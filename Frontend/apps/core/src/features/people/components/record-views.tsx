@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { createPerformanceApi, createPlatformApiClient, performanceQueryKeys } from "@repo/api";
 import { useApiQuery, useReactToPraise } from "@repo/api/query";
@@ -22,12 +23,13 @@ export function RecordViewSwitcher({
   performanceHref: string;
   current: "profile" | "performance";
 }) {
+  const t = useTranslations("people.views");
   const views = [
-    { key: "profile", label: "Profile", href: profileHref },
-    { key: "performance", label: "Performance", href: performanceHref },
+    { key: "profile", label: t("profile"), href: profileHref },
+    { key: "performance", label: t("performance"), href: performanceHref },
   ] as const;
   return (
-    <nav aria-label="Record views" className="inline-flex gap-1 rounded-control bg-card p-1">
+    <nav aria-label={t("label")} className="inline-flex gap-1 rounded-control bg-card p-1">
       {views.map((view) => (
         <Link
           key={view.key}

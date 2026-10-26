@@ -15,14 +15,14 @@ export function formatBytes(value: number) {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function formatHumanDate(value: string) {
+export function formatHumanDate(value: string, locale?: string) {
   const date = new Date(`${value.slice(0, 10)}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return formatDateParts(date, {
     day: "numeric",
     month: "short",
     year: "numeric",
-  });
+  }, undefined, locale);
 }
 
 export function formatRelativeTime(value: string | null) {

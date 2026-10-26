@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import type {
   WorkforceAccessCandidateDto,
@@ -11,8 +12,7 @@ import { StatusBadge } from "@repo/ds/shell";
 import { ArrowRight, Search } from "lucide-react";
 import { useAccessRoster, useCorrectIdentity } from "../api/use-workforce-access";
 import {
-  baselineLabel,
-  commandOutcomeMessage,
+  useWorkforceAccessWords,
   initialsOf,
   isCommandSuccess,
 } from "./access-language";
@@ -33,6 +33,8 @@ export function IdentityCorrection({
   onBack: () => void;
   onDone: () => void;
 }) {
+  const t = useTranslations("wfAccess.correction");
+  const words = useWorkforceAccessWords();
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<WorkforceAccessSubjectSummaryDto | null>(null);
   const [baseline, setBaseline] = useState<WorkforceBaselineChoice>("Employee");
@@ -67,9 +69,9 @@ export function IdentityCorrection({
       }
       // Typed, non-disclosing failure: keep the reviewed data visible and explain in the
       // shared outcome vocabulary. A stale/conflict outcome is recoverable by re-reviewing.
-      setError(commandOutcomeMessage(result.outcome, result.message));
+      setError(words.outcome(result.outcome, result.message));
     } catch {
-      setError("Something went wrong. Try again.");
+      setError(t("error"));
     }
   };
 
@@ -85,11 +87,11 @@ export function IdentityCorrection({
 
       {/* Current relationship — what the account is linked to today. */}
       <section className="space-y-3">
-        <h2 className="type-eyebrow text-muted-foreground">Current relationship</h2>
+        <h2 className="type-eyebrow text-muted-foreground">{t("current")}</h2>
         <div className="rounded-surface border p-4">
           <PersonLine
             name={source.displayName}
-            detail={source.accountEmail ?? source.workEmail ?? source.jobTitle ?? "Linked account"}
+            detail={source.accountEmail ?? source.workEmail ?? source.jobTitle ?? t("linked")}
           />
           <p className="mt-2 type-meta text-muted-foreground">
             This Fusion account is linked to {source.displayName}.
@@ -99,12 +101,12 @@ export function IdentityCorrection({
 
       {/* Choose the corrected person. */}
       <section className="space-y-3">
-        <h2 className="type-eyebrow text-muted-foreground">Corrected person</h2>
+        <h2 className="type-eyebrow text-muted-foreground">{t("corrected")}</h2>
         {target ? (
           <div className="flex items-center justify-between gap-3 rounded-surface border p-4">
             <PersonLine
               name={target.displayName}
-              detail={target.workEmail || "No work email"}
+              detail={target.workEmail || t("noEmail")}
             />
             <Button
               variant="ghost"
@@ -114,7 +116,7 @@ export function IdentityCorrection({
                 setError(null);
               }}
             >
-              Change
+              {t("change")}
             </Button>
           </div>
         ) : (
@@ -131,19 +133,19 @@ export function IdentityCorrection({
       {target ? (
         <>
           <section className="space-y-3">
-            <h2 className="type-eyebrow text-muted-foreground">Review the change</h2>
+            <h2 className="type-eyebrow text-muted-foreground">{t("review")}</h2>
             <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-              <BeforeAfter label="Before" name={source.displayName} tone="muted" />
+              <BeforeAfter label={t("before")} name={source.displayName} tone="muted" />
               <ArrowRight
                 aria-hidden
                 className="mx-auto hidden size-5 text-muted-foreground sm:block"
               />
-              <BeforeAfter label="After" name={target.displayName} tone="success" />
+              <BeforeAfter label={t("after")} name={target.displayName} tone="success" />
             </div>
           </section>
 
           <section className="space-y-2">
-            <h2 className="type-eyebrow text-muted-foreground">Access baseline</h2>
+            <h2 className="type-eyebrow text-muted-foreground">{t("baseline")}</h2>
             <div className="inline-flex rounded-control border p-0.5">
               {(["Employee", "Manager"] as WorkforceBaselineChoice[]).map((choice) => (
                 <button
@@ -156,23 +158,23 @@ export function IdentityCorrection({
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {choice}
+                  {words.choice(choice)}
                 </button>
               ))}
             </div>
             <p className="type-meta text-muted-foreground">
-              Recommended: {baselineLabel(target.directReportCount)}
+              {t("recommended", { baseline: words.baseline(target.directReportCount) })}
             </p>
           </section>
 
           <section className="space-y-2">
-            <h2 className="type-eyebrow text-muted-foreground">Reason</h2>
+            <h2 className="type-eyebrow text-muted-foreground">{t("reason")}</h2>
             <Textarea
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Why is this account being corrected?"
+              placeholder={t("reasonPlaceholder")}
               rows={3}
-              aria-label="Correction reason"
+              aria-label={t("reasonLabel")}
             />
           </section>
 
@@ -184,10 +186,10 @@ export function IdentityCorrection({
 
           <div className="flex items-center justify-between gap-4 border-t pt-4">
             <p className="type-meta text-muted-foreground">
-              The corrected person will need to sign in again.
+              {t("signInAgain")}
             </p>
             <Button disabled={!canSubmit} onClick={() => void submit()}>
-              {correct.isLoading ? "Correcting…" : "Correct identity link"}
+              {correct.isLoading ? t("correcting") : t("submit")}
             </Button>
           </div>
         </>
@@ -207,6 +209,7 @@ function TargetSearch({
   excludeEmployeeId: string;
   onChoose: (person: WorkforceAccessSubjectSummaryDto) => void;
 }) {
+  const t = useTranslations("wfAccess.correction");
   const filters = useMemo(() => ({ search: query.trim() || null, access: null }), [query]);
   const roster = useAccessRoster(filters, 1, 8, query.trim().length > 0);
 
@@ -230,17 +233,17 @@ function TargetSearch({
         <Input
           value={query}
           onChange={(event) => onQuery(event.target.value)}
-          placeholder="Search people by name, email, or employee number"
+          placeholder={t("search")}
           className="ps-9"
-          aria-label="Search for the corrected person"
+          aria-label={t("searchLabel")}
         />
       </div>
 
       {query.trim().length === 0 ? null : roster.isLoading ? (
-        <p className="type-meta text-muted-foreground">Searching…</p>
+        <p className="type-meta text-muted-foreground">{t("searching")}</p>
       ) : results.length === 0 ? (
         <p className="type-meta text-muted-foreground">
-          No unlinked people match that search.
+          {t("noMatch")}
         </p>
       ) : (
         <div className="divide-y overflow-hidden rounded-surface border">
@@ -253,7 +256,7 @@ function TargetSearch({
             >
               <PersonLine
                 name={person.displayName}
-                detail={person.workEmail || "No work email"}
+                detail={person.workEmail || t("noEmail")}
               />
               <StatusBadge tone="muted" dot>
                 {person.accessStateLabel}
@@ -291,12 +294,13 @@ function BeforeAfter({
   name: string;
   tone: "muted" | "success";
 }) {
+  const t = useTranslations("wfAccess.correction");
   return (
     <div className="rounded-surface border p-4">
       <p className="type-eyebrow text-muted-foreground">{label}</p>
       <div className="mt-2 flex items-center gap-2">
         <StatusBadge tone={tone} dot>
-          {tone === "muted" ? "Was" : "Will be"}
+          {tone === "muted" ? t("was") : t("willBe")}
         </StatusBadge>
         <span className="truncate type-label text-foreground">{name}</span>
       </div>

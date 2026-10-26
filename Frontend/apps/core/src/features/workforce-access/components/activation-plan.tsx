@@ -1,5 +1,9 @@
 "use client";
 
+import { englishMessages } from "@/i18n/messages";
+import { useWorkforceAccessWords } from "./access-language";
+import { englishSay, useSay, type Say } from "@repo/ds/lib/say";
+import { useLocale, useTranslations } from "next-intl";
 import { useId, useMemo, useState } from "react";
 import type {
   WorkforceAccessBulkResultItemDto,
@@ -68,6 +72,9 @@ export function ActivationPlan({
   onBack: () => void;
   onExit: () => void;
 }) {
+  const t = useTranslations("wfAccess");
+  const say = useSay("wfAccess");
+  const english = useLocale() === "en";
   const [phase, setPhase] = useState<Phase>("plan");
   const [baselines, setBaselines] = useState<
     Record<string, WorkforceBaselineChoice>
@@ -120,19 +127,19 @@ export function ActivationPlan({
     const groupList: PlanGroup[] = [
       {
         key: "blocked",
-        title: "Needs review",
+        title: t("plan.blocked"),
         hint:
           blockedPeople.length === 1
-            ? "This person will not be changed."
-            : "These people will not be changed.",
+            ? t("plan.blockedOne")
+            : t("plan.blockedMany"),
         actionable: false,
         kind: "attention",
         people: blockedPeople,
       },
       {
         key: "link",
-        title: "Existing accounts will be linked",
-        hint: "Review each identity match. Existing access stays in place.",
+        title: t("plan.link"),
+        hint: t("plan.linkHint"),
         actionable: true,
         kind: "consequence",
         showAccountComparison: true,
@@ -140,8 +147,8 @@ export function ActivationPlan({
       },
       {
         key: "reactivate",
-        title: "Suspended accounts will be reactivated",
-        hint: "Tenant access returns and the employee record is linked.",
+        title: t("plan.reactivate"),
+        hint: t("plan.reactivateHint"),
         actionable: true,
         kind: "consequence",
         showAccountComparison: true,
@@ -149,8 +156,8 @@ export function ActivationPlan({
       },
       {
         key: "connect",
-        title: "Existing Fusion accounts will join this workspace",
-        hint: "Review each account before this workspace is added.",
+        title: t("plan.connect"),
+        hint: t("plan.connectHint"),
         actionable: true,
         kind: "consequence",
         showAccountComparison: true,
@@ -158,8 +165,8 @@ export function ActivationPlan({
       },
       {
         key: "new",
-        title: "New invitations",
-        hint: "One invitation will be sent to each canonical work email.",
+        title: t("plan.new"),
+        hint: t("plan.newHint"),
         actionable: true,
         kind: "routine",
         people: byCandidate("NewAccount").filter(
@@ -168,16 +175,16 @@ export function ActivationPlan({
       },
       {
         key: "pending",
-        title: "Invitations already pending",
-        hint: "No new invitation will be sent.",
+        title: t("plan.pending"),
+        hint: t("plan.pendingHint"),
         actionable: false,
         kind: "unchanged",
         people: resolved.filter(pending),
       },
       {
         key: "active",
-        title: "Already active",
-        hint: "These people already have workforce access.",
+        title: t("plan.active"),
+        hint: t("plan.activeHint"),
         actionable: false,
         kind: "unchanged",
         people: byCandidate("Active"),
@@ -185,7 +192,7 @@ export function ActivationPlan({
     ];
 
     return groupList.filter((group) => group.people.length > 0);
-  }, [candidates.data, people]);
+  }, [candidates.data, people, t]);
 
   const actionablePeople = useMemo(
     () =>
@@ -207,7 +214,7 @@ export function ActivationPlan({
         })),
       });
       setReceipt(
-        buildOperationalReceipt(people, candidates.data ?? [], result.items)
+        buildOperationalReceipt(people, candidates.data ?? [], result.items, say, english)
       );
       setPhase("receipt");
     } catch {
@@ -238,12 +245,12 @@ export function ActivationPlan({
   if (candidates.error) {
     return (
       <div className="rounded-surface bg-danger/10 px-5 py-4">
-        <p className="type-label">The activation plan could not be prepared</p>
+        <p className="type-label">{t("plan.failedTitle")}</p>
         <p className="mt-1 type-meta text-muted-foreground">
-          Account state may have changed. Return to the workforce and try again.
+          {t("plan.failedDescription")}
         </p>
         <Button className="mt-4" variant="outline" onClick={onBack}>
-          Back to workforce access
+          {t("plan.back")}
         </Button>
       </div>
     );
@@ -255,13 +262,13 @@ export function ActivationPlan({
     <div className="space-y-7">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-5">
         <Button variant="ghost" size="sm" onClick={onBack} disabled={running}>
-          <ArrowLeft className="me-1.5 size-4" /> Back to selection
+          <ArrowLeft className="me-1.5 size-4" /> {t("plan.backToSelection")}
         </Button>
         <p className="type-body text-muted-foreground">
           <span className="type-metric me-2 text-foreground">
             {people.length}
           </span>
-          {people.length === 1 ? "person reviewed" : "people reviewed"}
+          {t("plan.reviewed", { count: people.length })}
         </p>
       </div>
 
@@ -304,17 +311,18 @@ function ActivationPlanLoading({
   peopleCount: number;
   onBack: () => void;
 }) {
+  const t = useTranslations("wfAccess");
   return (
     <div className="space-y-7" aria-busy="true" aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-5">
         <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="me-1.5 size-4" /> Back to selection
+          <ArrowLeft className="me-1.5 size-4" /> {t("plan.backToSelection")}
         </Button>
         <p className="type-body text-muted-foreground">
           <span className="type-metric me-2 text-foreground">
             {peopleCount}
           </span>
-          {peopleCount === 1 ? "person selected" : "people selected"}
+          {t("plan.selectedCount", { count: peopleCount })}
         </p>
       </div>
 
@@ -325,37 +333,36 @@ function ActivationPlanLoading({
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="type-eyebrow text-muted-foreground">
-              Activation plan
+              {t("plan.eyebrow")}
             </p>
             <h2
               id="activation-plan-loading-title"
               className="mt-2 type-section-title text-foreground"
             >
-              Preparing your review
+              {t("plan.preparing")}
             </h2>
             <p className="mt-2 max-w-xl type-body text-muted-foreground">
-              Fusion is checking the current account state for each selected
-              person before showing the consequences.
+              {t("plan.preparingDescription")}
             </p>
           </div>
           <div className="inline-flex shrink-0 items-center gap-2 rounded-full border bg-inlay px-3 py-1.5 type-meta text-foreground">
             <Spinner className="size-3.5" />
-            Resolving account states
+            {t("plan.resolving")}
           </div>
         </div>
 
         <ol
           className="mt-6 grid gap-3 border-t pt-5 sm:grid-cols-3"
-          aria-label="Activation plan progress"
+          aria-label={t("plan.progress")}
         >
           <li className="flex items-start gap-2.5">
             <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Check className="size-3.5" aria-hidden />
             </span>
             <span>
-              <span className="block type-label">Scope confirmed</span>
+              <span className="block type-label">{t("plan.scope")}</span>
               <span className="block type-meta text-muted-foreground">
-                {peopleCount} selected
+                {t("plan.selected", { count: peopleCount })}
               </span>
             </span>
           </li>
@@ -364,9 +371,9 @@ function ActivationPlanLoading({
               <Spinner className="size-3.5" />
             </span>
             <span>
-              <span className="block type-label">Account states</span>
+              <span className="block type-label">{t("plan.states")}</span>
               <span className="block type-meta text-muted-foreground">
-                Checking current Fusion accounts
+                {t("plan.checking")}
               </span>
             </span>
           </li>
@@ -375,9 +382,9 @@ function ActivationPlanLoading({
               3
             </span>
             <span>
-              <span className="block type-label">Consequences</span>
+              <span className="block type-label">{t("plan.consequences")}</span>
               <span className="block type-meta text-muted-foreground">
-                Builds after the check
+                {t("plan.afterCheck")}
               </span>
             </span>
           </li>
@@ -434,6 +441,7 @@ function PlanSection({
   recheckingEmployeeId: string | null;
   onEmailSaved: (employeeId: string) => Promise<void>;
 }) {
+  const t = useTranslations("wfAccess");
   const initialLimit = planGroupInitialLimit(group.kind, group.people.length);
   const [visibleCount, setVisibleCount] = useState(initialLimit);
   const visible = group.people.slice(0, visibleCount);
@@ -481,7 +489,7 @@ function PlanSection({
             }
             className="inline-flex items-center gap-1 type-meta font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Show {Math.min(expansionStep, remaining)} more{" "}
+            {t("plan.showMore", { count: Math.min(expansionStep, remaining) })}{" "}
             <ChevronDown className="size-3.5" aria-hidden />
           </button>
           <span className="type-meta text-muted-foreground" aria-live="polite">
@@ -533,6 +541,10 @@ function PlanRow({
   rechecking?: boolean;
   onEmailSaved: () => Promise<void>;
 }) {
+  const t = useTranslations("wfAccess");
+  const words = useWorkforceAccessWords();
+  const say = useSay("wfAccess");
+  const english = useLocale() === "en";
   const [editing, setEditing] = useState(false);
   const recommended = person.directReportCount > 0 ? "Manager" : "Employee";
   const isOverride = baseline !== recommended;
@@ -561,23 +573,23 @@ function PlanRow({
           {blocked ? (
             <div className="text-start sm:text-end">
               <p className="type-meta text-muted-foreground">
-                {blockedReason(candidate)}
+                {blockedReason(candidate, say, english)}
               </p>
               <a
                 href={peopleProfilePath(person.stableEmployeeKey)}
                 className="mt-2 inline-flex type-meta font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Open in People
+                {t("plan.openInPeople")}
               </a>
             </div>
           ) : showAccountComparison ? (
             <div className="mb-2 text-start sm:text-end">
               <p className="type-meta text-muted-foreground">
-                Employee record: {candidate?.workEmail || "Work email missing"}
+                {t("plan.employeeRecord", { email: candidate?.workEmail || t("plan.missingEmail") })}
               </p>
               <p className="type-meta font-medium text-foreground">
-                Fusion account:{" "}
-                {candidate?.accountEmail || "Account unavailable"}
+                {t("plan.fusionAccount")}{" "}
+                {candidate?.accountEmail || t("plan.accountUnavailable")}
               </p>
             </div>
           ) : null}
@@ -586,7 +598,7 @@ function PlanRow({
             <div
               className="inline-flex rounded-surface border bg-inlay p-0.5"
               role="group"
-              aria-label={`Access recommendation for ${person.displayName}`}
+              aria-label={t("plan.recommendationFor", { name: person.displayName })}
             >
               {(["Employee", "Manager"] as const).map((choice) => (
                 <button
@@ -607,25 +619,22 @@ function PlanRow({
                   {baseline === choice ? (
                     <Check className="size-3" aria-hidden />
                   ) : null}
-                  {choice}
+                  {words.choice(choice)}
                 </button>
               ))}
             </div>
           ) : !blocked ? (
             <div>
               <p className="type-meta font-medium text-foreground">
-                {baseline}
+                {words.choice(baseline)}
               </p>
               {person.directReportCount > 0 ? (
                 <p className="type-meta text-muted-foreground">
-                  Recommended · {person.directReportCount} active{" "}
-                  {person.directReportCount === 1
-                    ? "direct report"
-                    : "direct reports"}
+                  {t("plan.recommended", { count: person.directReportCount })}
                 </p>
               ) : isOverride ? (
                 <p className="type-meta text-muted-foreground">
-                  Changed from {recommended} recommendation
+                  {t("plan.changedFrom", { baseline: words.choice(recommended) })}
                 </p>
               ) : null}
               {editable ? (
@@ -634,7 +643,7 @@ function PlanRow({
                   onClick={() => setEditing(true)}
                   className="mt-2 inline-flex items-center gap-1 type-meta text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <Pencil className="size-3" aria-hidden /> Change access
+                  <Pencil className="size-3" aria-hidden /> {t("plan.changeAccess")}
                 </button>
               ) : null}
             </div>
@@ -656,6 +665,8 @@ function InlineWorkEmailEditor({
   rechecking: boolean;
   onSaved: () => Promise<void>;
 }) {
+  const t = useTranslations("wfAccess");
+  const english = useLocale() === "en";
   const inputId = useId();
   const updateWorkEmail = useUpdateWorkforceWorkEmail();
   const [editing, setEditing] = useState(false);
@@ -668,7 +679,7 @@ function InlineWorkEmailEditor({
   async function save() {
     const workEmail = draft.trim().toLowerCase();
     if (!workEmail) {
-      setError("Enter a work email.");
+      setError(t("plan.emailRequired"));
       return;
     }
 
@@ -684,9 +695,9 @@ function InlineWorkEmailEditor({
       await onSaved();
     } catch (mutationError) {
       setError(
-        mutationError instanceof Error && mutationError.message.trim()
+        english && mutationError instanceof Error && mutationError.message.trim()
           ? mutationError.message
-          : "The work email could not be saved. Review it and try again."
+          : t("plan.emailFailed")
       );
     } finally {
       setSaving(false);
@@ -697,10 +708,10 @@ function InlineWorkEmailEditor({
     return (
       <div className="text-start sm:text-end" role="status" aria-live="polite">
         <p className="type-meta font-medium text-foreground">
-          Work email saved
+          {t("plan.emailSaved")}
         </p>
         <p className="mt-1 inline-flex items-center gap-2 type-meta text-muted-foreground">
-          <Spinner className="size-3.5" /> Re-evaluating access…
+          <Spinner className="size-3.5" /> {t("plan.reevaluating")}
         </p>
       </div>
     );
@@ -718,7 +729,7 @@ function InlineWorkEmailEditor({
           }}
           className="mt-2 inline-flex type-meta font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Add work email
+          {t("plan.addEmail")}
         </button>
       </div>
     );
@@ -733,7 +744,7 @@ function InlineWorkEmailEditor({
       }}
     >
       <div>
-        <Label htmlFor={inputId}>Work email</Label>
+        <Label htmlFor={inputId}>{t("plan.workEmail")}</Label>
         <Input
           id={inputId}
           className="mt-1.5"
@@ -741,7 +752,7 @@ function InlineWorkEmailEditor({
           inputMode="email"
           autoComplete="email"
           autoFocus
-          placeholder="name@company.com"
+          placeholder={t("plan.emailPlaceholder")}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           disabled={busy}
@@ -749,7 +760,7 @@ function InlineWorkEmailEditor({
         />
       </div>
       <p className="type-meta text-muted-foreground">
-        Saved to the canonical People record, then checked again here.
+        {t("plan.emailHint")}
       </p>
       {error ? (
         <p className="type-meta font-medium text-danger" role="alert">
@@ -763,15 +774,15 @@ function InlineWorkEmailEditor({
           onClick={() => setEditing(false)}
           disabled={busy}
         >
-          Cancel
+          {t("plan.cancel")}
         </button>
         <Button type="submit" size="sm" disabled={!draft.trim() || busy}>
           {busy ? (
             <>
-              <Spinner className="me-1.5 size-3.5" /> Saving…
+              <Spinner className="me-1.5 size-3.5" /> {t("plan.saving")}
             </>
           ) : (
-            "Save work email"
+            t("plan.saveEmail")
           )}
         </Button>
       </div>
@@ -800,23 +811,24 @@ function DecisionSummary({
   runError: boolean;
   onRun: () => void;
 }) {
+  const t = useTranslations("wfAccess");
   const lines = (
     [
-      ["Invitations", counts.invitations],
-      ["Employee records linked", counts.links],
-      ["Accounts reactivated", counts.reactivations],
-      ["Accounts joining this workspace", counts.connections],
-      ["Pending unchanged", counts.pending],
-      ["Already active", counts.alreadyActive],
+      [t("plan.counts.invitations"), counts.invitations],
+      [t("plan.counts.links"), counts.links],
+      [t("plan.counts.reactivations"), counts.reactivations],
+      [t("plan.counts.connections"), counts.connections],
+      [t("plan.counts.pending"), counts.pending],
+      [t("plan.counts.alreadyActive"), counts.alreadyActive],
     ] satisfies Array<[string, number]>
   ).filter(([, count]) => count > 0);
 
   return (
     <aside
       className="order-first rounded-surface bg-card p-5 lg:order-none lg:sticky lg:top-20"
-      aria-label="Activation decision summary"
+      aria-label={t("plan.summaryLabel")}
     >
-      <p className="type-eyebrow text-muted-foreground">On confirmation</p>
+      <p className="type-eyebrow text-muted-foreground">{t("plan.onConfirmation")}</p>
       <div className="mt-4 space-y-3">
         {lines.map(([label, count]) => (
           <div
@@ -831,7 +843,7 @@ function DecisionSummary({
       {counts.attention > 0 ? (
         <div className="mt-3 flex items-baseline justify-between gap-4 border-b pb-2">
           <span className="flex items-center gap-2 type-meta font-medium text-warning-foreground">
-            <AlertTriangle className="size-4" aria-hidden /> Needs review
+            <AlertTriangle className="size-4" aria-hidden /> {t("plan.needsReview")}
           </span>
           <span className="type-metric text-warning-foreground">
             {counts.attention}
@@ -840,7 +852,7 @@ function DecisionSummary({
       ) : null}
       {runError ? (
         <p className="mt-4 type-meta font-medium text-danger" role="alert">
-          The operation did not start. Review the plan and try again.
+          {t("plan.didNotStart")}
         </p>
       ) : null}
       <Button
@@ -851,15 +863,14 @@ function DecisionSummary({
       >
         {running ? (
           <>
-            <Spinner className="me-2" /> Confirming workforce access
+            <Spinner className="me-2" /> {t("plan.confirming")}
           </>
         ) : (
-          "Confirm workforce access"
+          t("plan.confirm")
         )}
       </Button>
       <p className="mt-2 type-meta text-muted-foreground">
-        Each person is processed independently. The receipt records every
-        outcome.
+        {t("plan.independent")}
       </p>
     </aside>
   );
@@ -886,16 +897,18 @@ function isMissingWorkEmail(
   return candidate?.accountState === "NewAccount" && !candidate.workEmail;
 }
 
+const ENGLISH = englishSay(englishMessages, "wfAccess");
+
+/** Why a person can't be activated: the server's reason in English, the screen's line otherwise. */
 function blockedReason(
-  candidate: WorkforceAccessCandidateDto | null | undefined
+  candidate: WorkforceAccessCandidateDto | null | undefined,
+  say: Say = ENGLISH,
+  english = true
 ): string {
-  if (!candidate) return "This person is no longer available for activation.";
+  if (!candidate) return say("plan.noLongerAvailable");
   if (candidate.accountState === "NewAccount" && !candidate.workEmail)
-    return "A work email is required before sending an invitation.";
-  return (
-    candidate.blockedReason ||
-    "No access change can be made from the current account state."
-  );
+    return say("plan.emailNeeded");
+  return (english ? candidate.blockedReason : null) || say("plan.noChange");
 }
 
 /** Preserve an outcome for every person reviewed, including people deliberately
@@ -903,7 +916,9 @@ function blockedReason(
 export function buildOperationalReceipt(
   people: WorkforceAccessSubjectSummaryDto[],
   candidates: WorkforceAccessCandidateDto[],
-  committedItems: WorkforceAccessBulkResultItemDto[]
+  committedItems: WorkforceAccessBulkResultItemDto[],
+  say: Say = ENGLISH,
+  english = true
 ): OperationalReceipt {
   const returned = new Map(
     committedItems.map((item) => [item.employeeId, item])
@@ -928,10 +943,10 @@ export function buildOperationalReceipt(
             : "Blocked";
       const message =
         person.accessState === "InvitePending"
-          ? "The existing invitation remains pending. No new invitation was sent."
+          ? say("plan.stillPending")
           : person.accessState === "ActiveAccount"
-            ? "Access was already active. No change was made."
-            : blockedReason(candidate);
+            ? say("plan.wasActive")
+            : blockedReason(candidate, say, english);
 
       return {
         employeeId: person.employeeId,
@@ -945,16 +960,7 @@ export function buildOperationalReceipt(
   };
 }
 
-const OUTCOME_LABEL: Record<string, string> = {
-  Invited: "Invitation sent",
-  Linked: "Employee linked",
-  Reactivated: "Account reactivated",
-  AlreadyActive: "Already active",
-  AlreadyPending: "Invitation unchanged",
-  Blocked: "Needs attention",
-  Stale: "Changed during review",
-  Failed: "Failed",
-};
+const OUTCOMES = new Set(["Invited", "Linked", "Reactivated", "AlreadyActive", "AlreadyPending", "Blocked", "Stale", "Failed"]);
 
 function Receipt({
   receipt,
@@ -963,6 +969,7 @@ function Receipt({
   receipt: OperationalReceipt;
   onExit: () => void;
 }) {
+  const t = useTranslations("wfAccess");
   const attention = receipt.items.filter((item) =>
     ["Blocked", "Stale", "Failed"].includes(item.outcome)
   );
@@ -973,12 +980,12 @@ function Receipt({
     receipt.items.filter((item) => item.outcome === outcome).length;
   const tallies = (
     [
-      ["Invitations sent", count("Invited")],
-      ["Employee records linked", count("Linked")],
-      ["Accounts reactivated", count("Reactivated")],
-      ["Pending unchanged", count("AlreadyPending")],
-      ["Already active", count("AlreadyActive")],
-      ["Need attention", attention.length],
+      [t("receipt.tallies.invited"), count("Invited")],
+      [t("receipt.tallies.linked"), count("Linked")],
+      [t("receipt.tallies.reactivated"), count("Reactivated")],
+      [t("receipt.tallies.pending"), count("AlreadyPending")],
+      [t("receipt.tallies.active"), count("AlreadyActive")],
+      [t("receipt.tallies.attention"), attention.length],
     ] satisfies Array<[string, number]>
   ).filter(([, value]) => value > 0);
 
@@ -986,14 +993,13 @@ function Receipt({
     <div className="space-y-8">
       <header className="border-b pb-6">
         <p className="type-eyebrow text-muted-foreground">
-          Operational receipt
+          {t("receipt.eyebrow")}
         </p>
         <h2 className="mt-2 type-section-title text-foreground">
-          Workforce access processed
+          {t("receipt.title")}
         </h2>
         <p className="mt-2 type-body text-muted-foreground">
-          Every person in the reviewed selection has an outcome. No pending
-          invitation was resent automatically.
+          {t("receipt.description")}
         </p>
         <div className="mt-5 flex flex-wrap gap-x-8 gap-y-3">
           {tallies.map(([label, value]) => (
@@ -1009,22 +1015,22 @@ function Receipt({
 
       {attention.length > 0 ? (
         <ReceiptGroup
-          title="Attention required"
-          hint="These people were not changed and may need a follow-up."
+          title={t("receipt.attentionTitle")}
+          hint={t("receipt.attentionHint")}
           items={attention}
           attention
         />
       ) : null}
       {routine.length > 0 ? (
         <ReceiptGroup
-          title="Processed"
-          hint="Completed and unchanged outcomes from this operation."
+          title={t("receipt.processed")}
+          hint={t("receipt.processedHint")}
           items={routine}
         />
       ) : null}
 
       <div className="flex justify-end border-t pt-5">
-        <Button onClick={onExit}>Back to workforce access</Button>
+        <Button onClick={onExit}>{t("receipt.back")}</Button>
       </div>
     </div>
   );
@@ -1041,6 +1047,9 @@ function ReceiptGroup({
   items: OperationalReceiptItem[];
   attention?: boolean;
 }) {
+  const t = useTranslations("wfAccess");
+  const outcomeLabel = (outcome: string) =>
+    OUTCOMES.has(outcome) ? t(`receipt.outcome.${outcome}` as "receipt.outcome.Failed") : outcome;
   const initialLimit = receiptGroupInitialLimit(attention, items.length);
   const [visibleCount, setVisibleCount] = useState(initialLimit);
   const visible = items.slice(0, visibleCount);
@@ -1068,7 +1077,7 @@ function ReceiptGroup({
             <div className="min-w-0">
               <p className="type-label truncate">{item.displayName}</p>
               <p className="truncate type-meta text-muted-foreground">
-                {item.email || "Work email missing"}
+                {item.email || t("receipt.missingEmail")}
               </p>
               {attention ? (
                 <p className="mt-1 type-meta font-medium text-warning-foreground">
@@ -1082,7 +1091,7 @@ function ReceiptGroup({
                 attention ? "text-warning-foreground" : "text-foreground"
               )}
             >
-              {OUTCOME_LABEL[item.outcome] ?? item.outcome}
+              {outcomeLabel(item.outcome)}
             </p>
           </div>
         ))}
@@ -1098,7 +1107,7 @@ function ReceiptGroup({
             }
             className="inline-flex items-center gap-1 type-meta font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Show {Math.min(expansionStep, remaining)} more
+            {t("plan.showMore", { count: Math.min(expansionStep, remaining) })}
             <ChevronDown className="size-3.5" aria-hidden />
           </button>
           <span className="type-meta text-muted-foreground" aria-live="polite">
@@ -1123,5 +1132,6 @@ export function receiptGroupExpansionStep(attention: boolean): number {
 
 /** A group that needs a decision, marked by a warning dot before its title (DESIGN §9: a mark, never a side stripe). */
 function AttentionMark() {
-  return <span aria-label="Needs attention" role="img" className="me-2 inline-block size-2 rounded-full bg-warning align-middle" />;
+  const t = useTranslations("wfAccess");
+  return <span aria-label={t("receipt.attentionMark")} role="img" className="me-2 inline-block size-2 rounded-full bg-warning align-middle" />;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { FileSpreadsheet } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, cn } from "@repo/ds";
@@ -21,6 +22,7 @@ export function ImportFilePreview({
   buildRows: (limit: number) => PreviewRow[];
   initialLimit?: number;
 }) {
+  const t = useTranslations("dataImport");
   const [limit, setLimit] = useState<number>(initialLimit);
   const rows = useMemo(() => buildRows(limit), [buildRows, limit]);
   const limits = ROW_LIMITS.filter((option, index) => index === 0 || totalRows > ROW_LIMITS[index - 1]!);
@@ -34,20 +36,20 @@ export function ImportFilePreview({
           </span>
           <div className="min-w-0">
             <h2 id="match-preview-title" className="type-panel-title font-semibold text-foreground">
-              File preview
+              {t("preview.title")}
             </h2>
-            <p className="type-meta text-muted-foreground">A preview of your data with applied mappings.</p>
+            <p className="type-meta text-muted-foreground">{t("preview.description")}</p>
           </div>
         </div>
         {limits.length > 1 ? (
           <Select value={String(limit)} onValueChange={(value) => setLimit(Number(value))}>
-            <SelectTrigger aria-label="Rows to preview" className="shrink-0">
+            <SelectTrigger aria-label={t("preview.rows")} className="shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="end">
               {limits.map((option) => (
                 <SelectItem key={option} value={String(option)}>
-                  First {option} rows
+                  {t("preview.first", { count: option })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -91,8 +93,9 @@ export function ImportFilePreview({
 }
 
 export function PreviewMissing() {
+  const t = useTranslations("dataImport");
   return (
-    <span className="text-muted-foreground" aria-label="None">
+    <span className="text-muted-foreground" aria-label={t("preview.none")}>
       —
     </span>
   );
@@ -100,11 +103,12 @@ export function PreviewMissing() {
 
 /** A source term that has no Fusion meaning yet, shown as the file wrote it. */
 export function PreviewUnmatched({ value }: { value: string }) {
+  const t = useTranslations("dataImport");
   return (
-    <span title="Not matched yet" className="inline-flex items-center gap-1.5 text-primary-foreground dark:text-primary">
+    <span title={t("preview.unmatched")} className="inline-flex items-center gap-1.5 text-primary-foreground dark:text-primary">
       <span aria-hidden className="size-1.5 rounded-full bg-primary" />
       {value}
-      <span className="sr-only"> (not matched yet)</span>
+      <span className="sr-only">{t("preview.unmatchedSr")}</span>
     </span>
   );
 }

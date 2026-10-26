@@ -1,9 +1,11 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useTranslations } from "next-intl";
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, CircleMinus, Search, UserCheck } from "lucide-react";
 import { Input, Skeleton, cn } from "@repo/ds";
 import type { WorkforceReviewCountsDto, WorkforceReviewRowDto } from "@repo/api";
-import { Monogram, formatWorkforceDate } from "@/features/people/components/workforce-ui";
+import { Monogram, useWorkforceDate } from "@/features/people/components/workforce-ui";
 import { employmentState, notImportedReason, pageList, reviewChips, type ReviewFilter } from "../model/review-view";
 
 export const REVIEW_PAGE_SIZE = 10;
@@ -44,11 +46,13 @@ export function WorkforceProposal({
   selected: number | null;
   onSelect: (row: WorkforceReviewRowDto) => void;
 }) {
+  const t = useTranslations("wfImport.proposal");
+  const say = useSay("wfImport");
   return (
     <section aria-labelledby="workforce-proposal-title" className="overflow-hidden rounded-surface border border-border bg-card">
       <header className="space-y-4 px-4 pb-4 pt-5 sm:px-5">
         <h2 id="workforce-proposal-title" className="type-section-title text-foreground">
-          Workforce proposal <span className="text-muted-foreground">·</span> <span className="tabular-nums">{counts.total}</span>
+          {t("title")} <span className="text-muted-foreground">·</span> <span className="tabular-nums">{counts.total}</span>
         </h2>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative w-full sm:w-96">
@@ -57,13 +61,13 @@ export function WorkforceProposal({
               type="search"
               value={search}
               onChange={(e) => onSearch(e.target.value)}
-              placeholder="Search employees, employee number, or email…"
-              aria-label="Search employees"
+              placeholder={t("search")}
+              aria-label={t("searchLabel")}
               className="h-10 ps-9"
             />
           </div>
-          <div role="group" aria-label="Show" className="flex flex-wrap items-center gap-2">
-            {reviewChips(counts).map((chip) => {
+          <div role="group" aria-label={t("show")} className="flex flex-wrap items-center gap-2">
+            {reviewChips(counts, say).map((chip) => {
               const active = filter === chip.key;
               return (
                 <button
@@ -98,7 +102,14 @@ export function WorkforceProposal({
       <div className="overflow-x-auto">
         <div className="min-w-[68rem]">
           <div aria-hidden className={cn(GRID, "border-y border-border bg-inlay px-5 py-2.5 type-meta text-muted-foreground")}>
-            {["Employee", "Organization", "Job title", "Manager", "Employment", "Import result"].map((label) => (
+            {[
+              t("columns.employee"),
+              t("columns.organization"),
+              t("columns.jobTitle"),
+              t("columns.manager"),
+              t("columns.employment"),
+              t("columns.result"),
+            ].map((label) => (
               <span key={label} className="font-medium">
                 {label}
               </span>
@@ -126,6 +137,9 @@ function ProposalRows({
   selected: number | null;
   onSelect: (row: WorkforceReviewRowDto) => void;
 }) {
+  const t = useTranslations("wfImport.proposal");
+  const say = useSay("wfImport");
+  const workforceDate = useWorkforceDate();
   if (loading && rows.length === 0)
     return (
       <div>
@@ -146,13 +160,13 @@ function ProposalRows({
       </div>
     );
   if (rows.length === 0)
-    return <p className="px-5 py-12 text-center type-body text-muted-foreground">No one in this view.</p>;
+    return <p className="px-5 py-12 text-center type-body text-muted-foreground">{t("empty")}</p>;
 
   return (
     <div aria-busy={loading || undefined} className={cn(loading && "opacity-60 transition-opacity")}>
       {rows.map((row) => {
         const active = row.sourceRowNumber === selected;
-        const employment = employmentState(row, baseline);
+        const employment = employmentState(row, baseline, say);
         return (
           <button
             key={row.sourceRowNumber}
@@ -169,7 +183,7 @@ function ProposalRows({
               <span className="min-w-0">
                 <span className="block truncate type-label font-semibold text-foreground">{row.employee.displayName}</span>
                 <span className="block truncate type-meta text-muted-foreground">
-                  {[row.employee.numberGenerated ? "Number generated" : row.employee.employeeNumber, row.employee.workEmail]
+                  {[row.employee.numberGenerated ? t("generated") : row.employee.employeeNumber, row.employee.workEmail]
                     .filter(Boolean)
                     .join(" · ") || "—"}
                 </span>
@@ -181,9 +195,9 @@ function ProposalRows({
               ) : row.classification !== "Blocked" ? (
                 <span className="block truncate type-body text-muted-foreground">{row.work.sourceOrganization ?? "—"}</span>
               ) : (
-                <span className="flex min-w-0 items-center gap-1.5 type-body text-destructive" title="Doesn't match a unit yet">
+                <span className="flex min-w-0 items-center gap-1.5 type-body text-destructive" title={t("noUnit")}>
                   <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">{row.work.sourceOrganization ?? "Missing"}</span>
+                  <span className="truncate">{row.work.sourceOrganization ?? t("missing")}</span>
                 </span>
               )}
             </span>
@@ -199,10 +213,10 @@ function ProposalRows({
             </span>
             <span className="min-w-0 type-body">
               <span className="block text-muted-foreground">{employment.label}</span>
-              {employment.date ? <span className="block tabular-nums text-foreground">{formatWorkforceDate(employment.date)}</span> : null}
+              {employment.date ? <span className="block tabular-nums text-foreground">{workforceDate(employment.date)}</span> : null}
             </span>
             <span className="min-w-0">
-              <ResultPill row={row} reason={notImportedReason(row, baseline)} />
+              <ResultPill row={row} reason={notImportedReason(row, baseline, say)} />
             </span>
           </button>
         );
@@ -212,18 +226,19 @@ function ProposalRows({
 }
 
 function ManagerCell({ manager }: { manager: WorkforceReviewRowDto["manager"] }) {
+  const t = useTranslations("wfImport.proposal");
   if (manager.state === "NoManager")
     return (
       <span className="block type-body text-muted-foreground">
         <span aria-hidden className="block leading-none">—</span>
-        No manager
+        {t("noManager")}
       </span>
     );
   if (manager.state === "Unresolved")
     return (
-      <span className="flex min-w-0 items-center gap-1.5 type-body text-destructive" title="Doesn't match anyone yet">
+      <span className="flex min-w-0 items-center gap-1.5 type-body text-destructive" title={t("noOne")}>
         <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-        <span className="truncate">{manager.display ?? "Unresolved"}</span>
+        <span className="truncate">{manager.display ?? t("unresolved")}</span>
       </span>
     );
   const name = manager.display ?? "—";
@@ -239,16 +254,17 @@ function ManagerCell({ manager }: { manager: WorkforceReviewRowDto["manager"] })
 }
 
 function ResultPill({ row, reason }: { row: WorkforceReviewRowDto; reason: string | null }) {
+  const t = useTranslations("wfImport.proposal");
   const pill = (() => {
     switch (row.classification) {
       case "Create":
-        return { icon: CheckCircle2, label: "Create", className: "bg-success/12 text-success", iconClass: "fill-success text-card" };
+        return { icon: CheckCircle2, label: t("result.Create"), className: "bg-success/12 text-success", iconClass: "fill-success text-card" };
       case "Existing":
-        return { icon: UserCheck, label: "Already in Fusion", className: "bg-muted text-muted-foreground", iconClass: "" };
+        return { icon: UserCheck, label: t("result.Existing"), className: "bg-muted text-muted-foreground", iconClass: "" };
       case "Blocked":
-        return { icon: AlertCircle, label: "Needs attention", className: "bg-destructive/12 text-destructive", iconClass: "" };
+        return { icon: AlertCircle, label: t("result.Blocked"), className: "bg-destructive/12 text-destructive", iconClass: "" };
       default:
-        return { icon: CircleMinus, label: "Not imported", className: "bg-muted text-muted-foreground", iconClass: "fill-muted-foreground/30" };
+        return { icon: CircleMinus, label: t("result.NotImported"), className: "bg-muted text-muted-foreground", iconClass: "fill-muted-foreground/30" };
     }
   })();
   const Icon = pill.icon;
@@ -264,17 +280,18 @@ function ResultPill({ row, reason }: { row: WorkforceReviewRowDto; reason: strin
 }
 
 function Pager({ page, total, onPage }: { page: number; total: number; onPage: (page: number) => void }) {
+  const t = useTranslations("wfImport.proposal");
   const pages = Math.max(1, Math.ceil(total / REVIEW_PAGE_SIZE));
   const first = total === 0 ? 0 : (page - 1) * REVIEW_PAGE_SIZE + 1;
   const last = Math.min(page * REVIEW_PAGE_SIZE, total);
   return (
     <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3 type-meta text-muted-foreground">
       <span className="tabular-nums">
-        Showing {first}–{last} of {total} {total === 1 ? "employee" : "employees"}
+        {t("showing", { first, last, count: total })}
       </span>
       {pages > 1 ? (
-        <nav aria-label="Pages" className="flex items-center gap-1">
-          <PageButton label="Previous page" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        <nav aria-label={t("pages")} className="flex items-center gap-1">
+          <PageButton label={t("previous")} disabled={page <= 1} onClick={() => onPage(page - 1)}>
             <ChevronLeft className="size-4" aria-hidden />
           </PageButton>
           {pageList(page, pages).map((item, index) =>
@@ -283,12 +300,12 @@ function Pager({ page, total, onPage }: { page: number; total: number; onPage: (
                 …
               </span>
             ) : (
-              <PageButton key={item} label={`Page ${item}`} current={item === page} onClick={() => onPage(item)}>
+              <PageButton key={item} label={t("page", { page: item })} current={item === page} onClick={() => onPage(item)}>
                 {item}
               </PageButton>
             )
           )}
-          <PageButton label="Next page" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+          <PageButton label={t("next")} disabled={page >= pages} onClick={() => onPage(page + 1)}>
             <ChevronRight className="size-4" aria-hidden />
           </PageButton>
         </nav>

@@ -1,5 +1,8 @@
 "use client";
 
+import { useOrganizationEvents } from "./organization-words";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -73,7 +76,6 @@ import {
   useAuth,
 } from "@repo/auth";
 import type {
-  OrganizationChangeDto,
   OrganizationUnitStateDto,
 } from "@repo/api";
 import { useTenantAccessSummary } from "@/features/tenant-access/api/use-tenant-access";
@@ -113,13 +115,17 @@ import {
   UpcomingChangesSheet,
 } from "./organization-surfaces";
 import { useRecentRecord } from "@repo/api/react";
-import { dateFormatter } from "@repo/ds/lib/dates";
 
 const EMPTY_REVEAL: ReadonlySet<string> = new Set();
 
 const OrganizationChart = dynamic(() => import("./organization-chart"), {
   ssr: false,
-  loading: () => (
+  loading: () => <ChartLoading />,
+});
+
+function ChartLoading() {
+  const t = useTranslations("organization");
+  return (
     <div className="grid h-full min-h-[520px] place-items-center bg-section">
       <div className="space-y-4 text-center">
         <Skeleton className="mx-auto h-24 w-56 rounded-surface" />
@@ -128,30 +134,11 @@ const OrganizationChart = dynamic(() => import("./organization-chart"), {
           <Skeleton className="h-24 w-56 rounded-surface" />
         </div>
         <p className="text-xs text-muted-foreground">
-          Laying out the hierarchy…
+          {t("layingOut")}
         </p>
       </div>
     </div>
-  ),
-});
-
-function eventLabel(change: OrganizationChangeDto) {
-  const labels = change.businessEventKinds.map((kind) =>
-    String(kind).replace("TypeChanged", "Type changed")
   );
-  return labels.join(" + ") || String(change.kind);
-}
-
-function eventContext(change: OrganizationChangeDto) {
-  if (change.businessEventKinds.includes("Moved"))
-    return `${change.before?.parent?.name ?? "No parent"} → ${change.after?.parent?.name ?? "No parent"}`;
-  if (change.businessEventKinds.includes("Renamed"))
-    return `${change.before?.name ?? "—"} → ${change.after?.name ?? "—"}`;
-  if (change.businessEventKinds.includes("TypeChanged"))
-    return `${change.before?.type.name ?? "—"} → ${change.after?.type.name ?? "—"}`;
-  if (change.businessEventKinds.includes("Inactivated"))
-    return "Active → Inactive";
-  return change.summary ?? "Organization established";
 }
 
 function StructureSkeleton() {
@@ -184,11 +171,11 @@ function toCalendarDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-const AS_OF_FORMAT = dateFormatter({
+const AS_OF_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "numeric",
   month: "short",
   year: "numeric",
-});
+};
 
 function AsOfDatePicker({
   value,
@@ -199,6 +186,8 @@ function AsOfDatePicker({
   today: string;
   onChange: (value: string) => void;
 }) {
+  const t = useTranslations("organization");
+  const format = useFormat();
   const [open, setOpen] = useState(false);
   const selected = parseCalendarDate(value);
   return (
@@ -206,9 +195,9 @@ function AsOfDatePicker({
       <PopoverTrigger asChild>
         <Button variant="outline" className="h-9 gap-2 font-normal">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">As of</span>
+          <span className="text-xs text-muted-foreground">{t("asOf")}</span>
           <span className="font-medium">
-            {selected ? AS_OF_FORMAT.format(selected) : value}
+            {selected ? format.parts(selected, AS_OF_OPTIONS) : value}
           </span>
         </Button>
       </PopoverTrigger>
@@ -257,6 +246,8 @@ function InspectorContent({
   onInactivate: (unit: OrganizationUnitStateDto) => void;
   onCorrect: (unit: OrganizationUnitStateDto, date: string) => void;
 }) {
+  const t = useTranslations("organization");
+  const events = useOrganizationEvents();
   const [tab, setTab] = useState("details");
   const detail = useOrganizationUnit(selectedId, asOf);
   const history = useOrganizationHistory(selectedId, Boolean(selectedId));
@@ -274,16 +265,16 @@ function InspectorContent({
             <p className="truncate text-base font-semibold">
               {unit?.name ??
                 model.byId.get(selectedId)?.name ??
-                "Organizational unit"}
+                t("unit")}
             </p>
             <p className="mt-1 truncate text-xs text-muted-foreground">
-              {unit ? `${unit.typeName} · ${unit.code}` : "Loading details…"}
+              {unit ? `${unit.typeName} · ${unit.code}` : t("loadingDetails")}
             </p>
           </div>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Close inspector"
+            aria-label={t("closeInspector")}
             onClick={onClose}
           >
             <X className="h-4 w-4" />
@@ -295,8 +286,8 @@ function InspectorContent({
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList className="mx-4 mt-3 grid w-auto grid-cols-2">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="details">{t("tabs.details")}</TabsTrigger>
+            <TabsTrigger value="history">{t("tabs.history")}</TabsTrigger>
           </TabsList>
           <TabsContent
             value="details"
@@ -311,7 +302,7 @@ function InspectorContent({
             ) : detail.error ? (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Details unavailable</AlertTitle>
+                <AlertTitle>{t("details.unavailable")}</AlertTitle>
                 <AlertDescription>
                   {detail.error.message}
                   <Button
@@ -320,7 +311,7 @@ function InspectorContent({
                     variant="outline"
                     onClick={() => void detail.refetch()}
                   >
-                    Retry
+                    {t("details.retry")}
                   </Button>
                 </AlertDescription>
               </Alert>
@@ -328,29 +319,29 @@ function InspectorContent({
               <>
                 <dl className="divide-y text-sm">
                   <div className="grid grid-cols-[100px_1fr] gap-3 py-3">
-                    <dt className="text-muted-foreground">Name</dt>
+                    <dt className="text-muted-foreground">{t("details.name")}</dt>
                     <dd className="font-medium">{unit.name}</dd>
                   </div>
                   <div className="grid grid-cols-[100px_1fr] gap-3 py-3">
-                    <dt className="text-muted-foreground">Type</dt>
+                    <dt className="text-muted-foreground">{t("details.type")}</dt>
                     <dd>{unit.typeName}</dd>
                   </div>
                   <div className="grid grid-cols-[100px_1fr] gap-3 py-3">
-                    <dt className="text-muted-foreground">Code</dt>
+                    <dt className="text-muted-foreground">{t("details.code")}</dt>
                     <dd className="font-mono text-xs">{unit.code}</dd>
                   </div>
                   <div className="grid grid-cols-[100px_1fr] gap-3 py-3">
-                    <dt className="text-muted-foreground">Parent</dt>
-                    <dd>{unit.parentName ?? "Organization root"}</dd>
+                    <dt className="text-muted-foreground">{t("details.parent")}</dt>
+                    <dd>{unit.parentName ?? t("details.root")}</dd>
                   </div>
                   <div className="grid grid-cols-[100px_1fr] gap-3 py-3">
-                    <dt className="text-muted-foreground">Path</dt>
+                    <dt className="text-muted-foreground">{t("details.path")}</dt>
                     <dd className="leading-5 text-muted-foreground">
                       {unit.path}
                     </dd>
                   </div>
                   <div className="grid grid-cols-[100px_1fr] gap-3 py-3">
-                    <dt className="text-muted-foreground">Effective</dt>
+                    <dt className="text-muted-foreground">{t("details.effective")}</dt>
                     <dd>{unit.effectiveFrom}</dd>
                   </div>
                 </dl>
@@ -362,7 +353,7 @@ function InspectorContent({
                       onClick={() => onAddChild(unit.id)}
                     >
                       <Plus className="h-3.5 w-3.5 shrink-0" />
-                      Add child
+                      {t("actions.addChild")}
                     </Button>
                     <Button
                       size="sm"
@@ -371,7 +362,7 @@ function InspectorContent({
                       onClick={() => onEdit(unit)}
                     >
                       <Pencil className="h-3.5 w-3.5 shrink-0" />
-                      Edit
+                      {t("actions.edit")}
                     </Button>
                     {!root ? (
                       <Button
@@ -381,7 +372,7 @@ function InspectorContent({
                         onClick={() => onMove(unit.id)}
                       >
                         <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" />
-                        Move
+                        {t("actions.move")}
                       </Button>
                     ) : null}
                     <DropdownMenu>
@@ -390,16 +381,16 @@ function InspectorContent({
                           size="sm"
                           variant="outline"
                           className="gap-1 px-2 text-xs"
-                          aria-label="More actions"
+                          aria-label={t("actions.moreActions")}
                         >
                           <MoreHorizontal className="h-3.5 w-3.5 shrink-0" />
-                          More
+                          {t("actions.more")}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onSelect={() => onCorrect(unit, asOf)}>
                           <Wrench className="h-4 w-4" />
-                          Correct recorded data
+                          {t("actions.correct")}
                         </DropdownMenuItem>
                         {!root ? (
                           <DropdownMenuItem
@@ -407,7 +398,7 @@ function InspectorContent({
                             onSelect={() => onInactivate(unit)}
                           >
                             <Ban className="h-4 w-4" />
-                            Inactivate unit
+                            {t("actions.inactivate")}
                           </DropdownMenuItem>
                         ) : null}
                       </DropdownMenuContent>
@@ -417,7 +408,7 @@ function InspectorContent({
                 <div className="mt-6 border-t pt-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-medium text-muted-foreground">
-                      Recent history
+                      {t("history.recent")}
                     </p>
                     {businessEvents.length ? (
                       <Button
@@ -426,7 +417,7 @@ function InspectorContent({
                         className="h-auto p-0 text-xs"
                         onClick={() => setTab("history")}
                       >
-                        View full history
+                        {t("history.viewFull")}
                         <ArrowRight className="h-3 w-3" />
                       </Button>
                     ) : null}
@@ -453,10 +444,10 @@ function InspectorContent({
                             />
                             <div className="min-w-0">
                               <p className="font-medium text-foreground">
-                                {eventLabel(event)}
+                                {events.label(event)}
                               </p>
                               <p className="truncate text-muted-foreground">
-                                {event.effectiveDate} · {eventContext(event)}
+                                {event.effectiveDate} · {events.context(event)}
                               </p>
                             </div>
                           </li>
@@ -465,7 +456,7 @@ function InspectorContent({
                     </ul>
                   ) : (
                     <p className="mt-3 text-xs text-muted-foreground">
-                      No effective changes yet.
+                      {t("history.noEffective")}
                     </p>
                   )}
                 </div>
@@ -484,7 +475,7 @@ function InspectorContent({
             ) : history.error ? (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>History unavailable</AlertTitle>
+                <AlertTitle>{t("history.unavailable")}</AlertTitle>
                 <AlertDescription>
                   {history.error.message}
                   <Button
@@ -493,7 +484,7 @@ function InspectorContent({
                     variant="outline"
                     onClick={() => void history.refetch()}
                   >
-                    Retry
+                    {t("history.retry")}
                   </Button>
                 </AlertDescription>
               </Alert>
@@ -513,11 +504,11 @@ function InspectorContent({
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-medium">
-                              {eventLabel(event)}
+                              {events.label(event)}
                             </p>
                             {scheduled ? (
                               <Badge variant="outline" className="text-[10px]">
-                                Scheduled
+                                {t("history.scheduled")}
                               </Badge>
                             ) : null}
                           </div>
@@ -525,7 +516,7 @@ function InspectorContent({
                             {event.effectiveDate}
                           </p>
                           <p className="mt-1 text-xs leading-5">
-                            {eventContext(event)}
+                            {events.context(event)}
                           </p>
                         </div>
                         {canManage && !readOnly && unit ? (
@@ -535,7 +526,7 @@ function InspectorContent({
                                 variant="ghost"
                                 size="icon-sm"
                                 className="-me-1 h-7 w-7 shrink-0 text-muted-foreground opacity-0 group-hover/history:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-                                aria-label={`Actions for ${eventLabel(event)} effective ${event.effectiveDate}`}
+                                aria-label={t("history.actionsFor", { event: events.label(event), date: event.effectiveDate })}
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
@@ -546,7 +537,7 @@ function InspectorContent({
                                   onCorrect(unit, event.effectiveDate)
                                 }
                               >
-                                Correct this state…
+                                {t("history.correctState")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -560,10 +551,10 @@ function InspectorContent({
               <div className="py-12 text-center">
                 <History className="mx-auto h-5 w-5 text-muted-foreground" />
                 <p className="mt-3 text-sm font-medium">
-                  No business history yet
+                  {t("history.empty")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Effective changes will appear here.
+                  {t("history.emptyDescription")}
                 </p>
               </div>
             )}
@@ -575,6 +566,8 @@ function InspectorContent({
 
 export default function OrganizationWorkspace() {
   const { user, isLoading: authLoading } = useAuth();
+  const t = useTranslations("organization");
+  const events = useOrganizationEvents();
   const canView = canViewCoreOrganization(user);
   const canManage = canManageCoreOrganization(user);
   const canReadTenantName = canViewTenantAdministration(user);
@@ -687,7 +680,7 @@ export default function OrganizationWorkspace() {
   useRecentRecord(
     "core",
     openedUnit
-      ? { label: openedUnit.name, kind: "Org unit", href: `/core/organization?unit=${encodeURIComponent(openedUnit.id)}` }
+      ? { label: openedUnit.name, kind: t("recentKind"), href: `/core/organization?unit=${encodeURIComponent(openedUnit.id)}` }
       : null,
   );
 
@@ -786,17 +779,17 @@ export default function OrganizationWorkspace() {
   if (authLoading)
     return (
       <div className="p-6">
-        <PageHeader title="Organization" />
+        <PageHeader title={t("title")} />
         <StructureSkeleton />
       </div>
     );
   if (!canView)
     return (
       <div className="p-6">
-        <PageHeader title="Organization" />
+        <PageHeader title={t("title")} />
         <PagePermissionNotice
-          title="Organization access required"
-          description="You do not have permission to view this tenant’s Organization."
+          title={t("access.title")}
+          description={t("access.description")}
         />
       </div>
     );
@@ -814,8 +807,8 @@ export default function OrganizationWorkspace() {
       const blob = await importApi.exportStructure(urlState.asOf);
       downloadBlob(blob, `Fusion-organization-${urlState.asOf}.xlsx`);
     } catch {
-      toast.error("Structure could not be exported", {
-        description: "Try again in a moment.",
+      toast.error(t("export.failed"), {
+        description: t("export.failedDescription"),
       });
     }
   }
@@ -824,8 +817,8 @@ export default function OrganizationWorkspace() {
     <div className="flex h-[calc(100dvh-4rem)] min-h-[680px] flex-col overflow-hidden">
       <header className="shrink-0 px-6 pt-5">
         <PageHeader
-          title="Organization"
-          description="Define how your organization is structured."
+          title={t("title")}
+          description={t("description")}
           className="mb-3"
           actions={
             readiness.data?.hasPermanentRoot ? (
@@ -851,11 +844,11 @@ export default function OrganizationWorkspace() {
         />
         <div className="flex items-end justify-between border-b">
           <nav
-            aria-label="Organization lenses"
+            aria-label={t("lenses")}
             className="flex items-center gap-6"
           >
             <button className="border-b-2 border-primary pb-2.5 text-sm font-semibold">
-              Structure
+              {t("structure")}
             </button>
           </nav>
         </div>
@@ -873,7 +866,7 @@ export default function OrganizationWorkspace() {
               onClick={() => navigate({ asOf: today })}
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Return to Today
+              {t("returnToToday")}
             </Button>
           </div>
         ) : null}
@@ -887,7 +880,7 @@ export default function OrganizationWorkspace() {
         <div className="grid flex-1 place-items-center px-6">
           <Alert variant="destructive" className="max-w-xl">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Organization could not be resolved</AlertTitle>
+            <AlertTitle>{t("unresolved")}</AlertTitle>
             <AlertDescription>
               {readiness.error.message}
               <Button
@@ -896,7 +889,7 @@ export default function OrganizationWorkspace() {
                 className="mt-3"
                 onClick={() => void readiness.refetch()}
               >
-                Retry
+                {t("retry")}
               </Button>
             </AlertDescription>
           </Alert>
@@ -919,11 +912,10 @@ export default function OrganizationWorkspace() {
             <CalendarDays className="h-5 w-5" />
           </div>
           <h2 className="text-xl font-semibold">
-            Organization scheduled for {futureRoot}
+            {t("scheduledRoot.title", { date: futureRoot })}
           </h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            The permanent root exists, so another cannot be created. Today
-            remains without an effective hierarchy.
+            {t("scheduledRoot.description")}
           </p>
           <Button
             className="mt-5 w-fit"
@@ -934,7 +926,7 @@ export default function OrganizationWorkspace() {
               })
             }
           >
-            View scheduled structure
+            {t("scheduledRoot.view")}
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -944,17 +936,17 @@ export default function OrganizationWorkspace() {
             <div className="relative min-w-[280px] max-w-lg flex-1">
               <Search className="pointer-events-none absolute inset-s-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                aria-label="Search Organization by name or business code"
+                aria-label={t("search.label")}
                 value={urlState.search}
                 onChange={(event) => navigate({ search: event.target.value })}
-                placeholder="Find a unit by name or code"
+                placeholder={t("search.placeholder")}
                 className="ps-9 pe-9"
               />
               {urlState.search ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Clear Organization search"
+                  aria-label={t("search.clear")}
                   onClick={() => navigate({ search: "" })}
                   className="absolute inset-e-1 top-1/2 -translate-y-1/2"
                 >
@@ -992,16 +984,16 @@ export default function OrganizationWorkspace() {
                     ))
                   ) : (
                     <div className="p-4 text-center">
-                      <p className="text-sm font-medium">No units found</p>
+                      <p className="text-sm font-medium">{t("search.none")}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Try another name or business code.
+                        {t("search.noneDescription")}
                       </p>
                       <Button
                         variant="link"
                         size="sm"
                         onClick={() => navigate({ search: "" })}
                       >
-                        Clear search
+                        {t("search.clearSearch")}
                       </Button>
                     </div>
                   )}
@@ -1015,24 +1007,24 @@ export default function OrganizationWorkspace() {
                 if (value === "chart" || value === "outline")
                   navigate({ representation: value });
               }}
-              aria-label="Structure representation"
+              aria-label={t("views.label")}
               className="rounded-control border bg-inlay p-0.5"
             >
               <ToggleGroupItem
                 value="chart"
-                aria-label="Chart view"
+                aria-label={t("views.chartLabel")}
                 className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
               >
                 <Network className="h-4 w-4" />
-                Chart
+                {t("views.chart")}
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="outline"
-                aria-label="Outline view"
+                aria-label={t("views.outlineLabel")}
                 className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
               >
                 <ListTree className="h-4 w-4" />
-                Outline
+                {t("views.outline")}
               </ToggleGroupItem>
             </ToggleGroup>
             {canManage && !readOnly ? (
@@ -1044,7 +1036,7 @@ export default function OrganizationWorkspace() {
                 }
               >
                 <Plus className="h-4 w-4" />
-                Add unit
+                {t("toolbar.addUnit")}
               </Button>
             ) : null}
             <div className="ms-auto flex items-center gap-3">
@@ -1052,7 +1044,7 @@ export default function OrganizationWorkspace() {
                 <Button asChild variant="outline">
                   <Link href="/organization/import">
                     <Upload className="h-4 w-4" />
-                    Import structure
+                    {t("toolbar.import")}
                   </Link>
                 </Button>
               ) : null}
@@ -1062,7 +1054,7 @@ export default function OrganizationWorkspace() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label="More Organization actions"
+                    aria-label={t("toolbar.more")}
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
@@ -1070,12 +1062,12 @@ export default function OrganizationWorkspace() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => void exportStructure()}>
                     <FileOutput className="h-4 w-4" />
-                    Export structure
+                    {t("toolbar.export")}
                   </DropdownMenuItem>
                   {canManage && !readOnly ? (
                     <DropdownMenuItem onClick={() => patchLocal({ editor: { kind: "manage-types" } })}>
                       <Settings2 className="h-4 w-4" />
-                      Manage Unit Types
+                      {t("toolbar.manageTypes")}
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuContent>
@@ -1085,7 +1077,7 @@ export default function OrganizationWorkspace() {
           <div className="relative flex min-h-0 flex-1">
             <main
               className="min-w-0 flex-1"
-              aria-label="Organization Structure workspace"
+              aria-label={t("workspaceLabel")}
             >
               {hierarchy.isLoading && !hierarchy.data ? (
                 <StructureSkeleton />
@@ -1104,7 +1096,7 @@ export default function OrganizationWorkspace() {
                           variant="outline"
                           onClick={() => void hierarchy.refetch()}
                         >
-                          Retry
+                          {t("retry")}
                         </Button>
                         {readOnly ? (
                           <Button
@@ -1112,7 +1104,7 @@ export default function OrganizationWorkspace() {
                             variant="outline"
                             onClick={() => navigate({ asOf: today })}
                           >
-                            Return to Today
+                            {t("returnToToday")}
                           </Button>
                         ) : null}
                       </div>
@@ -1153,7 +1145,7 @@ export default function OrganizationWorkspace() {
               ) : (
                 <div className="grid h-full place-items-center">
                   <p className="text-sm text-muted-foreground">
-                    No Organizational Units resolve for this date.
+                    {t("noUnitsForDate")}
                   </p>
                 </div>
               )}
@@ -1162,7 +1154,7 @@ export default function OrganizationWorkspace() {
             (editor !== null || (urlState.selectedId && inspectorOpen)) ? (
               <aside
                 className="min-h-0 w-[360px] shrink-0 border-s bg-card max-xl:absolute max-xl:inset-y-0 max-xl:inset-e-0 max-xl:z-20 max-xl:shadow-overlay"
-                aria-label="Organization panel"
+                aria-label={t("panelLabel")}
               >
                 {editor?.kind === "unit-form" ? (
                   <UnitFormPanel
@@ -1288,18 +1280,16 @@ export default function OrganizationWorkspace() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
-                Cancel scheduled {eventLabel(cancelChange).toLowerCase()}?
+                {t("cancelChange.title", { event: events.label(cancelChange).toLowerCase() })}
               </DialogTitle>
               <DialogDescription>
-                {cancelChange.unitName} will no longer change on{" "}
-                {cancelChange.effectiveDate}. Other changes scheduled for that
-                date remain.
+                {t("cancelChange.description", { unit: cancelChange.unitName, date: cancelChange.effectiveDate })}
               </DialogDescription>
             </DialogHeader>
             {cancelUnit.error ? (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Current version unavailable</AlertTitle>
+                <AlertTitle>{t("cancelChange.versionUnavailable")}</AlertTitle>
                 <AlertDescription>{cancelUnit.error.message}</AlertDescription>
               </Alert>
             ) : null}
@@ -1308,7 +1298,7 @@ export default function OrganizationWorkspace() {
                 variant="outline"
                 onClick={() => patchLocal({ cancelChange: null })}
               >
-                Keep change
+                {t("cancelChange.keep")}
               </Button>
               <Button
                 variant="destructive"
@@ -1321,14 +1311,14 @@ export default function OrganizationWorkspace() {
                       id: cancelChange.id,
                       version: cancelUnit.data.version,
                     });
-                    toast.success("Scheduled change cancelled");
+                    toast.success(t("cancelChange.cancelled"));
                     patchLocal({ cancelChange: null });
                   } catch {
                     return;
                   }
                 }}
               >
-                Cancel scheduled change
+                {t("cancelChange.confirm")}
               </Button>
             </DialogFooter>
           </DialogContent>

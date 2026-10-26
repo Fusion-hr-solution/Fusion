@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import type { TenantAdministratorDto } from "@repo/api";
 import { Button, Separator, cn } from "@repo/ds";
@@ -13,12 +14,8 @@ import {
   useSuspendAdministrator,
 } from "../api/use-tenant-access";
 import {
-  ACTIVITY_LABEL,
-  ADMINISTRATOR_STATUS_LABEL,
   ADMINISTRATOR_STATUS_TONE,
-  COPY,
-  formatDay,
-  formatMoment,
+  useAccessWords,
 } from "./access-language";
 import { ConfirmDialog, IdentityMark } from "./access-ui";
 
@@ -56,6 +53,8 @@ export function AdministratorDetail({
   onSelfRemoved,
   onChanged,
 }: AdministratorDetailProps) {
+  const t = useTranslations("admins");
+  const words = useAccessWords();
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -102,8 +101,8 @@ export function AdministratorDetail({
           await remove.mutateAsync(args);
           onChanged(
             isSelf
-              ? "You no longer administer this tenant."
-              : `Administrator access removed from ${administrator.name}.`
+              ? t("selfRemoved")
+              : t("detail.removedFrom", { name: administrator.name })
           );
           break;
       }
@@ -124,15 +123,13 @@ export function AdministratorDetail({
           break;
         case "stale-state":
           await refreshWorkspace();
-          setProblem(COPY.staleState);
+          setProblem(words.copy("staleState"));
           break;
         case "permission-denied":
-          setProblem(
-            "You no longer have permission to manage administrator access."
-          );
+          setProblem(t("detail.permission"));
           break;
         default:
-          setProblem("That change could not be applied.");
+          setProblem(t("detail.failed"));
       }
       setPendingAction(null);
     }
@@ -147,18 +144,18 @@ export function AdministratorDetail({
             <span className="truncate">{administrator.name}</span>
             {isSelf ? (
               <span className="type-meta font-normal text-muted-foreground">
-                You
+                {t("detail.you")}
               </span>
             ) : null}
           </p>
           <p className="type-meta text-muted-foreground">
-            Tenant Administrator
+            {t("detail.role")}
           </p>
         </div>
         <Button
           size="icon"
           variant="ghost"
-          aria-label="Close details"
+          aria-label={t("detail.close")}
           onClick={onClose}
         >
           <X className="size-4" />
@@ -169,23 +166,23 @@ export function AdministratorDetail({
 
       <div className="space-y-3 p-5">
         <p className="type-eyebrow text-muted-foreground">
-          Account information
+          {t("detail.account")}
         </p>
         <dl className="space-y-2.5">
-          <Field label="Email">{administrator.email}</Field>
-          <Field label="Status">
+          <Field label={t("detail.email")}>{administrator.email}</Field>
+          <Field label={t("detail.status")}>
             <span className="inline-flex items-center gap-2">
               <span
                 aria-hidden
                 className={cn("size-1.5 rounded-full", STATUS_DOT[tone])}
               />
-              {ADMINISTRATOR_STATUS_LABEL[administrator.status]}
+              {words.status(administrator.status)}
             </span>
           </Field>
-          <Field label="Added on">
-            {formatDay(administrator.accessEstablishedAt)}
+          <Field label={t("detail.addedOn")}>
+            {words.day(administrator.accessEstablishedAt)}
           </Field>
-          <Field label="Added by">{administrator.addedBy}</Field>
+          <Field label={t("detail.addedBy")}>{administrator.addedBy}</Field>
         </dl>
       </div>
 
@@ -193,7 +190,7 @@ export function AdministratorDetail({
         <>
           <Separator />
           <div className="space-y-3 p-5">
-            <p className="type-eyebrow text-muted-foreground">Recent activity</p>
+            <p className="type-eyebrow text-muted-foreground">{t("detail.recent")}</p>
             <ul className="space-y-3">
               {history.map((item) => (
                 <li key={item.id} className="flex gap-3">
@@ -203,10 +200,10 @@ export function AdministratorDetail({
                   />
                   <div className="min-w-0">
                     <p className="type-label text-foreground">
-                      {ACTIVITY_LABEL[item.action] ?? item.summary}
+                      {words.activity(item.action, item.summary)}
                     </p>
                     <p className="type-meta text-muted-foreground">
-                      {formatMoment(item.occurredAt)}
+                      {words.moment(item.occurredAt)}
                     </p>
                   </div>
                 </li>
@@ -221,22 +218,22 @@ export function AdministratorDetail({
           <Separator />
           <div className="space-y-2 p-5">
             <p className="type-eyebrow text-muted-foreground">
-              Administrator actions
+              {t("detail.actions")}
             </p>
 
             {isSuspended ? (
               <ActionCard
                 icon={<UserCheck className="size-4" />}
-                title="Reactivate access"
-                description="Restore this administrator's access to the tenant."
+                title={t("detail.reactivate")}
+                description={t("detail.reactivateDescription")}
                 disabled={isBusy}
                 onClick={() => setPendingAction("reactivate")}
               />
             ) : (
               <ActionCard
                 icon={<UserMinus className="size-4" />}
-                title="Suspend administrator"
-                description="Temporarily remove access. Can be reactivated."
+                title={t("detail.suspendTitle")}
+                description={t("detail.suspendDescription")}
                 disabled={isBusy || isSelf || blockedReason !== null}
                 onClick={() => setPendingAction("suspend")}
               />
@@ -244,8 +241,8 @@ export function AdministratorDetail({
 
             <ActionCard
               icon={<ShieldOff className="size-4" />}
-              title="Remove administrator authority"
-              description="Permanently remove administrator access."
+              title={t("detail.removeTitle")}
+              description={t("detail.removeDescription")}
               disabled={isBusy || isSelf || blockedReason !== null}
               onClick={() => setPendingAction("remove")}
             />
@@ -253,8 +250,8 @@ export function AdministratorDetail({
             {isSelf ? (
               <ActionCard
                 icon={<AlertCircle className="size-4" />}
-                title="Remove yourself"
-                description="You will lose administrator access immediately, including access to this page."
+                title={t("detail.removeSelfTitle")}
+                description={t("detail.removeSelfDescription")}
                 destructive
                 disabled={isBusy || blockedReason !== null}
                 onClick={() => setPendingAction("remove")}
@@ -274,29 +271,29 @@ export function AdministratorDetail({
         open={pendingAction !== null}
         title={
           pendingAction === "suspend"
-            ? "Suspend access"
+            ? t("detail.suspend")
             : pendingAction === "reactivate"
-              ? "Reactivate access"
+              ? t("detail.reactivate")
               : isSelf
-                ? "Remove your own administrator access"
-                : "Remove administrator access"
+                ? t("detail.removeOwn")
+                : t("detail.removeAccess")
         }
         consequence={
           pendingAction === "suspend"
-            ? COPY.suspendConsequence
+            ? words.copy("suspendConsequence")
             : pendingAction === "reactivate"
-              ? COPY.reactivateConsequence
+              ? words.copy("reactivateConsequence")
               : isSelf
-                ? COPY.selfRemoveConsequence
-                : COPY.removeConsequence
+                ? words.copy("selfRemoveConsequence")
+                : words.copy("removeConsequence")
         }
         subject={{ title: administrator.name, subtitle: administrator.email }}
         confirmLabel={
           pendingAction === "suspend"
-            ? "Suspend access"
+            ? t("detail.suspend")
             : pendingAction === "reactivate"
-              ? "Reactivate access"
-              : "Remove access"
+              ? t("detail.reactivate")
+              : t("detail.remove")
         }
         destructive={pendingAction === "remove"}
         busy={isBusy}

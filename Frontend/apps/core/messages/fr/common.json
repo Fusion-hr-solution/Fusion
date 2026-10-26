@@ -1,0 +1,9 @@
+{
+  "status": {
+    "Active": "Actif",
+    "Inactive": "Inactif",
+    "Ended": "Terminé"
+  },
+  "unassigned": "Non affecté",
+  "dateUnavailable": "Date indisponible"
+}

@@ -1,5 +1,8 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useImportProblem } from "@/features/data-import/components/import-words";
+import { useLocale, useTranslations } from "next-intl";
 import { translateOrganizationImportError } from "@repo/api";
 import { toast } from "sonner";
 import { todayCalendarDate } from "@/features/organization/model/workspace-state";
@@ -23,30 +26,35 @@ export function UploadStage() {
   const active = useActiveOrganizationImports();
   const readiness = useOrganizationReadiness();
   const latest = active.data?.[0] ?? null;
+  const t = useTranslations("orgImport");
+  const kit = useTranslations("dataImport");
+  const say = useSay("dataImport");
+  const english = useLocale() === "en";
+  const problemLine = useImportProblem();
 
   async function download(kind: "template" | "export", effectiveDate: string) {
     try {
       const blob = kind === "template" ? await api.downloadTemplate() : await api.exportStructure(effectiveDate);
       downloadBlob(blob, kind === "template" ? "Fusion-organization-template.xlsx" : `Fusion-organization-${effectiveDate}.xlsx`);
     } catch (error) {
-      toast.error(kind === "template" ? "Template could not be downloaded" : "Structure could not be exported", {
-        description: translateOrganizationImportError(error).message,
+      toast.error(kind === "template" ? t("upload.templateFailed") : t("upload.exportFailed"), {
+        description: problemLine(translateOrganizationImportError(error)),
       });
     }
   }
 
   return (
     <ImportUpload
-      title="Import organization structure"
-      context="Bring in your structure from Excel or CSV and review it before publishing."
+      title={t("title")}
+      context={kit("domain.organization.context")}
       fileNoun="organization"
-      sectionTitle="File and effective date"
-      sectionDescription="Select your organization file and choose when the changes should take effect."
+      sectionTitle={t("upload.sectionTitle")}
+      sectionDescription={t("upload.sectionDescription")}
       date={{
-        label: "Effective date",
-        tooltip: "Changes will be staged with this effective date.",
+        label: t("upload.dateLabel"),
+        tooltip: t("upload.dateTooltip"),
         initial: todayCalendarDate(),
-        validate: (value) => (isValidEffectiveDate(value) ? null : "Choose a valid effective date."),
+        validate: (value) => (isValidEffectiveDate(value) ? null : t("upload.invalidDate")),
       }}
       cancelHref="/organization"
       onDownloadTemplate={() => void download("template", todayCalendarDate())}
@@ -57,7 +65,7 @@ export function UploadStage() {
             onClick={() => void download("export", effectiveDate)}
             className="mt-1 rounded-control type-meta text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Export current structure
+            {t("upload.export")}
           </button>
         ) : null
       }
@@ -71,7 +79,7 @@ export function UploadStage() {
         if (result.kind === "SheetSelectionRequired") return { kind: "sheet", sheets: result.sheetSelection.candidateSheetNames };
         return { kind: "ready", href: importStageHref(result.session.id, "match") };
       }}
-      classifyError={(error) => classifyIntakeProblem(translateOrganizationImportError(error))}
+      classifyError={(error) => classifyIntakeProblem(translateOrganizationImportError(error), { say, english })}
     />
   );
 }

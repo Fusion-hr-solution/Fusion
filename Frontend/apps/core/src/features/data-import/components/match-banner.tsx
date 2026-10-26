@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { cn } from "@repo/ds";
 import type { OrganizationImportSemanticAssistance } from "@repo/api";
@@ -11,7 +13,7 @@ export type MatchFact = { value: string; label: string; emphasis?: boolean };
  * The Match headline. Fusion asks for help when it understood too little to lean on; otherwise it
  * says how much it matched, crediting AI only when AI actually matched something.
  */
-export function matchHeadline({
+export function MatchHeadline({
   needsReview,
   mostlyUnresolved,
   byAi,
@@ -20,23 +22,20 @@ export function matchHeadline({
   needsReview: number;
   mostlyUnresolved: boolean;
   byAi: boolean;
-  noun?: string;
-}): React.ReactNode {
-  if (needsReview > 0 && mostlyUnresolved) return "We need your help matching this file";
-  const how = needsReview === 0 ? "all" : "most";
-  return byAi ? (
-    <>
-      <AiMark /> matched {how} of your {noun}
-    </>
-  ) : (
-    `We’ve matched ${how} of your ${noun}`
-  );
+  noun?: "data" | "workforce";
+}) {
+  const t = useTranslations("dataImport.banner");
+  if (needsReview > 0 && mostlyUnresolved) return t("help");
+  const all = needsReview === 0;
+  return byAi
+    ? t.rich(all ? "aiMatchedAll" : "aiMatchedMost", { noun, ai: (chunks) => <AiMark>{chunks}</AiMark> })
+    : t(all ? "matchedAll" : "matchedMost", { noun });
 }
 
-function AiMark() {
+function AiMark({ children }: { children: React.ReactNode }) {
   return (
     <span className="bg-[linear-gradient(90deg,#22d3ee_0%,#3b82f6_35%,#a855f7_70%,#e879f9_100%)] bg-clip-text font-bold text-transparent saturate-150">
-      AI
+      {children}
     </span>
   );
 }
@@ -56,9 +55,11 @@ export function ImportMatchBanner({
   /** What automatic matching can still do, rendered under the summary sentence. */
   children?: React.ReactNode;
 }) {
+  const t = useTranslations("dataImport");
+  const say = useSay("dataImport");
   return (
     <section
-      aria-label="Match summary"
+      aria-label={t("banner.label")}
       className="flex flex-wrap items-center gap-x-8 gap-y-5 rounded-surface border border-primary/30 bg-linear-to-r from-primary/[0.07] via-card to-card p-4 sm:pe-6"
     >
       <div className="flex min-w-0 flex-[2] basis-96 items-center gap-5">
@@ -70,10 +71,10 @@ export function ImportMatchBanner({
         </span>
         <div className="min-w-0">
           <p className="type-eyebrow tracking-[0.12em] text-primary-foreground dark:text-primary">
-            Fusion understood your file
+            {t("banner.understood")}
           </p>
           <h2 className="mt-1 type-page-title text-foreground">{headline}</h2>
-          <p className="mt-1 type-body text-muted-foreground">{describeAssistance(assistance, needsReview).summary}</p>
+          <p className="mt-1 type-body text-muted-foreground">{describeAssistance(assistance, needsReview, say).summary}</p>
           {children}
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { StatusTone } from "@repo/ds/shell";
 import type {
   WorkforceAccessCommandOutcome,
@@ -96,4 +98,26 @@ export function baselineLabel(directReportCount: number): string {
   return directReportCount > 0
     ? `Manager · ${directReportCount} report${directReportCount === 1 ? "" : "s"}`
     : "Employee";
+}
+
+/** Workforce access words in the person's language. A server message is shown as written in English only. */
+export function useWorkforceAccessWords() {
+  const t = useTranslations("wfAccess");
+  const english = useLocale() === "en";
+  return useMemo(
+    () => ({
+      roster: (state: WorkforceAccessState) => t(`roster.${state}`),
+      candidate: (state: WorkforceAccountState, label: string) =>
+        state in CANDIDATE_STATE_TONE ? t(`candidate.${state}`) : label,
+      action: (action: string) =>
+        action in CANDIDATE_ACTION_LABEL ? t(`actions.${action}` as "actions.Link") : action,
+      outcome: (outcome: WorkforceAccessCommandOutcome, serverMessage?: string | null) =>
+        (english ? serverMessage?.trim() : null) || t(`outcome.${outcome}`),
+      baseline: (directReportCount: number) =>
+        directReportCount > 0 ? t("baseline.manager", { count: directReportCount }) : t("baseline.Employee"),
+      choice: (choice: "Employee" | "Manager") => t(`baseline.${choice}`),
+      server: (message: string | null | undefined, fallback: string) => (english && message?.trim() ? message : fallback),
+    }),
+    [t, english]
+  );
 }

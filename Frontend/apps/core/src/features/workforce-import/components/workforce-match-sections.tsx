@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useLocale, useTranslations } from "next-intl";
 import { CalendarDays, CircleAlert, CircleCheck, CircleMinus, Fingerprint, Network, UserRound, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -43,6 +45,8 @@ const IGNORE = "Ignored";
 
 /** What each source column means in Fusion. Resolved rows stay quiet and correctable. */
 export function WorkforceColumnMapping({ match, edits, locked }: { match: WorkforceImportMatch; edits: Edits; locked: boolean }) {
+  const t = useTranslations("wfImport.match");
+  const say = useSay("wfImport");
   const rows = deriveColumnRows(match);
   const missing = missingRequiredFields(match);
   const { edit, busy, pendingValue } = edits;
@@ -51,12 +55,14 @@ export function WorkforceColumnMapping({ match, edits, locked }: { match: Workfo
     const { change, displaced } = columnFieldChange(match, columnIndex, field);
     const saved = await edit(`column:${columnIndex}`, field, change);
     if (saved && displaced)
-      toast(`${fieldLabel(field)} now comes from ${label}`, { description: `${columnName(displaced)} is ignored.` });
+      toast(t("columns.now", { field: fieldLabel(field, say), column: label }), {
+        description: t("columns.ignoredNow", { column: columnName(displaced, say) }),
+      });
   }
 
   return (
-    <MappingSection id="match-columns-title" title="Source column mapping">
-      <MappingHead grid={COLUMN_GRID} labels={["Source column", "Sample values", "Fusion field", "Status"]} />
+    <MappingSection id="match-columns-title" title={t("columns.title")}>
+      <MappingHead grid={COLUMN_GRID} labels={[t("columns.source"), t("columns.samples"), t("columns.field"), t("columns.status")]} />
       <div role="rowgroup" className="divide-y divide-border">
         {rows.map((row) => {
           const key = `column:${row.columnIndex}`;
@@ -87,18 +93,18 @@ export function WorkforceColumnMapping({ match, edits, locked }: { match: Workfo
                   disabled={busy || locked}
                   onValueChange={(value) => void choose(row.columnIndex, row.label, value as WorkforceImportField)}
                 >
-                  <SelectTrigger aria-label={`Fusion field for ${row.label}`} className={cn("w-full", attention && "border-primary/70")}>
+                  <SelectTrigger aria-label={t("columns.fieldFor", { column: row.label })} className={cn("w-full", attention && "border-primary/70")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {extra ? <SelectItem value={row.field}>{fieldLabel(row.field)}</SelectItem> : null}
+                    {extra ? <SelectItem value={row.field}>{fieldLabel(row.field, say)}</SelectItem> : null}
                     {MAPPABLE_FIELDS.map((field) => (
                       <SelectItem key={field.value} value={field.value}>
-                        {field.label}
+                        {fieldLabel(field.value, say)}
                       </SelectItem>
                     ))}
                     <SelectSeparator />
-                    <SelectItem value={IGNORE}>Ignore</SelectItem>
+                    <SelectItem value={IGNORE}>{t("columns.ignore")}</SelectItem>
                   </SelectContent>
                 </Select>
               </span>
@@ -112,7 +118,7 @@ export function WorkforceColumnMapping({ match, edits, locked }: { match: Workfo
           <div key={field} role="row" className="flex items-center gap-2 bg-primary/[0.06] px-4 py-2.5 type-meta text-primary-foreground dark:text-primary">
             <CircleAlert aria-hidden className="size-4 shrink-0 fill-primary stroke-card" strokeWidth={2.25} />
             <span role="cell">
-              No column supplies <span className="font-semibold">{fieldLabel(field)}</span>
+              {t.rich("columns.missing", { field: fieldLabel(field, say), b: (chunks) => <span className="font-semibold">{chunks}</span> })}
             </span>
           </div>
         ))}
@@ -126,6 +132,7 @@ export function WorkforceColumnMapping({ match, edits, locked }: { match: Workfo
  * former one is not. One decision per value covers every row carrying it.
  */
 export function WorkforceStatusMeaning({ match, edits, locked }: { match: WorkforceImportMatch; edits: Edits; locked: boolean }) {
+  const t = useTranslations("wfImport.match");
   const rows = deriveLifecycleRows(match);
   const { edit, busy, pendingValue } = edits;
   if (rows.length === 0) return null;
@@ -133,10 +140,10 @@ export function WorkforceStatusMeaning({ match, edits, locked }: { match: Workfo
   return (
     <MappingSection
       id="match-status-meaning-title"
-      title="Employment status meaning"
-      description="Map the status values in your file to Fusion’s employment states."
+      title={t("statuses.title")}
+      description={t("statuses.description")}
     >
-      <MappingHead grid={TYPE_GRID} labels={["Source status", "People", "Fusion state", "Status"]} />
+      <MappingHead grid={TYPE_GRID} labels={[t("statuses.source"), t("statuses.people"), t("statuses.fusion"), t("statuses.status")]} />
       <div role="rowgroup" className="divide-y divide-border">
         {rows.map((row) => {
           const key = `status:${row.sourceValue}`;
@@ -168,13 +175,13 @@ export function WorkforceStatusMeaning({ match, edits, locked }: { match: Workfo
                   disabled={busy || locked}
                   onValueChange={(meaning) => void edit(key, meaning, { lifecycleVocabulary: { [row.sourceValue]: meaning as "Active" | "Former" } })}
                 >
-                  <SelectTrigger aria-label={`Fusion state for ${row.sourceValue}`} className={cn("w-full", attention && "border-primary/70")}>
-                    <SelectValue placeholder="Select Fusion state" />
+                  <SelectTrigger aria-label={t("statuses.stateFor", { value: row.sourceValue })} className={cn("w-full", attention && "border-primary/70")}>
+                    <SelectValue placeholder={t("statuses.select")} />
                   </SelectTrigger>
                   <SelectContent>
                     {LIFECYCLE_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                        {t(`statuses.${option.value}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -204,16 +211,18 @@ const ITEM_ICON: Record<InterpretationItem["key"], typeof Fingerprint> = {
  * one that needs the administrator hosts its own decision in place.
  */
 export function WorkforceInterpretationPanel({ match, edits, locked }: { match: WorkforceImportMatch; edits: Edits; locked: boolean }) {
+  const t = useTranslations("wfImport.match");
+  const say = useSay("wfImport");
   // Settled concepts pair up; a concept hosting a decision takes the full width after them, and an
   // unpaired settled concept widens so the grid never leaves an empty cell.
-  const all = deriveInterpretation(match);
+  const all = deriveInterpretation(match, say);
   const settled = all.filter((item) => !item.decision);
   const deciding = all.filter((item) => item.decision);
   return (
     <section aria-labelledby="match-interpretation-title" className="rounded-surface border border-border bg-card p-4">
       <header className="px-1">
         <h2 id="match-interpretation-title" className="type-section-title text-foreground">
-          Workforce interpretation
+          {t("interpretation.title")}
         </h2>
       </header>
       <ul className="mt-3 grid gap-px overflow-hidden rounded-control border border-border bg-border md:grid-cols-2">
@@ -264,23 +273,23 @@ function InterpretationRow({
   );
 }
 
-const PILL: Record<InterpretationState, { label: string; Icon: typeof CircleCheck; tone: string; icon: string }> = {
-  understood: { label: "Understood", Icon: CircleCheck, tone: "text-success", icon: "fill-success stroke-card" },
+const PILL: Record<InterpretationState, { Icon: typeof CircleCheck; tone: string; icon: string }> = {
+  understood: { Icon: CircleCheck, tone: "text-success", icon: "fill-success stroke-card" },
   "needs-review": {
-    label: "Needs review",
     Icon: CircleAlert,
     tone: "text-primary-foreground dark:text-primary",
     icon: "fill-primary stroke-card",
   },
-  optional: { label: "Optional", Icon: CircleMinus, tone: "text-muted-foreground", icon: "fill-muted-foreground stroke-card" },
+  optional: { Icon: CircleMinus, tone: "text-muted-foreground", icon: "fill-muted-foreground stroke-card" },
 };
 
 function InterpretationPill({ state }: { state: InterpretationState }) {
-  const { label, Icon, tone, icon } = PILL[state];
+  const t = useTranslations("wfImport.match.pill");
+  const { Icon, tone, icon } = PILL[state];
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-1.5 type-meta font-medium", tone)}>
       <Icon aria-hidden className={cn("size-4", icon)} strokeWidth={2.25} />
-      {label}
+      {t(state)}
     </span>
   );
 }
@@ -296,6 +305,9 @@ function InterpretationDecision({
   edits: Edits;
   locked: boolean;
 }) {
+  const t = useTranslations("wfImport.match");
+  const say = useSay("wfImport");
+  const locale = useLocale();
   const { edit, busy, pendingValue } = edits;
   const disabled = busy || locked;
 
@@ -309,20 +321,20 @@ function InterpretationDecision({
           disabled={disabled || candidates.length === 0}
           onValueChange={(index) => void edit("identity", index, { columnMappings: { [Number(index)]: "EmployeeNumber" } })}
         >
-          <SelectTrigger aria-label="Column that identifies each employee" className="w-full max-w-xs border-primary/70">
-            <SelectValue placeholder={candidates.length ? "Choose the identifier column" : "No unused column in this file"} />
+          <SelectTrigger aria-label={t("interpretation.identifierColumn")} className="w-full max-w-xs border-primary/70">
+            <SelectValue placeholder={candidates.length ? t("interpretation.chooseIdentifier") : t("interpretation.noUnused")} />
           </SelectTrigger>
           <SelectContent>
             {candidates.map((c) => (
               <SelectItem key={c.columnIndex} value={String(c.columnIndex)}>
-                {columnName(c)}
+                {columnName(c, say)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {match.generateAllAllowed ? (
           <Button size="sm" variant="ghost" disabled={disabled} onClick={() => void edit("identity", "generate", { identityStrategy: "GenerateAll" })}>
-            Generate employee numbers
+            {t("interpretation.generate")}
           </Button>
         ) : null}
       </div>
@@ -333,22 +345,22 @@ function InterpretationDecision({
   const choices =
     kind === "date-format"
       ? [
-          { key: "DayMonthYear", primary: "Day / Month / Year", reading: readDate(sample, "DayMonthYear"), change: { dateFormat: "DayMonthYear" } as const },
-          { key: "MonthDayYear", primary: "Month / Day / Year", reading: readDate(sample, "MonthDayYear"), change: { dateFormat: "MonthDayYear" } as const },
+          { key: "DayMonthYear", primary: t("interpretation.dayMonthYear"), reading: readDate(sample, "DayMonthYear", locale), change: { dateFormat: "DayMonthYear" } as const },
+          { key: "MonthDayYear", primary: t("interpretation.monthDayYear"), reading: readDate(sample, "MonthDayYear", locale), change: { dateFormat: "MonthDayYear" } as const },
         ]
       : [
-          { key: "LastCommaFirst", primary: "Last, First", reading: "Doe, John", change: { nameFormat: "LastCommaFirst" } as const },
-          { key: "FirstLast", primary: "First Last", reading: "John Doe", change: { nameFormat: "FirstLast" } as const },
+          { key: "LastCommaFirst", primary: t("interpretation.lastCommaFirst"), reading: "Doe, John", change: { nameFormat: "LastCommaFirst" } as const },
+          { key: "FirstLast", primary: t("interpretation.firstLast"), reading: "John Doe", change: { nameFormat: "FirstLast" } as const },
         ];
   const pending = pendingValue(kind);
   return (
     <div className="mt-3">
       {sample ? (
         <p className="mb-2 type-meta text-muted-foreground">
-          <span className="font-medium text-foreground tabular-nums">{sample}</span> in your file
+          {t.rich("interpretation.inYourFile", { sample, b: (chunks) => <span className="font-medium text-foreground tabular-nums">{chunks}</span> })}
         </p>
       ) : null}
-      <div role="radiogroup" aria-label={kind === "date-format" ? "Date format" : "Name format"} className="grid max-w-md grid-cols-2 gap-2">
+      <div role="radiogroup" aria-label={kind === "date-format" ? t("interpretation.dateFormat") : t("interpretation.nameFormat")} className="grid max-w-md grid-cols-2 gap-2">
         {choices.map((choice) => (
           <button
             key={choice.key}

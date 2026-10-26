@@ -1,11 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
+import { useImportProblem } from "@/features/data-import/components/import-words";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { PageContainer } from "@repo/ds/shell";
 import { translateOrganizationImportError, type OrganizationImportMatch, type OrganizationSourceTable } from "@repo/api";
 import { ImportMatchAssistance } from "@/features/data-import/components/match-assistance";
-import { ImportMatchBanner, matchHeadline } from "@/features/data-import/components/match-banner";
+import { ImportMatchBanner, MatchHeadline } from "@/features/data-import/components/match-banner";
 import { ImportMatchChecklist } from "@/features/data-import/components/match-checklist";
 import { ImportFilePreview, PreviewUnmatched } from "@/features/data-import/components/match-file-preview";
 import { ImportMatchFooter } from "@/features/data-import/components/match-footer";
@@ -22,6 +25,9 @@ import { MatchTypeMeaning } from "./match-type-meaning";
 
 /** Match: resolving what the file's columns and terms mean for Organization. */
 export function MatchStage() {
+  const t = useTranslations("orgImport");
+  const say = useSay("orgImport");
+  const problemLine = useImportProblem();
   const { session } = useImportFrame();
   const api = useOrganizationImportApi();
   const { runSemanticAssistance } = useOrganizationImportMutations();
@@ -35,8 +41,8 @@ export function MatchStage() {
     try {
       await runSemanticAssistance.mutateAsync({ id: session.id, inputFingerprint, grantTenantConsent });
     } catch (error) {
-      toast.error("Automatic matching didn't run", {
-        description: translateOrganizationImportError(error).message,
+      toast.error(t("match.assistanceFailed"), {
+        description: problemLine(translateOrganizationImportError(error)),
       });
     }
   }
@@ -45,34 +51,36 @@ export function MatchStage() {
     try {
       downloadBlob(await api.downloadTemplate(), "Fusion-organization-template.xlsx");
     } catch (error) {
-      toast.error("Template could not be downloaded", {
-        description: translateOrganizationImportError(error).message,
+      toast.error(t("upload.templateFailed"), {
+        description: problemLine(translateOrganizationImportError(error)),
       });
     }
   }
 
-  const summary = match ? summarizeMatch(match) : null;
+  const summary = match ? summarizeMatch(match, say) : null;
   const remaining = match?.readiness.requiredDecisions.length ?? 0;
 
   return (
-    <section aria-label="Match">
+    <section aria-label={t("match.label")}>
       <PageContainer className="space-y-6 pt-2">
         {match && summary ? (
           <ImportMatchBanner
-            headline={matchHeadline({
-              needsReview: summary.needsReview,
-              mostlyUnresolved: !summary.shapeResolved || summary.typesResolved * 2 < summary.typesTotal,
-              byAi: (match.semanticAssistance?.appliedCount ?? 0) > 0,
-            })}
+            headline={
+              <MatchHeadline
+                needsReview={summary.needsReview}
+                mostlyUnresolved={!summary.shapeResolved || summary.typesResolved * 2 < summary.typesTotal}
+                byAi={(match.semanticAssistance?.appliedCount ?? 0) > 0}
+              />
+            }
             assistance={match.semanticAssistance}
             needsReview={summary.needsReview}
             facts={[
-              { value: summary.shapeLabel, label: "Hierarchy" },
+              { value: summary.shapeLabel, label: t("match.hierarchy") },
               {
                 value: summary.typesTotal ? `${summary.typesResolved}/${summary.typesTotal}` : "0",
-                label: "Organization types resolved",
+                label: t("match.typesResolved"),
               },
-              { value: String(summary.needsReview), label: "Needs review", emphasis: summary.needsReview > 0 },
+              { value: String(summary.needsReview), label: t("match.needsReview"), emphasis: summary.needsReview > 0 },
             ]}
           >
             <ImportMatchAssistance
@@ -115,14 +123,14 @@ export function MatchStage() {
   );
 }
 
-const PREVIEW_COLUMNS = [
-  { key: "code", label: "Business code", nowrap: true, strong: true },
-  { key: "name", label: "Name" },
-  { key: "parent", label: "Parent code", nowrap: true },
-  { key: "type", label: "Type" },
-];
-
 function OrganizationFilePreview({ table, match }: { table: OrganizationSourceTable; match: OrganizationImportMatch }) {
+  const t = useTranslations("orgImport.match.preview");
+  const PREVIEW_COLUMNS = [
+    { key: "code", label: t("code"), nowrap: true, strong: true },
+    { key: "name", label: t("name") },
+    { key: "parent", label: t("parent"), nowrap: true },
+    { key: "type", label: t("type") },
+  ];
   const buildRows = useCallback(
     (limit: number) =>
       buildMatchPreview(table, match, limit).map((row) => ({
@@ -140,25 +148,27 @@ function OrganizationFilePreview({ table, match }: { table: OrganizationSourceTa
 }
 
 function OrganizationMatchChecklist({ table, match }: { table: OrganizationSourceTable; match: OrganizationImportMatch }) {
-  const summary = summarizeMatch(match);
+  const t = useTranslations("orgImport.match.checklist");
+  const say = useSay("orgImport");
+  const summary = summarizeMatch(match, say);
   const columns = countMappedColumns(table, match);
   return (
     <ImportMatchChecklist
       lines={[
-        { label: "Hierarchy shape interpreted", value: summary.shapeLabel, done: summary.shapeResolved },
+        { label: t("shape"), value: summary.shapeLabel, done: summary.shapeResolved },
         {
-          label: "Source columns mapped",
-          value: `${columns.mapped} of ${columns.total} mapped`,
+          label: t("columns"),
+          value: t("columnsValue", { mapped: columns.mapped, total: columns.total }),
           done: !match.readiness.requiredDecisions.some((d) => d.kind === "FieldMapping"),
         },
         {
-          label: "Organization types resolved",
-          value: `${summary.typesResolved} of ${summary.typesTotal} resolved`,
+          label: t("types"),
+          value: t("typesValue", { resolved: summary.typesResolved, total: summary.typesTotal }),
           done: summary.typesResolved === summary.typesTotal,
         },
         {
-          label: "Items needing review",
-          value: summary.needsReview ? `${summary.needsReview} remaining` : "None",
+          label: t("items"),
+          value: summary.needsReview ? t("remaining", { count: summary.needsReview }) : t("none"),
           done: summary.needsReview === 0,
         },
       ]}

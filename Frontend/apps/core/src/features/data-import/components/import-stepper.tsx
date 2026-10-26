@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { cn } from "@repo/ds";
@@ -27,10 +28,11 @@ export function ImportStepper({
   size?: "default" | "compact";
   className?: string;
 }) {
+  const t = useTranslations("dataImport");
   const compact = size === "compact";
   return (
     <ol
-      aria-label="Import steps"
+      aria-label={t("steps.label")}
       className={cn("flex shrink-0 items-start", compact ? "w-72" : "w-full max-w-xs sm:w-80", className)}
     >
       {steps.map((step, index) => {

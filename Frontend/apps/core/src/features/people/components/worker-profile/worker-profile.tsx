@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ReactNode, Ref } from "react";
 import { Button, Skeleton, cn } from "@repo/ds";
@@ -24,7 +26,7 @@ import type {
   PeopleTimelineEventDto,
   PeopleUpcomingChangeDto,
 } from "@repo/api";
-import { Monogram, OrgPath, formatWorkforceDate } from "../workforce-ui";
+import { Monogram, OrgPath, useWorkforceDate } from "../workforce-ui";
 import {
   formatEmploymentType,
   type WorkerProfileView,
@@ -90,6 +92,9 @@ export function WorkerProfile({
     timeline,
     access,
   } = view;
+  const t = useTranslations("profile");
+  const workforceDate = useWorkforceDate();
+  const say = useSay("profile");
   const visibleReports = directReports.slice(0, 5);
   const showAccess =
     accessState === "loading" || accessState === "error" || Boolean(access);
@@ -158,12 +163,12 @@ export function WorkerProfile({
 
         <dl className="relative mt-6 grid gap-x-6 gap-y-6 border-t pt-5 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.9fr_0.9fr_1.1fr] lg:gap-x-0 lg:divide-x">
           {view.workEmail ? (
-            <HeroFact icon={Mail} label="Work email" value={view.workEmail} />
+            <HeroFact icon={Mail} label={t("hero.workEmail")} value={view.workEmail} />
           ) : null}
           {view.employeeNumber ? (
             <HeroFact
               icon={IdCard}
-              label="Worker ID"
+              label={t("hero.workerId")}
               value={view.employeeNumber}
               code
             />
@@ -171,12 +176,12 @@ export function WorkerProfile({
           {view.workLocation ? (
             <HeroFact
               icon={MapPin}
-              label="Location"
+              label={t("hero.location")}
               value={view.workLocation}
             />
           ) : null}
           {manager ? (
-            <HeroFact icon={Users} label="Manager">
+            <HeroFact icon={Users} label={t("hero.manager")}>
               <Link
                 href={manager.href}
                 className="group flex min-w-0 items-center gap-2 underline-offset-4"
@@ -198,7 +203,7 @@ export function WorkerProfile({
           {/* Upcoming — delta-first scheduled changes; collapses entirely when empty */}
           {showUpcoming ? (
             <section className="motion-safe:animate-in motion-safe:fade-in">
-              <h2 className="type-eyebrow text-muted-foreground">Upcoming</h2>
+              <h2 className="type-eyebrow text-muted-foreground">{t("upcoming")}</h2>
               <ul className="mt-3.5 grid gap-3 sm:grid-cols-2">
                 {upcoming.map((item, index) => (
                   <UpcomingCard
@@ -218,19 +223,19 @@ export function WorkerProfile({
           <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             {/* Left column */}
             <div className="space-y-6">
-              <ProfileCard icon={BriefcaseBusiness} title="Current assignment">
+              <ProfileCard icon={BriefcaseBusiness} title={t("assignment.title")}>
                 {view.workUnavailable ? (
                   <p className="type-body text-muted-foreground">
-                    Work details unavailable
+                    {t("assignment.unavailable")}
                   </p>
                 ) : (
                   <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
                     <CardFact
-                      label="Display title"
-                      value={view.jobTitle || "Not assigned"}
+                      label={t("assignment.displayTitle")}
+                      value={view.jobTitle || t("assignment.notAssigned")}
                       quiet={!view.jobTitle}
                     />
-                    <CardFact label="Organization">
+                    <CardFact label={t("assignment.organization")}>
                       {view.orgUnitPath ? (
                         <OrgPath
                           name={view.orgUnitName}
@@ -246,11 +251,11 @@ export function WorkerProfile({
                               : "type-body text-muted-foreground"
                           )}
                         >
-                          {view.orgUnitName || "Not assigned"}
+                          {view.orgUnitName || t("assignment.notAssigned")}
                         </span>
                       )}
                     </CardFact>
-                    <CardFact label="Manager">
+                    <CardFact label={t("assignment.manager")}>
                       {manager ? (
                         <Link
                           href={manager.href}
@@ -260,20 +265,20 @@ export function WorkerProfile({
                         </Link>
                       ) : (
                         <span className="type-body text-muted-foreground">
-                          No manager
+                          {t("assignment.noManager")}
                         </span>
                       )}
                     </CardFact>
                     <CardFact
-                      label="Effective since"
+                      label={t("assignment.since")}
                       value={
-                        formatWorkforceDate(view.assignmentEffectiveFrom, {
+                        workforceDate(view.assignmentEffectiveFrom, {
                           month: "long",
                         }) || "—"
                       }
                       quiet={!view.assignmentEffectiveFrom}
                     />
-                    <CardFact label="Worker status">
+                    <CardFact label={t("assignment.status")}>
                       <StatusBadge tone={view.status.tone} dot>
                         {view.status.label}
                       </StatusBadge>
@@ -282,9 +287,9 @@ export function WorkerProfile({
                 )}
               </ProfileCard>
 
-              <ProfileCard icon={Users} title="Organization & reporting">
+              <ProfileCard icon={Users} title={t("reporting.title")}>
                 <div>
-                  <p className="type-eyebrow text-muted-foreground">Manager</p>
+                  <p className="type-eyebrow text-muted-foreground">{t("reporting.manager")}</p>
                   {manager ? (
                     <Link
                       href={manager.href}
@@ -308,7 +313,7 @@ export function WorkerProfile({
                     </Link>
                   ) : (
                     <p className="mt-2 type-body text-muted-foreground">
-                      No manager assigned
+                      {t("reporting.noManager")}
                     </p>
                   )}
                 </div>
@@ -316,10 +321,9 @@ export function WorkerProfile({
                 {directReportCount > 0 ? (
                   <div className="mt-5 border-t pt-5">
                     <p className="type-eyebrow text-muted-foreground">
-                      Direct reports ·{" "}
                       {directReportCount > visibleReports.length
-                        ? `${visibleReports.length} of ${directReportCount}`
-                        : directReportCount}
+                        ? t("reporting.directReportsOf", { shown: visibleReports.length, total: directReportCount })
+                        : t("reporting.directReports", { count: directReportCount })}
                     </p>
                     <ul className="mt-3 space-y-3.5">
                       {visibleReports.map((report) => (
@@ -346,7 +350,7 @@ export function WorkerProfile({
                     {reportsFooter ??
                       (directReportCount > visibleReports.length ? (
                         <p className="mt-3 type-meta text-muted-foreground">
-                          +{directReportCount - visibleReports.length} more
+                          {t("reporting.more", { count: directReportCount - visibleReports.length })}
                         </p>
                       ) : null)}
                   </div>
@@ -356,24 +360,24 @@ export function WorkerProfile({
 
             {/* Right column */}
             <div className="space-y-6">
-              <ProfileCard icon={FileText} title="Employment">
+              <ProfileCard icon={FileText} title={t("employment.title")}>
                 <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
                   <CardFact
                     icon={CalendarDays}
-                    label="Employment period"
+                    label={t("employment.period")}
                     value={view.employmentLine || "—"}
                     quiet={!view.employmentLine}
                   />
                   <CardFact
-                    label="Worker type"
-                    value={formatEmploymentType(view.employmentType)}
+                    label={t("employment.type")}
+                    value={formatEmploymentType(view.employmentType, { say })}
                     quiet={!view.employmentType}
                   />
                 </dl>
               </ProfileCard>
 
               {showAccess ? (
-                <ProfileCard icon={Lock} title="Fusion access">
+                <ProfileCard icon={Lock} title={t("fusionAccess.title")}>
                   {accessState === "loading" ? (
                     <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
                       <Skeleton className="h-9 w-full" />
@@ -384,7 +388,7 @@ export function WorkerProfile({
                   ) : accessState === "error" ? (
                     <div>
                       <p className="type-body font-medium text-foreground">
-                        Status unavailable
+                        {t("fusionAccess.unavailable")}
                       </p>
                       {onRetryAccess ? (
                         <Button
@@ -392,25 +396,25 @@ export function WorkerProfile({
                           className="mt-1 h-auto p-0 type-meta"
                           onClick={onRetryAccess}
                         >
-                          Retry
+                          {t("fusionAccess.retry")}
                         </Button>
                       ) : null}
                     </div>
                   ) : access ? (
                     isRichAccess(access) ? (
                       <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                        <CardFact label="Account status">
+                        <CardFact label={t("fusionAccess.status")}>
                           <StatusBadge tone={access.tone} dot>
                             {access.label}
                           </StatusBadge>
                         </CardFact>
                         <CardFact
-                          label="Linked account"
+                          label={t("fusionAccess.linked")}
                           value={access.linkedEmail || "—"}
                           quiet={!access.linkedEmail}
                         />
                         <CardFact
-                          label="Access profile"
+                          label={t("fusionAccess.profile")}
                           value={
                             access.accessProfiles &&
                             access.accessProfiles.length > 0
@@ -423,9 +427,9 @@ export function WorkerProfile({
                           }
                         />
                         <CardFact
-                          label="Last sign-in"
+                          label={t("fusionAccess.lastSignIn")}
                           value={
-                            formatWorkforceDate(access.lastSignInAt, {
+                            workforceDate(access.lastSignInAt, {
                               month: "short",
                             }) || "—"
                           }
@@ -451,18 +455,18 @@ export function WorkerProfile({
                 </ProfileCard>
               ) : null}
 
-              <ProfileCard icon={Mail} title="Work contact">
+              <ProfileCard icon={Mail} title={t("contact.title")}>
                 <dl className="grid gap-x-5 gap-y-5 sm:grid-cols-[1.9fr_1fr_1fr]">
                   <div className="min-w-0">
                     <CardFact
                       icon={Mail}
-                      label="Work email"
-                      value={view.workEmail || "Not set"}
+                      label={t("contact.workEmail")}
+                      value={view.workEmail || t("contact.notSet")}
                       quiet={!view.workEmail}
                     />
                     {!view.workEmail ? (
                       <p className="mt-1 type-meta text-muted-foreground">
-                        Required before Fusion access can be set up.
+                        {t("contact.emailRequired")}
                       </p>
                     ) : null}
                     {workEmailAction ? (
@@ -471,21 +475,21 @@ export function WorkerProfile({
                   </div>
                   <CardFact
                     icon={Phone}
-                    label="Work phone"
-                    value={view.phone || "Not set"}
+                    label={t("contact.phone")}
+                    value={view.phone || t("contact.notSet")}
                     quiet={!view.phone}
                   />
                   <CardFact
                     icon={MapPin}
-                    label="Location"
-                    value={view.workLocation || "Not set"}
+                    label={t("contact.location")}
+                    value={view.workLocation || t("contact.notSet")}
                     quiet={!view.workLocation}
                   />
                 </dl>
               </ProfileCard>
 
               {showTimeline ? (
-                <ProfileCard icon={Clock} title="History">
+                <ProfileCard icon={Clock} title={t("history.title")}>
                   {timelineLoading && timeline.length === 0 ? (
                     <div className="space-y-3">
                       <Skeleton className="h-10 w-full" />
@@ -651,13 +655,15 @@ function UpcomingCard({
   item: PeopleUpcomingChangeDto;
   onView?: () => void;
 }) {
-  const kindLabel = item.kind === "Work" ? "Work change" : "Manager change";
+  const t = useTranslations("profile");
+  const workforceDate = useWorkforceDate();
+  const kindLabel = item.kind === "Work" ? t("workChange") : t("managerChange");
   return (
     <li className="group flex flex-col justify-between gap-3 rounded-surface border bg-card p-4 transition-colors hover:border-primary/30 motion-reduce:transition-none">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center rounded-control bg-primary-tint px-1.5 py-0.5 type-meta font-medium tabular-nums text-primary-ink">
-            {formatWorkforceDate(item.effectiveDate)}
+            {workforceDate(item.effectiveDate)}
           </span>
           <span className="type-label">{kindLabel}</span>
         </div>
@@ -674,7 +680,7 @@ function UpcomingCard({
           className="-ms-2 self-start text-muted-foreground group-hover:text-foreground"
           onClick={onView}
         >
-          View as of {formatWorkforceDate(item.effectiveDate)}
+          {t("viewAsOf", { date: workforceDate(item.effectiveDate) })}
           <ChevronRight className="size-4" />
         </Button>
       ) : null}
@@ -683,10 +689,12 @@ function UpcomingCard({
 }
 
 function ProfileTimeline({ events }: { events: PeopleTimelineEventDto[] }) {
+  const t = useTranslations("profile.history");
+  const workforceDate = useWorkforceDate();
   if (events.length === 0) {
     return (
       <p className="type-body text-muted-foreground">
-        No employment history yet.
+        {t("empty")}
       </p>
     );
   }
@@ -708,7 +716,7 @@ function ProfileTimeline({ events }: { events: PeopleTimelineEventDto[] }) {
               event.isFuture ? "text-primary-ink" : "text-muted-foreground"
             )}
           >
-            {formatWorkforceDate(event.effectiveDate)}
+            {workforceDate(event.effectiveDate)}
           </span>
           <div className="flex flex-col items-center" aria-hidden>
             <span

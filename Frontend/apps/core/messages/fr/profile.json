@@ -1,0 +1,153 @@
+{
+  "status": {
+    "Active": "Actif",
+    "Scheduled": "À venir",
+    "Former": "Ancien",
+    "Incomplete": "Incomplet",
+    "Ended": "Terminé"
+  },
+  "employmentType": {
+    "notSet": "Non renseigné",
+    "FullTime": "Temps plein",
+    "PartTime": "Temps partiel",
+    "Contract": "CDD",
+    "Contractor": "Prestataire",
+    "Intern": "Stagiaire",
+    "Temporary": "Intérimaire",
+    "Seasonal": "Saisonnier"
+  },
+  "line": {
+    "starts": "Arrive le {date}",
+    "startsLater": "Arrive plus tard",
+    "period": "{start} – {end}",
+    "ended": "Parti le {date}",
+    "employmentEnded": "Contrat terminé",
+    "notEmployed": "Pas sous contrat à cette date",
+    "since": "Depuis le {date}",
+    "active": "Actif"
+  },
+  "access": {
+    "Active": "Actif",
+    "Suspended": "Suspendu",
+    "NeedsReview": "À vérifier",
+    "InvitationPending": "Invitation en attente",
+    "NoAccess": "Aucun accès à Fusion"
+  },
+  "hero": {
+    "workEmail": "Adresse e-mail professionnelle",
+    "workerId": "Matricule",
+    "location": "Lieu",
+    "manager": "Manager"
+  },
+  "upcoming": "À venir",
+  "workChange": "Changement de poste",
+  "managerChange": "Changement de manager",
+  "viewAsOf": "Voir au {date}",
+  "assignment": {
+    "title": "Poste actuel",
+    "unavailable": "Poste non renseigné",
+    "displayTitle": "Intitulé de poste",
+    "notAssigned": "Non affecté",
+    "organization": "Unité",
+    "manager": "Manager",
+    "noManager": "Aucun manager",
+    "since": "En vigueur depuis",
+    "status": "Statut"
+  },
+  "reporting": {
+    "title": "Organisation et rattachement",
+    "manager": "Manager",
+    "noManager": "Aucun manager affecté",
+    "directReports": "Collaborateurs directs · {count}",
+    "directReportsOf": "Collaborateurs directs · {shown} sur {total}",
+    "more": "+{count} autres"
+  },
+  "employment": {
+    "title": "Contrat",
+    "period": "Période d’emploi",
+    "type": "Type de contrat"
+  },
+  "fusionAccess": {
+    "title": "Accès à Fusion",
+    "unavailable": "Statut indisponible",
+    "retry": "Réessayer",
+    "status": "Statut du compte",
+    "linked": "Compte associé",
+    "profile": "Profil d’accès",
+    "lastSignIn": "Dernière connexion"
+  },
+  "contact": {
+    "title": "Coordonnées professionnelles",
+    "workEmail": "Adresse e-mail professionnelle",
+    "notSet": "Non renseigné",
+    "emailRequired": "Nécessaire avant de configurer l’accès à Fusion.",
+    "phone": "Téléphone professionnel",
+    "location": "Lieu"
+  },
+  "history": {
+    "title": "Historique",
+    "empty": "Aucun historique d’emploi pour l’instant."
+  },
+  "record": {
+    "noAccess": "Vous n’avez pas accès à ce profil",
+    "noAccessDescription": "Votre rôle ne permet pas de consulter ce collaborateur.",
+    "notFound": "Collaborateur introuvable",
+    "transient": "Ce profil n’a pas pu être chargé. Réessayez dans un instant.",
+    "missing": "Ce collaborateur n’existe pas ou n’est pas disponible dans cette organisation.",
+    "setUpAccess": "Configurer l’accès du collaborateur",
+    "reviewAccess": "Vérifier l’accès du collaborateur",
+    "addWorkEmail": "Ajouter l’adresse e-mail professionnelle",
+    "editWorkEmail": "Modifier l’adresse e-mail professionnelle",
+    "hiredAnnouncement": "Collaborateur embauché.",
+    "addedAnnouncement": "Collaborateur ajouté.",
+    "back": "Collaborateurs",
+    "hired": "Embauché",
+    "added": "Ajouté",
+    "asOf": "Au {date}",
+    "today": "Aujourd’hui",
+    "changeWork": "Changer de poste",
+    "changeManager": "Changer de manager",
+    "more": "Autres actions",
+    "endEmployment": "Mettre fin au contrat",
+    "backToPeople": "Retour aux collaborateurs",
+    "retry": "Réessayer",
+    "asOfToday": "Aujourd’hui",
+    "viewAsOf": "Voir à une autre date",
+    "viewAsOfDate": "Date d’affichage"
+  },
+  "workEmail": {
+    "required": "Saisissez une adresse e-mail professionnelle.",
+    "updated": "Adresse e-mail professionnelle mise à jour.",
+    "added": "Adresse e-mail professionnelle ajoutée.",
+    "failed": "L’adresse e-mail professionnelle n’a pas pu être enregistrée. Vérifiez-la et réessayez.",
+    "label": "Adresse e-mail professionnelle",
+    "placeholder": "nom@entreprise.com",
+    "hint": "L’adresse de référence à partir de laquelle Fusion rattache l’accès du collaborateur.",
+    "cancel": "Annuler",
+    "saving": "Enregistrement…",
+    "save": "Enregistrer l’adresse"
+  },
+  "self": {
+    "eyebrow": "Profil",
+    "title": "Profil",
+    "noLink": "Aucun dossier collaborateur associé.",
+    "noLinkTitle": "Aucun profil collaborateur associé",
+    "noLinkDescription": "Contactez un administrateur RH de votre organisation pour associer votre dossier.",
+    "notFound": "Votre profil est introuvable",
+    "notFoundDescription": "Votre profil collaborateur n’est pas disponible pour l’instant.",
+    "unavailable": "Profil indisponible.",
+    "unableTitle": "Impossible de charger le profil",
+    "unableDescription": "Votre profil collaborateur n’est pas disponible pour l’instant.",
+    "edit": "Modifier mes informations",
+    "viewAll": "Voir les {count} collaborateurs directs",
+    "updated": "Informations mises à jour.",
+    "failed": "Vos modifications n’ont pas pu être enregistrées.",
+    "dialogTitle": "Modifier mes informations personnelles",
+    "preferredName": "Nom d’usage",
+    "preferredNameHint": "Affiché comme votre nom dans Fusion.",
+    "phone": "Téléphone",
+    "cancel": "Annuler",
+    "saving": "Enregistrement",
+    "save": "Enregistrer les modifications"
+  }
+}

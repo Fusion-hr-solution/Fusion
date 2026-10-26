@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Pencil, User } from "lucide-react";
@@ -45,6 +47,9 @@ export function MyProfile({
   view?: "profile" | "performance";
 }) {
   const { user, isLoading: authLoading } = useAuth();
+  const t = useTranslations("profile.self");
+  const say = useSay("profile");
+  const locale = useLocale();
   const showPerformance = canEnterPerformance(user);
   if (recordView === "performance" && !authLoading && !showPerformance)
     notFound();
@@ -77,11 +82,11 @@ export function MyProfile({
   if (!employeeId) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Profile" description="No linked employee record." />
+        <PageHeader title={t("title")} description={t("noLink")} />
         <PageEmpty
           icon={User}
-          title="No linked employee profile"
-          description="Contact a tenant HR administrator to link your record."
+          title={t("noLinkTitle")}
+          description={t("noLinkDescription")}
         />
       </PageContainer>
     );
@@ -94,10 +99,10 @@ export function MyProfile({
   if (error) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Profile" />
+        <PageHeader title={t("title")} />
         <PageError
-          title="Your profile could not be found"
-          description="Your linked employee profile is not available right now."
+          title={t("notFound")}
+          description={t("notFoundDescription")}
         />
       </PageContainer>
     );
@@ -106,11 +111,11 @@ export function MyProfile({
   if (!details) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Profile" description="Profile unavailable." />
+        <PageHeader title={t("title")} description={t("unavailable")} />
         <PageEmpty
           icon={User}
-          title="Unable to load profile"
-          description="Your employee profile is not available right now."
+          title={t("unableTitle")}
+          description={t("unableDescription")}
         />
       </PageContainer>
     );
@@ -127,7 +132,7 @@ export function MyProfile({
   const view = fromSelfDetails(details, reportingLines, {
     timeline: profileContext?.timeline,
     access: profileContext?.access ?? null,
-  });
+  }, { say, locale });
   const accessState = isContextLoading
     ? ("loading" as const)
     : view.access
@@ -139,13 +144,13 @@ export function MyProfile({
     <>
       <WorkerProfile
         view={view}
-        eyebrow="Profile"
+        eyebrow={t("eyebrow")}
         accessState={accessState}
         timelineLoading={isContextLoading}
         headerActions={
           canEdit ? (
             <Button variant="outline" onClick={() => setEditing(true)}>
-              <Pencil className="size-4" aria-hidden /> Edit details
+              <Pencil className="size-4" aria-hidden /> {t("edit")}
             </Button>
           ) : undefined
         }
@@ -167,7 +172,7 @@ export function MyProfile({
               className="mt-3 h-auto p-0"
             >
               <Link href="/team">
-                View all {view.directReportCount} reports
+                {t("viewAll", { count: view.directReportCount })}
                 <ArrowRight className="size-3.5" aria-hidden />
               </Link>
             </Button>
@@ -205,6 +210,8 @@ function EditMyDetailsDialog({
   canEditPhone: boolean;
 }) {
   const update = useUpdateMyProfile();
+  const t = useTranslations("profile.self");
+  const english = useLocale() === "en";
   const [preferredName, setPreferredName] = useState(
     details.preferredName ?? ""
   );
@@ -229,13 +236,13 @@ function EditMyDetailsDialog({
           : undefined,
         phone: canEditPhone ? normalizedPhone : undefined,
       });
-      toast.success("Profile details updated.");
+      toast.success(t("updated"));
       onOpenChange(false);
     } catch (cause) {
       setError(
-        cause instanceof Error && cause.message.trim()
+        english && cause instanceof Error && cause.message.trim()
           ? cause.message
-          : "Your changes could not be saved."
+          : t("failed")
       );
     }
   };
@@ -247,12 +254,12 @@ function EditMyDetailsDialog({
     >
       <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Edit personal details</DialogTitle>
+          <DialogTitle>{t("dialogTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 py-3">
           {canEditPreferredName ? (
             <div className="space-y-2">
-              <Label htmlFor="my-preferred-name">Preferred name</Label>
+              <Label htmlFor="my-preferred-name">{t("preferredName")}</Label>
               <Input
                 id="my-preferred-name"
                 value={preferredName}
@@ -260,13 +267,13 @@ function EditMyDetailsDialog({
                 onChange={(event) => setPreferredName(event.target.value)}
               />
               <p className="type-meta text-muted-foreground">
-                Used as your display name across Fusion.
+                {t("preferredNameHint")}
               </p>
             </div>
           ) : null}
           {canEditPhone ? (
             <div className="space-y-2">
-              <Label htmlFor="my-phone">Phone</Label>
+              <Label htmlFor="my-phone">{t("phone")}</Label>
               <Input
                 id="my-phone"
                 value={phone}
@@ -290,13 +297,13 @@ function EditMyDetailsDialog({
             onClick={() => onOpenChange(false)}
             disabled={update.isLoading}
           >
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             onClick={() => void save()}
             disabled={!changed || update.isLoading}
           >
-            {update.isLoading ? "Saving" : "Save changes"}
+            {update.isLoading ? t("saving") : t("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

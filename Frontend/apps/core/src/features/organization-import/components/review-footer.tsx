@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { OrganizationImportReviewReadiness } from "@repo/api";
 import { ImportReviewFooter } from "@/features/data-import/components/review-footer";
 
@@ -15,6 +16,7 @@ export function ReviewFooter({
   publishing: boolean;
   onPublish: () => void;
 }) {
+  const t = useTranslations("orgImport.review");
   return (
     <ImportReviewFooter
       matchHref={matchHref}
@@ -22,8 +24,8 @@ export function ReviewFooter({
       canPublish={readiness.canPublish}
       noop={readiness.canPublish && readiness.createCount === 0}
       busy={publishing}
-      publishLabel="Publish organization"
-      noopLabel={{ idle: "Finish import", busy: "Finishing…", status: "Ready to publish" }}
+      publishLabel={t("publish")}
+      noopLabel={{ idle: t("finish"), busy: t("finishing"), status: t("readyStatus") }}
       onPublish={onPublish}
     />
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { useImportProblem } from "@/features/data-import/components/import-words";
+import { useTranslations } from "next-intl";
 import { useRouter, useSelectedLayoutSegment } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Button, Spinner } from "@repo/ds";
@@ -80,6 +82,8 @@ function ImportFrameBody({
   sessionId: string;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("orgImport");
+  const problemLine = useImportProblem();
   const router = useRouter();
   const segment = useSelectedLayoutSegment();
   const sessionQuery = useOrganizationImportSession(sessionId);
@@ -120,14 +124,12 @@ function ImportFrameBody({
   if (sessionQuery.error)
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Import organization structure" />
+        <PageHeader title={t("title")} />
         <PagePermissionNotice
-          title="Import not available"
-          description={
-            translateOrganizationImportError(sessionQuery.error).message
-          }
+          title={t("notAvailable")}
+          description={problemLine(translateOrganizationImportError(sessionQuery.error))}
           action={
-            <Button onClick={() => void sessionQuery.refetch()}>Retry</Button>
+            <Button onClick={() => void sessionQuery.refetch()}>{t("retry")}</Button>
           }
         />
       </PageContainer>
@@ -181,6 +183,8 @@ function OrganizationImportShell({
   segment: string | null;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("orgImport");
+  const steps = useTranslations("dataImport");
   const { session, stage, matchOutcome } = useImportFrame();
   // Match and Review are documents that scroll with the shell, header included, each with a
   // flow bar pinned to the bottom, rather than panes clipped under a pinned band.
@@ -188,8 +192,9 @@ function OrganizationImportShell({
     <div>
       <PageContainer>
         <ImportHeader
-          context="Bring in your structure from Excel or CSV and review it before publishing."
-          steps={importSteps(session.id, segment, stage, matchOutcome)}
+          title={t("title")}
+          context={steps("domain.organization.context")}
+          steps={importSteps(session.id, segment, stage, matchOutcome, steps)}
         />
       </PageContainer>
       {children}
@@ -206,14 +211,15 @@ function importSteps(
   sessionId: string,
   segment: string | null,
   stage: ImportStage,
-  matchOutcome: MatchOutcome
+  matchOutcome: MatchOutcome,
+  t: ReturnType<typeof useTranslations<"dataImport">>
 ): ImportStep[] {
   const matchDone = matchOutcome !== "needed";
   return [
-    { key: "upload", label: "Upload", state: "done" },
+    { key: "upload", label: t("steps.upload"), state: "done" },
     {
       key: "match",
-      label: "Match",
+      label: t("steps.match"),
       detail:
         undefined,
       state: segment === "match" ? "current" : matchDone ? "done" : "upcoming",
@@ -221,7 +227,7 @@ function importSteps(
     },
     {
       key: "review",
-      label: "Review",
+      label: t("steps.review"),
       state: segment === "review" ? "current" : "upcoming",
       href:
         segment === "match" && stage === "review"
@@ -232,10 +238,11 @@ function importSteps(
 }
 
 function ImportHandoff() {
+  const t = useTranslations("orgImport");
   return (
     <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
       <Spinner className="size-6" aria-hidden />
-      <p>Publishing organization…</p>
+      <p>{t("publishing")}</p>
     </div>
   );
 }

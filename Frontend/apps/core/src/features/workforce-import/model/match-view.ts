@@ -6,6 +6,10 @@ import type {
   WorkforceMatchUpdateRequest,
   WorkforceReferenceKind,
 } from "@repo/api";
+import { englishSay, type Say } from "@repo/ds/lib/say";
+import { englishMessages } from "@/i18n/messages";
+
+const ENGLISH = englishSay(englishMessages, "wfImport");
 
 export type MappingStatus = "mapped" | "ignored" | "needs-review";
 export type InterpretationState = "understood" | "needs-review" | "optional";
@@ -28,18 +32,20 @@ export const MAPPABLE_FIELDS: Array<{ value: Exclude<WorkforceImportField, "Igno
   { value: "EmploymentEnd", label: "Employment end" },
 ];
 
-const OTHER_LABELS: Partial<Record<WorkforceImportField, string>> = {
-  Ignored: "Ignore",
-  FusionEmployeeReference: "Fusion employee ID",
-  FusionOrganizationReference: "Fusion organization ID",
-  FusionManagerReference: "Fusion manager ID",
-  WorkerReference: "Worker reference",
-  ManagerReference: "Manager reference",
-};
+const OTHER_FIELDS = new Set<string>([
+  "Ignored",
+  "FusionEmployeeReference",
+  "FusionOrganizationReference",
+  "FusionManagerReference",
+  "WorkerReference",
+  "ManagerReference",
+]);
 
-const LABELS = new Map<string, string>([...MAPPABLE_FIELDS.map((f) => [f.value, f.label] as const), ...Object.entries(OTHER_LABELS)]);
-export const fieldLabel = (field: string) => LABELS.get(field) ?? field;
-export const columnName = (c: WorkforceMatchColumn) => c.sourceLabel ?? `Column ${c.columnIndex + 1}`;
+const KNOWN_FIELDS = new Set<string>([...MAPPABLE_FIELDS.map((f) => f.value), ...OTHER_FIELDS]);
+export const fieldLabel = (field: string, say: Say = ENGLISH) =>
+  KNOWN_FIELDS.has(field) ? say(`match.fields.${field}`) : field;
+export const columnName = (c: WorkforceMatchColumn, say: Say = ENGLISH) =>
+  c.sourceLabel ?? say("match.columns.column", { number: c.columnIndex + 1 });
 
 export const LIFECYCLE_OPTIONS: Array<{ value: WorkforceLifecycle; label: string }> = [
   { value: "Active", label: "Active employee" },
@@ -103,12 +109,7 @@ export function deriveLifecycleRows(match: WorkforceImportMatch): LifecycleRow[]
 const columnFor = (match: WorkforceImportMatch, ...fields: WorkforceImportField[]) =>
   fields.map((f) => match.columns.find((c) => used(c) && c.field === f)).find(Boolean) ?? null;
 
-const MANAGER_BY: Partial<Record<WorkforceReferenceKind, string>> = {
-  FusionId: "by Fusion ID",
-  EmployeeNumber: "by employee number",
-  WorkerReference: "by worker reference",
-  Email: "by work email",
-};
+const MANAGER_BY = new Set<WorkforceReferenceKind>(["FusionId", "EmployeeNumber", "WorkerReference", "Email"]);
 
 export type InterpretationItem = {
   key: "identity" | "names" | "organization" | "manager" | "dates";
@@ -119,50 +120,52 @@ export type InterpretationItem = {
   decision: "identity" | "name-format" | "date-format" | null;
 };
 
-const join = (names: string[]) => names.join(" and ");
-
 /** How Fusion reads the workforce concepts the file carries, one item per concept. */
-export function deriveInterpretation(match: WorkforceImportMatch): InterpretationItem[] {
+export function deriveInterpretation(match: WorkforceImportMatch, say: Say = ENGLISH): InterpretationItem[] {
   const open = new Set(match.readiness.requiredDecisions.map((d) => d.key));
   const missing = new Set(missingRequiredFields(match));
+  const c = (key: string, values?: Record<string, string>) => say(`match.concepts.${key}`, values);
+  const name = (column: WorkforceMatchColumn) => columnName(column, say);
+  const join = (names: string[]) =>
+    names.length === 2 ? c("and", { first: names[0]!, second: names[1]! }) : names.join(", ");
 
   const identityColumn = columnFor(match, "EmployeeNumber", "FusionEmployeeReference");
   const identity: InterpretationItem = open.has("identity")
-    ? { key: "identity", title: "Employee identity", detail: "No column identifies each employee yet.", state: "needs-review", decision: "identity" }
+    ? { key: "identity", title: c("identity"), detail: c("noIdentity"), state: "needs-review", decision: "identity" }
     : match.identityStrategy === "GenerateAll"
-      ? { key: "identity", title: "Employee identity", detail: "Fusion generates an employee number for everyone.", state: "understood", decision: null }
-      : { key: "identity", title: "Employee identity", detail: `Using ${identityColumn ? columnName(identityColumn) : "the file’s identifier"}.`, state: "understood", decision: null };
+      ? { key: "identity", title: c("identity"), detail: c("generated"), state: "understood", decision: null }
+      : { key: "identity", title: c("identity"), detail: c("using", { columns: identityColumn ? name(identityColumn) : c("theIdentifier") }), state: "understood", decision: null };
 
   const first = columnFor(match, "FirstName");
   const last = columnFor(match, "LastName");
   const full = columnFor(match, "FullName");
   const namesMissing = missing.has("FirstName") || missing.has("LastName") || missing.has("FullName");
   const names: InterpretationItem = open.has("name-format")
-    ? { key: "names", title: "Names", detail: `Using ${full ? columnName(full) : "the name column"}. How is it written?`, state: "needs-review", decision: "name-format" }
+    ? { key: "names", title: c("names"), detail: c("nameFormat", { column: full ? name(full) : c("theNameColumn") }), state: "needs-review", decision: "name-format" }
     : namesMissing
-      ? { key: "names", title: "Names", detail: "No name column yet.", state: "needs-review", decision: null }
-      : { key: "names", title: "Names", detail: `Using ${first && last ? join([columnName(first), columnName(last)]) : full ? columnName(full) : "the name columns"}.`, state: "understood", decision: null };
+      ? { key: "names", title: c("names"), detail: c("noName"), state: "needs-review", decision: null }
+      : { key: "names", title: c("names"), detail: c("using", { columns: first && last ? join([name(first), name(last)]) : full ? name(full) : c("theNameColumns") }), state: "understood", decision: null };
 
   const org = columnFor(match, "Organization", "FusionOrganizationReference");
   const organization: InterpretationItem = org
-    ? { key: "organization", title: "Organization", detail: `Using ${columnName(org)} to place people in organization units.`, state: "understood", decision: null }
-    : { key: "organization", title: "Organization", detail: "No organization column yet.", state: "needs-review", decision: null };
+    ? { key: "organization", title: c("organization"), detail: c("orgUsing", { column: name(org) }), state: "understood", decision: null }
+    : { key: "organization", title: c("organization"), detail: c("noOrg"), state: "needs-review", decision: null };
 
   const managerColumn = columnFor(match, "Manager", "ManagerReference", "FusionManagerReference");
-  const by = MANAGER_BY[match.managerReferenceKind];
+  const by = MANAGER_BY.has(match.managerReferenceKind) ? c(`by.${match.managerReferenceKind}`) : null;
   const manager: InterpretationItem = !managerColumn
-    ? { key: "manager", title: "Reporting line", detail: "No manager column. Managers can be set later.", state: "optional", decision: null }
+    ? { key: "manager", title: c("manager"), detail: c("noManager"), state: "optional", decision: null }
     : by
-      ? { key: "manager", title: "Reporting line", detail: `Using ${columnName(managerColumn)}, ${by}.`, state: "understood", decision: null }
-      : { key: "manager", title: "Reporting line", detail: `Using ${columnName(managerColumn)}. Managers are confirmed in Review.`, state: "optional", decision: null };
+      ? { key: "manager", title: c("manager"), detail: c("managerBy", { column: name(managerColumn), by }), state: "understood", decision: null }
+      : { key: "manager", title: c("manager"), detail: c("managerConfirm", { column: name(managerColumn) }), state: "optional", decision: null };
 
   const start = columnFor(match, "EmploymentStart");
   const since = columnFor(match, "WorkEffectiveFrom");
   const dates: InterpretationItem = open.has("date-format")
-    ? { key: "dates", title: "Employment dates", detail: "Dates in this file can be read two ways.", state: "needs-review", decision: "date-format" }
+    ? { key: "dates", title: c("dates"), detail: c("ambiguousDates"), state: "needs-review", decision: "date-format" }
     : !start
-      ? { key: "dates", title: "Employment dates", detail: "No employment start column yet.", state: "needs-review", decision: null }
-      : { key: "dates", title: "Employment dates", detail: `Using ${join([start, since].filter((c): c is WorkforceMatchColumn => c !== null).map(columnName))}.`, state: "understood", decision: null };
+      ? { key: "dates", title: c("dates"), detail: c("noStart"), state: "needs-review", decision: null }
+      : { key: "dates", title: c("dates"), detail: c("using", { columns: join([start, since].filter((col): col is WorkforceMatchColumn => col !== null).map(name)) }), state: "understood", decision: null };
 
   return [identity, manager, names, dates, organization];
 }
@@ -173,32 +176,36 @@ export const sampleDate = (match: WorkforceImportMatch) =>
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-/** How an ambiguous date from the file reads under a format, e.g. 01/02/2021 → "1 February 2021". */
-export function readDate(value: string | null, format: "DayMonthYear" | "MonthDayYear"): string | null {
+/** How an ambiguous date from the file reads under a format, e.g. 01/02/2021 → "1 February 2021"; other languages as Intl writes them. */
+export function readDate(value: string | null, format: "DayMonthYear" | "MonthDayYear", locale = "en"): string | null {
   const parts = value?.trim().split(/[/.-]/).map(Number);
   if (!parts || parts.length !== 3 || parts.some(Number.isNaN)) return null;
   const [a, b, year] = parts as [number, number, number];
   const [day, month] = format === "DayMonthYear" ? [a, b] : [b, a];
   const name = MONTHS[month - 1];
   if (!name || day < 1 || day > 31) return null;
+  if (locale !== "en")
+    return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+      new Date(Date.UTC(year, month - 1, day))
+    );
   return format === "DayMonthYear" ? `${day} ${name} ${year}` : `${name} ${day}, ${year}`;
 }
 
 /** Columns the preview shows: who each person is and where they land, as mapped right now. */
 const PREVIEW_FIELDS: Array<{ fields: WorkforceImportField[]; label: string }> = [
-  { fields: ["EmployeeNumber", "FusionEmployeeReference"], label: "Employee number" },
-  { fields: ["FirstName"], label: "First name" },
-  { fields: ["LastName"], label: "Last name" },
+  { fields: ["EmployeeNumber", "FusionEmployeeReference"], label: "EmployeeNumber" },
+  { fields: ["FirstName"], label: "FirstName" },
+  { fields: ["LastName"], label: "LastName" },
   { fields: ["FullName"], label: "Name" },
-  { fields: ["WorkEmail"], label: "Work email" },
-  { fields: ["DisplayTitle"], label: "Job title" },
+  { fields: ["WorkEmail"], label: "WorkEmail" },
+  { fields: ["DisplayTitle"], label: "DisplayTitle" },
   { fields: ["Organization", "FusionOrganizationReference"], label: "Organization" },
 ];
 
-export function previewColumns(match: WorkforceImportMatch, max = 5) {
+export function previewColumns(match: WorkforceImportMatch, max = 5, say: Say = ENGLISH) {
   return PREVIEW_FIELDS.flatMap(({ fields, label }) => {
     const column = columnFor(match, ...fields);
-    return column ? [{ key: fields[0]!, label, columnIndex: column.columnIndex }] : [];
+    return column ? [{ key: fields[0]!, label: say(`match.fields.${label}`), columnIndex: column.columnIndex }] : [];
   }).slice(0, max);
 }
 

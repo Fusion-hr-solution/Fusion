@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@repo/ds";
 import { StatusBadge, type StatusTone } from "@repo/ds/shell";
 import type { PeopleEmploymentState } from "@repo/api";
@@ -146,7 +147,7 @@ export function PersonIdentity({
   href,
   size = "md",
   accent = false,
-  missingEmailLabel = "Work email missing",
+  missingEmailLabel,
   className,
 }: {
   name: string;
@@ -160,6 +161,7 @@ export function PersonIdentity({
   missingEmailLabel?: string;
   className?: string;
 }) {
+  const t = useTranslations("people.identity");
   const workContext = [jobTitle, organization].filter(Boolean).join(" · ");
 
   return (
@@ -198,7 +200,7 @@ export function PersonIdentity({
               : "font-medium text-warning-foreground"
           )}
         >
-          {email || missingEmailLabel}
+          {email || (missingEmailLabel ?? t("missingEmail"))}
         </p>
       </div>
     </div>
@@ -211,7 +213,7 @@ export function PersonRelationship({
   name,
   detail,
   href,
-  emptyLabel = "Not assigned",
+  emptyLabel,
   className,
 }: {
   label: string;
@@ -221,6 +223,7 @@ export function PersonRelationship({
   emptyLabel?: string;
   className?: string;
 }) {
+  const t = useTranslations("people.identity");
   return (
     <div className={className}>
       <p className="type-eyebrow text-muted-foreground">{label}</p>
@@ -229,7 +232,7 @@ export function PersonRelationship({
           <EmployeeIdentity name={name} href={href} secondary={detail} accent />
         </div>
       ) : (
-        <p className="mt-1 type-body text-muted-foreground">{emptyLabel}</p>
+        <p className="mt-1 type-body text-muted-foreground">{emptyLabel ?? t("notAssigned")}</p>
       )}
     </div>
   );
@@ -297,9 +300,10 @@ export function EmploymentStatus({
   state: PeopleEmploymentState;
   className?: string;
 }) {
+  const t = useTranslations("people.states");
   return (
     <StatusBadge tone={STATE_TONE[state]} dot className={className}>
-      {state}
+      {t(state)}
     </StatusBadge>
   );
 }
@@ -312,7 +316,7 @@ export function EmploymentStatus({
  */
 export function formatWorkforceDate(
   value: string | null | undefined,
-  options?: { month?: "short" | "long" }
+  options?: { month?: "short" | "long"; locale?: string }
 ): string {
   if (!value) return "";
   const iso = value.length <= 10 ? `${value}T00:00:00Z` : value;
@@ -323,5 +327,11 @@ export function formatWorkforceDate(
     month: options?.month ?? "short",
     year: "numeric",
     timeZone: "UTC",
-  }).format(date);
+  }, options?.locale).format(date);
+}
+
+/** {@link formatWorkforceDate} in the person's language. */
+export function useWorkforceDate(): (value: string | null | undefined, options?: { month?: "short" | "long" }) => string {
+  const locale = useLocale();
+  return useCallback((value, options) => formatWorkforceDate(value, { ...options, locale }), [locale]);
 }

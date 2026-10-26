@@ -1,0 +1,20 @@
+{
+  "title": "Mon équipe",
+  "description": "Collaborateurs directs.",
+  "goToProfile": "Aller à votre profil",
+  "goToOverview": "Aller à la vue d’ensemble",
+  "noTeam": {
+    "title": "Aucune équipe à gérer",
+    "description": "Cet espace présente les collaborateurs qui vous sont rattachés. Aucun collaborateur ne vous est rattaché pour l’instant."
+  },
+  "error": {
+    "title": "Échec du chargement de l’équipe",
+    "description": "Votre équipe n’a pas pu être chargée. Réessayez dans un instant."
+  },
+  "directReports": "Collaborateurs directs",
+  "count": "{count, plural, one {# collaborateur direct} other {# collaborateurs directs}}",
+  "empty": {
+    "title": "Aucun collaborateur direct",
+    "description": "Aucun collaborateur ne vous est rattaché pour l’instant."
+  }
+}

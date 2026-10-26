@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import { AuthProvider } from "@repo/auth";
+import { useTranslations } from "next-intl";
 import { PageSkeleton } from "@repo/ds/shell";
 import { BreadcrumbOverridesProvider } from "@/shell/breadcrumb-overrides";
 import { CorePagesShell } from "@/shell/core-pages-shell";
@@ -17,7 +18,7 @@ export default function PagesLayout({ children }: { children: ReactNode }) {
     <AuthProvider>
       <BreadcrumbOverridesProvider>
         <CorePagesShell>
-          <Suspense fallback={<PageSkeleton rows={4} label="Loading Core HR" />}>
+          <Suspense fallback={<CorePageSkeleton />}>
             <CoreWorkspaceAccessBoundary>{children}</CoreWorkspaceAccessBoundary>
           </Suspense>
         </CorePagesShell>
@@ -25,4 +26,9 @@ export default function PagesLayout({ children }: { children: ReactNode }) {
       <Toaster />
     </AuthProvider>
   );
+}
+
+function CorePageSkeleton() {
+  const t = useTranslations("frame");
+  return <PageSkeleton rows={4} label={t("loadingCoreHr")} />;
 }

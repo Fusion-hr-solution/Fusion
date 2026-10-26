@@ -1,5 +1,7 @@
 "use client";
 
+import { useAccessWords } from "./access-language";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type {
   AdministratorInvitationDto,
@@ -39,11 +41,7 @@ import {
   useRevokeInvitation,
 } from "../api/use-tenant-access";
 import {
-  ADMINISTRATOR_STATUS_LABEL,
   ADMINISTRATOR_STATUS_TONE,
-  COPY,
-  formatDay,
-  formatRelativeDays,
   isPast,
 } from "./access-language";
 import { ConfirmDialog, IdentityMark } from "./access-ui";
@@ -67,6 +65,7 @@ function PersonCell({
   self?: boolean;
   muted?: boolean;
 }) {
+  const t = useTranslations("admins");
   return (
     <div className="flex min-w-0 items-center gap-3">
       <IdentityMark name={name} />
@@ -77,7 +76,7 @@ function PersonCell({
           </span>
           {self ? (
             <span className="type-meta shrink-0 rounded-detail bg-primary-tint px-1.5 py-0.5 font-medium text-primary-ink">
-              You
+              {t("table.you")}
             </span>
           ) : null}
         </div>
@@ -123,15 +122,17 @@ export function AdministratorTable({
   selectedId: string | null;
   onSelect: (membershipId: string) => void;
 }) {
+  const t = useTranslations("admins");
+  const words = useAccessWords();
   return (
     <div className="overflow-x-auto rounded-surface border">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Name</TableHead>
-            <TableHead className="hidden md:table-cell">Email</TableHead>
-            <TableHead className="hidden sm:table-cell">Status</TableHead>
-            <TableHead className="hidden lg:table-cell">Added on</TableHead>
+            <TableHead>{t("table.name")}</TableHead>
+            <TableHead className="hidden md:table-cell">{t("table.email")}</TableHead>
+            <TableHead className="hidden sm:table-cell">{t("table.status")}</TableHead>
+            <TableHead className="hidden lg:table-cell">{t("table.addedOn")}</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
@@ -156,11 +157,11 @@ export function AdministratorTable({
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
                   <StatusBadge tone={tone} dot>
-                    {ADMINISTRATOR_STATUS_LABEL[administrator.status]}
+                    {words.status(administrator.status)}
                   </StatusBadge>
                 </TableCell>
                 <TableCell className="hidden lg:table-cell type-meta whitespace-nowrap text-muted-foreground">
-                  {formatDay(administrator.accessEstablishedAt)}
+                  {words.day(administrator.accessEstablishedAt)}
                 </TableCell>
                 <TableCell onClick={(event) => event.stopPropagation()}>
                   <DropdownMenu>
@@ -168,7 +169,7 @@ export function AdministratorTable({
                       <Button
                         size="icon"
                         variant="ghost"
-                        aria-label={`Actions for ${administrator.name}`}
+                        aria-label={t("table.actionsFor", { name: administrator.name })}
                       >
                         <MoreHorizontal className="size-4" />
                       </Button>
@@ -176,16 +177,16 @@ export function AdministratorTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onSelect={() => onSelect(administrator.membershipId)}>
                         <SlidersHorizontal className="size-4" />
-                        Manage access
+                        {t("table.manage")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onSelect={() => {
                           void navigator.clipboard?.writeText(administrator.email);
-                          toast.success("Email address copied.");
+                          toast.success(t("table.copied"));
                         }}
                       >
                         <Copy className="size-4" />
-                        Copy email address
+                        {t("table.copy")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -209,6 +210,8 @@ export function InvitationsTable({
   invitations: AdministratorInvitationDto[];
   canManage: boolean;
 }) {
+  const t = useTranslations("admins");
+  const words = useAccessWords();
   const [replacing, setReplacing] = useState<AdministratorInvitationDto | null>(null);
   const [revoking, setRevoking] = useState<AdministratorInvitationDto | null>(null);
 
@@ -220,14 +223,14 @@ export function InvitationsTable({
       const result = await resend.mutateAsync(invitation.invitationId);
       toast.success(
         result.deliveryFailed
-          ? `The invitation is still valid, but the email to ${invitation.email} could not be delivered.`
-          : `Invitation resent to ${invitation.email}.`
+          ? t("table.resendFailedDelivery", { email: invitation.email })
+          : t("table.resent", { email: invitation.email })
       );
     } catch (error) {
       toast.error(
         problemTypeOf(error) === "invitation-not-pending"
-          ? "This invitation is no longer pending."
-          : "The invitation could not be resent."
+          ? t("table.notPending")
+          : t("table.resendFailed")
       );
     }
   }
@@ -238,10 +241,10 @@ export function InvitationsTable({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead>Name</TableHead>
-              <TableHead className="hidden md:table-cell">Email</TableHead>
-              <TableHead className="hidden sm:table-cell">Status</TableHead>
-              <TableHead className="hidden lg:table-cell">Expires</TableHead>
+              <TableHead>{t("table.name")}</TableHead>
+              <TableHead className="hidden md:table-cell">{t("table.email")}</TableHead>
+              <TableHead className="hidden sm:table-cell">{t("table.status")}</TableHead>
+              <TableHead className="hidden lg:table-cell">{t("table.expires")}</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -268,13 +271,13 @@ export function InvitationsTable({
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <StatusBadge tone="warning" dot>
-                      {invitation.deliveryStatus === "Failed" ? "Delivery failed" : "Pending"}
+                      {invitation.deliveryStatus === "Failed" ? t("table.deliveryFailed") : t("table.pending")}
                     </StatusBadge>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell whitespace-nowrap">
-                    <p className="type-meta text-foreground">{formatDay(invitation.expiresAt)}</p>
+                    <p className="type-meta text-foreground">{words.day(invitation.expiresAt)}</p>
                     <p className={cn("type-meta", overdue ? "text-destructive" : "text-muted-foreground")}>
-                      {formatRelativeDays(invitation.expiresAt)}
+                      {words.relativeDays(invitation.expiresAt)}
                     </p>
                   </TableCell>
                   <TableCell>
@@ -286,14 +289,14 @@ export function InvitationsTable({
                           pending={resend.isLoading}
                           onClick={() => void handleResend(invitation)}
                         >
-                          Resend
+                          {t("table.resend")}
                         </AsyncButton>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
                               size="icon"
                               variant="ghost"
-                              aria-label={`More actions for ${invitation.email}`}
+                              aria-label={t("table.moreFor", { email: invitation.email })}
                             >
                               <MoreHorizontal className="size-4" />
                             </Button>
@@ -301,7 +304,7 @@ export function InvitationsTable({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={() => setReplacing(invitation)}>
                               <PenLine className="size-4" />
-                              Change email address
+                              {t("table.changeEmail")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -309,7 +312,7 @@ export function InvitationsTable({
                               onSelect={() => setRevoking(invitation)}
                             >
                               <Ban className="size-4" />
-                              Revoke invitation
+                              {t("table.revoke")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -327,14 +330,14 @@ export function InvitationsTable({
 
       <ConfirmDialog
         open={revoking !== null}
-        title="Revoke invitation"
-        consequence={COPY.revokeInvitationConsequence}
+        title={t("table.revoke")}
+        consequence={words.copy("revokeInvitationConsequence")}
         subject={
           revoking
-            ? { title: revoking.email, subtitle: `Invited ${formatDay(revoking.issuedAt)}` }
+            ? { title: revoking.email, subtitle: t("table.invitedOn", { date: words.day(revoking.issuedAt) }) }
             : undefined
         }
-        confirmLabel="Revoke invitation"
+        confirmLabel={t("table.revoke")}
         destructive
         busy={revoke.isLoading}
         onOpenChange={(open) => !open && setRevoking(null)}
@@ -342,9 +345,9 @@ export function InvitationsTable({
           if (!revoking) return;
           try {
             await revoke.mutateAsync(revoking.invitationId);
-            toast.success(`Invitation to ${revoking.email} revoked.`);
+            toast.success(t("table.revoked", { email: revoking.email }));
           } catch {
-            toast.error("The invitation could not be revoked.");
+            toast.error(t("table.revokeFailed"));
           }
           setRevoking(null);
         }}
@@ -360,6 +363,8 @@ function ChangeEmailDialog({
   invitation: AdministratorInvitationDto | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("admins");
+  const words = useAccessWords();
   const [email, setEmail] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const replace = useReplaceInvitationEmail();
@@ -379,12 +384,12 @@ function ChangeEmailDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Change invited address</DialogTitle>
-          <DialogDescription>{COPY.replaceEmailConsequence}</DialogDescription>
+          <DialogTitle>{t("table.changeTitle")}</DialogTitle>
+          <DialogDescription>{words.copy("replaceEmailConsequence")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="replacement-email">New email address</Label>
+          <Label htmlFor="replacement-email">{t("table.newEmail")}</Label>
           <Input
             id="replacement-email"
             type="email"
@@ -403,7 +408,7 @@ function ChangeEmailDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={replace.isLoading}>
-            Cancel
+            {t("table.cancel")}
           </Button>
           <AsyncButton
             pending={replace.isLoading}
@@ -415,27 +420,27 @@ function ChangeEmailDialog({
                   invitationId: invitation.invitationId,
                   email: email.trim(),
                 });
-                toast.success(`Invitation sent to ${email.trim()}.`);
+                toast.success(t("table.sent", { email: email.trim() }));
                 setEmail("");
                 onClose();
               } catch (error) {
                 switch (problemTypeOf(error)) {
                   case "existing-account":
-                    setProblem(COPY.existingAccount);
+                    setProblem(words.copy("existingAccount"));
                     break;
                   case "duplicate-pending-invitation":
-                    setProblem(COPY.duplicatePending);
+                    setProblem(words.copy("duplicatePending"));
                     break;
                   case "validation-failed":
-                    setProblem("Enter a valid email address.");
+                    setProblem(t("table.invalidEmail"));
                     break;
                   default:
-                    setProblem("The invitation could not be changed.");
+                    setProblem(t("table.changeFailed"));
                 }
               }
             }}
           >
-            Send invitation
+            {t("table.send")}
           </AsyncButton>
         </DialogFooter>
       </DialogContent>
@@ -446,15 +451,17 @@ function ChangeEmailDialog({
 // ── Removed ────────────────────────────────────────────────
 
 export function RemovedTable({ removed }: { removed: RemovedAdministratorDto[] }) {
+  const t = useTranslations("admins");
+  const words = useAccessWords();
   return (
     <div className="overflow-x-auto rounded-surface border">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Name</TableHead>
-            <TableHead className="hidden md:table-cell">Email</TableHead>
-            <TableHead className="hidden sm:table-cell">Removed on</TableHead>
-            <TableHead>Removed by</TableHead>
+            <TableHead>{t("table.name")}</TableHead>
+            <TableHead className="hidden md:table-cell">{t("table.email")}</TableHead>
+            <TableHead className="hidden sm:table-cell">{t("table.removedOn")}</TableHead>
+            <TableHead>{t("table.removedBy")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -467,7 +474,7 @@ export function RemovedTable({ removed }: { removed: RemovedAdministratorDto[] }
                 {person.email}
               </TableCell>
               <TableCell className="hidden sm:table-cell type-meta whitespace-nowrap text-muted-foreground">
-                {formatDay(person.removedAt)}
+                {words.day(person.removedAt)}
               </TableCell>
               <TableCell className="type-meta text-muted-foreground">{person.removedBy}</TableCell>
             </TableRow>

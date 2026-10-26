@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   PageContainer,
   PageHeader,
@@ -45,19 +46,21 @@ export function TitledPageLoading({
   label,
   className = "space-y-6",
 }: TitledPageLoadingProps) {
+  const t = useTranslations("frame.skeletons");
   return (
     <PageContainer width="wide" className={className}>
       <PageHeader title={title} description={description} />
-      <PageLoading rows={rows} label={label ?? `Loading ${title.toLowerCase()}...`} />
+      <PageLoading rows={rows} label={label ?? t("loadingTitle", { title: title.toLowerCase() })} />
     </PageContainer>
   );
 }
 
 export function OverviewPageSkeleton() {
+  const t = useTranslations("frame.skeletons");
   return (
     <PageContainer width="wide" className="space-y-6">
       <PageHeader
-        title="Dashboard"
+        title={t("dashboard")}
         description={<Skeleton className="h-4 w-80 max-w-full" />}
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -74,10 +77,11 @@ export function OverviewPageSkeleton() {
 }
 
 export function EmployeesPageSkeleton({ label }: { label?: string }) {
+  const t = useTranslations("frame.skeletons");
   return (
     <PageContainer width="wide" className="space-y-5">
-      <PageHeader title="People" />
-      <PageLoading rows={8} label={label ?? "Loading employees"} />
+      <PageHeader title={t("people")} />
+      <PageLoading rows={8} label={label ?? t("loadingPeople")} />
     </PageContainer>
   );
 }
@@ -91,10 +95,11 @@ export function MyProfilePageSkeleton() {
 }
 
 export function TeamPageSkeleton() {
+  const t = useTranslations("frame.skeletons");
   return (
     <PageContainer className="space-y-6">
-      <PageHeader title="My Team" description="Loading team." />
-      <PageLoading rows={6} label="Loading your team..." />
+      <PageHeader title={t("myTeam")} description={t("loadingTeam")} />
+      <PageLoading rows={6} label={t("loadingYourTeam")} />
     </PageContainer>
   );
 }
@@ -212,11 +217,12 @@ export function ActivityLogPageSkeleton() {
 }
 
 export function OrgChartPageSkeleton() {
+  const t = useTranslations("frame.skeletons");
   return (
     <PageContainer width="wide" className="space-y-6">
       <PageHeader
-        title="Org Chart"
-        description="Workforce structure and reporting lines."
+        title={t("orgChart")}
+        description={t("orgChartDescription")}
         actions={<Skeleton className="h-9 w-32 shrink-0" />}
       />
       <div className="flex items-center gap-2 rounded-surface border bg-card p-3">
@@ -241,9 +247,10 @@ export function SettingsPageSkeleton() {
 }
 
 export function SetupPageSkeleton() {
+  const t = useTranslations("frame.skeletons");
   return (
     <PageContainer width="wide" className="space-y-5">
-      <PageHeader title="Setup" description="Activate the draft workspace to get started." />
+      <PageHeader title={t("setup")} description={t("setupDescription")} />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:items-start">
         <div className="space-y-4">
@@ -333,8 +340,7 @@ export function getRoutePageSkeleton(corePath: string): ReactNode {
     const step = corePath.split("/")[4];
     return <ImportAttemptSkeleton domain="workforce" stage={step === "match" || step === "review" ? step : null} />;
   }
-  if (corePath === "/people/hire" || corePath === "/people/add-existing")
-    return <TitledPageLoading title="People" rows={5} label="Opening employee details" />;
+  if (corePath === "/people/hire" || corePath === "/people/add-existing") return <PersonTaskPageSkeleton />;
   if (corePath.startsWith("/people/")) return <EmployeeProfilePageSkeleton />;
   if (corePath === "/profile") return <MyProfilePageSkeleton />;
   if (corePath === "/team") return <TeamPageSkeleton />;
@@ -345,11 +351,25 @@ export function getRoutePageSkeleton(corePath: string): ReactNode {
   }
   if (corePath === "/organization" || corePath === "/org-chart") return <OrgChartPageSkeleton />;
   if (corePath === "/settings" || corePath.startsWith("/settings/")) return <SettingsPageSkeleton />;
-  if (corePath === "/access/profiles")
-    return <TitledPageLoading title="Access profiles" rows={4} label="Opening access profile settings" />;
+  if (corePath === "/access/profiles") return <AccessProfilesPageSkeleton />;
   if (corePath === "/access/activity") return <ActivityLogPageSkeleton />;
   if (corePath.startsWith("/access")) return <AccessPageSkeleton />;
   if (corePath === "/getting-started" || corePath === "/setup")
     return <SetupPageSkeleton />;
-  return <PageSkeleton label="Loading page" />;
+  return <PageFallbackSkeleton />;
+}
+
+function PersonTaskPageSkeleton() {
+  const t = useTranslations("frame.skeletons");
+  return <TitledPageLoading title={t("people")} rows={5} label={t("openingPerson")} />;
+}
+
+function AccessProfilesPageSkeleton() {
+  const t = useTranslations("frame.skeletons");
+  return <TitledPageLoading title={t("accessProfiles")} rows={4} label={t("openingAccessProfiles")} />;
+}
+
+function PageFallbackSkeleton() {
+  const t = useTranslations("frame");
+  return <PageSkeleton label={t("loadingPage")} />;
 }

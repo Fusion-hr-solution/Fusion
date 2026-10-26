@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useTranslations } from "next-intl";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
@@ -60,6 +62,7 @@ const hiddenHandle =
   "!pointer-events-none !h-1.5 !w-1.5 !min-h-0 !min-w-0 !border-0 !bg-transparent !opacity-0";
 
 const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<OrganizationFlowNode>) {
+  const t = useTranslations("organization");
   return (
     <div
       className={cn(
@@ -103,7 +106,7 @@ const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<Orga
       {data.hasChildren ? (
         <button
           type="button"
-          aria-label={`${data.collapsed ? `Expand ${data.name}, ${data.hiddenCount} hidden unit${data.hiddenCount === 1 ? "" : "s"}` : `Collapse ${data.name}`}`}
+          aria-label={data.collapsed ? t("chart.expand", { name: data.name, count: data.hiddenCount }) : t("chart.collapse", { name: data.name })}
           aria-expanded={!data.collapsed}
           onClick={(event) => { event.stopPropagation(); data.onToggle(data.id); }}
           className={cn(
@@ -123,15 +126,15 @@ const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<Orga
       ) : null}
       {data.canManage && !data.readOnly ? (
         <div className="absolute inset-e-1.5 top-1.5 flex items-center gap-0.5 rounded-control border bg-popover p-0.5 opacity-0 shadow-raised transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-          <Button type="button" variant="ghost" size="icon-sm" className="h-6 w-6" aria-label={`Add child to ${data.name}`} onClick={(event) => { event.stopPropagation(); data.onAddChild(data.id); }}>
+          <Button type="button" variant="ghost" size="icon-sm" className="h-6 w-6" aria-label={t("outline.addChild", { name: data.name })} onClick={(event) => { event.stopPropagation(); data.onAddChild(data.id); }}>
             <Plus className="h-3.5 w-3.5" />
           </Button>
           {!data.root ? (
             <span
               className="org-drag-handle grid h-6 w-6 cursor-grab place-items-center rounded-detail text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground active:cursor-grabbing"
               role="button"
-              aria-label={`Drag to move ${data.name}`}
-              title="Drag to move"
+              aria-label={t("outline.drag", { name: data.name })}
+              title={t("outline.dragHint")}
             >
               <GripVertical className="h-3.5 w-3.5" />
             </span>
@@ -242,6 +245,8 @@ export default function OrganizationChart({
   onAddChild,
   onStageDragMove,
 }: OrganizationChartProps) {
+  const t = useTranslations("organization");
+  const say = useSay("organization");
   const [dragSource, setDragSource] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   // Live position of the card being dragged. Because `nodes` is recomputed mid-drag
@@ -328,7 +333,7 @@ export default function OrganizationChart({
             name: unit.name,
             typeName: unit.typeName,
             code: unit.code,
-            accessibleName: organizationAccessibleName(model, id),
+            accessibleName: organizationAccessibleName(model, id, say),
             root: unit.parentId === null,
             selected: selectedId === id,
             collapsed: collapsed.has(id),
@@ -366,7 +371,7 @@ export default function OrganizationChart({
         };
       }),
     };
-  }, [canManage, collapsed, dragSource, dropTarget, handleToggle, model, onAddChild, onSelect, readOnly, revealedIds, selectedId]);
+  }, [canManage, collapsed, dragSource, dropTarget, handleToggle, model, onAddChild, onSelect, readOnly, revealedIds, say, selectedId]);
 
   nodesRef.current = nodes;
 
@@ -452,15 +457,15 @@ export default function OrganizationChart({
           />
           <span className="font-medium">
             {draggedCount > 0
-              ? `Moving ${draggedUnit.name} + ${draggedCount} unit${draggedCount === 1 ? "" : "s"}`
-              : `Moving ${draggedUnit.name}`}
+              ? t("chart.movingWith", { name: draggedUnit.name, count: draggedCount })
+              : t("chart.moving", { name: draggedUnit.name })}
           </span>
           <span className="text-muted-foreground">
             {dropTarget
               ? dropValid
-                ? "Drop to review"
-                : "Can't drop here"
-              : "Drop onto a new parent"}
+                ? t("chart.dropToReview")
+                : t("chart.cantDrop")
+              : t("chart.dropOnto")}
           </span>
         </div>
       ) : null}
@@ -498,7 +503,7 @@ export default function OrganizationChart({
         <Controls position="bottom-right" showInteractive={false} />
         {nodes.length > 30 ? (
           <MiniMap
-            ariaLabel="Organization chart overview"
+            ariaLabel={t("chart.overview")}
             pannable
             zoomable
             className="!bottom-3 !inset-e-14 !rounded-control !border !border-border !bg-popover !shadow-raised"

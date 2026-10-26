@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input, cn } from "@repo/ds";
 import { Building2, Check, ChevronRight, Search } from "lucide-react";
@@ -26,7 +27,7 @@ export function OrganizationTree({
   selectedId,
   onSelect,
   allOption,
-  emptyLabel = "No organization found",
+  emptyLabel,
   autoFocusSearch = true,
 }: {
   roots: OrganizationHierarchyNodeDto[];
@@ -37,6 +38,7 @@ export function OrganizationTree({
   emptyLabel?: string;
   autoFocusSearch?: boolean;
 }) {
+  const t = useTranslations("organization");
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -94,12 +96,12 @@ export function OrganizationTree({
           ref={searchRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search organization"
-          aria-label="Search organization"
+          placeholder={t("tree.search")}
+          aria-label={t("tree.search")}
           className="h-9 ps-9"
         />
       </div>
-      <div className="max-h-72 overflow-y-auto p-1" role="tree" aria-label="Organization hierarchy">
+      <div className="max-h-72 overflow-y-auto p-1" role="tree" aria-label={t("tree.label")}>
         {allOption ? (
           <Row
             leaf
@@ -124,7 +126,7 @@ export function OrganizationTree({
               />
             ))
           ) : (
-            <p className="p-6 text-center type-meta text-muted-foreground">{emptyLabel}</p>
+            <p className="p-6 text-center type-meta text-muted-foreground">{emptyLabel ?? t("tree.none")}</p>
           )
         ) : (
           <TreeLevel
@@ -137,7 +139,7 @@ export function OrganizationTree({
           />
         )}
         {!q && roots.length === 0 && !allOption ? (
-          <p className="p-6 text-center type-meta text-muted-foreground">{emptyLabel}</p>
+          <p className="p-6 text-center type-meta text-muted-foreground">{emptyLabel ?? t("tree.none")}</p>
         ) : null}
       </div>
     </div>
@@ -213,6 +215,7 @@ function Row({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const t = useTranslations("organization");
   return (
     <div
       role="treeitem"
@@ -227,7 +230,7 @@ function Row({
       {hasChildren ? (
         <button
           type="button"
-          aria-label={open ? "Collapse" : "Expand"}
+          aria-label={open ? t("tree.collapse") : t("tree.expand")}
           onClick={onToggle}
           className="grid size-6 shrink-0 place-items-center rounded-detail text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

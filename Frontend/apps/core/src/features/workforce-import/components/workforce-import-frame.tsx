@@ -1,5 +1,7 @@
 "use client";
 
+import { useImportProblem } from "@/features/data-import/components/import-words";
+import { useTranslations } from "next-intl";
 import { useRouter, useSelectedLayoutSegment } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
@@ -24,7 +26,7 @@ import { translateWorkforceImportError, type WorkforceImportSessionDto } from "@
 import { ImportHeader } from "@/features/data-import/components/import-header";
 import { ImportAttemptSkeleton } from "@/features/data-import/components/import-skeletons";
 import type { ImportStep } from "@/features/data-import/components/import-stepper";
-import { formatWorkforceDate } from "@/features/people/components/workforce-ui";
+import { useWorkforceDate } from "@/features/people/components/workforce-ui";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import { EmployeesPageSkeleton } from "@/shell/route-skeletons";
 import { useWorkforceImportApi, useWorkforceImportSession } from "../api/use-workforce-import";
@@ -37,7 +39,6 @@ import {
   type WorkforceMatchOutcome,
 } from "../model/import-stage";
 
-const TITLE = "Import workforce";
 
 type WorkforceImportFrameValue = {
   session: WorkforceImportSessionDto;
@@ -63,19 +64,24 @@ export function useWorkforceImportFrame(): WorkforceImportFrameValue {
  * draws the shell: file, as-of date, journey and discard. The same grammar as Organization Import.
  */
 export function WorkforceImportFrame({ sessionId, children }: { sessionId: string; children: React.ReactNode }) {
+  const t = useTranslations("wfImport");
   const { user, isAuthenticated, isLoading } = useAuth();
   if (isLoading) return <FrameSkeleton />;
   if (!isAuthenticated || !canImportCoreEmployees(user))
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title={TITLE} />
-        <PagePermissionNotice title="Import not available" description="You don't have access to import the workforce." />
+        <PageHeader title={t("title")} />
+        <PagePermissionNotice title={t("notAvailable")} description={t("noAccess")} />
       </PageContainer>
     );
   return <FrameBody sessionId={sessionId}>{children}</FrameBody>;
 }
 
 function FrameBody({ sessionId, children }: { sessionId: string; children: React.ReactNode }) {
+  const t = useTranslations("wfImport");
+  const kit = useTranslations("dataImport");
+  const workforceDate = useWorkforceDate();
+  const problemLine = useImportProblem();
   const router = useRouter();
   const segment = useSelectedLayoutSegment();
   const sessionQuery = useWorkforceImportSession(sessionId);
@@ -97,11 +103,11 @@ function FrameBody({ sessionId, children }: { sessionId: string; children: React
   if (sessionQuery.error || !session || !stage)
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title={TITLE} />
+        <PageHeader title={t("title")} />
         <PagePermissionNotice
-          title="Import not available"
-          description={translateWorkforceImportError(sessionQuery.error).message}
-          action={<Button onClick={() => void sessionQuery.refetch()}>Retry</Button>}
+          title={t("notAvailable")}
+          description={problemLine(translateWorkforceImportError(sessionQuery.error))}
+          action={<Button onClick={() => void sessionQuery.refetch()}>{t("retry")}</Button>}
         />
       </PageContainer>
     );
@@ -126,15 +132,15 @@ function FrameBody({ sessionId, children }: { sessionId: string; children: React
       <div>
         <PageContainer>
           <ImportHeader
-            title={TITLE}
+            title={t("title")}
             context={
               <span>
-                <span className="font-medium text-foreground">{session.source.fileName ?? "Workforce file"}</span>
+                <span className="font-medium text-foreground">{session.source.fileName ?? t("file")}</span>
                 <span className="text-muted-foreground/60" aria-hidden> · </span>
-                Workforce as of {formatWorkforceDate(session.baselineDate)}
+                {t("banner.asOf")} {workforceDate(session.baselineDate)}
               </span>
             }
-            steps={importSteps(session.id, segment, stage, value.matchOutcome)}
+            steps={importSteps(session.id, segment, stage, value.matchOutcome, kit)}
             actions={session.publication?.status === "Queued" || session.publication?.status === "Running" ? null : <AttemptMenu session={session} />}
           />
         </PageContainer>
@@ -144,19 +150,25 @@ function FrameBody({ sessionId, children }: { sessionId: string; children: React
   );
 }
 
-function importSteps(sessionId: string, segment: string | null, stage: WorkforceImportStage, outcome: WorkforceMatchOutcome): ImportStep[] {
+function importSteps(
+  sessionId: string,
+  segment: string | null,
+  stage: WorkforceImportStage,
+  outcome: WorkforceMatchOutcome,
+  t: ReturnType<typeof useTranslations<"dataImport">>
+): ImportStep[] {
   return [
-    { key: "upload", label: "Upload", state: "done" },
+    { key: "upload", label: t("steps.upload"), state: "done" },
     {
       key: "match",
-      label: "Match",
+      label: t("steps.match"),
       detail: undefined,
       state: segment === "match" ? "current" : outcome !== "needed" ? "done" : "upcoming",
       href: segment === "review" ? workforceImportStageHref(sessionId, "match") : null,
     },
     {
       key: "review",
-      label: "Review",
+      label: t("steps.review"),
       state: segment === "review" ? "current" : "upcoming",
       href: segment === "match" && stage === "review" ? workforceImportStageHref(sessionId, "review") : null,
     },
@@ -165,6 +177,8 @@ function importSteps(sessionId: string, segment: string | null, stage: Workforce
 
 /** Discard is the explicit way to close an attempt; nothing is ever discarded on the administrator's behalf. */
 function AttemptMenu({ session }: { session: WorkforceImportSessionDto }) {
+  const t = useTranslations("wfImport");
+  const problemLine = useImportProblem();
   const api = useWorkforceImportApi();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -178,7 +192,7 @@ function AttemptMenu({ session }: { session: WorkforceImportSessionDto }) {
       await api.discard(session.id, session.version);
       router.replace("/people/import");
     } catch (e) {
-      setError(translateWorkforceImportError(e).message);
+      setError(problemLine(translateWorkforceImportError(e)));
       setBusy(false);
     }
   };
@@ -187,30 +201,30 @@ function AttemptMenu({ session }: { session: WorkforceImportSessionDto }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Import actions">
+          <Button variant="ghost" size="icon" aria-label={t("menu.label")}>
             <MoreHorizontal className="size-4" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem variant="destructive" onClick={() => setOpen(true)}>
             <Trash2 className="size-4" aria-hidden />
-            Discard import
+            {t("menu.discard")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard this import?</AlertDialogTitle>
+            <AlertDialogTitle>{t("menu.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              The file and your decisions are removed. Nobody has been added to Fusion.
+              {t("menu.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error ? <p className="type-meta text-[var(--color-destructive)]">{error}</p> : null}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Keep import</AlertDialogCancel>
+            <AlertDialogCancel disabled={busy}>{t("menu.keep")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" disabled={busy} onClick={(e) => { e.preventDefault(); void discard(); }}>
-              {busy ? "Discarding…" : "Discard import"}
+              {busy ? t("menu.discarding") : t("menu.discard")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

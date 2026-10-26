@@ -1,0 +1,153 @@
+{
+  "status": {
+    "Active": "Active",
+    "Scheduled": "Scheduled",
+    "Former": "Former",
+    "Incomplete": "Incomplete",
+    "Ended": "Ended"
+  },
+  "employmentType": {
+    "notSet": "Not set",
+    "FullTime": "Full-time",
+    "PartTime": "Part-time",
+    "Contract": "Contract",
+    "Contractor": "Contractor",
+    "Intern": "Intern",
+    "Temporary": "Temporary",
+    "Seasonal": "Seasonal"
+  },
+  "line": {
+    "starts": "Starts {date}",
+    "startsLater": "Starts later",
+    "period": "{start} – {end}",
+    "ended": "Ended {date}",
+    "employmentEnded": "Employment ended",
+    "notEmployed": "Not employed on this date",
+    "since": "Since {date}",
+    "active": "Active"
+  },
+  "access": {
+    "Active": "Active",
+    "Suspended": "Suspended",
+    "NeedsReview": "Needs review",
+    "InvitationPending": "Invitation pending",
+    "NoAccess": "No Fusion access"
+  },
+  "hero": {
+    "workEmail": "Work email",
+    "workerId": "Worker ID",
+    "location": "Location",
+    "manager": "Manager"
+  },
+  "upcoming": "Upcoming",
+  "workChange": "Work change",
+  "managerChange": "Manager change",
+  "viewAsOf": "View as of {date}",
+  "assignment": {
+    "title": "Current assignment",
+    "unavailable": "Work details unavailable",
+    "displayTitle": "Display title",
+    "notAssigned": "Not assigned",
+    "organization": "Organization",
+    "manager": "Manager",
+    "noManager": "No manager",
+    "since": "Effective since",
+    "status": "Worker status"
+  },
+  "reporting": {
+    "title": "Organization & reporting",
+    "manager": "Manager",
+    "noManager": "No manager assigned",
+    "directReports": "Direct reports · {count}",
+    "directReportsOf": "Direct reports · {shown} of {total}",
+    "more": "+{count} more"
+  },
+  "employment": {
+    "title": "Employment",
+    "period": "Employment period",
+    "type": "Worker type"
+  },
+  "fusionAccess": {
+    "title": "Fusion access",
+    "unavailable": "Status unavailable",
+    "retry": "Retry",
+    "status": "Account status",
+    "linked": "Linked account",
+    "profile": "Access profile",
+    "lastSignIn": "Last sign-in"
+  },
+  "contact": {
+    "title": "Work contact",
+    "workEmail": "Work email",
+    "notSet": "Not set",
+    "emailRequired": "Required before Fusion access can be set up.",
+    "phone": "Work phone",
+    "location": "Location"
+  },
+  "history": {
+    "title": "History",
+    "empty": "No employment history yet."
+  },
+  "record": {
+    "noAccess": "You don’t have access to this profile",
+    "noAccessDescription": "Your role does not permit viewing this worker.",
+    "notFound": "Worker not found",
+    "transient": "This profile could not be loaded right now. Try again in a moment.",
+    "missing": "This worker may not exist or may not be available in this tenant.",
+    "setUpAccess": "Set up workforce access",
+    "reviewAccess": "Review workforce access",
+    "addWorkEmail": "Add work email",
+    "editWorkEmail": "Edit work email",
+    "hiredAnnouncement": "Employee hired.",
+    "addedAnnouncement": "Employee added.",
+    "back": "People",
+    "hired": "Hired",
+    "added": "Added",
+    "asOf": "As of {date}",
+    "today": "Today",
+    "changeWork": "Change work",
+    "changeManager": "Change manager",
+    "more": "More actions",
+    "endEmployment": "End employment",
+    "backToPeople": "Back to People",
+    "retry": "Retry",
+    "asOfToday": "As of Today",
+    "viewAsOf": "View as of a date",
+    "viewAsOfDate": "View as of date"
+  },
+  "workEmail": {
+    "required": "Enter a work email.",
+    "updated": "Work email updated.",
+    "added": "Work email added.",
+    "failed": "The work email could not be saved. Review it and try again.",
+    "label": "Work email",
+    "placeholder": "name@company.com",
+    "hint": "The canonical People value Fusion resolves workforce access against.",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "save": "Save work email"
+  },
+  "self": {
+    "eyebrow": "Profile",
+    "title": "Profile",
+    "noLink": "No linked employee record.",
+    "noLinkTitle": "No linked employee profile",
+    "noLinkDescription": "Contact a tenant HR administrator to link your record.",
+    "notFound": "Your profile could not be found",
+    "notFoundDescription": "Your linked employee profile is not available right now.",
+    "unavailable": "Profile unavailable.",
+    "unableTitle": "Unable to load profile",
+    "unableDescription": "Your employee profile is not available right now.",
+    "edit": "Edit details",
+    "viewAll": "View all {count} reports",
+    "updated": "Profile details updated.",
+    "failed": "Your changes could not be saved.",
+    "dialogTitle": "Edit personal details",
+    "preferredName": "Preferred name",
+    "preferredNameHint": "Used as your display name across Fusion.",
+    "phone": "Phone",
+    "cancel": "Cancel",
+    "saving": "Saving",
+    "save": "Save changes"
+  }
+}

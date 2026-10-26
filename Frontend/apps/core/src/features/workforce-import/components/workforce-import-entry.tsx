@@ -1,5 +1,8 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useImportProblem } from "@/features/data-import/components/import-words";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@repo/ds";
 import { PageContainer, PageHeader, PagePermissionNotice } from "@repo/ds/shell";
@@ -26,18 +29,19 @@ class UploadRefusal extends Error {
  * corrected file is simply a new attempt.
  */
 export function WorkforceImportEntry() {
+  const t = useTranslations("wfImport");
   const { user, isLoading } = useAuth();
   if (isLoading) return <ImportUploadSkeleton domain="workforce" />;
   if (!canImportCoreEmployees(user))
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Import workforce" />
+        <PageHeader title={t("title")} />
         <PagePermissionNotice
-          title="Workforce import access required"
-          description="You don’t have permission to import workforce into this tenant."
+          title={t("entry.accessTitle")}
+          description={t("entry.accessDescription")}
           action={
             <Button asChild variant="outline">
-              <Link href="/people">Back to People</Link>
+              <Link href="/people">{t("entry.back")}</Link>
             </Button>
           }
         />
@@ -47,6 +51,11 @@ export function WorkforceImportEntry() {
 }
 
 function WorkforceUpload() {
+  const t = useTranslations("wfImport");
+  const kit = useTranslations("dataImport");
+  const say = useSay("dataImport");
+  const english = useLocale() === "en";
+  const problemLine = useImportProblem();
   const api = useWorkforceImportApi();
   const active = useActiveWorkforceImport();
   const latest = active.data ?? null;
@@ -54,24 +63,24 @@ function WorkforceUpload() {
 
   return (
     <ImportUpload
-      title="Import workforce"
-      context="Bring in your people from Excel or CSV and review them before publishing."
+      title={t("title")}
+      context={kit("domain.workforce.context")}
       fileNoun="workforce"
-      sectionTitle="File and workforce date"
-      sectionDescription="Select your workforce file and the date it describes."
+      sectionTitle={t("entry.sectionTitle")}
+      sectionDescription={t("entry.sectionDescription")}
       date={{
-        label: "Workforce as of",
-        tooltip: "The date your file describes. People are established as employed on this date.",
+        label: t("entry.dateLabel"),
+        tooltip: t("entry.dateTooltip"),
         initial: today,
         validate: (value) =>
-          !isValidEffectiveDate(value) ? "Choose a valid date." : value > today ? "Choose today or an earlier date. Use Hire for future employees." : null,
+          !isValidEffectiveDate(value) ? t("entry.invalidDate") : value > today ? t("entry.futureDate") : null,
       }}
       cancelHref="/people"
       onDownloadTemplate={async () => {
         try {
           downloadBlob(await api.downloadTemplate(), "Fusion-workforce-template.xlsx");
         } catch (e) {
-          toast.error("Template could not be downloaded", { description: translateWorkforceImportError(e).message });
+          toast.error(t("entry.templateFailed"), { description: problemLine(translateWorkforceImportError(e)) });
         }
       }}
       resume={
@@ -94,12 +103,12 @@ function WorkforceUpload() {
         if (result.kind === "Ready" && result.session) return { kind: "ready", href: `/people/import/${result.session.id}/match` };
         throw new UploadRefusal({
           category: "SourceConflict",
-          message: result.conflictReason ?? "This file changed while it was being uploaded. Choose it again.",
+          message: (english ? result.conflictReason : null) ?? say("problems.SourceConflict"),
           retryable: false,
         });
       }}
       classifyError={(error) =>
-        error instanceof UploadRefusal ? error.problem : classifyIntakeProblem(translateWorkforceImportError(error))
+        error instanceof UploadRefusal ? error.problem : classifyIntakeProblem(translateWorkforceImportError(error), { say, english })
       }
     />
   );

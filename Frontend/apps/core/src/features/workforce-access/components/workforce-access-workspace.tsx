@@ -1,5 +1,7 @@
 "use client";
 
+import { useWorkforceAccessWords } from "./access-language";
+import { useTranslations } from "next-intl";
 import { useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -42,9 +44,7 @@ import { AccountInspector } from "./account-inspector";
 import { ActivationPlan } from "./activation-plan";
 import { IdentityCorrection } from "./identity-correction";
 import {
-  ROSTER_STATE_LABEL,
   ROSTER_STATE_ORDER,
-  baselineLabel,
 } from "./access-language";
 import {
   selectionScopePeople,
@@ -56,9 +56,9 @@ const BASELINE_FILTER_OPTIONS: Array<{
   key: "Employee" | "Manager" | null;
   label: string;
 }> = [
-  { key: null, label: "All" },
-  { key: "Employee", label: "Employees" },
-  { key: "Manager", label: "Managers" },
+  { key: null, label: "baselineAll" },
+  { key: "Employee", label: "baselineEmployees" },
+  { key: "Manager", label: "baselineManagers" },
 ];
 
 /**
@@ -71,6 +71,7 @@ const BASELINE_FILTER_OPTIONS: Array<{
  * opens the account inspector without leaving the roster.
  */
 export default function WorkforceAccessWorkspace() {
+  const t = useTranslations("wfAccess");
   const { user, isLoading: isAuthLoading } = useAuth();
   const canView = canViewWorkforceAccess(user);
   const canManage = canManageWorkforceAccess(user);
@@ -131,17 +132,17 @@ export default function WorkforceAccessWorkspace() {
 
   if (isAuthLoading) {
     return (
-      <PageSkeleton rows={6} width="wide" label="Loading workforce access" />
+      <PageSkeleton rows={6} width="wide" label={t("loading")} />
     );
   }
 
   if (!canView) {
     return (
       <PageContainer width="wide" className="max-w-5xl space-y-6">
-        <PageHeader title="Workforce access" />
+        <PageHeader title={t("title")} />
         <PagePermissionNotice
-          title="You do not have access to this page"
-          description="Ask an administrator if you need to manage workforce access for this tenant."
+          title={t("denied.title")}
+          description={t("denied.description")}
         />
       </PageContainer>
     );
@@ -212,10 +213,10 @@ export default function WorkforceAccessWorkspace() {
         <PageHeader
           eyebrow={
             <span className="type-eyebrow text-muted-foreground">
-              Correct identity link
+              {t("correctTitle")}
             </span>
           }
-          title="Correct identity link"
+          title={t("correctTitle")}
         />
         <IdentityCorrection
           source={correcting}
@@ -236,10 +237,10 @@ export default function WorkforceAccessWorkspace() {
         <PageHeader
           eyebrow={
             <span className="type-eyebrow text-muted-foreground">
-              Activation plan
+              {t("planEyebrow")}
             </span>
           }
-          title="Review workforce access"
+          title={t("reviewTitle")}
         />
         <ActivationPlan
           people={selectedList}
@@ -258,11 +259,11 @@ export default function WorkforceAccessWorkspace() {
   return (
     <PageContainer width="wide" className="max-w-6xl space-y-6">
       <PageHeader
-        title="Workforce access"
+        title={t("title")}
         description={
           summary.data
-            ? `Set up and manage Fusion access for ${summary.data.totalCount} people.`
-            : "Set up and manage Fusion access for your workforce."
+            ? t("description", { count: summary.data.totalCount })
+            : t("descriptionGeneric")
         }
       />
 
@@ -276,14 +277,13 @@ export default function WorkforceAccessWorkspace() {
       {cohort ? (
         <div className="flex items-center justify-between gap-4 rounded-surface bg-card px-4 py-3">
           <div>
-            <p className="type-label">Imported cohort</p>
+            <p className="type-label">{t("cohort.title")}</p>
             <p className="type-meta text-muted-foreground">
-              Showing the {total} {total === 1 ? "person" : "people"} from the
-              completed import.
+              {t("cohort.showing", { count: total })}
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={clearCohort}>
-            Show all <X className="ms-1.5 size-3.5" aria-hidden />
+            {t("cohort.showAll")} <X className="ms-1.5 size-3.5" aria-hidden />
           </Button>
         </div>
       ) : null}
@@ -300,9 +300,9 @@ export default function WorkforceAccessWorkspace() {
               setSearch(event.target.value);
               setPage(1);
             }}
-            placeholder="Search by name, email, or employee number"
+            placeholder={t("search")}
             className="ps-9"
-            aria-label="Search workforce"
+            aria-label={t("searchLabel")}
           />
         </div>
         <OrgFilter
@@ -321,9 +321,9 @@ export default function WorkforceAccessWorkspace() {
         <BaselineFilter value={baseline} onSelect={setBaselineFilter} />
       </div>
 
-      <section aria-label="Workforce" className="space-y-3">
+      <section aria-label={t("workforce")} className="space-y-3">
         {roster.isLoading ? (
-          <PageSkeleton rows={6} width="wide" label="Loading workforce" />
+          <PageSkeleton rows={6} width="wide" label={t("loadingWorkforce")} />
         ) : roster.error !== null ? (
           <SectionFailure onRetry={() => void roster.refetch()} />
         ) : rows.length === 0 ? (
@@ -346,13 +346,13 @@ export default function WorkforceAccessWorkspace() {
                   <Checkbox
                     checked={allPageSelected}
                     onCheckedChange={togglePage}
-                    aria-label="Select everyone on this page"
+                    aria-label={t("selectPage")}
                     className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                   />
                   <span className="type-meta text-muted-foreground">
                     {allPageSelected
-                      ? "This page is selected"
-                      : "Select this page"}
+                      ? t("pageSelected")
+                      : t("selectThisPage")}
                   </span>
                 </div>
               </div>
@@ -375,7 +375,7 @@ export default function WorkforceAccessWorkspace() {
         {totalPages > 1 ? (
           <div className="flex items-center justify-between pt-1">
             <p className="type-meta text-muted-foreground">
-              Page {page} of {totalPages} · {total} people
+              {t("pageOf", { page, pages: totalPages, count: total })}
             </p>
             <div className="flex gap-2">
               <Button
@@ -384,7 +384,7 @@ export default function WorkforceAccessWorkspace() {
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                Previous
+                {t("previous")}
               </Button>
               <Button
                 variant="outline"
@@ -392,7 +392,7 @@ export default function WorkforceAccessWorkspace() {
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
-                Next
+                {t("next")}
               </Button>
             </div>
           </div>
@@ -452,6 +452,8 @@ function StatusBand({
   onSelect: (state: WorkforceAccessState | null) => void;
   loading: boolean;
 }) {
+  const words = useWorkforceAccessWords();
+  const t = useTranslations("wfAccess");
   const counts: Record<WorkforceAccessState, number> = {
     ActiveAccount: summary?.activeAccountCount ?? 0,
     InvitePending: summary?.invitePendingCount ?? 0,
@@ -466,7 +468,7 @@ function StatusBand({
     // states are simply quieter (dimmed figure), never removed.
     <div
       className="overflow-x-auto border-y"
-      aria-label="Filter workforce by access state"
+      aria-label={t("filterState")}
     >
       <div className="flex min-w-max items-stretch">
         <button
@@ -489,7 +491,7 @@ function StatusBand({
               active === null ? "text-foreground/70" : "text-muted-foreground"
             )}
           >
-            All
+            {t("all")}
           </span>
         </button>
         {ROSTER_STATE_ORDER.map((state) => {
@@ -521,7 +523,7 @@ function StatusBand({
                   selected ? "text-foreground/70" : "text-muted-foreground"
                 )}
               >
-                {ROSTER_STATE_LABEL[state]}
+                {words.roster(state)}
               </span>
             </button>
           );
@@ -544,6 +546,8 @@ function PersonRow({
   onToggle: () => void;
   onOpen: () => void;
 }) {
+  const t = useTranslations("wfAccess");
+  const words = useWorkforceAccessWords();
   const state = person.accessState;
   return (
     <div
@@ -555,7 +559,7 @@ function PersonRow({
         <Checkbox
           checked={selected}
           onCheckedChange={onToggle}
-          aria-label={`Select ${person.displayName}`}
+          aria-label={t("selectPerson", { name: person.displayName })}
           disabled={person.accessState === "ActiveAccount"}
         />
       ) : null}
@@ -569,7 +573,7 @@ function PersonRow({
       />
 
       <p className="hidden type-meta text-muted-foreground lg:block">
-        {baselineLabel(person.directReportCount)}
+        {words.baseline(person.directReportCount)}
       </p>
 
       <div className="hidden min-w-0 sm:block">
@@ -583,7 +587,7 @@ function PersonRow({
               "text-muted-foreground"
           )}
         >
-          {ROSTER_STATE_LABEL[state]}
+          {words.roster(state)}
         </p>
         {state === "NeedsReview" && person.reviewReason ? (
           <p className="truncate text-xs text-muted-foreground">
@@ -597,8 +601,8 @@ function PersonRow({
           variant="ghost"
           size="icon-sm"
           onClick={onOpen}
-          aria-label={`Inspect ${person.displayName}`}
-          title={`Inspect ${person.displayName}`}
+          aria-label={t("inspect", { name: person.displayName })}
+          title={t("inspect", { name: person.displayName })}
         >
           <Eye className="size-4" aria-hidden="true" />
         </Button>
@@ -635,6 +639,7 @@ function SelectionBar({
   onSelectScope: () => void;
   onReview: () => void;
 }) {
+  const t = useTranslations("wfAccess");
   // "Ready" means will actually be activated. Pending/active/suspended are carried as
   // unchanged context (bulk activation never resends or re-mutates them).
   const ready = people.filter(
@@ -664,19 +669,19 @@ function SelectionBar({
           type="button"
           onClick={onClear}
           className="rounded-control p-1 text-muted-foreground hover:text-foreground"
-          aria-label="Clear selection"
+          aria-label={t("clearSelection")}
         >
           <X className="size-4" />
         </button>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <span className="type-label text-foreground">
             {scopeSelected
-              ? `${scopeCount} selected in this view`
+              ? t("selectedInView", { count: scopeCount })
               : pageSelected && selectedCount === pageCount
-                ? `${pageCount} selected on this page`
-                : `${selectedCount} selected`}
+                ? t("selectedOnPage", { count: pageCount })
+                : t("selected", { count: selectedCount })}
           </span>
-          <span className="type-meta text-muted-foreground">{ready} ready</span>
+          <span className="type-meta text-muted-foreground">{t("ready", { count: ready })}</span>
           <span
             className={cn(
               "type-meta",
@@ -685,7 +690,7 @@ function SelectionBar({
                 : "text-muted-foreground"
             )}
           >
-            {needsReview} need review
+            {t("needReview", { count: needsReview })}
           </span>
         </div>
       </div>
@@ -696,11 +701,11 @@ function SelectionBar({
             onClick={onSelectScope}
             className="type-meta font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Select all {scopeCount} people in this view
+            {t("selectAll", { count: scopeCount })}
           </button>
         ) : null}
         <Button onClick={onReview}>
-          Review {reviewCount} {reviewCount === 1 ? "person" : "people"}
+          {t("review", { count: reviewCount })}
         </Button>
       </div>
     </div>
@@ -708,25 +713,27 @@ function SelectionBar({
 }
 
 function EmptyRoster({ filtered }: { filtered: boolean }) {
+  const t = useTranslations("wfAccess");
   return (
     <div className="rounded-surface border border-dashed px-4 py-12 text-center">
       <p className="type-body text-muted-foreground">
         {filtered
-          ? "No people match these filters."
-          : "No workforce to show yet. Establish or import your workforce first."}
+          ? t("noMatch")
+          : t("empty")}
       </p>
     </div>
   );
 }
 
 function SectionFailure({ onRetry }: { onRetry: () => void }) {
+  const t = useTranslations("wfAccess");
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border px-4 py-3">
       <p className="type-body text-muted-foreground">
-        The workforce could not be loaded.
+        {t("failed")}
       </p>
       <Button variant="outline" size="sm" onClick={onRetry}>
-        Retry
+        {t("retry")}
       </Button>
     </div>
   );
@@ -763,6 +770,7 @@ function OrgFilter({
   onSelect: (id: string | null) => void;
   onScopeChange: (scope: "Subtree" | "Direct") => void;
 }) {
+  const t = useTranslations("wfAccess");
   const [open, setOpen] = useState(false);
   const selectedName = useMemo(
     () => findUnitName(roots, selectedId),
@@ -781,7 +789,7 @@ function OrgFilter({
         >
           <Building2 className="size-4 text-muted-foreground" />
           <span className="truncate">
-            {selectedName ?? "All organizations"}
+            {selectedName ?? t("allOrganizations")}
           </span>
           <ChevronDown className="size-4 text-muted-foreground" />
         </Button>
@@ -796,13 +804,13 @@ function OrgFilter({
               active={scope === "Subtree"}
               onClick={() => onScopeChange("Subtree")}
             >
-              Unit &amp; below
+              {t("unitBelow")}
             </ScopeButton>
             <ScopeButton
               active={scope === "Direct"}
               onClick={() => onScopeChange("Direct")}
             >
-              This unit only
+              {t("unitOnly")}
             </ScopeButton>
           </div>
         ) : null}
@@ -813,8 +821,8 @@ function OrgFilter({
             onSelect(id);
             if (id === null) setOpen(false);
           }}
-          allOption={{ label: "All organizations" }}
-          emptyLabel="No matching unit"
+          allOption={{ label: t("allOrganizations") }}
+          emptyLabel={t("noUnit")}
         />
       </PopoverContent>
     </Popover>
@@ -858,11 +866,12 @@ function BaselineFilter({
   value: "Employee" | "Manager" | null;
   onSelect: (value: "Employee" | "Manager" | null) => void;
 }) {
+  const t = useTranslations("wfAccess");
   return (
     <div
       className="inline-flex items-center rounded-control border p-0.5"
       role="group"
-      aria-label="Filter by baseline"
+      aria-label={t("filterBaseline")}
     >
       {BASELINE_FILTER_OPTIONS.map((option) => (
         <button
@@ -877,7 +886,7 @@ function BaselineFilter({
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {option.label}
+          {t(option.label as "baselineAll")}
         </button>
       ))}
     </div>

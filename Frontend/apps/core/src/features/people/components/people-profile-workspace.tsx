@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   notFound,
@@ -58,7 +60,7 @@ import {
   usePeopleTimeline,
   useUpdatePeopleWorkEmail,
 } from "../api/use-people";
-import { formatWorkforceDate } from "./workforce-ui";
+import { useWorkforceDate } from "./workforce-ui";
 import { WorkerProfile } from "./worker-profile/worker-profile";
 import { PerformanceRecordView, RecordViewSwitcher } from "./record-views";
 import { WorkerProfileSkeleton } from "./worker-profile/worker-profile-skeleton";
@@ -83,6 +85,10 @@ export default function PeopleProfileWorkspace({
   const asOfParam = searchParams.get("asOf");
 
   const { user, isLoading: authLoading } = useAuth();
+  const t = useTranslations("profile.record");
+  const say = useSay("profile");
+  const locale = useLocale();
+  const workforceDate = useWorkforceDate();
   const canManage = canManageCoreEmployees(user);
   // The Performance view exists only where the viewer can enter Performance (hide, don't deny).
   const showPerformance = canEnterPerformance(user);
@@ -165,8 +171,8 @@ export default function PeopleProfileWorkspace({
       return (
         <ProfileNotice
           icon={ShieldAlert}
-          title="You don't have access to this profile"
-          description="Your role does not permit viewing this worker."
+          title={t("noAccess")}
+          description={t("noAccessDescription")}
         />
       );
     }
@@ -174,12 +180,8 @@ export default function PeopleProfileWorkspace({
     return (
       <ProfileNotice
         icon={UserRound}
-        title="Worker not found"
-        description={
-          transient
-            ? "This profile could not be loaded right now. Try again in a moment."
-            : "This worker may not exist or may not be available in this tenant."
-        }
+        title={t("notFound")}
+        description={transient ? t("transient") : t("missing")}
         onRetry={
           profile.error && (transient || kind === "unexpected")
             ? () => void profile.refetch()
@@ -195,7 +197,8 @@ export default function PeopleProfileWorkspace({
   const view = fromPeopleProfile(
     employee,
     timeline.data?.timeline,
-    accessEnabled ? (access.data ?? null) : null
+    accessEnabled ? (access.data ?? null) : null,
+    { say, locale }
   );
 
   const showActions =
@@ -225,9 +228,7 @@ export default function PeopleProfileWorkspace({
           href="/workforce-access"
           className="inline-block type-meta text-primary-ink underline-offset-4 hover:underline"
         >
-          {access.data.state === "NoAccess"
-            ? "Set up workforce access"
-            : "Review workforce access"}
+          {access.data.state === "NoAccess" ? t("setUpAccess") : t("reviewAccess")}
         </Link>
       ) : canManage ? (
         <Button
@@ -235,7 +236,7 @@ export default function PeopleProfileWorkspace({
           className="h-auto p-0 type-meta text-primary-ink"
           onClick={() => setWorkEmailEditorOpen(true)}
         >
-          Add work email
+          {t("addWorkEmail")}
           <ChevronRight className="ms-1 size-3.5" aria-hidden />
         </Button>
       ) : undefined
@@ -246,8 +247,8 @@ export default function PeopleProfileWorkspace({
       <div role="status" aria-live="polite" className="sr-only">
         {established
           ? established === "hire"
-            ? "Employee hired."
-            : "Employee added."
+            ? t("hiredAnnouncement")
+            : t("addedAnnouncement")
           : ""}
       </div>
       <WorkerProfile
@@ -258,14 +259,14 @@ export default function PeopleProfileWorkspace({
             href="/people"
             className="inline-flex items-center gap-2 type-body text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <ArrowLeft className="size-4" /> People
+            <ArrowLeft className="size-4" /> {t("back")}
           </Link>
         }
         nameBadge={
           showResult && established ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success-subtle px-2.5 py-1 type-meta font-medium text-foreground motion-safe:animate-in motion-safe:fade-in">
               <Check className="size-3.5 text-success" aria-hidden />
-              {established === "hire" ? "Hired" : "Added"}
+              {established === "hire" ? t("hired") : t("added")}
             </span>
           ) : undefined
         }
@@ -275,10 +276,7 @@ export default function PeopleProfileWorkspace({
               {isAsOf ? (
                 <div className="inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-primary/[0.06] py-1.5 ps-3.5 pe-1.5 motion-safe:animate-in motion-safe:fade-in">
                   <span className="type-label">
-                    As of{" "}
-                    {formatWorkforceDate(employee.viewedDate, {
-                      month: "long",
-                    })}
+                    {t("asOf", { date: workforceDate(employee.viewedDate, { month: "long" }) })}
                   </span>
                   <Button
                     size="sm"
@@ -286,7 +284,7 @@ export default function PeopleProfileWorkspace({
                     className="h-7 gap-1.5 rounded-full px-2.5 text-muted-foreground hover:text-foreground"
                     onClick={returnToToday}
                   >
-                    <RotateCcw className="size-3.5" /> Today
+                    <RotateCcw className="size-3.5" /> {t("today")}
                   </Button>
                 </div>
               ) : canExplore ? (
@@ -299,12 +297,12 @@ export default function PeopleProfileWorkspace({
                 <div className="flex items-center gap-2">
                   <Button asChild size="sm">
                     <Link href={`/people/${employeeKey}/change-work`}>
-                      <BriefcaseBusiness className="size-4" /> Change work
+                      <BriefcaseBusiness className="size-4" /> {t("changeWork")}
                     </Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/people/${employeeKey}/change-manager`}>
-                      Change manager
+                      {t("changeManager")}
                     </Link>
                   </Button>
                   <DropdownMenu>
@@ -312,7 +310,7 @@ export default function PeopleProfileWorkspace({
                       <Button
                         size="icon"
                         variant="ghost"
-                        aria-label="More actions"
+                        aria-label={t("more")}
                       >
                         <MoreHorizontal className="size-4" />
                       </Button>
@@ -323,7 +321,7 @@ export default function PeopleProfileWorkspace({
                           href={`/people/${employeeKey}/end-employment`}
                           className="text-destructive focus:text-destructive"
                         >
-                          <UserRoundX className="size-4" /> End employment
+                          <UserRoundX className="size-4" /> {t("endEmployment")}
                         </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -354,7 +352,7 @@ export default function PeopleProfileWorkspace({
               className="h-auto p-0 type-meta text-primary-ink"
               onClick={() => setWorkEmailEditorOpen(true)}
             >
-              {view.workEmail ? "Edit work email" : "Add work email"}
+              {view.workEmail ? t("editWorkEmail") : t("addWorkEmail")}
               <ChevronRight className="ms-1 size-3.5" aria-hidden />
             </Button>
           ) : undefined
@@ -389,6 +387,7 @@ function ProfileNotice({
   description: string;
   onRetry?: () => void;
 }) {
+  const t = useTranslations("profile.record");
   return (
     <PageContainer>
       <Empty className="min-h-[26rem] rounded-surface border">
@@ -403,12 +402,12 @@ function ProfileNotice({
           <div className="flex gap-2">
             <Button asChild variant="outline">
               <Link href="/people">
-                <ArrowLeft className="size-4" /> Back to People
+                <ArrowLeft className="size-4" /> {t("backToPeople")}
               </Link>
             </Button>
             {onRetry ? (
               <Button variant="ghost" onClick={onRetry}>
-                <RotateCcw className="size-4" /> Retry
+                <RotateCcw className="size-4" /> {t("retry")}
               </Button>
             ) : null}
           </div>
@@ -426,14 +425,15 @@ function AsOfControl({
   today: string;
   onPick: (date: string) => void;
 }) {
+  const t = useTranslations("profile.record");
   return (
     <label className="inline-flex items-center gap-2 rounded-control border bg-card px-3 py-1.5 type-body text-muted-foreground focus-within:ring-2 focus-within:ring-ring">
       <CalendarDays className="size-4" aria-hidden />
-      <span className="type-label">As of Today</span>
+      <span className="type-label">{t("asOfToday")}</span>
       <span aria-hidden className="text-muted-foreground/40">
         ·
       </span>
-      <span className="sr-only">View as of a date</span>
+      <span className="sr-only">{t("viewAsOf")}</span>
       <input
         type="date"
         defaultValue={today}
@@ -441,7 +441,7 @@ function AsOfControl({
           if (event.target.value) onPick(event.target.value);
         }}
         className="bg-transparent text-foreground outline-none [color-scheme:light] dark:[color-scheme:dark]"
-        aria-label="View as of date"
+        aria-label={t("viewAsOfDate")}
       />
     </label>
   );
@@ -467,6 +467,11 @@ function WorkEmailEditorDialog({
   returnTo: string | null;
 }) {
   const router = useRouter();
+  const t = useTranslations("profile.workEmail");
+  const english = useLocale() === "en";
+  const record = useTranslations("profile.record");
+  const editTitle = record("editWorkEmail");
+  const addTitle = record("addWorkEmail");
   const updateWorkEmail = useUpdatePeopleWorkEmail(employeeKey);
   const [draft, setDraft] = useState(currentEmail ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -480,21 +485,21 @@ function WorkEmailEditorDialog({
   async function handleSubmit() {
     const workEmail = draft.trim().toLowerCase();
     if (!workEmail) {
-      setError("Enter a work email.");
+      setError(t("required"));
       return;
     }
 
     setError(null);
     try {
       await updateWorkEmail.mutateAsync({ workEmail, expectedVersion });
-      toast.success(currentEmail ? "Work email updated." : "Work email added.");
+      toast.success(currentEmail ? t("updated") : t("added"));
       onOpenChange(false);
       if (returnTo) router.push(returnTo);
     } catch (mutationError) {
       setError(
-        mutationError instanceof Error && mutationError.message.trim()
+        english && mutationError instanceof Error && mutationError.message.trim()
           ? mutationError.message
-          : "The work email could not be saved. Review it and try again."
+          : t("failed")
       );
     }
   }
@@ -509,7 +514,7 @@ function WorkEmailEditorDialog({
       <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
-            {currentEmail ? "Edit work email" : "Add work email"}
+            {currentEmail ? editTitle : addTitle}
           </DialogTitle>
         </DialogHeader>
 
@@ -528,7 +533,7 @@ function WorkEmailEditorDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="people-work-email">Work email</Label>
+            <Label htmlFor="people-work-email">{t("label")}</Label>
             <Input
               id="people-work-email"
               type="email"
@@ -538,12 +543,11 @@ function WorkEmailEditorDialog({
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               disabled={updateWorkEmail.isLoading}
-              placeholder="name@company.com"
+              placeholder={t("placeholder")}
               aria-invalid={error ? true : undefined}
             />
             <p className="type-meta text-muted-foreground">
-              The canonical People value Fusion resolves workforce access
-              against.
+              {t("hint")}
             </p>
           </div>
 
@@ -563,13 +567,13 @@ function WorkEmailEditorDialog({
               onClick={() => onOpenChange(false)}
               disabled={updateWorkEmail.isLoading}
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button
               type="submit"
               disabled={!draft.trim() || updateWorkEmail.isLoading}
             >
-              {updateWorkEmail.isLoading ? "Saving..." : "Save work email"}
+              {updateWorkEmail.isLoading ? t("saving") : t("save")}
             </Button>
           </DialogFooter>
         </form>

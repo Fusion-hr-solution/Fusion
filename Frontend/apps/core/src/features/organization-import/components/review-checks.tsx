@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, TriangleAlert } from "lucide-react";
@@ -35,6 +36,7 @@ export function ReviewChecks({
   onViewUnits: (issue: ReviewIssue) => void;
   onResolve: (resolutions: OrganizationImportReviewResolutionsInput) => void;
 }) {
+  const t = useTranslations("orgImport.checks");
   const blockers = issues.filter((issue) => issue.severity === "Blocker");
   const warnings = issues.filter((issue) => issue.severity === "Warning");
   const [open, setOpen] = useState<Record<Group, boolean>>({
@@ -55,7 +57,7 @@ export function ReviewChecks({
   return (
     <section aria-labelledby="review-checks-title" className="rounded-surface border border-border bg-card p-5">
       <h2 id="review-checks-title" className="type-section-title text-foreground">
-        Review checks
+        {t("title")}
       </h2>
       <div className="mt-4 space-y-2">
         <CheckGroup
@@ -89,11 +91,12 @@ function CheckGroup({
   open: boolean;
   onToggle: () => void;
 } & ItemProps) {
+  const t = useTranslations("orgImport.checks");
   const count = issues.length;
   const blocker = group === "Blocker";
   const label = blocker
-    ? count === 0 ? "No blocking issues" : `${count} blocking ${count === 1 ? "issue" : "issues"}`
-    : count === 0 ? "No warnings" : `${count} ${count === 1 ? "warning" : "warnings"}`;
+    ? count === 0 ? t("noBlocking") : t("blocking", { count })
+    : count === 0 ? t("noWarnings") : t("warnings", { count });
   const expandable = count > 0;
   const Chevron = open && expandable ? ChevronUp : ChevronDown;
   return (
@@ -165,6 +168,7 @@ function currentResolutions(review: OrganizationImportReview): Required<Organiza
 }
 
 function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onViewUnits, onResolve }: ItemProps & { issue: ReviewIssue }) {
+  const t = useTranslations("orgImport.checks");
   const anchor = findProposalNode(review, issue.anchorNodeId ?? null);
   const pathways: OrganizationImportResolutionKind[] = [
     ...(issue.preferredResolution ? [issue.preferredResolution] : []),
@@ -178,13 +182,13 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
       case "ReturnToMatch":
         return (
           <Button key={kind} size="sm" variant={variant} asChild>
-            <Link href={matchHref}>Change matching</Link>
+            <Link href={matchHref}>{t("changeMatching")}</Link>
           </Button>
         );
       case "CorrectSource":
         return (
           <Button key={kind} size="sm" variant={variant} asChild>
-            <Link href="/organization/import">Upload a corrected file</Link>
+            <Link href="/organization/import">{t("correctFile")}</Link>
           </Button>
         );
       case "KeepExisting":
@@ -202,7 +206,7 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
               });
             }}
           >
-            Keep what’s there
+            {t("keepExisting")}
           </Button>
         ) : null;
       // Adding a root and choosing an existing unit are their own controls below; the effective
@@ -233,7 +237,7 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
           {anchor.identityEvidence.map((evidence) => (
             <li key={`${evidence.identifier}-${evidence.unitId}`} className="rounded-control border border-border px-3 py-2">
               <p className="type-meta text-muted-foreground">
-                {evidence.identifier === "fusionOrgUnitId" ? "Fusion ID" : "Business code"} · {evidence.suppliedValue}
+                {evidence.identifier === "fusionOrgUnitId" ? t("fusionId") : t("businessCode")} · {evidence.suppliedValue}
               </p>
               <p className="type-body font-medium text-foreground">
                 {evidence.unitName} <span className="type-code text-muted-foreground">{evidence.unitCode}</span>
@@ -267,7 +271,7 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
                   });
                 }}
               >
-                Use existing
+                {t("useExisting")}
               </Button>
             </li>
           ))}
@@ -283,7 +287,7 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
               onClick={() => onViewUnits(issue)}
               className="inline-flex items-center gap-1.5 rounded-control px-1 py-1 type-body font-medium text-primary-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring dark:text-primary"
             >
-              {issue.nodeIds.length > 1 ? "View units" : "View unit"}
+              {issue.nodeIds.length > 1 ? t("viewUnits") : t("viewUnit")}
               <ArrowRight aria-hidden className="size-4" />
             </button>
           ) : null}
@@ -302,6 +306,7 @@ function RootForm({
   saving: boolean;
   onResolve: (resolutions: OrganizationImportReviewResolutionsInput) => void;
 }) {
+  const t = useTranslations("orgImport.checks");
   const [name, setName] = useState(review.resolutions.introducedRoot?.name ?? "");
   const [code, setCode] = useState(review.resolutions.introducedRoot?.businessCode ?? "");
   const ready = name.trim().length > 0 && code.trim().length > 0;
@@ -314,20 +319,20 @@ function RootForm({
       }}
     >
       <div className="space-y-1.5">
-        <Label htmlFor="review-root-name">Organization name</Label>
-        <Input id="review-root-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Acme Group" />
+        <Label htmlFor="review-root-name">{t("rootName")}</Label>
+        <Input id="review-root-name" value={name} onChange={(event) => setName(event.target.value)} placeholder={t("rootNamePlaceholder")} />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="review-root-code">Business code</Label>
+        <Label htmlFor="review-root-code">{t("rootCode")}</Label>
         <Input
           id="review-root-code"
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
-          placeholder="ACME"
+          placeholder={t("rootCodePlaceholder")}
         />
       </div>
       <Button type="submit" size="sm" disabled={!ready || saving} className="sm:mb-0.5">
-        Add root
+        {t("addRoot")}
       </Button>
     </form>
   );

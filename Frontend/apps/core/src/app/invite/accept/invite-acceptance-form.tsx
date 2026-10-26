@@ -208,7 +208,6 @@ interface FormValues {
 }
 
 export function InviteAcceptanceForm({ token }: { token: string | null }) {
-  const locale = useLocale();
   const {
     data: invite,
     isLoading: isValidating,
@@ -228,11 +227,7 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
     return <AcceptanceForm token={token} invite={invite} />;
   })();
 
-  return (
-    <div lang={locale} className="contents">
-      {screen}
-    </div>
-  );
+  return screen;
 }
 
 function TerminalScreen({ descriptor }: { descriptor: TerminalDescriptor }) {

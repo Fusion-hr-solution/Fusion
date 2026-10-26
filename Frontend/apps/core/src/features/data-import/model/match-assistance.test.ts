@@ -33,19 +33,19 @@ describe("describeAssistance", () => {
 
   it("is honest when AI answered but matched nothing, without offering a pointless rerun", () => {
     const view = describeAssistance(assistance({ appliedCount: 0, abstainedCount: 3 }), 3);
-    expect(view.summary).toBe("AI wasn't confident about any of these. 3 items need your review.");
+    expect(view.summary).toBe("AI wasn’t confident about any of these. 3 items need your review.");
     expect(view.action).toBeNull();
   });
 
   it("offers a retry after a transient failure", () => {
     const view = describeAssistance(assistance({ state: "Failed", canRetry: true, failureCategory: "Timeout" }), 2);
-    expect(view.summary).toBe("AI matching didn't finish. 2 items need your review.");
+    expect(view.summary).toBe("AI matching didn’t finish. 2 items need your review.");
     expect(view.action).toEqual({ label: "Retry AI matching", retry: true, grantConsent: false });
   });
 
   it("offers nothing when AI is unavailable", () => {
     const view = describeAssistance(assistance({ state: "Failed", canRetry: false, failureCategory: "Unauthorized" }), 2);
-    expect(view.summary).toBe("AI matching isn't available right now. 2 items need your review.");
+    expect(view.summary).toBe("AI matching isn’t available right now. 2 items need your review.");
     expect(view.action).toBeNull();
   });
 

@@ -46,7 +46,7 @@ describe("workforce review view", () => {
     );
     expect(notices.map((n) => [n.key, n.filter])).toEqual([["blocked", "Blocked"], ["lifecycle", "NotImported"]]);
     expect(notices[0]!.title).toBe("Decision before you can publish");
-    expect(notices[1]!.title).toBe("Employees won't be imported");
+    expect(notices[1]!.title).toBe("Employees won’t be imported");
   });
 
   it("pages with gaps", () => {

@@ -1,5 +1,8 @@
 "use client";
 
+import { useImportProblem } from "@/features/data-import/components/import-words";
+import { useLocale, useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown, Search } from "lucide-react";
@@ -54,6 +57,10 @@ const LARGE_TREE = 150;
  * success lands on the live Organization with the new units revealed.
  */
 export function ReviewStage() {
+  const t = useTranslations("orgImport.review");
+  const treeWords = useSay("orgImport");
+  const locale = useLocale();
+  const problemLine = useImportProblem();
   const router = useRouter();
   const { session, refetch, beginPublish, endPublish } = useImportFrame();
   const mutations = useOrganizationImportMutations();
@@ -68,8 +75,8 @@ export function ReviewStage() {
     [review]
   );
   const tree = useMemo(
-    () => (review ? buildReviewTree(review) : null),
-    [review]
+    () => (review ? buildReviewTree(review, treeWords) : null),
+    [review, treeWords]
   );
   const attention = useMemo(() => attentionByNode(issues), [issues]);
 
@@ -114,8 +121,8 @@ export function ReviewStage() {
         resolutions,
       });
     } catch (error) {
-      toast.error("The proposal was not updated", {
-        description: translateOrganizationImportError(error).message,
+      toast.error(t("notUpdated"), {
+        description: problemLine(translateOrganizationImportError(error)),
       });
       refetch();
     }
@@ -143,12 +150,12 @@ export function ReviewStage() {
       const problem = translateOrganizationImportError(error);
       // A stale review, not a failure: Review reloads and the user publishes the new proposal.
       if (problem.code === "ProposalChanged") {
-        toast.warning("The organization changed since you reviewed it", {
-          description: "Review the updated structure before publishing.",
+        toast.warning(t("changed"), {
+          description: t("changedDescription"),
         });
       } else {
-        toast.error("The organization was not published", {
-          description: problem.message,
+        toast.error(t("notPublished"), {
+          description: problemLine(problem),
         });
       }
       refetch();
@@ -206,12 +213,12 @@ export function ReviewStage() {
   const noop = createCount === 0;
   const existingNote =
     existingCount > 0
-      ? ` ${existingCount} ${existingCount === 1 ? "unit" : "units"} already in Organization stay as they are.`
+      ? ` ${t("existingNote", { count: existingCount })}`
       : "";
   const publishing = mutations.commit.isLoading;
 
   return (
-    <section aria-label="Review">
+    <section aria-label={t("label")}>
       <PageContainer className="space-y-6 pt-2">
         <ReviewStatusBanner review={review} />
         <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] xl:items-stretch">
@@ -225,7 +232,7 @@ export function ReviewStage() {
                 id="review-structure-heading"
                 className="type-section-title text-foreground"
               >
-                Organization structure
+                {t("structure")}
               </h2>
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <div className="relative min-w-56 flex-1 sm:max-w-md">
@@ -237,8 +244,8 @@ export function ReviewStage() {
                     type="search"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search by name or business code"
-                    aria-label="Search units"
+                    placeholder={t("search")}
+                    aria-label={t("searchLabel")}
                     className="ps-9"
                   />
                 </div>
@@ -250,8 +257,8 @@ export function ReviewStage() {
                     disabled={Boolean(visible)}
                     aria-label={
                       collapsed.size > 0
-                        ? "Expand all units"
-                        : "Collapse all units"
+                        ? t("expandAllLabel")
+                        : t("collapseAllLabel")
                     }
                     onClick={() =>
                       setCollapsed(
@@ -264,7 +271,7 @@ export function ReviewStage() {
                     ) : (
                       <ChevronsDownUp aria-hidden />
                     )}
-                    {collapsed.size > 0 ? "Expand all" : "Collapse all"}
+                    {collapsed.size > 0 ? t("expandAll") : t("collapseAll")}
                   </Button>
                 ) : null}
               </div>
@@ -284,7 +291,7 @@ export function ReviewStage() {
                   />
                 ) : (
                   <p className="px-2 py-10 text-center type-body text-muted-foreground">
-                    This file doesn’t produce any units.
+                    {t("empty")}
                   </p>
                 )}
               </div>
@@ -321,19 +328,19 @@ export function ReviewStage() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {noop
-                ? "Finish this organization import?"
-                : `Publish ${createCount} new ${createCount === 1 ? "unit" : "units"}?`}
+                ? t("finishTitle")
+                : t("publishTitle", { count: createCount })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {noop
-                ? "No new organization units will be created."
-                : `${createCount === 1 ? "It joins" : "They join"} your Organization effective ${formatHumanDate(review.effectiveDate)}.`}
+                ? t("finishDescription")
+                : t("publishDescription", { count: createCount, date: formatHumanDate(review.effectiveDate, locale) })}
               {existingNote}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={publishing}>
-              Keep reviewing
+              {t("keep")}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={publishing}
@@ -344,11 +351,11 @@ export function ReviewStage() {
             >
               {noop
                 ? publishing
-                  ? "Finishing…"
-                  : "Finish import"
+                  ? t("finishing")
+                  : t("finish")
                 : publishing
-                  ? "Publishing…"
-                  : "Publish organization"}
+                  ? t("publishingButton")
+                  : t("publish")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

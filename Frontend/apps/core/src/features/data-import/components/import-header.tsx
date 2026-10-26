@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ImportStepper, type ImportStep } from "./import-stepper";
 
 /**
@@ -8,7 +9,7 @@ import { ImportStepper, type ImportStep } from "./import-stepper";
  * line (a description before an attempt exists, the file and as-of date after) and the actions change.
  */
 export function ImportHeader({
-  title = "Import organization structure",
+  title,
   steps,
   context,
   actions,
@@ -18,10 +19,11 @@ export function ImportHeader({
   context: React.ReactNode;
   actions?: React.ReactNode;
 }) {
+  const t = useTranslations("dataImport");
   return (
     <header className="flex flex-wrap items-start justify-between gap-x-10 gap-y-6">
       <div className="min-w-0 max-w-2xl">
-        <h1 className="type-display text-foreground">{title}</h1>
+        <h1 className="type-display text-foreground">{title ?? t("domain.organization.title")}</h1>
         <div className="mt-2 type-body text-muted-foreground">{context}</div>
       </div>
       <div className="flex flex-wrap items-start gap-x-6 gap-y-4">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import {
   Button,
@@ -77,6 +78,7 @@ export function OrganizationPicker({
   onChange: (value: string) => void;
   invalid: boolean;
 }) {
+  const t = useTranslations("people.pickers");
   const [open, setOpen] = useState(false);
   const selected = useMemo(() => flattenOrg(roots).find((choice) => choice.id === value), [roots, value]);
   return (
@@ -88,7 +90,7 @@ export function OrganizationPicker({
             {selected ? (
               <OrgPath name={selected.name} path={selected.path} className="text-start" showAncestry={false} />
             ) : (
-              <span className="text-muted-foreground">Select organization</span>
+              <span className="text-muted-foreground">{t("selectOrganization")}</span>
             )}
           </span>
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
@@ -104,7 +106,7 @@ export function OrganizationPicker({
               setOpen(false);
             }
           }}
-          emptyLabel="No valid unit on this date"
+          emptyLabel={t("noValidUnit")}
         />
       </PopoverContent>
     </Popover>
@@ -124,6 +126,7 @@ export function ManagerPicker({
   loading: boolean;
   invalid: boolean;
 }) {
+  const t = useTranslations("people.pickers");
   const [query, setQuery] = useState("");
   const selected = options.find((option) => option.employeeId === value);
   const visible = options.filter((option) =>
@@ -142,7 +145,7 @@ export function ManagerPicker({
               </span>
             </span>
           ) : (
-            <span className="text-muted-foreground">Search for a manager</span>
+            <span className="text-muted-foreground">{t("searchManager")}</span>
           )}
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </Button>
@@ -150,7 +153,7 @@ export function ManagerPicker({
       <PopoverContent align="start" className="w-[min(34rem,calc(100vw-2rem))] p-0">
         <div className="relative border-b p-3">
           <Search className="pointer-events-none absolute inset-s-6 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, Employee Number, or email" aria-label="Search managers" className="ps-9" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("managerSearch")} aria-label={t("searchManagers")} className="ps-9" />
         </div>
         <div className="max-h-72 overflow-y-auto p-1">
           {loading ? (
@@ -169,14 +172,14 @@ export function ManagerPicker({
                 secondary={`${option.jobTitle} · ${option.organizationName}`}
               />
               <span className="flex shrink-0 items-center gap-2">
-                {option.availability === "Scheduled" ? <StatusBadge tone="info">Starts later</StatusBadge> : null}
+                {option.availability === "Scheduled" ? <StatusBadge tone="info">{t("startsLater")}</StatusBadge> : null}
                 {value === option.employeeId ? <Check className="size-4" /> : null}
               </span>
             </button>
           ))}
           {!loading && visible.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
-              {options.length === 0 ? "No manager is available on this date" : "No manager matches your search"}
+              {options.length === 0 ? t("noManagerOnDate") : t("noManagerMatch")}
             </p>
           ) : null}
         </div>

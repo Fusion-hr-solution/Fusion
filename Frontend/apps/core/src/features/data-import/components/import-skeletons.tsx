@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Skeleton } from "@repo/ds";
 import { PageContainer } from "@repo/ds/shell";
 import { ImportHeader } from "@/features/data-import/components/import-header";
@@ -13,20 +14,19 @@ export type ImportSkeletonStage = "upload" | "match" | "review";
 
 export type ImportDomain = "organization" | "workforce";
 
-const COPY: Record<ImportDomain, { title: string; context: string; name: string }> = {
-  organization: {
-    title: "Import organization structure",
-    context: "Bring in your structure from Excel or CSV and review it before publishing.",
-    name: "Organization import",
-  },
-  workforce: {
-    title: "Import workforce",
-    context: "Bring in your people from Excel or CSV and review them before publishing.",
-    name: "Workforce import",
-  },
-};
+type ImportWords = ReturnType<typeof useTranslations<"dataImport">>;
 
-function skeletonSteps(stage: ImportSkeletonStage | null): ImportStep[] {
+function useCopy(domain: ImportDomain) {
+  const t = useTranslations("dataImport");
+  return {
+    t,
+    title: t(`domain.${domain}.title`),
+    context: t(`domain.${domain}.context`),
+    name: t(`domain.${domain}.name`),
+  };
+}
+
+function skeletonSteps(stage: ImportSkeletonStage | null, t: ImportWords): ImportStep[] {
   const at =
     stage === "match"
       ? 1
@@ -35,9 +35,9 @@ function skeletonSteps(stage: ImportSkeletonStage | null): ImportStep[] {
         : stage === "upload"
           ? 0
           : -1;
-  return ["Upload", "Match", "Review"].map((label, index) => ({
-    key: label.toLowerCase(),
-    label,
+  return (["upload", "match", "review"] as const).map((key, index) => ({
+    key,
+    label: t(`steps.${key}`),
     state: index < at ? "done" : index === at ? "current" : "upcoming",
   }));
 }
@@ -58,11 +58,11 @@ function LoadingRegion({
 
 /** Upload: the header, the file-and-date card, and the template action. */
 export function ImportUploadSkeleton({ domain = "organization" }: { domain?: ImportDomain }) {
-  const copy = COPY[domain];
+  const copy = useCopy(domain);
   return (
-    <LoadingRegion label={`Loading ${copy.name}`}>
+    <LoadingRegion label={copy.t("loading.domain", { name: copy.name })}>
       <PageContainer className="space-y-8 pb-16">
-        <ImportHeader title={copy.title} context={copy.context} steps={skeletonSteps("upload")} />
+        <ImportHeader title={copy.title} context={copy.context} steps={skeletonSteps("upload", copy.t)} />
         <section className="rounded-surface border border-border bg-card p-5 shadow-raised sm:p-8">
           <Skeleton className="h-7 w-64" />
           <Skeleton className="mt-2 h-4 w-96 max-w-full" />
@@ -97,11 +97,11 @@ export function ImportAttemptSkeleton({
   stage: ImportSkeletonStage | null;
   domain?: ImportDomain;
 }) {
-  const copy = COPY[domain];
+  const copy = useCopy(domain);
   return (
-    <LoadingRegion label="Loading your import">
+    <LoadingRegion label={copy.t("loading.import")}>
       <PageContainer>
-        <ImportHeader title={copy.title} context={<Skeleton className="h-4 w-72 max-w-full" />} steps={skeletonSteps(stage)} />
+        <ImportHeader title={copy.title} context={<Skeleton className="h-4 w-72 max-w-full" />} steps={skeletonSteps(stage, copy.t)} />
       </PageContainer>
       {stage === "match" ? (
         <MatchBody />
@@ -118,8 +118,9 @@ export function ImportAttemptSkeleton({
 
 /** Match body, inside the attempt frame. */
 export function ImportMatchSkeleton() {
+  const t = useTranslations("dataImport");
   return (
-    <LoadingRegion label="Loading Match">
+    <LoadingRegion label={t("loading.match")}>
       <MatchBody />
     </LoadingRegion>
   );
@@ -127,8 +128,9 @@ export function ImportMatchSkeleton() {
 
 /** Review body, inside the attempt frame. */
 export function ImportReviewSkeleton({ domain = "organization" }: { domain?: ImportDomain }) {
+  const t = useTranslations("dataImport");
   return (
-    <LoadingRegion label="Loading Review">
+    <LoadingRegion label={t("loading.review")}>
       {domain === "workforce" ? <PeopleReviewBody /> : <ReviewBody />}
     </LoadingRegion>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useTranslations } from "next-intl";
 import { RotateCw, Sparkles } from "lucide-react";
 import { Button, Spinner } from "@repo/ds";
 import type { OrganizationImportSemanticAssistance } from "@repo/api";
@@ -17,14 +19,16 @@ export function ImportMatchAssistance({
   running: boolean;
   onRun: (grantConsent: boolean) => void;
 }) {
+  const t = useTranslations("dataImport");
+  const say = useSay("dataImport");
   if (running)
     return (
       <p className="mt-3 flex items-center gap-2 type-meta text-muted-foreground" role="status">
         <Spinner className="size-3.5" aria-hidden />
-        Matching with AI…
+        {t("assistance.running")}
       </p>
     );
-  const { action } = describeAssistance(assistance, needsReview);
+  const { action } = describeAssistance(assistance, needsReview, say);
   if (!action) return null;
   const Icon = action.retry ? RotateCw : Sparkles;
   return (

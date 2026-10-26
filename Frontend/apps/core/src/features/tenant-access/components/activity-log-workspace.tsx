@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -13,7 +14,7 @@ import { Button } from "@repo/ds";
 import { PageContainer, PageHeader, PagePermissionNotice } from "@repo/ds/shell";
 import { ArrowLeft } from "lucide-react";
 import { ActivityLogPageSkeleton } from "@/shell/route-skeletons";
-import { ACTIVITY_LABEL, actorLabel, formatMoment } from "./access-language";
+import { actorLabel, useAccessWords } from "./access-language";
 
 const PAGE_SIZE = 30;
 
@@ -25,6 +26,7 @@ type Cursor = { occurredAt: string; id: string } | null;
  * following a sequence of events, not comparing rows across columns.
  */
 export default function ActivityLogWorkspace() {
+  const t = useTranslations("admins");
   const { user, isLoading: isAuthLoading } = useAuth();
   const canView = canViewTenantAdministration(user);
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -75,10 +77,10 @@ export default function ActivityLogWorkspace() {
   if (!canView) {
     return (
       <PageContainer width="wide" className="max-w-3xl space-y-6">
-        <PageHeader title="Activity log" />
+        <PageHeader title={t("log.title")} />
         <PagePermissionNotice
-          title="You do not have access to this page"
-          description="Ask an administrator if you need to review administrator access activity."
+          title={t("denied.title")}
+          description={t("log.denied")}
         />
       </PageContainer>
     );
@@ -97,22 +99,22 @@ export default function ActivityLogWorkspace() {
             className="inline-flex items-center gap-1.5 type-eyebrow text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="size-3.5" />
-            Administrators
+            {t("title")}
           </Link>
         }
-        title="Activity log"
-        description="Every change to who can administer this tenant, most recent first."
+        title={t("log.title")}
+        description={t("log.description")}
       />
 
       {status === "error" && items.length === 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border px-4 py-3">
-          <p className="type-body text-muted-foreground">The activity log could not be loaded.</p>
+          <p className="type-body text-muted-foreground">{t("log.failed")}</p>
           <Button variant="outline" size="sm" onClick={() => void load(null, false)}>
-            Retry
+            {t("retry")}
           </Button>
         </div>
       ) : items.length === 0 ? (
-        <p className="type-body text-muted-foreground">Nothing has changed here yet.</p>
+        <p className="type-body text-muted-foreground">{t("log.empty")}</p>
       ) : (
         <>
           <ol className="border-s">
@@ -124,7 +126,7 @@ export default function ActivityLogWorkspace() {
           {cursor ? (
             <div className="flex justify-center">
               <Button variant="outline" disabled={loadingMore} onClick={() => void load(cursor, true)}>
-                {loadingMore ? "Loading…" : "Load more"}
+                {loadingMore ? t("log.loading") : t("log.more")}
               </Button>
             </div>
           ) : null}
@@ -135,6 +137,8 @@ export default function ActivityLogWorkspace() {
 }
 
 function ActivityEntry({ item }: { item: AccessActivityItemDto }) {
+  const t = useTranslations("admins");
+  const words = useAccessWords();
   const actor = actorLabel(item.actorName);
 
   return (
@@ -145,14 +149,14 @@ function ActivityEntry({ item }: { item: AccessActivityItemDto }) {
       />
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
         <p className="type-body text-foreground">
-          {ACTIVITY_LABEL[item.action] ?? item.summary}
-          {actor ? <span className="text-muted-foreground"> · by {actor}</span> : null}
+          {words.activity(item.action, item.summary)}
+          {actor ? <span className="text-muted-foreground">{t("log.by", { actor })}</span> : null}
         </p>
         <p className="type-meta whitespace-nowrap text-muted-foreground">
-          {formatMoment(item.occurredAt)}
+          {words.moment(item.occurredAt)}
         </p>
       </div>
-      {ACTIVITY_LABEL[item.action] && item.summary ? (
+      {words.knowsActivity(item.action) && item.summary ? (
         <p className="mt-0.5 type-meta text-muted-foreground">{item.summary}</p>
       ) : null}
     </li>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useOrganizationEvents } from "./organization-words";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -62,6 +64,8 @@ import {
 } from "../model/workspace-state";
 
 function FormError({ error }: { error: unknown }) {
+  const t = useTranslations("organization");
+  const english = useLocale() === "en";
   if (!error) return null;
   const problem = translateOrganizationError(error);
   return (
@@ -69,10 +73,10 @@ function FormError({ error }: { error: unknown }) {
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>
         {problem.kind === "concurrency"
-          ? "Organization changed"
-          : "Could not complete this action"}
+          ? t("problem.changed")
+          : t("problem.failed")}
       </AlertTitle>
-      <AlertDescription>{problem.message}</AlertDescription>
+      <AlertDescription>{english ? problem.message : t(`problem.${problem.kind}`)}</AlertDescription>
     </Alert>
   );
 }
@@ -88,9 +92,10 @@ function EffectiveDateField({
   today: string;
   allowPast?: boolean;
 }) {
+  const t = useTranslations("organization");
   return (
     <div className="space-y-1.5">
-      <Label htmlFor="organization-effective-date">Effective date</Label>
+      <Label htmlFor="organization-effective-date">{t("effectiveDate.label")}</Label>
       <Input
         id="organization-effective-date"
         type="date"
@@ -100,10 +105,10 @@ function EffectiveDateField({
       />
       <p className="text-xs text-muted-foreground">
         {value === today
-          ? "Effective Today"
+          ? t("effectiveDate.today")
           : value > today
-            ? "Schedules a future change"
-            : "Changes historical business truth"}
+            ? t("effectiveDate.future")
+            : t("effectiveDate.past")}
       </p>
     </div>
   );
@@ -150,6 +155,7 @@ function TypePicker({
   onChange: (value: string) => void;
   id?: string;
 }) {
+  const t = useTranslations("organization");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const matches = types.filter((type) =>
@@ -160,7 +166,7 @@ function TypePicker({
   const selected = types.find((type) => type.id === value);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PickerTrigger id={id} open={open} placeholder="Select a type">
+      <PickerTrigger id={id} open={open} placeholder={t("typePicker.placeholder")}>
         {selected ? <span className="truncate">{selected.displayName}</span> : undefined}
       </PickerTrigger>
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
@@ -168,14 +174,14 @@ function TypePicker({
           <Search className="pointer-events-none absolute inset-s-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoFocus
-            aria-label="Search unit types"
+            aria-label={t("typePicker.search")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find a type"
+            placeholder={t("typePicker.find")}
             className="border-0 ps-9 shadow-none focus-visible:ring-0"
           />
         </div>
-        <div role="listbox" aria-label="Unit types" className="max-h-56 overflow-y-auto p-1">
+        <div role="listbox" aria-label={t("typePicker.list")} className="max-h-56 overflow-y-auto p-1">
           {matches.length ? (
             matches.map((type) => (
               <button
@@ -196,13 +202,13 @@ function TypePicker({
                 <Check className={cn("h-4 w-4", type.id === value ? "opacity-100" : "opacity-0")} />
                 <span className="font-medium">{type.displayName}</span>
                 <span className="ms-auto text-xs text-muted-foreground">
-                  {type.isBuiltIn ? "Built-in" : "Custom"}
+                  {type.isBuiltIn ? t("typePicker.builtIn") : t("typePicker.custom")}
                 </span>
               </button>
             ))
           ) : (
             <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-              No unit types found
+              {t("typePicker.none")}
             </p>
           )}
         </div>
@@ -226,6 +232,7 @@ function HierarchyPicker({
   onChange: (value: string) => void;
   id?: string;
 }) {
+  const t = useTranslations("organization");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const normalized = query.trim().toLocaleLowerCase();
@@ -240,7 +247,7 @@ function HierarchyPicker({
   const selected = value ? model.byId.get(value) : null;
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PickerTrigger id={id} open={open} placeholder={`Select ${label.toLocaleLowerCase()}`}>
+      <PickerTrigger id={id} open={open} placeholder={t("hierarchyPicker.select", { label: label.toLocaleLowerCase() })}>
         {selected ? (
           <span className="truncate">
             {selected.name}{" "}
@@ -253,10 +260,10 @@ function HierarchyPicker({
           <Search className="pointer-events-none absolute inset-s-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoFocus
-            aria-label={`Search ${label.toLocaleLowerCase()}`}
+            aria-label={t("hierarchyPicker.search", { label: label.toLocaleLowerCase() })}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find a unit"
+            placeholder={t("hierarchyPicker.find")}
             className="border-0 ps-9 shadow-none focus-visible:ring-0"
           />
         </div>
@@ -289,7 +296,7 @@ function HierarchyPicker({
             ))
           ) : (
             <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-              No eligible units found
+              {t("hierarchyPicker.none")}
             </p>
           )}
         </div>
@@ -311,6 +318,7 @@ export function RootEstablishment({
   mutations: OrganizationMutations;
   onCreated: (id: string, effectiveDate: string) => void;
 }) {
+  const t = useTranslations("organization");
   const suggestedName = tenantName?.trim() ?? "";
   const [name, setName] = useState(suggestedName);
   const nameTouched = useRef(false);
@@ -332,11 +340,10 @@ export function RootEstablishment({
           <CalendarClock className="h-5 w-5" />
         </div>
         <h2 className="text-xl font-semibold tracking-tight">
-          Organization has not been established
+          {t("root.notEstablished")}
         </h2>
         <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-          An Organization manager can create the permanent root here. This
-          workspace will become the official structure once it is effective.
+          {t("root.notEstablishedDescription")}
         </p>
       </div>
     );
@@ -352,13 +359,13 @@ export function RootEstablishment({
       });
       toast.success(
         effectiveDate === today
-          ? "Organization created"
-          : "Organization scheduled",
+          ? t("root.created")
+          : t("root.scheduled"),
         {
           description:
             effectiveDate === today
-              ? "The root is ready for its first unit."
-              : `The permanent root will take effect on ${effectiveDate}.`,
+              ? t("root.createdDescription")
+              : t("root.scheduledDescription", { date: effectiveDate }),
         }
       );
       onCreated(created.id, effectiveDate);
@@ -372,10 +379,10 @@ export function RootEstablishment({
       <div className="space-y-8">
         <div>
           <span className="text-sm font-medium text-primary-ink">
-            Start your organization structure
+            {t("root.title")}
           </span>
           <h2 className="mt-3 max-w-lg text-3xl font-semibold tracking-tight text-balance">
-            Give the official hierarchy its anchor.
+            {t("root.description")}
           </h2>
           <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
             This is the top level of your organization; everything else lives
@@ -390,7 +397,7 @@ export function RootEstablishment({
             <UploadCloud className="h-5 w-5" />
           </span>
           <span className="min-w-0 flex-1 font-semibold">
-            Import an existing structure
+            {t("root.import")}
           </span>
           <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
         </Link>
@@ -400,7 +407,7 @@ export function RootEstablishment({
         className="space-y-5 border-s ps-8 max-lg:border-s-0 max-lg:border-t max-lg:ps-0 max-lg:pt-8"
       >
         <div className="space-y-1.5">
-          <Label htmlFor="root-name">Name</Label>
+          <Label htmlFor="root-name">{t("root.name")}</Label>
           <Input
             id="root-name"
             required
@@ -412,11 +419,11 @@ export function RootEstablishment({
               if (!codeTouched.current)
                 setCode(organizationCodeSuggestion(event.target.value));
             }}
-            placeholder="Asteria Group"
+            placeholder={t("root.namePlaceholder")}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="root-code">Business code</Label>
+          <Label htmlFor="root-code">{t("root.code")}</Label>
           <Input
             id="root-code"
             required
@@ -425,18 +432,18 @@ export function RootEstablishment({
               codeTouched.current = true;
               setCode(event.target.value.toUpperCase());
             }}
-            placeholder="AST"
+            placeholder={t("root.codePlaceholder")}
           />
           <p className="text-xs text-muted-foreground">
-            Editable until the root becomes effective.
+            {t("root.codeHint")}
           </p>
         </div>
         <div className="space-y-1.5">
-          <Label>Type</Label>
+          <Label>{t("root.type")}</Label>
           <div className="flex h-9 items-center rounded-surface border bg-inlay px-3 text-sm">
-            Organization{" "}
+            {t("root.organization")}{" "}
             <span className="ms-auto text-xs text-muted-foreground">
-              System-defined
+              {t("root.systemDefined")}
             </span>
           </div>
         </div>
@@ -454,10 +461,10 @@ export function RootEstablishment({
           }
         >
           {mutations.createRoot.isLoading
-            ? "Saving…"
+            ? t("root.saving")
             : effectiveDate === today
-              ? "Create organization"
-              : "Schedule organization"}
+              ? t("root.create")
+              : t("root.schedule")}
         </Button>
       </form>
     </div>
@@ -485,6 +492,7 @@ export function UnitFormPanel({
   onCreateType: () => void;
   onSaved: (id: string, effectiveDate: string) => void;
 }) {
+  const t = useTranslations("organization");
   const editing = mode?.kind === "edit";
   const isRoot = mode?.kind === "edit" && mode.unit.parentId === null;
   const globalAdd = mode?.kind === "add" && !mode.parentId;
@@ -539,7 +547,7 @@ export function UnitFormPanel({
           request: { name: name.trim(), typeId, effectiveDate },
         });
         toast.success(
-          effectiveDate === today ? "Unit updated" : "Change scheduled"
+          effectiveDate === today ? t("unitForm.updated") : t("unitForm.changeScheduled")
         );
         onSaved(saved.id, effectiveDate);
       } else {
@@ -551,7 +559,7 @@ export function UnitFormPanel({
           effectiveDate,
         });
         toast.success(
-          effectiveDate === today ? "Unit added" : "Unit scheduled"
+          effectiveDate === today ? t("unitForm.added") : t("unitForm.unitScheduled")
         );
         onSaved(saved.id, effectiveDate);
       }
@@ -564,11 +572,11 @@ export function UnitFormPanel({
   const mutation = editing ? mutations.changeUnit : mutations.createUnit;
   const title = editing
     ? isRoot
-      ? "Edit organization"
-      : `Edit ${mode?.kind === "edit" ? mode.unit.name : "unit"}`
+      ? t("unitForm.editOrganization")
+      : t("unitForm.editUnit", { name: mode?.kind === "edit" ? mode.unit.name : "" })
     : contextualParent
-      ? `Add unit under ${contextualParent.name}`
-      : "Add unit";
+      ? t("unitForm.addUnder", { name: contextualParent.name })
+      : t("unitForm.add");
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
@@ -576,7 +584,7 @@ export function UnitFormPanel({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Close"
+          aria-label={t("unitForm.close")}
           onClick={onClose}
         >
           <X className="h-4 w-4" />
@@ -588,7 +596,7 @@ export function UnitFormPanel({
         className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4"
       >
           <div className="space-y-1.5">
-            <Label htmlFor="unit-name">Name</Label>
+            <Label htmlFor="unit-name">{t("unitForm.name")}</Label>
             <Input
               id="unit-name"
               required
@@ -603,7 +611,7 @@ export function UnitFormPanel({
           </div>
           {!editing ? (
             <div className="space-y-1.5">
-              <Label htmlFor="unit-code">Business code</Label>
+              <Label htmlFor="unit-code">{t("unitForm.code")}</Label>
               <Input
                 id="unit-code"
                 required
@@ -618,7 +626,7 @@ export function UnitFormPanel({
           {!isRoot ? (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="unit-type">Type</Label>
+                <Label htmlFor="unit-type">{t("unitForm.type")}</Label>
                 <Button
                   type="button"
                   variant="link"
@@ -626,7 +634,7 @@ export function UnitFormPanel({
                   className="h-auto p-0 text-xs"
                   onClick={onCreateType}
                 >
-                  Create new type
+                  {t("unitForm.createType")}
                 </Button>
               </div>
               <TypePicker id="unit-type" value={typeId} types={types} onChange={setTypeId} />
@@ -634,12 +642,12 @@ export function UnitFormPanel({
           ) : null}
           {globalAdd ? (
             <div className="space-y-1.5">
-              <Label>Parent</Label>
+              <Label>{t("unitForm.parent")}</Label>
               {parentModel ? (
                 <HierarchyPicker
                   value={parentId || null}
                   model={parentModel}
-                  label="Parent unit"
+                  label={t("unitForm.parentUnit")}
                   onChange={setParentId}
                 />
               ) : (
@@ -661,7 +669,7 @@ export function UnitFormPanel({
         </form>
         <div className="flex justify-end gap-2 border-t px-5 py-3">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t("unitForm.cancel")}
           </Button>
           <Button
             form="organization-unit-form"
@@ -675,14 +683,14 @@ export function UnitFormPanel({
             }
           >
             {mutation.isLoading
-              ? "Saving…"
+              ? t("unitForm.saving")
               : effectiveDate === today
                 ? editing
-                  ? "Save changes"
-                  : "Add unit"
+                  ? t("unitForm.save")
+                  : t("unitForm.add")
                 : editing
-                  ? "Schedule change"
-                  : "Schedule unit"}
+                  ? t("unitForm.schedule")
+                  : t("unitForm.scheduleUnit")}
           </Button>
         </div>
     </div>
@@ -700,6 +708,7 @@ export function CreateTypeDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: (type: OrganizationalUnitTypeDto) => void;
 }) {
+  const t = useTranslations("organization");
   const [name, setName] = useState("");
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -711,7 +720,7 @@ export function CreateTypeDialog({
       onCreated(type);
       setName("");
       onOpenChange(false);
-      toast.success("Unit type created");
+      toast.success(t("types.created"));
     } catch {
       /* preserve */
     }
@@ -720,13 +729,13 @@ export function CreateTypeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Create unit type</DialogTitle>
+          <DialogTitle>{t("types.createTitle")}</DialogTitle>
           <DialogDescription>
-            Add a custom type for your organization.
+            {t("types.createDescription")}
           </DialogDescription>
         </DialogHeader>
         <form id="create-unit-type" onSubmit={submit} className="space-y-3">
-          <Label htmlFor="type-name">Type name</Label>
+          <Label htmlFor="type-name">{t("types.name")}</Label>
           <Input
             id="type-name"
             autoFocus
@@ -738,14 +747,14 @@ export function CreateTypeDialog({
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("types.cancel")}
           </Button>
           <Button
             form="create-unit-type"
             type="submit"
             disabled={!name.trim() || mutations.createType.isLoading}
           >
-            {mutations.createType.isLoading ? "Creating…" : "Create type"}
+            {mutations.createType.isLoading ? t("types.creating") : t("types.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -764,6 +773,7 @@ export function ManageTypesPanel({
   onClose: () => void;
   onCreateType: () => void;
 }) {
+  const t = useTranslations("organization");
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState("");
   const builtIn = types.filter((type) => type.isBuiltIn);
@@ -772,15 +782,15 @@ export function ManageTypesPanel({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold">Manage unit types</p>
+          <p className="truncate text-base font-semibold">{t("types.manage")}</p>
           <p className="mt-1 truncate text-xs text-muted-foreground">
-            The vocabulary you use to describe units.
+            {t("types.manageDescription")}
           </p>
         </div>
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Close"
+          aria-label={t("types.close")}
           onClick={onClose}
         >
           <X className="h-4 w-4" />
@@ -789,8 +799,8 @@ export function ManageTypesPanel({
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-4">
           <section>
             <div className="mb-2.5">
-              <h3 className="text-sm font-semibold">Built-in types</h3>
-              <p className="text-xs text-muted-foreground">Provided by Fusion.</p>
+              <h3 className="text-sm font-semibold">{t("types.builtIn")}</h3>
+              <p className="text-xs text-muted-foreground">{t("types.builtInDescription")}</p>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {builtIn.map((type) => (
@@ -806,14 +816,14 @@ export function ManageTypesPanel({
           <section>
             <div className="mb-2 flex items-center justify-between gap-4">
               <div>
-                <h3 className="text-sm font-semibold">Custom types</h3>
+                <h3 className="text-sm font-semibold">{t("types.custom")}</h3>
                 <p className="text-xs text-muted-foreground">
-                  Types you define for your organization.
+                  {t("types.customDescription")}
                 </p>
               </div>
               <Button size="sm" onClick={onCreateType}>
                 <Plus className="h-3.5 w-3.5" />
-                New type
+                {t("types.new")}
               </Button>
             </div>
             {custom.length ? (
@@ -849,20 +859,20 @@ export function ManageTypesPanel({
                                 request: { name },
                               });
                               setEditing(null);
-                              toast.success("Unit type renamed");
+                              toast.success(t("types.renamed"));
                             } catch {
                               return;
                             }
                           }}
                         >
-                          Save
+                          {t("types.save")}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => setEditing(null)}
                         >
-                          Cancel
+                          {t("types.cancel")}
                         </Button>
                       </>
                     ) : (
@@ -875,18 +885,18 @@ export function ManageTypesPanel({
                             setName(type.displayName);
                           }}
                         >
-                          Rename
+                          {t("types.rename")}
                         </Button>
                         <Button
                           size="icon-sm"
                           variant="ghost"
                           disabled={mutations.deleteType.isLoading}
-                          aria-label={`Delete ${type.displayName}`}
+                          aria-label={t("types.delete", { name: type.displayName })}
                           onClick={async () => {
                             if (mutations.deleteType.isLoading) return;
                             try {
                               await mutations.deleteType.mutateAsync(type.id);
-                              toast.success("Unit type deleted");
+                              toast.success(t("types.deleted"));
                             } catch {
                               return;
                             }
@@ -901,7 +911,7 @@ export function ManageTypesPanel({
               </div>
             ) : (
               <p className="rounded-surface border border-dashed px-3 py-4 text-sm text-muted-foreground">
-                No custom types yet.
+                {t("types.none")}
               </p>
             )}
           </section>
@@ -932,6 +942,10 @@ export function MoveReviewDialog({
   onOpenChange: (open: boolean) => void;
   onMoved: (id: string, effectiveDate: string) => void;
 }) {
+  const t = useTranslations("organization");
+  const english = useLocale() === "en";
+  const problemMessage = (error: unknown) =>
+    english ? translateOrganizationError(error).message : t(`problem.${translateOrganizationError(error).kind}`);
   if (!proposal) return null;
   const activeProposal = proposal;
   const source = model.byId.get(activeProposal.sourceId);
@@ -951,7 +965,7 @@ export function MoveReviewDialog({
   // Drag entry already fixed the destination; only ask for it again when the
   // Move was started explicitly or the dragged destination no longer resolves.
   const needsDestination = activeProposal.entry === "explicit" || !to;
-  const moveVerb = activeProposal.subordinateCount > 0 ? "Move branch" : "Move unit";
+  const moveVerb = activeProposal.subordinateCount > 0 ? t("move.branch") : t("move.unit");
   async function submit() {
     if (!source || !activeProposal.toParentId || invalid) return;
     try {
@@ -964,7 +978,7 @@ export function MoveReviewDialog({
         },
       });
       toast.success(
-        activeProposal.effectiveDate === today ? "Unit moved" : "Move scheduled"
+        activeProposal.effectiveDate === today ? t("move.moved") : t("move.scheduled")
       );
       onOpenChange(false);
       onMoved(source.id, activeProposal.effectiveDate);
@@ -979,20 +993,20 @@ export function MoveReviewDialog({
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Review move</DialogTitle>
+          <DialogTitle>{t("move.review")}</DialogTitle>
           <DialogDescription>
             Everything beneath {source?.name ?? "this unit"} moves with it.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 rounded-surface border p-4 text-sm">
           <div className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-3">
-            <span className="text-muted-foreground">Unit</span>
+            <span className="text-muted-foreground">{t("move.unitLabel")}</span>
             <strong className="min-w-0 truncate">{source?.name}</strong>
-            <span className="text-muted-foreground">From</span>
-            <span className="min-w-0 truncate">{from?.name ?? "Top level"}</span>
+            <span className="text-muted-foreground">{t("move.from")}</span>
+            <span className="min-w-0 truncate">{from?.name ?? t("move.topLevel")}</span>
             {needsDestination ? null : (
               <>
-                <span className="text-muted-foreground">To</span>
+                <span className="text-muted-foreground">{t("move.to")}</span>
                 <span className="min-w-0 truncate">
                   {to?.name}
                   {to ? (
@@ -1003,7 +1017,7 @@ export function MoveReviewDialog({
                 </span>
               </>
             )}
-            <span className="text-muted-foreground">Effective date</span>
+            <span className="text-muted-foreground">{t("move.effectiveDate")}</span>
             <Input
               type="date"
               value={proposal.effectiveDate}
@@ -1019,16 +1033,16 @@ export function MoveReviewDialog({
                 })
               }
             />
-            <span className="text-muted-foreground">Also moving</span>
+            <span className="text-muted-foreground">{t("move.alsoMoving")}</span>
             <span>
               {proposal.subordinateCount === 0
-                ? "No units beneath it"
-                : `${proposal.subordinateCount} unit${proposal.subordinateCount === 1 ? "" : "s"} beneath it`}
+                ? t("move.nothingBeneath")
+                : t("move.beneath", { count: proposal.subordinateCount })}
             </span>
           </div>
           {needsDestination ? (
             <div>
-              <Label>New parent</Label>
+              <Label>{t("move.newParent")}</Label>
               {resolving ? (
                 <div className="mt-1 rounded-surface border px-3 py-4 text-muted-foreground">
                   Resolving eligible destinations for {proposal.effectiveDate}…
@@ -1039,7 +1053,7 @@ export function MoveReviewDialog({
                     value={proposal.toParentId}
                     model={model}
                     sourceId={proposal.sourceId}
-                    label="Move destination"
+                    label={t("move.destination")}
                     onChange={(toParentId) =>
                       onChange({ ...proposal, toParentId, error: null })
                     }
@@ -1052,30 +1066,29 @@ export function MoveReviewDialog({
         {proposal.error || mutations.moveUnit.error ? (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Move not accepted</AlertTitle>
+            <AlertTitle>{t("move.notAccepted")}</AlertTitle>
             <AlertDescription>
-              {proposal.error ??
-                translateOrganizationError(mutations.moveUnit.error).message}{" "}
-              Your selection is kept — adjust the destination or date and try
-              again.
+              {(english ? proposal.error : null) ??
+                problemMessage(mutations.moveUnit.error)}{" "}
+              {t("move.kept")}
             </AlertDescription>
           </Alert>
         ) : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("move.cancel")}
           </Button>
           <Button
             onClick={() => void submit()}
             disabled={resolving || invalid || mutations.moveUnit.isLoading}
           >
             {mutations.moveUnit.isLoading
-              ? "Moving…"
+              ? t("move.moving")
               : proposal.effectiveDate === today
                 ? moveVerb
                 : proposal.effectiveDate > today
-                  ? "Schedule move"
-                  : "Apply historical move"}
+                  ? t("move.schedule")
+                  : t("move.historical")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1100,6 +1113,7 @@ export function InactivateDialog({
   onDone: () => void;
   onSelectDescendant: (id: string) => void;
 }) {
+  const t = useTranslations("organization");
   const [date, setDate] = useState(today);
   const proposedHierarchy = useOrganizationHierarchy(
     date,
@@ -1129,7 +1143,7 @@ export function InactivateDialog({
         request: { effectiveDate: date },
       });
       toast.success(
-        date === today ? "Unit inactivated" : "Inactivation scheduled"
+        date === today ? t("inactivate.inactivated") : t("inactivate.scheduled")
       );
       onOpenChange(false);
       onDone();
@@ -1143,19 +1157,19 @@ export function InactivateDialog({
         <DialogHeader>
           <DialogTitle>
             {blocked
-              ? `Move the units under ${unit.name} first`
-              : `Inactivate ${unit.name}?`}
+              ? t("inactivate.blockedTitle", { name: unit.name })
+              : t("inactivate.title", { name: unit.name })}
           </DialogTitle>
           <DialogDescription>
             {blocked
-              ? `${unit.name} still has ${descendants} active unit${descendants === 1 ? "" : "s"} beneath it. Inactivating a unit does not close the units under it.`
-              : "This is permanent. The unit leaves the active hierarchy on the effective date and stays in its business history."}
+              ? t("inactivate.blockedDescription", { name: unit.name, count: descendants })
+              : t("inactivate.description")}
           </DialogDescription>
         </DialogHeader>
         <EffectiveDateField value={date} onChange={setDate} today={today} />
         {!dateModel ? (
           <div className="rounded-surface border bg-inlay px-3 py-4 text-sm text-muted-foreground">
-            Checking units as of {date}…
+            {t("inactivate.checking", { date })}
           </div>
         ) : blocked && blockingUnit ? (
           <Button
@@ -1166,7 +1180,7 @@ export function InactivateDialog({
               onSelectDescendant(blockingUnit);
             }}
           >
-            Go to blocking unit
+            {t("inactivate.goToBlocking")}
           </Button>
         ) : null}
         <FormError
@@ -1174,7 +1188,7 @@ export function InactivateDialog({
         />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {blocked ? "Close" : "Cancel"}
+            {blocked ? t("inactivate.close") : t("inactivate.cancel")}
           </Button>
           {!blocked ? (
             <Button
@@ -1182,33 +1196,13 @@ export function InactivateDialog({
               onClick={() => void submit()}
               disabled={!dateModel || mutations.inactivateUnit.isLoading}
             >
-              {date === today ? "Inactivate unit" : "Schedule inactivation"}
+              {date === today ? t("inactivate.confirm") : t("inactivate.schedule")}
             </Button>
           ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
-
-function eventLabel(change: OrganizationChangeDto) {
-  return (
-    change.businessEventKinds
-      .map((kind) => String(kind).replace("TypeChanged", "Type changed"))
-      .join(" + ") || String(change.kind)
-  );
-}
-
-function contextChange(change: OrganizationChangeDto) {
-  const kind = change.businessEventKinds[0];
-  if (kind === "Moved")
-    return `${change.before?.parent?.name ?? "No parent"} → ${change.after?.parent?.name ?? "No parent"}`;
-  if (kind === "Renamed")
-    return `${change.before?.name ?? "—"} → ${change.after?.name ?? "—"}`;
-  if (kind === "TypeChanged")
-    return `${change.before?.type.name ?? "—"} → ${change.after?.type.name ?? "—"}`;
-  if (kind === "Inactivated") return "Active → Inactive";
-  return change.summary ?? "Organization established";
 }
 
 export function UpcomingChangesSheet({
@@ -1230,6 +1224,8 @@ export function UpcomingChangesSheet({
   onViewDate: (date: string) => void;
   onCancel: (change: OrganizationChangeDto) => void;
 }) {
+  const t = useTranslations("organization");
+  const events = useOrganizationEvents();
   const groups = useMemo(() => {
     const result = new Map<string, OrganizationChangeDto[]>();
     for (const change of changes) {
@@ -1247,9 +1243,9 @@ export function UpcomingChangesSheet({
         onInteractOutside={(event) => event.preventDefault()}
       >
         <SheetHeader>
-          <SheetTitle>Upcoming changes</SheetTitle>
+          <SheetTitle>{t("upcoming.title")}</SheetTitle>
           <SheetDescription>
-            Scheduled changes, grouped by the date they take effect.
+            {t("upcoming.description")}
           </SheetDescription>
         </SheetHeader>
         <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-6">
@@ -1265,7 +1261,7 @@ export function UpcomingChangesSheet({
                     onOpenChange(false);
                   }}
                 >
-                  View structure
+                  {t("upcoming.view")}
                 </Button>
               </div>
               <div className="divide-y border-y">
@@ -1274,10 +1270,10 @@ export function UpcomingChangesSheet({
                     <div className="flex items-start gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">
-                          {eventLabel(change)} · {change.unitName}
+                          {events.label(change)} · {change.unitName}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {contextChange(change)} · {change.unitCode}
+                          {events.firstContext(change)} · {change.unitCode}
                         </p>
                       </div>
                       {canManage ? (
@@ -1286,7 +1282,7 @@ export function UpcomingChangesSheet({
                           size="sm"
                           onClick={() => onCancel(change)}
                         >
-                          Cancel
+                          {t("upcoming.cancel")}
                         </Button>
                       ) : null}
                     </div>
@@ -1319,6 +1315,7 @@ export function CorrectionPanel({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useTranslations("organization");
   const [name, setName] = useState(unit?.name ?? "");
   const [code, setCode] = useState(unit?.code ?? "");
   const [typeId, setTypeId] = useState(unit?.typeId ?? "");
@@ -1389,7 +1386,7 @@ export function CorrectionPanel({
           },
         });
       }
-      toast.success("Recorded data corrected");
+      toast.success(t("correction.corrected"));
       onClose();
       onDone();
     } catch {
@@ -1401,7 +1398,7 @@ export function CorrectionPanel({
       <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold">
-            Correct recorded data
+            {t("correction.title")}
           </p>
           <p className="mt-1 truncate text-xs text-muted-foreground">
             Effective {effectiveDate}
@@ -1410,7 +1407,7 @@ export function CorrectionPanel({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Close"
+          aria-label={t("correction.close")}
           onClick={onClose}
         >
           <X className="h-4 w-4" />
@@ -1422,7 +1419,7 @@ export function CorrectionPanel({
         className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4"
       >
           <div className="space-y-1.5">
-            <Label htmlFor="correct-name">Name</Label>
+            <Label htmlFor="correct-name">{t("correction.name")}</Label>
             <Input
               id="correct-name"
               value={name}
@@ -1430,7 +1427,7 @@ export function CorrectionPanel({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="correct-code">Business code</Label>
+            <Label htmlFor="correct-code">{t("correction.code")}</Label>
             <Input
               id="correct-code"
               value={code}
@@ -1444,19 +1441,19 @@ export function CorrectionPanel({
           </div>
           {!isRoot ? (
             <div className="space-y-1.5">
-              <Label>Type</Label>
+              <Label>{t("correction.type")}</Label>
               <TypePicker value={typeId} types={types} onChange={setTypeId} />
             </div>
           ) : null}
           {!isRoot ? (
             <div className="space-y-1.5">
-              <Label>Parent</Label>
+              <Label>{t("correction.parent")}</Label>
               {correctionModel ? (
                 <HierarchyPicker
                   value={parentId || null}
                   model={correctionModel}
                   sourceId={unit?.id}
-                  label="Parent"
+                  label={t("correction.parent")}
                   onChange={setParentId}
                 />
               ) : (
@@ -1468,14 +1465,14 @@ export function CorrectionPanel({
           ) : null}
           {!isRoot ? (
             <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">Status</legend>
+              <legend className="text-sm font-medium">{t("correction.status")}</legend>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   variant={lifecycleState === "Active" ? "secondary" : "outline"}
                   onClick={() => setLifecycleState("Active")}
                 >
-                  Active
+                  {t("correction.active")}
                 </Button>
                 <Button
                   type="button"
@@ -1484,19 +1481,19 @@ export function CorrectionPanel({
                   }
                   onClick={() => setLifecycleState("Inactive")}
                 >
-                  Inactive
+                  {t("correction.inactive")}
                 </Button>
               </div>
             </fieldset>
           ) : null}
           <div className="space-y-1.5">
-            <Label htmlFor="correct-reason">Reason for correction</Label>
+            <Label htmlFor="correct-reason">{t("correction.reason")}</Label>
             <Textarea
               id="correct-reason"
               required
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="What was recorded incorrectly"
+              placeholder={t("correction.reasonPlaceholder")}
             />
           </div>
           <FormError
@@ -1509,7 +1506,7 @@ export function CorrectionPanel({
         </form>
         <div className="flex justify-end gap-2 border-t px-5 py-3">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("correction.cancel")}
           </Button>
           <Button
             form="correct-state"
@@ -1521,7 +1518,7 @@ export function CorrectionPanel({
               saving
             }
           >
-            Correct data
+            {t("correction.submit")}
           </Button>
         </div>
     </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Button, Input, Skeleton, cn } from "@repo/ds";
 import { StatusBadge } from "@repo/ds/shell";
@@ -13,7 +15,7 @@ import type {
 } from "@repo/api";
 import { useOrganizationHierarchy } from "@/features/organization/api/use-organization";
 import { usePeople } from "@/features/people/api/use-people";
-import { EmployeeIdentity, Monogram, formatWorkforceDate } from "@/features/people/components/workforce-ui";
+import { EmployeeIdentity, Monogram, useWorkforceDate } from "@/features/people/components/workforce-ui";
 import { useImportManagerCandidates } from "../api/use-workforce-import";
 import { employmentState } from "../model/review-view";
 
@@ -38,10 +40,11 @@ export function WorkforceReviewInspector({
   busy: boolean;
   onDecide: Decide;
 }) {
+  const t = useTranslations("wfImport.inspector");
   if (!row) {
     return (
       <div className="grid h-full place-items-center px-6 text-center">
-        <p className="type-meta text-muted-foreground">Select an employee to see details.</p>
+        <p className="type-meta text-muted-foreground">{t("select")}</p>
       </div>
     );
   }
@@ -78,13 +81,14 @@ export function WorkforceReviewInspector({
 }
 
 function InspectorHeader({ row }: { row: WorkforceReviewRowDto }) {
+  const t = useTranslations("wfImport.inspector");
   return (
     <div className="flex items-center gap-3 border-b border-border py-4 ps-5 pe-12">
       <Monogram name={row.employee.displayName} size="lg" accent={row.classification === "Create"} />
       <div className="min-w-0">
         <p className="truncate type-panel-title text-foreground">{row.employee.displayName}</p>
         <p className="type-code text-xs text-muted-foreground">
-          {row.employee.numberGenerated ? "Number generated" : row.employee.employeeNumber ?? "—"}
+          {row.employee.numberGenerated ? t("generated") : row.employee.employeeNumber ?? "—"}
         </p>
       </div>
     </div>
@@ -102,23 +106,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 /** The person as Fusion will establish them. */
 function Details({ row, baseline }: { row: WorkforceReviewRowDto; baseline: string }) {
-  const employment = employmentState(row, baseline);
+  const t = useTranslations("wfImport.inspector");
+  const say = useSay("wfImport");
+  const workforceDate = useWorkforceDate();
+  const employment = employmentState(row, baseline, say);
   return (
     <>
-      <Field label="Employment">
-        {employment.date ? `${employment.label} ${formatWorkforceDate(employment.date)}` : employment.label}
+      <Field label={t("employment")}>
+        {employment.date ? `${employment.label} ${workforceDate(employment.date)}` : employment.label}
       </Field>
-      <Field label="Current work">
+      <Field label={t("currentWork")}>
         <p className="font-medium">{row.work.displayTitle ?? "—"}</p>
         {row.work.organization ? <p className="text-muted-foreground">{row.work.organization}</p> : null}
         {row.work.location ? <p className="type-meta text-muted-foreground">{row.work.location}</p> : null}
         {row.work.effectiveFrom ? (
-          <p className="mt-1 type-meta text-muted-foreground">Effective from {formatWorkforceDate(row.work.effectiveFrom)}</p>
+          <p className="mt-1 type-meta text-muted-foreground">{t("effectiveFrom", { date: workforceDate(row.work.effectiveFrom) })}</p>
         ) : null}
       </Field>
-      <Field label="Manager">
+      <Field label={t("manager")}>
         {row.manager.state === "NoManager" ? (
-          <span className="text-muted-foreground">No manager</span>
+          <span className="text-muted-foreground">{t("noManager")}</span>
         ) : (
           <span>
             {row.manager.display ?? "—"}
@@ -127,16 +134,17 @@ function Details({ row, baseline }: { row: WorkforceReviewRowDto; baseline: stri
           </span>
         )}
       </Field>
-      {row.employee.workEmail ? <Field label="Work email">{row.employee.workEmail}</Field> : null}
+      {row.employee.workEmail ? <Field label={t("workEmail")}>{row.employee.workEmail}</Field> : null}
     </>
   );
 }
 
 function ReadyEmployee({ row, baseline }: { row: WorkforceReviewRowDto; baseline: string }) {
+  const t = useTranslations("wfImport.inspector");
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2 type-label font-medium text-success">
-        <Check className="size-4" aria-hidden /> Will be created
+        <Check className="size-4" aria-hidden /> {t("willBeCreated")}
       </div>
       <Details row={row} baseline={baseline} />
       <Notices row={row} />
@@ -161,9 +169,10 @@ function Notices({ row }: { row: WorkforceReviewRowDto }) {
 }
 
 function NotImported({ row, baseline }: { row: WorkforceReviewRowDto; baseline: string }) {
+  const t = useTranslations("wfImport.inspector");
   return (
     <div className="space-y-5">
-      <StatusBadge tone="neutral">Not imported</StatusBadge>
+      <StatusBadge tone="neutral">{t("notImported")}</StatusBadge>
       <Notices row={row} />
       <Details row={row} baseline={baseline} />
     </div>
@@ -171,10 +180,11 @@ function NotImported({ row, baseline }: { row: WorkforceReviewRowDto; baseline: 
 }
 
 function ExistingAnchor({ row }: { row: WorkforceReviewRowDto }) {
+  const t = useTranslations("wfImport.inspector");
   return (
     <div className="space-y-4">
-      <StatusBadge tone="muted" dot>Already in Fusion · no changes</StatusBadge>
-      <Field label="In Fusion">
+      <StatusBadge tone="muted" dot>{t("alreadyInFusion")}</StatusBadge>
+      <Field label={t("inFusion")}>
         <p className="font-medium">{row.employee.existingEmployeeName ?? row.employee.displayName}</p>
         {row.work.organization ? <p className="text-muted-foreground">{row.work.organization}</p> : null}
       </Field>
@@ -205,6 +215,7 @@ function OrganizationResolution({
   busy: boolean;
   onDecide: Decide;
 }) {
+  const t = useTranslations("wfImport.inspector");
   const { data: hierarchy, isLoading: loadingUnits } = useOrganizationHierarchy(baseline);
   const [search, setSearch] = useState("");
   const units = useMemo(() => flattenUnits(hierarchy?.roots ?? []), [hierarchy]);
@@ -238,21 +249,27 @@ function OrganizationResolution({
     <div>
       <AttentionHeading issue={issue} />
       <div className="rounded-control bg-inlay px-3 py-2">
-        <p className="type-meta text-muted-foreground">Your file</p>
+        <p className="type-meta text-muted-foreground">{t("yourFile")}</p>
         <p className="type-label font-medium text-foreground">{sourceValue || "—"}</p>
       </div>
 
       {issue.affectedCount > 1 ? (
         <p className="mt-3 flex items-center gap-1.5 type-meta text-muted-foreground">
           <UsersRound className="size-3.5" aria-hidden />
-          <span className="font-medium text-foreground">&quot;{sourceValue}&quot;</span> appears on{" "}
-          <span className="font-semibold text-foreground tabular-nums">{issue.affectedCount}</span> employees
+          <span>
+            {t.rich("appearsOn", {
+              value: sourceValue,
+              count: issue.affectedCount,
+              b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+              n: (chunks) => <span className="font-semibold text-foreground tabular-nums">{chunks}</span>,
+            })}
+          </span>
         </p>
       ) : null}
 
       {suggested.length > 0 ? (
         <div className="mt-4">
-          <p className="type-meta uppercase tracking-wide text-muted-foreground">Suggested matches</p>
+          <p className="type-meta uppercase tracking-wide text-muted-foreground">{t("suggested")}</p>
           <ul className="mt-2 space-y-1">
             {suggested.map((u) => (
               <li key={u.id}>
@@ -264,11 +281,11 @@ function OrganizationResolution({
       ) : null}
 
       <p className="mt-4 type-meta uppercase tracking-wide text-muted-foreground">
-        {suggested.length > 0 ? "All organizations" : "Which Organization does it mean?"}
+        {suggested.length > 0 ? t("allOrganizations") : t("whichOrganization")}
       </p>
       <div className="relative mt-2">
         <Search className="pointer-events-none absolute inset-s-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search organization…" className="h-8 ps-8 type-meta" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchOrganization")} className="h-8 ps-8 type-meta" />
       </div>
       <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
         {rest.map((u) => (
@@ -283,11 +300,11 @@ function OrganizationResolution({
               </li>
             ))
           : rest.length === 0
-            ? <li className="px-2.5 py-2 type-meta text-muted-foreground">No matching organization.</li>
+            ? <li className="px-2.5 py-2 type-meta text-muted-foreground">{t("noOrganization")}</li>
             : null}
       </ul>
       {issue.affectedCount > 1 ? (
-        <p className="mt-3 type-meta text-muted-foreground">Choosing applies to all {issue.affectedCount} employees.</p>
+        <p className="mt-3 type-meta text-muted-foreground">{t("appliesToAll", { count: issue.affectedCount })}</p>
       ) : null}
     </div>
   );
@@ -332,6 +349,7 @@ function ManagerResolution({
   busy: boolean;
   onDecide: Decide;
 }) {
+  const t = useTranslations("wfImport.inspector");
   const [search, setSearch] = useState("");
   // The grouped decision key names the reference; the display is what the file said.
   const reference = issue.decisionKey?.startsWith("mgr:") ? issue.decisionKey.slice(4) : row.manager.display ?? "";
@@ -351,7 +369,7 @@ function ManagerResolution({
       <AttentionHeading issue={issue} />
       {reference ? (
         <div className="rounded-control bg-inlay px-3 py-2">
-          <p className="type-meta text-muted-foreground">Your file</p>
+          <p className="type-meta text-muted-foreground">{t("yourFile")}</p>
           <p className="type-label font-medium text-foreground">{reference}</p>
         </div>
       ) : null}
@@ -359,19 +377,25 @@ function ManagerResolution({
       {issue.affectedCount > 1 ? (
         <p className="mt-3 flex items-center gap-1.5 type-meta text-muted-foreground">
           <UsersRound className="size-3.5" aria-hidden />
-          <span className="font-medium text-foreground">&quot;{reference}&quot;</span> manages{" "}
-          <span className="font-semibold text-foreground tabular-nums">{issue.affectedCount}</span> people in this import
+          <span>
+            {t.rich("manages", {
+              value: reference,
+              count: issue.affectedCount,
+              b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+              n: (chunks) => <span className="font-semibold text-foreground tabular-nums">{chunks}</span>,
+            })}
+          </span>
         </p>
       ) : null}
 
       <div className="relative mt-4">
         <Search className="pointer-events-none absolute inset-s-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people…" className="h-8 ps-8 type-meta" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPeople")} className="h-8 ps-8 type-meta" />
       </div>
 
       {importCandidates.length > 0 ? (
         <div className="mt-4">
-          <p className="type-meta uppercase tracking-wide text-muted-foreground">In this import</p>
+          <p className="type-meta uppercase tracking-wide text-muted-foreground">{t("inThisImport")}</p>
           <ul className="mt-2 space-y-1">
             {importCandidates.map((c) => (
               <li key={c.sourceRowNumber}>
@@ -383,7 +407,7 @@ function ManagerResolution({
                 >
                   <EmployeeIdentity
                     name={c.displayName}
-                    employeeNumber={c.numberGenerated ? "Generated" : c.employeeNumber}
+                    employeeNumber={c.numberGenerated ? t("generatedShort") : c.employeeNumber}
                     secondary={c.title ?? undefined}
                     size="sm"
                   />
@@ -396,7 +420,7 @@ function ManagerResolution({
 
       {existing.length > 0 ? (
         <div className="mt-4">
-          <p className="type-meta uppercase tracking-wide text-muted-foreground">Already in Fusion</p>
+          <p className="type-meta uppercase tracking-wide text-muted-foreground">{t("alreadyInFusionHeading")}</p>
           <ul className="mt-2 space-y-1">
             {existing.map((person) => (
               <li key={person.employeeKey}>
@@ -420,14 +444,14 @@ function ManagerResolution({
       ) : null}
 
       <p className="mt-4 type-meta text-muted-foreground">
-        {empty && search ? "No one matches — " : "Or "}
+        {empty && search ? t("noOneMatches") : t("or")}
         <button
           type="button"
           disabled={busy}
           onClick={clearManager}
           className="font-medium text-foreground underline-offset-4 hover:underline disabled:opacity-50"
         >
-          set no manager
+          {t("setNoManager")}
         </button>
       </p>
     </div>
@@ -449,11 +473,13 @@ function WorkDateResolution({
   busy: boolean;
   onDecide: Decide;
 }) {
+  const t = useTranslations("wfImport.inspector");
+  const workforceDate = useWorkforceDate();
   return (
     <div>
       <AttentionHeading issue={issue} />
       <Button size="sm" disabled={busy} onClick={() => onDecide({ useBaselineForWorkDates: true })}>
-        Use {formatWorkforceDate(baseline)} as their work start
+        {t("useBaseline", { date: workforceDate(baseline) })}
       </Button>
     </div>
   );
@@ -470,11 +496,12 @@ function DuplicateResolution({
   busy: boolean;
   onDecide: Decide;
 }) {
+  const t = useTranslations("wfImport.inspector");
   return (
     <div>
       <AttentionHeading issue={issue} />
       <Button size="sm" variant="outline" disabled={busy} onClick={() => onDecide({ keepAsDistinctRow: row.sourceRowNumber })}>
-        They&apos;re different people
+        {t("different")}
       </Button>
     </div>
   );
@@ -482,15 +509,16 @@ function DuplicateResolution({
 
 /** Blockers only the source can fix, or that belong to Match. */
 function SourceBlocker({ issue, matchHref }: { issue: WorkforceReviewIssueDto; matchHref: string | null }) {
+  const t = useTranslations("wfImport.inspector");
   return (
     <div>
       <AttentionHeading issue={issue} />
       {matchHref ? (
         <Button size="sm" variant="outline" asChild>
-          <Link href={matchHref}>Change matching</Link>
+          <Link href={matchHref}>{t("changeMatching")}</Link>
         </Button>
       ) : (
-        <p className="type-meta text-muted-foreground">Fix this in your file, then start a new import with it.</p>
+        <p className="type-meta text-muted-foreground">{t("fixInFile")}</p>
       )}
     </div>
   );

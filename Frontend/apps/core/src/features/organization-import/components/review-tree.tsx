@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { AlertCircle, ChevronDown, ChevronRight, Plus, TriangleAlert, Unlink } from "lucide-react";
 import { cn } from "@repo/ds";
@@ -40,6 +41,7 @@ export function ReviewTree({
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
 }) {
+  const t = useTranslations("orgImport.tree");
   const rows = useMemo(() => flattenReviewTree(model, collapsed, visible), [model, collapsed, visible]);
   const [activeId, setActiveId] = useState<string | null>(selectedId ?? rows[0]?.node.id ?? null);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
@@ -97,10 +99,10 @@ export function ReviewTree({
   }
 
   if (rows.length === 0)
-    return <p className="px-2 py-10 text-center type-body text-muted-foreground">No units match your search.</p>;
+    return <p className="px-2 py-10 text-center type-body text-muted-foreground">{t("noMatch")}</p>;
 
   return (
-    <div role="tree" aria-label="Resulting organization" className="py-1">
+    <div role="tree" aria-label={t("label")} className="py-1">
       {rows.map((row, index) => {
         const { node, depth } = row;
         const severity = attention.get(node.id);
@@ -135,7 +137,7 @@ export function ReviewTree({
                 <button
                   type="button"
                   tabIndex={-1}
-                  aria-label={`${row.expanded ? "Collapse" : "Expand"} ${node.name}`}
+                  aria-label={t(row.expanded ? "collapse" : "expand", { name: node.name })}
                   disabled={Boolean(visible)}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -173,12 +175,12 @@ export function ReviewTree({
                   {node.name}
                 </span>
                 {severity === "Blocker" ? (
-                  <AlertCircle className="size-4 shrink-0 text-destructive" aria-label="Blocking issue" />
+                  <AlertCircle className="size-4 shrink-0 text-destructive" aria-label={t("blocking")} />
                 ) : severity === "Warning" ? (
-                  <TriangleAlert className="size-4 shrink-0 fill-warning/15 text-warning" aria-label="Warning" />
+                  <TriangleAlert className="size-4 shrink-0 fill-warning/15 text-warning" aria-label={t("warning")} />
                 ) : null}
                 {markExisting && !node.isNew && !node.isPlaceholder ? (
-                  <span className="shrink-0 rounded-control bg-muted px-1.5 py-0.5 type-meta text-muted-foreground">Existing</span>
+                  <span className="shrink-0 rounded-control bg-muted px-1.5 py-0.5 type-meta text-muted-foreground">{t("existing")}</span>
                 ) : null}
               </span>
               {!node.isPlaceholder ? (

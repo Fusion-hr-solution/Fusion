@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button, cn } from "@repo/ds";
@@ -30,6 +31,7 @@ export function ImportReviewFooter({
   noopLabel: { idle: string; busy: string; status: string; variant?: "default" | "outline" };
   onPublish: () => void;
 }) {
+  const t = useTranslations("dataImport");
   const blocked = !canPublish;
   return (
     <div className="sticky bottom-0 z-20 mt-8 border-t border-border bg-background">
@@ -37,7 +39,7 @@ export function ImportReviewFooter({
         <Button variant="outline" asChild>
           <Link href={matchHref}>
             <ArrowLeft aria-hidden />
-            Back to Match
+            {t("reviewFooter.back")}
           </Link>
         </Button>
         <div className="flex items-center gap-4">
@@ -51,12 +53,10 @@ export function ImportReviewFooter({
               <CheckCircle2 aria-hidden className="size-4 fill-success/15 text-success" />
             )}
             {blocked
-              ? blockingCount === 1
-                ? "1 thing needs your attention before you can publish."
-                : `${blockingCount} things need your attention before you can publish.`
+              ? t("reviewFooter.blocking", { count: blockingCount })
               : noop
                 ? noopLabel.status
-                : "Ready to publish"}
+                : t("reviewFooter.ready")}
           </p>
           <Button variant={noop ? (noopLabel.variant ?? "default") : "default"} disabled={blocked || busy} onClick={onPublish}>
             {noop ? (busy ? noopLabel.busy : noopLabel.idle) : publishLabel}

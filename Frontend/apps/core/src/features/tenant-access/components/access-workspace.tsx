@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -52,6 +53,7 @@ function includesQuery(query: string, ...fields: string[]) {
 }
 
 export default function AccessWorkspace() {
+  const t = useTranslations("admins");
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
   const isWide = useIsWide();
@@ -109,10 +111,10 @@ export default function AccessWorkspace() {
   if (!canView) {
     return (
       <PageContainer width="wide" className="max-w-4xl space-y-6">
-        <PageHeader title="Administrators" />
+        <PageHeader title={t("title")} />
         <PagePermissionNotice
-          title="You do not have access to this page"
-          description="Ask an administrator if you need to manage who administers this tenant."
+          title={t("denied.title")}
+          description={t("denied.description")}
         />
       </PageContainer>
     );
@@ -138,7 +140,7 @@ export default function AccessWorkspace() {
       onClose={() => setSelectedId(null)}
       onSelfRemoved={() => {
         setSelectedId(null);
-        toast.success("You no longer administer this tenant.");
+        toast.success(t("selfRemoved"));
         router.replace("/");
       }}
       onChanged={(message) => toast.success(message)}
@@ -148,13 +150,13 @@ export default function AccessWorkspace() {
   return (
     <PageContainer width="wide" className="space-y-8">
       <PageHeader
-        eyebrow={<span className="type-eyebrow text-primary-ink">Tenant administration</span>}
-        title="Administrators"
-        description="Manage who can administer this tenant. Invite, suspend, or remove administrator access."
+        eyebrow={<span className="type-eyebrow text-primary-ink">{t("eyebrow")}</span>}
+        title={t("title")}
+        description={t("description")}
         actions={
           <Button asChild variant="outline">
             <Link href="/access/activity">
-              View activity log
+              {t("viewActivity")}
               <ArrowRight className="size-4" />
             </Link>
           </Button>
@@ -172,16 +174,16 @@ export default function AccessWorkspace() {
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-8">
           <div className="flex flex-col gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
-            <div role="tablist" aria-label="Administrator views" className="flex gap-5">
+            <div role="tablist" aria-label={t("views")} className="flex gap-5">
               <ViewTab active={view === "current"} onClick={() => setView("current")}>
-                Administrators
+                {t("title")}
               </ViewTab>
               <ViewTab
                 active={view === "removed"}
                 onClick={() => setView("removed")}
                 count={(removed.data ?? []).length}
               >
-                Removed
+                {t("removed")}
               </ViewTab>
             </div>
 
@@ -191,9 +193,9 @@ export default function AccessWorkspace() {
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder={view === "removed" ? "Search removed…" : "Search administrators…"}
+                  placeholder={view === "removed" ? t("searchRemoved") : t("searchAdmins")}
                   className="ps-9"
-                  aria-label="Search"
+                  aria-label={t("search")}
                 />
               </div>
             </div>
@@ -202,12 +204,12 @@ export default function AccessWorkspace() {
           {view === "current" ? (
             <div className="space-y-8">
               <section className="space-y-3">
-                <SectionHeading title="Active administrators" count={active.length} />
+                <SectionHeading title={t("activeTitle")} count={active.length} />
                 {administrators.isLoading ? (
-                  <PageSkeleton rows={3} width="wide" label="Loading administrators" />
+                  <PageSkeleton rows={3} width="wide" label={t("loadingAdmins")} />
                 ) : administrators.error !== null ? (
                   <SectionFailure
-                    label="administrators"
+                    message={t("failAdmins")}
                     onRetry={() => void administrators.refetch()}
                   />
                 ) : active.length > 0 ? (
@@ -220,33 +222,33 @@ export default function AccessWorkspace() {
                 ) : (
                   <EmptyStateCard
                     icon={<UserX className="size-5" />}
-                    title="No active administrators"
-                    hint="No one can administer this tenant right now."
+                    title={t("noActive")}
+                    hint={t("noActiveHint")}
                   />
                 )}
               </section>
 
               <section className="space-y-3">
-                <SectionHeading title="Pending invitations" count={pending.length} />
+                <SectionHeading title={t("pendingTitle")} count={pending.length} />
                 {invitations.isLoading ? (
-                  <PageSkeleton rows={3} width="wide" label="Loading invitations" />
+                  <PageSkeleton rows={3} width="wide" label={t("loadingInvitations")} />
                 ) : invitations.error !== null ? (
-                  <SectionFailure label="invitations" onRetry={() => void invitations.refetch()} />
+                  <SectionFailure message={t("failInvitations")} onRetry={() => void invitations.refetch()} />
                 ) : pending.length > 0 ? (
                   <InvitationsTable invitations={pending} canManage={canManage} />
                 ) : (
                   <EmptyStateCard
                     icon={<Inbox className="size-5" />}
-                    title="No pending invitations"
-                    hint={canManage ? "Invite an administrator to see it here." : undefined}
+                    title={t("noPending")}
+                    hint={canManage ? t("noPendingHint") : undefined}
                   />
                 )}
               </section>
 
               <section className="space-y-3">
-                <SectionHeading title="Suspended administrators" count={suspended.length} />
+                <SectionHeading title={t("suspendedTitle")} count={suspended.length} />
                 {administrators.isLoading ? (
-                  <PageSkeleton rows={2} width="wide" label="Loading administrators" />
+                  <PageSkeleton rows={2} width="wide" label={t("loadingAdmins")} />
                 ) : administrators.error !== null ? null : suspended.length > 0 ? (
                   <AdministratorTable
                     administrators={suspended}
@@ -257,8 +259,8 @@ export default function AccessWorkspace() {
                 ) : (
                   <EmptyStateCard
                     icon={<UserX className="size-5" />}
-                    title="No suspended administrators"
-                    hint="Suspended administrators will appear here."
+                    title={t("noSuspended")}
+                    hint={t("noSuspendedHint")}
                   />
                 )}
               </section>
@@ -266,10 +268,10 @@ export default function AccessWorkspace() {
           ) : (
             <section className="space-y-3">
               {removed.isLoading ? (
-                <PageSkeleton rows={4} width="wide" label="Loading removed administrators" />
+                <PageSkeleton rows={4} width="wide" label={t("loadingRemoved")} />
               ) : removed.error !== null ? (
                 <SectionFailure
-                  label="removed administrators"
+                  message={t("failRemoved")}
                   onRetry={() => void removed.refetch()}
                 />
               ) : removedRows.length > 0 ? (
@@ -277,8 +279,8 @@ export default function AccessWorkspace() {
               ) : (
                 <EmptyStateCard
                   icon={<UserRoundPlus className="size-5" />}
-                  title="No removed administrators"
-                  hint="Administrators whose access was removed will appear here."
+                  title={t("noRemoved")}
+                  hint={t("noRemovedHint")}
                 />
               )}
             </section>
@@ -286,7 +288,7 @@ export default function AccessWorkspace() {
         </div>
 
         {isWide ? (
-          <aside aria-label="Administrator details">
+          <aside aria-label={t("details")}>
             <div className="sticky top-6 overflow-hidden rounded-surface border bg-card">
               {detail ?? <DetailPlaceholder />}
             </div>
@@ -297,7 +299,7 @@ export default function AccessWorkspace() {
       {!isWide ? (
         <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelectedId(null)}>
           <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-sm">
-            <SheetTitle className="sr-only">Administrator details</SheetTitle>
+            <SheetTitle className="sr-only">{t("details")}</SheetTitle>
             {detail}
           </SheetContent>
         </Sheet>
@@ -309,8 +311,8 @@ export default function AccessWorkspace() {
         onInvited={(email, deliveryFailed) =>
           toast.success(
             deliveryFailed
-              ? `Invitation created for ${email}, but the email could not be delivered. Resend it.`
-              : `Invitation sent to ${email}.`
+              ? t("invitedFailed", { email })
+              : t("invited", { email })
           )
         }
       />
@@ -351,26 +353,28 @@ function ViewTab({
 }
 
 function DetailPlaceholder() {
+  const t = useTranslations("admins");
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
       <span aria-hidden className="text-muted-foreground/50">
         <UserRoundPlus className="size-9" strokeWidth={1.5} />
       </span>
-      <p className="type-label text-foreground">No administrator selected</p>
+      <p className="type-label text-foreground">{t("noneSelected")}</p>
       <p className="max-w-[24ch] type-meta text-muted-foreground">
-        Select an administrator to view their access and manage it.
+        {t("noneSelectedHint")}
       </p>
     </div>
   );
 }
 
 /** One section failing does not take the page with it, and it offers its own retry. */
-function SectionFailure({ label, onRetry }: { label: string; onRetry: () => void }) {
+function SectionFailure({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const t = useTranslations("admins");
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border px-4 py-3">
-      <p className="type-body text-muted-foreground">The {label} could not be loaded.</p>
+      <p className="type-body text-muted-foreground">{message}</p>
       <Button variant="outline" size="sm" onClick={onRetry}>
-        Retry
+        {t("retry")}
       </Button>
     </div>
   );

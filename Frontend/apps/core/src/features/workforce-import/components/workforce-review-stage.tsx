@@ -1,5 +1,8 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useImportProblem } from "@/features/data-import/components/import-words";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -29,7 +32,7 @@ import {
   type WorkforceReviewRowDto,
 } from "@repo/api";
 import { ImportReviewFooter } from "@/features/data-import/components/review-footer";
-import { formatWorkforceDate } from "@/features/people/components/workforce-ui";
+import { useWorkforceDate } from "@/features/people/components/workforce-ui";
 import { useWorkforceApplyStatus, useWorkforceImportApi, useWorkforceReview, useWorkforceSessionCache } from "../api/use-workforce-import";
 import { workforceImportStageHref } from "../model/import-stage";
 import { reviewNotices, type ReviewFilter, type ReviewNotice } from "../model/review-view";
@@ -46,6 +49,11 @@ import { WorkforceReviewBanner, WorkforceReviewNotices } from "./workforce-revie
  * The publication runs in the background and is followed here until Fusion lands on the new people.
  */
 export function WorkforceReviewStage() {
+  const t = useTranslations("wfImport.review");
+  const say = useSay("wfImport");
+  const english = useLocale() === "en";
+  const workforceDate = useWorkforceDate();
+  const problemLine = useImportProblem();
   const { session, refetch, beginPublish, endPublish } = useWorkforceImportFrame();
   const api = useWorkforceImportApi();
   const cache = useWorkforceSessionCache();
@@ -82,9 +90,9 @@ export function WorkforceReviewStage() {
   const summary = review.data?.summary;
   const counts = summary?.counts ?? countsFrom(session);
   const notices = useMemo(() => {
-    const list = reviewNotices(counts, summary?.issueGroups ?? [], formatWorkforceDate(session.baselineDate));
-    return changed ? [CHANGED, ...list] : list;
-  }, [counts, summary, session.baselineDate, changed]);
+    const list = reviewNotices(counts, summary?.issueGroups ?? [], workforceDate(session.baselineDate), say);
+    return changed ? [changedNotice(t), ...list] : list;
+  }, [counts, summary, session.baselineDate, changed, say, t, workforceDate]);
 
   // Keep the open person current as the proposal re-derives; after a resolution clears them from the
   // queue, move on to the next person who still needs attention, or close.
@@ -136,7 +144,7 @@ export function WorkforceReviewStage() {
       endPublish(false);
       setPublishing(false);
       setChanged(current.status === "ReviewOutdated");
-      if (current.status === "Failed") toast.error("The workforce was not published", { description: current.message ?? undefined });
+      if (current.status === "Failed") toast.error(t("notPublished"), { description: (english ? current.message : null) ?? undefined });
       void refresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,7 +156,7 @@ export function WorkforceReviewStage() {
   };
 
   const onNotice = (notice: ReviewNotice) => {
-    if (notice.key === CHANGED.key) return setChanged(false);
+    if (notice.key === changedNotice(t).key) return setChanged(false);
     if (notice.filter === "Blocked") openFirstBlocked.current = true;
     setSearchInput("");
     setSearch("");
@@ -161,7 +169,7 @@ export function WorkforceReviewStage() {
       await api.updateResolutions(session.id, session.version, resolution);
       await refresh();
     } catch (e) {
-      toast.error("The proposal was not updated", { description: translateWorkforceImportError(e).message });
+      toast.error(t("notUpdated"), { description: problemLine(translateWorkforceImportError(e)) });
       await refresh();
     } finally {
       setBusy(false);
@@ -174,7 +182,7 @@ export function WorkforceReviewStage() {
       await cache(await api.changeBaseline(session.id, session.version, date));
       setPage(1);
     } catch (e) {
-      toast.error("The workforce date was not changed", { description: translateWorkforceImportError(e).message });
+      toast.error(t("dateNotChanged"), { description: problemLine(translateWorkforceImportError(e)) });
       await refresh();
     } finally {
       setChangingAsOf(false);
@@ -195,7 +203,7 @@ export function WorkforceReviewStage() {
       const problem = translateWorkforceImportError(e);
       setConfirming(false);
       if (problem.code === "ProposalChanged") setChanged(true);
-      else toast.error("The workforce was not published", { description: problem.message });
+      else toast.error(t("notPublished"), { description: problemLine(problem) });
       await refresh();
     } finally {
       setBusy(false);
@@ -208,7 +216,7 @@ export function WorkforceReviewStage() {
       await api.discard(session.id, session.version);
       router.replace("/people/import");
     } catch (e) {
-      toast.error("The import was not discarded", { description: translateWorkforceImportError(e).message });
+      toast.error(t("notDiscarded"), { description: problemLine(translateWorkforceImportError(e)) });
       setBusy(false);
     }
   };
@@ -226,7 +234,7 @@ export function WorkforceReviewStage() {
 
   const noop = counts.blocked === 0 && counts.create === 0;
   return (
-    <section aria-label="Review">
+    <section aria-label={t("label")}>
       <PageContainer className="space-y-4 pt-2">
         <WorkforceReviewBanner counts={counts} asOf={session.baselineDate} changingAsOf={changingAsOf} onChangeAsOf={(d) => void changeAsOf(d)} />
         <WorkforceReviewNotices notices={notices} onView={onNotice} />
@@ -256,15 +264,15 @@ export function WorkforceReviewStage() {
         canPublish={counts.blocked === 0 && (noop || session.canPublish)}
         noop={noop}
         busy={busy}
-        publishLabel="Publish workforce"
-        noopLabel={{ idle: "Discard import", busy: "Discarding…", status: "Nothing to import", variant: "outline" }}
+        publishLabel={t("publish")}
+        noopLabel={{ idle: t("discard"), busy: t("discarding"), status: t("nothing"), variant: "outline" }}
         onPublish={() => (noop ? void discard() : setConfirming(true))}
       />
 
       <Sheet open={sheetOpen && selected !== null} onOpenChange={setSheetOpen}>
         <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-md">
-          <SheetTitle className="sr-only">{selected?.employee.displayName ?? "Employee"}</SheetTitle>
-          <SheetDescription className="sr-only">What publishing does with this person.</SheetDescription>
+          <SheetTitle className="sr-only">{selected?.employee.displayName ?? t("employee")}</SheetTitle>
+          <SheetDescription className="sr-only">{t("sheetDescription")}</SheetDescription>
           <WorkforceReviewInspector
             row={selected}
             baseline={session.baselineDate}
@@ -280,16 +288,16 @@ export function WorkforceReviewStage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Add {counts.create} {counts.create === 1 ? "employee" : "employees"} to Fusion?
+              {t("confirmTitle", { count: counts.create })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              They join as of {formatWorkforceDate(session.baselineDate)} with their organization and manager.
-              {counts.existing > 0 ? ` ${counts.existing} already in Fusion stay unchanged.` : ""}
-              {counts.notImported > 0 ? ` ${counts.notImported} ${counts.notImported === 1 ? "isn't" : "aren't"} imported.` : ""}
+              {t("confirmDescription", { date: workforceDate(session.baselineDate) })}
+              {counts.existing > 0 ? ` ${t("confirmExisting", { count: counts.existing })}` : ""}
+              {counts.notImported > 0 ? ` ${t("confirmNotImported", { count: counts.notImported })}` : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Keep reviewing</AlertDialogCancel>
+            <AlertDialogCancel disabled={busy}>{t("keep")}</AlertDialogCancel>
             <AlertDialogAction
               disabled={busy}
               onClick={(e) => {
@@ -297,7 +305,7 @@ export function WorkforceReviewStage() {
                 void publish();
               }}
             >
-              {busy ? "Publishing…" : "Publish workforce"}
+              {busy ? t("publishing") : t("publish")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -316,15 +324,17 @@ function countsFrom(session: WorkforceImportSessionDto): WorkforceReviewCountsDt
   };
 }
 
-const CHANGED: ReviewNotice = {
-  key: "changed",
-  tone: "warning",
-  count: null,
-  title: "The workforce changed since you reviewed it",
-  detail: "This is the current proposal. Look it over before publishing.",
-  action: "Dismiss",
-  filter: "",
-};
+function changedNotice(t: ReturnType<typeof useTranslations<"wfImport.review">>): ReviewNotice {
+  return {
+    key: "changed",
+    tone: "warning",
+    count: null,
+    title: t("changed.title"),
+    detail: t("changed.detail"),
+    action: t("changed.action"),
+    filter: "",
+  };
+}
 
 const QUEUED: WorkforceApplyStatusDto = {
   status: "Queued",

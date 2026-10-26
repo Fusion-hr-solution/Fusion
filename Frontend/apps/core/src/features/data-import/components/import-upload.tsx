@@ -1,5 +1,8 @@
 "use client";
 
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useSay } from "@repo/ds/lib/say";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from "react";
@@ -18,7 +21,6 @@ import {
 } from "@repo/ds";
 import { PageContainer } from "@repo/ds/shell";
 import { ArrowRight, ChevronRight, Clock, Download, FileSpreadsheet, FileText, Info, RotateCcw, Upload } from "lucide-react";
-import { formatRelativeTime } from "@/features/organization-import/model/format";
 import { ImportHeader } from "./import-header";
 import { checkLocalSource, formatFileSize, formatModified, sourceKind, type UploadProblem } from "../model/upload-source";
 
@@ -92,6 +94,10 @@ const wait = (ms: number) => (ms > 0 ? new Promise<void>((r) => setTimeout(r, ms
 export function ImportUpload(props: ImportUploadProps) {
   const { title, context, fileNoun, sectionTitle, sectionDescription, date, cancelHref, resume } = props;
   const router = useRouter();
+  const t = useTranslations("dataImport");
+  const say = useSay("dataImport");
+  const english = useLocale() === "en";
+  const format = useFormat();
   const inputId = useId();
   const dateId = useId();
   const [value, setValue] = useState(date.initial);
@@ -114,7 +120,7 @@ export function ImportUpload(props: ImportUploadProps) {
     if (!file || busy) return;
     // A different file is a different source: it gets its own creation token.
     const token = crypto.randomUUID();
-    const problem = checkLocalSource(file);
+    const problem = checkLocalSource(file, { say, english });
     setSource(problem ? { kind: "failed", file, token, problem } : { kind: "selected", file, token });
   }
 
@@ -170,9 +176,9 @@ export function ImportUpload(props: ImportUploadProps) {
         title={title}
         context={context}
         steps={[
-          { key: "upload", label: "Upload", state: handedOff ? "done" : "current" },
-          { key: "match", label: "Match", state: handedOff ? "current" : "upcoming" },
-          { key: "review", label: "Review", state: "upcoming" },
+          { key: "upload", label: t("steps.upload"), state: handedOff ? "done" : "current" },
+          { key: "match", label: t("steps.match"), state: handedOff ? "current" : "upcoming" },
+          { key: "review", label: t("steps.review"), state: "upcoming" },
         ]}
       />
 
@@ -187,7 +193,7 @@ export function ImportUpload(props: ImportUploadProps) {
           <input
             ref={inputRef}
             id={inputId}
-            aria-label={`Choose ${/^[aeiou]/i.test(fileNoun) ? "an" : "a"} ${fileNoun} source file`}
+            aria-label={t("upload.chooseFile", { noun: fileNoun })}
             aria-describedby={`${inputId}-formats`}
             className="sr-only"
             type="file"
@@ -200,9 +206,7 @@ export function ImportUpload(props: ImportUploadProps) {
           />
           <p id={`${inputId}-formats`} className="mt-3 flex items-center gap-2 type-meta text-muted-foreground">
             <Info className="size-3.5 shrink-0" aria-hidden />
-            <span>
-              XLSX, CSV <span aria-hidden>·</span> one sheet per import attempt
-            </span>
+            <span>{t.rich("upload.formats", { dot: (chunks) => <span aria-hidden>{chunks}</span> })}</span>
           </p>
         </div>
 
@@ -223,7 +227,7 @@ export function ImportUpload(props: ImportUploadProps) {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label={`About ${date.label.toLowerCase()}`}
+                    aria-label={t("upload.about", { label: date.label.toLowerCase() })}
                     className="grid size-5 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Info className="size-3.5" aria-hidden />
@@ -252,22 +256,22 @@ export function ImportUpload(props: ImportUploadProps) {
                 {busy ? (
                   <>
                     <Spinner className="size-4" aria-hidden />
-                    Starting import
+                    {t("upload.starting")}
                   </>
                 ) : retrying ? (
                   <>
                     <RotateCcw className="size-4" aria-hidden />
-                    Try again
+                    {t("upload.tryAgain")}
                   </>
                 ) : (
                   <>
-                    Start import
+                    {t("upload.start")}
                     <ChevronRight className="size-4" aria-hidden />
                   </>
                 )}
               </Button>
               <Button asChild variant="ghost" size="lg" className="h-11 px-4 text-base text-muted-foreground">
-                <Link href={cancelHref}>Cancel</Link>
+                <Link href={cancelHref}>{t("upload.cancel")}</Link>
               </Button>
             </div>
           </div>
@@ -282,11 +286,11 @@ export function ImportUpload(props: ImportUploadProps) {
       <div className={cn("grid gap-4", latest && "md:grid-cols-2")}>
         <SideAction
           icon={<Download className="size-5" aria-hidden />}
-          title="Download Fusion template"
-          description="Prefer the standard format? Start from our template."
+          title={t("upload.template")}
+          description={t("upload.templateDescription")}
           action={
-            <ActionButton onClick={props.onDownloadTemplate} aria-label="Download Fusion template">
-              Download
+            <ActionButton onClick={props.onDownloadTemplate} aria-label={t("upload.template")}>
+              {t("upload.download")}
             </ActionButton>
           }
           extra={props.templateExtra?.(value)}
@@ -294,18 +298,18 @@ export function ImportUpload(props: ImportUploadProps) {
         {latest ? (
           <SideAction
             icon={<Clock className="size-5" aria-hidden />}
-            title="Resume previous attempt"
+            title={t("upload.resumeTitle")}
             description={
               <>
-                Saved {formatRelativeTime(latest.savedAt)}
+                {t("upload.saved", { when: latest.savedAt ? format.relative(latest.savedAt) : t("relative.justNow") })}
                 <span aria-hidden> · </span>
                 <span className="break-all">{latest.fileName}</span>
               </>
             }
             action={
               <ActionButton asChild>
-                <Link href={latest.href} aria-label={`Resume ${latest.fileName}`}>
-                  Resume
+                <Link href={latest.href} aria-label={t("upload.resumeFile", { file: latest.fileName })}>
+                  {t("upload.resume")}
                   <ArrowRight className="size-4" aria-hidden />
                 </Link>
               </ActionButton>
@@ -334,6 +338,9 @@ function SourceField({
   onFile: (file: File | undefined) => void;
   onBrowse: () => void;
 }) {
+  const t = useTranslations("dataImport");
+  const say = useSay("dataImport");
+  const locale = useLocale();
   const [dragging, setDragging] = useState(false);
   const messageId = useId();
   const dropHandlers = {
@@ -350,13 +357,12 @@ function SourceField({
       if (!disabled) onFile(event.dataTransfer.files?.[0]);
     },
   };
-  const noun = fileNoun.charAt(0).toUpperCase() + fileNoun.slice(1);
 
   if (source.kind === "none") {
     return (
       <div
         role="region"
-        aria-label={`${noun} source drop area`}
+        aria-label={t("upload.dropArea", { noun: fileNoun })}
         {...dropHandlers}
         className={cn(
           "flex min-h-24 flex-wrap items-center justify-between gap-4 rounded-control border border-dashed px-5 py-4 transition-colors duration-[var(--duration-normal)]",
@@ -369,14 +375,14 @@ function SourceField({
           </span>
           <div className="min-w-0">
             <p className="type-panel-title font-semibold text-foreground">
-              {dragging ? "Drop to add your file" : `Drop your ${fileNoun} file here`}
+              {dragging ? t("upload.dropping") : t("upload.drop", { noun: fileNoun })}
             </p>
-            <p className="mt-1 type-meta text-muted-foreground">Or choose it from your computer</p>
+            <p className="mt-1 type-meta text-muted-foreground">{t("upload.orChoose")}</p>
           </div>
         </div>
         <Button variant="outline" size="lg" className="h-10 gap-2 px-4" onClick={onBrowse}>
           <Upload className="size-4" aria-hidden />
-          Choose file
+          {t("upload.choose")}
         </Button>
       </div>
     );
@@ -385,13 +391,13 @@ function SourceField({
   const file = source.file;
   const kind = sourceKind(file.name);
   const failed = source.kind === "failed" ? source.problem : null;
-  const modified = formatModified(file.lastModified);
+  const modified = formatModified(file.lastModified, new Date(), say, locale);
   const reading = source.kind === "submitting" || source.kind === "handoff";
 
   return (
     <div
       role="group"
-      aria-label={`${noun} source`}
+      aria-label={t("upload.source", { noun: fileNoun })}
       {...dropHandlers}
       className={cn(
         "relative flex min-h-24 flex-wrap items-center justify-between gap-4 overflow-hidden rounded-control border px-5 py-4 transition-colors duration-[var(--duration-normal)]",
@@ -424,7 +430,7 @@ function SourceField({
             {reading ? (
               <span className="flex items-center gap-2 text-foreground">
                 <Spinner className="size-3.5" aria-hidden />
-                {source.kind === "handoff" ? "Opening your import…" : "Reading your file…"}
+                {source.kind === "handoff" ? t("upload.opening") : t("upload.reading")}
               </span>
             ) : failed ? (
               <span className={failed.retryable ? "text-foreground" : "text-destructive"}>{failed.message}</span>
@@ -453,7 +459,7 @@ function SourceField({
         onClick={onBrowse}
       >
         <Upload className="size-4" aria-hidden />
-        {failed && !failed.retryable ? "Choose another file" : "Replace file"}
+        {failed && !failed.retryable ? t("upload.chooseAnother") : t("upload.replace")}
       </Button>
       {reading ? <IntakeProgress complete={source.kind === "handoff"} /> : null}
     </div>
@@ -462,11 +468,12 @@ function SourceField({
 
 /** Only when a workbook holds several data sheets and none is plainly the one. Never a stage of its own. */
 function SheetChoice({ fileNoun, sheets, value, onChange }: { fileNoun: string; sheets: string[]; value: string; onChange: (sheet: string) => void }) {
+  const t = useTranslations("dataImport");
   return (
     <fieldset className="mt-5 rounded-control border border-border p-5">
-      <legend className="sr-only">Sheet to import</legend>
-      <p className="type-label font-semibold text-foreground">This workbook contains several data sheets.</p>
-      <p className="mt-1 type-meta text-muted-foreground">Choose the {fileNoun} data to import.</p>
+      <legend className="sr-only">{t("upload.sheetLegend")}</legend>
+      <p className="type-label font-semibold text-foreground">{t("upload.sheets")}</p>
+      <p className="mt-1 type-meta text-muted-foreground">{t("upload.chooseSheet", { noun: fileNoun })}</p>
       <RadioGroup value={value} onValueChange={onChange} className="mt-4 gap-2">
         {sheets.map((sheet) => (
           <label
@@ -487,10 +494,11 @@ function SheetChoice({ fileNoun, sheets, value, onChange }: { fileNoun: string; 
 
 /** Only when title rows sit above the headers and more than one row could be them. Same grammar as the sheet choice. */
 function HeaderChoice({ candidates, value, onChange }: { candidates: UploadHeaderCandidate[]; value: number; onChange: (rowIndex: number) => void }) {
+  const t = useTranslations("dataImport");
   return (
     <fieldset className="mt-5 rounded-control border border-border p-5">
-      <legend className="sr-only">Header row</legend>
-      <p className="type-label font-semibold text-foreground">Which row holds the column names?</p>
+      <legend className="sr-only">{t("upload.headerLegend")}</legend>
+      <p className="type-label font-semibold text-foreground">{t("upload.headerQuestion")}</p>
       <RadioGroup value={String(value)} onValueChange={(v) => onChange(Number(v))} className="mt-4 gap-2">
         {candidates.map((candidate) => {
           const cells = candidate.preview.filter((cell): cell is string => Boolean(cell?.trim()));
@@ -502,8 +510,8 @@ function HeaderChoice({ candidates, value, onChange }: { candidates: UploadHeade
                 value === candidate.rowIndex ? "border-primary/60 bg-primary/[0.05]" : "border-border hover:bg-muted/40"
               )}
             >
-              <RadioGroupItem value={String(candidate.rowIndex)} aria-label={`Row ${candidate.rowIndex + 1}`} />
-              <span className="shrink-0 type-meta tabular-nums text-muted-foreground">Row {candidate.rowIndex + 1}</span>
+              <RadioGroupItem value={String(candidate.rowIndex)} aria-label={t("upload.row", { number: candidate.rowIndex + 1 })} />
+              <span className="shrink-0 type-meta tabular-nums text-muted-foreground">{t("upload.row", { number: candidate.rowIndex + 1 })}</span>
               <span className="truncate type-label font-medium text-foreground">{cells.join(" · ")}</span>
             </label>
           );
@@ -558,6 +566,7 @@ export function ActionButton(props: React.ComponentProps<typeof Button>) {
  * towards 90% while Fusion reads the file and only completes when the attempt exists.
  */
 function IntakeProgress({ complete }: { complete: boolean }) {
+  const t = useTranslations("dataImport");
   const [value, setValue] = useState(0);
   useEffect(() => {
     if (complete) {
@@ -570,7 +579,7 @@ function IntakeProgress({ complete }: { complete: boolean }) {
   return (
     <div
       role="progressbar"
-      aria-label="Starting import"
+      aria-label={t("upload.starting")}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(value)}

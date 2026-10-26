@@ -1,5 +1,8 @@
 "use client";
 
+import { useStatusWord } from "@/i18n/words";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 import type {
@@ -42,14 +45,11 @@ import {
   useWithdrawInvite,
 } from "../api/use-workforce-access";
 import {
-  CANDIDATE_ACTION_LABEL,
   CANDIDATE_STATE_TONE,
-  baselineLabel,
-  commandOutcomeMessage,
+  useWorkforceAccessWords,
   initialsOf,
   isCommandSuccess,
 } from "./access-language";
-import { formatDate } from "@repo/ds/lib/dates";
 
 /**
  * Context-preserving identity inspector. The drawer is deliberately composed as
@@ -96,13 +96,14 @@ function InspectorBody({
   canManage: boolean;
   onCorrect?: (candidate: WorkforceAccessCandidateDto) => void;
 }) {
+  const t = useTranslations("wfAccess");
   const candidate = useAccessCandidate(employeeId);
 
   if (candidate.isLoading) {
     return (
       <>
-        <SheetTitle className="sr-only">Loading account</SheetTitle>
-        <PageSkeleton rows={6} width="wide" label="Loading account" />
+        <SheetTitle className="sr-only">{t("inspector.loading")}</SheetTitle>
+        <PageSkeleton rows={6} width="wide" label={t("inspector.loading")} />
       </>
     );
   }
@@ -110,16 +111,16 @@ function InspectorBody({
   if (candidate.error !== null || !candidate.data) {
     return (
       <div className="flex flex-1 flex-col items-start justify-center gap-3 p-7">
-        <SheetTitle className="sr-only">Account</SheetTitle>
+        <SheetTitle className="sr-only">{t("inspector.account")}</SheetTitle>
         <p className="type-body text-muted-foreground">
-          This person&apos;s account could not be loaded.
+          {t("inspector.failed")}
         </p>
         <Button
           variant="outline"
           size="sm"
           onClick={() => void candidate.refetch()}
         >
-          Retry
+          {t("inspector.retry")}
         </Button>
       </div>
     );
@@ -146,6 +147,11 @@ function InspectorContent({
   canManage: boolean;
   onCorrect?: (candidate: WorkforceAccessCandidateDto) => void;
 }) {
+  const t = useTranslations("wfAccess");
+  const words = useWorkforceAccessWords();
+  const format = useFormat();
+  const statusWord = useStatusWord();
+  const english = useLocale() === "en";
   const [baseline, setBaseline] = useState<WorkforceBaselineChoice>(
     data.recommendedBaseline
   );
@@ -172,11 +178,11 @@ function InspectorContent({
               ? suspend
               : restore;
       const result = await runner.mutateAsync({ employeeId: data.employeeId });
-      const message = commandOutcomeMessage(result.outcome, result.message);
+      const message = words.outcome(result.outcome, result.message);
       if (isCommandSuccess(result.outcome)) toast.success(message);
       else toast.error(message);
     } catch {
-      toast.error("Something went wrong. Try again.");
+      toast.error(t("inspector.error"));
     }
   };
 
@@ -210,11 +216,11 @@ function InspectorContent({
     try {
       const result: WorkforceAccessCommandResultDto =
         await runner.mutateAsync(args);
-      const message = commandOutcomeMessage(result.outcome, result.message);
+      const message = words.outcome(result.outcome, result.message);
       if (isCommandSuccess(result.outcome)) toast.success(message);
       else toast.error(message);
     } catch {
-      toast.error("Something went wrong. Try again.");
+      toast.error(t("inspector.error"));
     }
   };
 
@@ -222,9 +228,9 @@ function InspectorContent({
     <div className="flex min-h-0 flex-1 flex-col">
       <SheetHeader className="border-b px-7 pb-6 pt-6 pe-16">
         <div className="flex items-start justify-between gap-4">
-          <p className="type-eyebrow text-muted-foreground">Workforce access</p>
+          <p className="type-eyebrow text-muted-foreground">{t("inspector.eyebrow")}</p>
           <StatusBadge tone={CANDIDATE_STATE_TONE[data.accountState]} dot>
-            {data.accountStateLabel}
+            {words.candidate(data.accountState, data.accountStateLabel)}
           </StatusBadge>
         </div>
         <div className="mt-5 flex items-center gap-4">
@@ -241,24 +247,24 @@ function InspectorContent({
               {data.jobTitle ?? data.employmentStatus}
             </SheetDescription>
             <p className="mt-1 type-meta text-muted-foreground">
-              {data.employeeNumber ?? "Employee record"}
+              {data.employeeNumber ?? t("inspector.employeeRecord")}
             </p>
           </div>
         </div>
         <p className="mt-5 max-w-prose type-body text-muted-foreground">
-          {inspectorStateSummary(data)}
+          {inspectorStateSummary(data, t, english)}
         </p>
       </SheetHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="divide-y px-7">
           <InspectorSection
-            eyebrow="Access recommendation"
-            title={baselineLabel(data.directReportCount)}
+            eyebrow={t("inspector.recommendation")}
+            title={words.baseline(data.directReportCount)}
             description={
               data.directReportCount > 0
-                ? `Manager baseline because this person has ${data.directReportCount} active direct report${data.directReportCount === 1 ? "" : "s"}.`
-                : "Employee baseline because there are no active direct reports."
+                ? t("inspector.managerReason", { count: data.directReportCount })
+                : t("inspector.employeeReason")
             }
           >
             {data.availableActions.length > 0 && canManage ? (
@@ -276,7 +282,7 @@ function InspectorContent({
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {choice}
+                      {words.choice(choice)}
                     </button>
                   )
                 )}
@@ -284,19 +290,19 @@ function InspectorContent({
             ) : null}
           </InspectorSection>
 
-          <InspectorSection eyebrow="Person relationship" title="People record">
+          <InspectorSection eyebrow={t("inspector.relationship")} title={t("inspector.peopleRecord")}>
             <div className="mt-4 grid gap-x-6 gap-y-5 sm:grid-cols-2">
               <Detail
-                label="Work email"
-                value={data.workEmail ?? "Not set"}
+                label={t("inspector.workEmail")}
+                value={data.workEmail ?? t("inspector.notSet")}
                 missing={!data.workEmail}
               />
               <Detail
-                label="Organization"
-                value={data.orgUnit?.name ?? "Not assigned"}
+                label={t("inspector.organization")}
+                value={data.orgUnit?.name ?? t("inspector.notAssigned")}
               />
               <div className="sm:col-span-2">
-                <p className="type-eyebrow text-muted-foreground">Manager</p>
+                <p className="type-eyebrow text-muted-foreground">{t("inspector.manager")}</p>
                 {data.manager ? (
                   <div className="mt-2 flex items-center gap-3">
                     <Avatar size="sm">
@@ -310,26 +316,26 @@ function InspectorContent({
                       </p>
                       <p className="type-meta text-muted-foreground">
                         {data.manager.isActive
-                          ? "Active manager"
-                          : "Inactive manager"}
+                          ? t("inspector.activeManager")
+                          : t("inspector.inactiveManager")}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <p className="mt-2 type-body text-muted-foreground">
-                    No manager assigned
+                    {t("inspector.noManager")}
                   </p>
                 )}
               </div>
               <Detail
-                label="Direct reports"
-                value={`${data.directReportCount} active ${data.directReportCount === 1 ? "report" : "reports"}`}
+                label={t("inspector.directReports")}
+                value={t("inspector.reports", { count: data.directReportCount })}
               />
-              <Detail label="Employment" value={data.employmentStatus} />
+              <Detail label={t("inspector.employment")} value={statusWord(data.employmentStatus)} />
             </div>
           </InspectorSection>
 
-          <InspectorSection eyebrow="Fusion account" title="Account footprint">
+          <InspectorSection eyebrow={t("inspector.fusionAccount")} title={t("inspector.footprint")}>
             <div className="mt-4 space-y-4">
               <div className="flex items-start gap-3">
                 <Mail
@@ -338,17 +344,17 @@ function InspectorContent({
                 />
                 <div className="min-w-0">
                   <p className="type-eyebrow text-muted-foreground">
-                    Account email
+                    {t("inspector.accountEmail")}
                   </p>
                   <p className="mt-1 truncate type-body text-foreground">
-                    {data.accountEmail ?? "No Fusion account linked"}
+                    {data.accountEmail ?? t("inspector.noAccount")}
                   </p>
                 </div>
               </div>
               {data.additionalAccess && data.additionalAccess.length > 0 ? (
                 <div>
                   <p className="type-eyebrow text-muted-foreground">
-                    Additional access
+                    {t("inspector.additional")}
                   </p>
                   <p className="mt-1 type-body text-foreground">
                     {data.additionalAccess.join(" · ")}
@@ -362,8 +368,7 @@ function InspectorContent({
                     aria-hidden="true"
                   />
                   <p className="type-meta text-muted-foreground">
-                    Tenant Administrator authority is managed under
-                    Administrators and is preserved here.
+                    {t("inspector.adminNote")}
                   </p>
                 </div>
               ) : null}
@@ -371,7 +376,7 @@ function InspectorContent({
           </InspectorSection>
 
           {audit.data && audit.data.length > 0 ? (
-            <InspectorSection eyebrow="Audit trail" title="Recent activity">
+            <InspectorSection eyebrow={t("inspector.audit")} title={t("inspector.recent")}>
               <ol className="mt-4 space-y-4">
                 {audit.data.slice(0, 5).map((line, index) => (
                   <li key={index} className="relative flex gap-3">
@@ -387,7 +392,7 @@ function InspectorContent({
                         {line.summary}
                       </p>
                       <p className="mt-0.5 type-meta text-muted-foreground">
-                        {formatDate(line.occurredAt)}
+                        {format.date(line.occurredAt)}
                       </p>
                     </div>
                   </li>
@@ -451,6 +456,8 @@ function InspectorActions({
   suspendLoading: boolean;
   restoreLoading: boolean;
 }) {
+  const t = useTranslations("wfAccess");
+  const words = useWorkforceAccessWords();
   return (
     <div className="border-t bg-popover px-7 py-4">
       {data.availableActions.length > 0 && canManage ? (
@@ -462,19 +469,18 @@ function InspectorActions({
               disabled={pending}
               onClick={() => void runAction(action)}
             >
-              {CANDIDATE_ACTION_LABEL[action] ?? action}
+              {words.action(action)}
               <ArrowUpRight className="size-4" aria-hidden="true" />
             </Button>
           ))}
           <p className="text-center type-meta text-muted-foreground">
-            Baseline: {baseline}
+            {t("inspector.baselineIs", { baseline: words.choice(baseline) })}
           </p>
         </div>
       ) : isPending && canManage ? (
         <div className="space-y-2">
           <p className="type-meta text-muted-foreground">
-            This invitation is still pending. Choose whether to send a fresh
-            link or leave it untouched.
+            {t("inspector.pendingNote")}
           </p>
           <div className="flex gap-2">
             <Button
@@ -483,7 +489,7 @@ function InspectorActions({
               disabled={resendLoading || withdrawLoading}
               onClick={() => void runLifecycle("resend")}
             >
-              Resend invitation
+              {t("inspector.resend")}
             </Button>
             <Button
               variant="outline"
@@ -491,18 +497,18 @@ function InspectorActions({
               disabled={resendLoading || withdrawLoading}
               onClick={() => void runLifecycle("withdraw")}
             >
-              Withdraw
+              {t("inspector.withdraw")}
             </Button>
           </div>
         </div>
       ) : data.isAdministrator ? (
         <div className="space-y-2">
           <p className="type-meta text-muted-foreground">
-            Administrator authority is managed separately.
+            {t("inspector.adminSeparate")}
           </p>
           <Button asChild variant="outline" className="w-full">
             <Link href="/access">
-              Open Administrators
+              {t("inspector.openAdmins")}
               <ArrowUpRight className="size-4" aria-hidden="true" />
             </Link>
           </Button>
@@ -510,14 +516,14 @@ function InspectorActions({
       ) : isSuspended && canManage ? (
         <div className="space-y-2">
           <p className="type-meta text-muted-foreground">
-            Access is suspended. The account and its history are preserved.
+            {t("inspector.suspendedNote")}
           </p>
           <Button
             className="w-full"
             disabled={restoreLoading}
             onClick={() => void runLifecycle("restore")}
           >
-            Restore access
+            {t("inspector.restore")}
           </Button>
         </div>
       ) : isActiveAccount && canManage ? (
@@ -528,7 +534,7 @@ function InspectorActions({
             disabled={suspendLoading}
             onClick={() => void runLifecycle("suspend")}
           >
-            Suspend access
+            {t("inspector.suspend")}
           </Button>
           {onCorrect ? (
             <button
@@ -536,17 +542,17 @@ function InspectorActions({
               onClick={() => onCorrect(data)}
               className="flex w-full items-center justify-center gap-1 rounded-control px-3 py-1.5 type-meta text-muted-foreground transition-colors hover:text-foreground"
             >
-              Wrong person? Correct identity link
+              {t("inspector.wrongPerson")}
             </button>
           ) : null}
         </div>
       ) : data.accountState === "Active" ? (
         <p className="type-meta text-muted-foreground">
-          This person already has active Fusion access.
+          {t("inspector.alreadyActive")}
         </p>
       ) : !canManage ? (
         <p className="type-meta text-muted-foreground">
-          You can view workforce access but not change it.
+          {t("inspector.viewOnly")}
         </p>
       ) : (
         <div className="flex items-start gap-3 rounded-control bg-warning-subtle px-3 py-3">
@@ -555,7 +561,7 @@ function InspectorActions({
             aria-hidden="true"
           />
           <p className="type-meta text-warning-foreground">
-            {data.blockedReason ?? "No action is available for this account."}
+            {words.server(data.blockedReason, t("inspector.noAction"))}
           </p>
         </div>
       )}
@@ -612,20 +618,12 @@ function Detail({
   );
 }
 
-function inspectorStateSummary(data: WorkforceAccessCandidateDto): string {
-  if (data.blockedReason) return data.blockedReason;
-  switch (data.accountState) {
-    case "NewAccount":
-      return "No Fusion account is linked yet. Review the recommendation before sending access.";
-    case "ExistingAccountReadyToLink":
-      return "A Fusion account matches this person. Linking preserves the existing account and its access.";
-    case "ExistingAccountReadyToJoinTenant":
-      return "A Fusion account can join this tenant. Review the baseline before connecting it.";
-    case "SuspendedAccountReadyToReactivate":
-      return "A suspended account is available to reactivate and link to this workforce record.";
-    case "Active":
-      return "This person already has active Fusion access.";
-    default:
-      return data.accountStateLabel;
-  }
+function inspectorStateSummary(
+  data: WorkforceAccessCandidateDto,
+  t: ReturnType<typeof useTranslations<"wfAccess">>,
+  english: boolean
+): string {
+  if (data.blockedReason && english) return data.blockedReason;
+  const key = `inspector.summary.${data.accountState}` as "inspector.summary.Active";
+  return t.has(key) ? t(key) : data.accountStateLabel;
 }

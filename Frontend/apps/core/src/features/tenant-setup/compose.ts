@@ -1,5 +1,7 @@
 import type { AuthUser } from "@repo/auth";
 import type { CoreHRReadinessDto, OrganizationReadinessDto } from "@repo/api";
+import { englishSay, type Say } from "@repo/ds/lib/say";
+import { englishMessages } from "@/i18n/messages";
 import {
   SETUP_CAPABILITIES,
   type CapabilityGroup,
@@ -51,6 +53,17 @@ export interface ComposeInput {
   /** Count of active tenant administrators. `undefined` loading, `null` unavailable. */
   administratorCount?: number | null;
   capabilities?: SetupCapability[];
+  /** Words details and prerequisite names (`setup` namespace); English by default. */
+  say?: Say;
+}
+
+const ENGLISH = englishSay(englishMessages, "setup");
+
+/** A capability's name in the person's language; one the catalogue doesn't know keeps its own title. */
+export function capabilityTitle(capability: SetupCapability, say: Say = ENGLISH): string {
+  const key = `capabilities.${capability.key}.title`;
+  const word = say(key);
+  return word === `setup.${key}` || word === key ? capability.title : word;
 }
 
 export type LaunchpadVariant =
@@ -61,7 +74,8 @@ export type LaunchpadVariant =
 
 /** Core HR owns this truth; the launchpad only reads it. */
 function organizationStateOf(
-  setupState: OrganizationReadinessDto | null | undefined
+  setupState: OrganizationReadinessDto | null | undefined,
+  say: Say
 ): { state: CapabilityState; detail: string | null } {
   if (setupState === undefined) {
     return { state: "unknown", detail: null };
@@ -72,15 +86,15 @@ function organizationStateOf(
   }
 
   if (setupState.isReady) {
-    return { state: "ready", detail: "Organization ready" };
+    return { state: "ready", detail: say("detail.organizationReady") };
   }
 
   if (setupState.hasPermanentRoot) {
     return {
       state: "in-progress",
       detail: setupState.permanentRootFirstEffectiveDate
-        ? `Scheduled for ${setupState.permanentRootFirstEffectiveDate}`
-        : "Organization established",
+        ? say("detail.scheduledFor", { date: setupState.permanentRootFirstEffectiveDate })
+        : say("detail.organizationEstablished"),
     };
   }
 
@@ -96,6 +110,7 @@ export function composeSetupCapabilities({
   workforceAccessSummary,
   administratorCount,
   capabilities = SETUP_CAPABILITIES,
+  say = ENGLISH,
 }: ComposeInput): ComposedCapability[] {
   const ordered = [...capabilities].sort((a, b) => a.order - b.order);
   const byKey = new Map<string, ComposedCapability>();
@@ -131,7 +146,7 @@ export function composeSetupCapabilities({
       const unmet = firstUnmetPrerequisite(capability);
       return {
         ...base(capability, "planned"),
-        blockedBy: unmet?.capability.title ?? null,
+        blockedBy: unmet ? capabilityTitle(unmet.capability, say) : null,
       };
     }
 
@@ -139,12 +154,12 @@ export function composeSetupCapabilities({
     if (unmet) {
       return {
         ...base(capability, unmet.state === "unknown" ? "unknown" : "blocked"),
-        blockedBy: unmet.capability.title,
+        blockedBy: capabilityTitle(unmet.capability, say),
       };
     }
 
     if (capability.key === "organization") {
-      const { state, detail } = organizationStateOf(setupState);
+      const { state, detail } = organizationStateOf(setupState, say);
       return {
         ...base(capability, state),
         detail,
@@ -164,10 +179,10 @@ export function composeSetupCapabilities({
             : problems > 0 ? "in-progress" : "ready";
         const detail =
           workforce.activeEmployees === 0
-            ? workforce.importInProgress ? "Import in progress" : undefined
+            ? workforce.importInProgress ? say("detail.importInProgress") : undefined
             : problems > 0
-              ? `${problems} ${problems === 1 ? "person needs" : "people need"} attention`
-              : `${workforce.activeEmployees} active`;
+              ? say("detail.needAttention", { count: problems })
+              : say("detail.active", { count: workforce.activeEmployees });
         return { ...base(capability, state), ...(detail ? { detail } : {}), isActionable: true };
       }
       if (workforceTotalCount === undefined || workforceTotalCount === null) {
@@ -197,9 +212,9 @@ export function composeSetupCapabilities({
       const { activeAccountCount, invitePendingCount, notInvitedCount } =
         workforceAccessSummary;
       const detail =
-        `${activeAccountCount} with access` +
-        (invitePendingCount > 0 ? ` · ${invitePendingCount} pending` : "") +
-        (notInvitedCount > 0 ? ` · ${notInvitedCount} without` : "");
+        say("detail.withAccess", { count: activeAccountCount }) +
+        (invitePendingCount > 0 ? ` · ${say("detail.pending", { count: invitePendingCount })}` : "") +
+        (notInvitedCount > 0 ? ` · ${say("detail.without", { count: notInvitedCount })}` : "");
       return {
         ...base(capability, activeAccountCount > 0 ? "ready" : "in-progress"),
         detail,
@@ -220,7 +235,7 @@ export function composeSetupCapabilities({
         ...base(capability, "ready"),
         detail:
           administratorCount && administratorCount > 0
-            ? `${administratorCount} ${administratorCount === 1 ? "administrator" : "administrators"}`
+            ? say("detail.administrators", { count: administratorCount })
             : null,
         isActionable: true,
       };

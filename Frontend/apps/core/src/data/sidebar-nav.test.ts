@@ -4,11 +4,11 @@ import { ADMIN_NAV } from "./sidebar-nav";
 describe("tenant administration navigation", () => {
   it("routes Getting Started through the canonical shell URL without gating Administrators", () => {
     const gettingStarted = ADMIN_NAV.items.find(
-      (item) => item.label === "Getting started"
+      (item) => item.label === "gettingStarted"
     );
-    // Feature 02 keeps the /core/access route; the customer-facing name is "Administrators".
+    // Feature 02 keeps the /core/access route; the customer-facing name is "administrators".
     const administrators = ADMIN_NAV.items.find(
-      (item) => item.label === "Administrators"
+      (item) => item.label === "administrators"
     );
 
     expect(gettingStarted).toMatchObject({
@@ -23,11 +23,11 @@ describe("tenant administration navigation", () => {
 
   it("exposes Workforce access ahead of Administrators", () => {
     const labels = ADMIN_NAV.items.map((item) => item.label);
-    expect(labels).toContain("Workforce access");
-    const workforce = ADMIN_NAV.items.find((i) => i.label === "Workforce access");
+    expect(labels).toContain("workforceAccess");
+    const workforce = ADMIN_NAV.items.find((i) => i.label === "workforceAccess");
     expect(workforce).toMatchObject({ href: "/workforce-access" });
-    expect(labels.indexOf("Workforce access")).toBeLessThan(
-      labels.indexOf("Administrators")
+    expect(labels.indexOf("workforceAccess")).toBeLessThan(
+      labels.indexOf("administrators")
     );
   });
 

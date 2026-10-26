@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { CircleAlert, CircleCheck, CircleMinus } from "lucide-react";
 import { toast } from "sonner";
@@ -70,19 +71,19 @@ export function MappingHead({
 
 const STATUS = {
   mapped: {
-    label: "Mapped",
+    label: "mapped",
     Icon: CircleCheck,
     pill: "bg-success-subtle text-success",
     icon: "fill-success stroke-card",
   },
   ignored: {
-    label: "Ignored",
+    label: "ignored",
     Icon: CircleMinus,
     pill: "bg-muted text-muted-foreground",
     icon: "fill-muted-foreground stroke-card",
   },
   "needs-review": {
-    label: "Needs review",
+    label: "needs-review",
     Icon: CircleAlert,
     pill: "bg-primary/15 text-primary-foreground dark:text-primary",
     icon: "fill-primary stroke-card",
@@ -90,18 +91,19 @@ const STATUS = {
 } as const;
 
 export function MappingStatusPill({ status, pending }: { status: MappingStatus; pending?: boolean }) {
+  const t = useTranslations("dataImport");
   if (pending)
     return (
       <span className="inline-flex items-center gap-1.5 type-meta text-muted-foreground">
         <Spinner className="size-3.5" aria-hidden />
-        Saving
+        {t("status.saving")}
       </span>
     );
   const { label, Icon, pill, icon } = STATUS[status];
   return (
     <span className={cn("inline-flex w-fit items-center gap-1.5 rounded-full py-0.5 pe-2.5 ps-1 type-meta font-medium", pill)}>
       <Icon aria-hidden className={cn("size-4", icon)} strokeWidth={2.25} />
-      {label}
+      {t(`status.${label}`)}
     </span>
   );
 }
@@ -118,6 +120,7 @@ export type MatchEdits<C> = {
 };
 
 export function useMatchEdit<C>(save: (change: C) => Promise<unknown>, describeError: (error: unknown) => string): MatchEdits<C> {
+  const t = useTranslations("dataImport");
   const [pending, setPending] = useState<{ key: string; value: string } | null>(null);
 
   async function edit(key: string, value: string, change: C) {
@@ -127,7 +130,7 @@ export function useMatchEdit<C>(save: (change: C) => Promise<unknown>, describeE
       await save(change);
       return true;
     } catch (error) {
-      toast.error("That change wasn’t saved", { description: describeError(error) });
+      toast.error(t("notSaved"), { description: describeError(error) });
       return false;
     } finally {
       setPending(null);

@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "people": "Collaborateurs",
+    "administration": "Administration",
+    "overview": "Vue d’ensemble",
+    "myProfile": "Mon profil",
+    "myTeam": "Mon équipe",
+    "peopleDirectory": "Collaborateurs",
+    "organization": "Organisation",
+    "gettingStarted": "Premiers pas",
+    "workforceAccess": "Accès des collaborateurs",
+    "administrators": "Administrateurs",
+    "settings": "Paramètres"
+  },
+  "breadcrumb": {
+    "import": "Import",
+    "match": "Correspondance",
+    "review": "Vérification",
+    "hire": "Embauche",
+    "add-existing": "Ajout d’un collaborateur existant",
+    "change-work": "Changement de poste",
+    "change-manager": "Changement de manager",
+    "end-employment": "Fin de contrat",
+    "performance": "Performance",
+    "activity": "Activité"
+  },
+  "metadata": {
+    "title": "Core HR — Fusion",
+    "description": "Gestion des collaborateurs et de l’organisation"
+  },
+  "loadingCoreHr": "Chargement de Core HR",
+  "checkingAccess": "Vérification de l’accès à Core HR",
+  "loadingPage": "Chargement de la page",
+  "error": {
+    "title": "Une erreur s’est produite",
+    "description": "Une erreur inattendue s’est produite. Réessayez dans un instant.",
+    "action": "Réessayer"
+  },
+  "notFound": {
+    "description": "Cette page n’existe pas dans Core HR.",
+    "action": "Retour à Core HR"
+  },
+  "boundary": {
+    "denied": {
+      "title": "Accès refusé",
+      "description": "Vous n’avez pas l’autorisation d’ouvrir cet espace.",
+      "noticeTitle": "Cet espace n’est pas disponible pour votre compte",
+      "noticeDescription": "Ouvrez un autre espace Fusion auquel vous avez accès, ou contactez votre administrateur si vous pensiez y avoir accès.",
+      "action": "Ouvrir Fusion"
+    },
+    "platform": {
+      "title": "Core HR est un espace client",
+      "description": "L’administration Platform reste séparée des données des collaborateurs des clients.",
+      "noticeTitle": "Core HR n’est pas disponible pour les administrateurs Platform",
+      "noticeDescription": "Utilisez la console Platform pour l’administration de la plateforme.",
+      "action": "Ouvrir Platform"
+    },
+    "unavailable": {
+      "title": "Core HR n’est pas disponible",
+      "description": "Le module Core HR n’est pas activé pour cette organisation.",
+      "noticeTitle": "Module indisponible",
+      "noticeDescription": "Contactez votre administrateur Fusion si Core HR doit être activé pour cette organisation.",
+      "action": "Ouvrir Fusion"
+    }
+  },
+  "skeletons": {
+    "loadingTitle": "Chargement : {title}…",
+    "dashboard": "Tableau de bord",
+    "people": "Collaborateurs",
+    "loadingPeople": "Chargement des collaborateurs",
+    "openingPerson": "Ouverture de la fiche du collaborateur",
+    "myTeam": "Mon équipe",
+    "loadingTeam": "Chargement de l’équipe.",
+    "loadingYourTeam": "Chargement de votre équipe…",
+    "orgChart": "Organigramme",
+    "orgChartDescription": "Structure des effectifs et liens hiérarchiques.",
+    "accessProfiles": "Profils d’accès",
+    "openingAccessProfiles": "Ouverture des paramètres des profils d’accès",
+    "setup": "Configuration",
+    "setupDescription": "Activez l’espace de travail en brouillon pour commencer."
+  }
+}

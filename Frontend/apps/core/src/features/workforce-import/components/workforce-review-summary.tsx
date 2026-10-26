@@ -1,10 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { AlertCircle, ArrowRight, CalendarDays, CheckCircle2, CircleMinus, Info, ListChecks, TriangleAlert } from "lucide-react";
 import { Button, Calendar, Popover, PopoverContent, PopoverTrigger, Spinner, cn } from "@repo/ds";
 import type { WorkforceReviewCountsDto } from "@repo/api";
-import { formatWorkforceDate } from "@/features/people/components/workforce-ui";
+import { useWorkforceDate } from "@/features/people/components/workforce-ui";
 import type { ReviewNotice } from "../model/review-view";
 
 type BannerState = "blocked" | "noop" | "ready";
@@ -13,11 +14,6 @@ export function bannerState(counts: WorkforceReviewCountsDto): BannerState {
   return counts.blocked > 0 ? "blocked" : counts.create === 0 ? "noop" : "ready";
 }
 
-const TITLE: Record<BannerState, string> = {
-  blocked: "Not ready to publish",
-  noop: "Nothing to import",
-  ready: "Ready to publish",
-};
 
 /** Where the proposal stands, the counts that decide it, and the date it describes. */
 export function WorkforceReviewBanner({
@@ -31,19 +27,20 @@ export function WorkforceReviewBanner({
   changingAsOf: boolean;
   onChangeAsOf: (date: string) => void;
 }) {
+  const t = useTranslations("wfImport.banner");
   const state = bannerState(counts);
   const Icon = state === "blocked" ? AlertCircle : state === "noop" ? CircleMinus : CheckCircle2;
   const facts = [
-    `${counts.total} source ${counts.total === 1 ? "record" : "records"} reviewed`,
-    `${counts.create} will be created`,
-    counts.existing > 0 ? `${counts.existing} already in Fusion` : null,
-    `${counts.notImported} will not be imported`,
-    `${counts.openDecisionCount} ${counts.openDecisionCount === 1 ? "blocker" : "blockers"}`,
+    t("reviewed", { count: counts.total }),
+    t("created", { count: counts.create }),
+    counts.existing > 0 ? t("existing", { count: counts.existing }) : null,
+    t("notImported", { count: counts.notImported }),
+    t("blockers", { count: counts.openDecisionCount }),
   ].filter((fact): fact is string => fact !== null);
 
   return (
     <section
-      aria-label="Review status"
+      aria-label={t("label")}
       className={cn(
         "flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-surface border p-4 sm:pe-5",
         state === "blocked"
@@ -64,7 +61,7 @@ export function WorkforceReviewBanner({
           <Icon className="size-6" strokeWidth={state === "ready" ? 2.25 : 1.75} />
         </span>
         <div className="min-w-0">
-          <h2 className="type-page-title text-foreground">{TITLE[state]}</h2>
+          <h2 className="type-page-title text-foreground">{t(state)}</h2>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 type-body text-muted-foreground">
             {facts.map((fact, index) => (
               <span key={fact} className="flex items-center gap-2">
@@ -85,6 +82,8 @@ export function WorkforceReviewBanner({
  * not imported. Which dates are allowed is CoreHR's rule, so the server answers for it.
  */
 function AsOfPicker({ value, busy, onChange }: { value: string; busy: boolean; onChange: (date: string) => void }) {
+  const t = useTranslations("wfImport.banner");
+  const workforceDate = useWorkforceDate();
   const [open, setOpen] = useState(false);
   const selected = parseCalendarDate(value);
   return (
@@ -92,8 +91,8 @@ function AsOfPicker({ value, busy, onChange }: { value: string; busy: boolean; o
       <PopoverTrigger asChild>
         <Button variant="outline" disabled={busy} className="h-10 gap-2 font-normal">
           {busy ? <Spinner className="size-4" aria-hidden /> : <CalendarDays className="size-4 text-muted-foreground" aria-hidden />}
-          <span className="text-muted-foreground">Workforce as of</span>
-          <span className="font-semibold text-foreground">{formatWorkforceDate(value)}</span>
+          <span className="text-muted-foreground">{t("asOf")}</span>
+          <span className="font-semibold text-foreground">{workforceDate(value)}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-0">
@@ -122,6 +121,7 @@ const FINDING_TONE = {
 
 /** Every finding in one panel, most severe first, each leading to the people it concerns. */
 export function WorkforceReviewNotices({ notices, onView }: { notices: ReviewNotice[]; onView: (notice: ReviewNotice) => void }) {
+  const t = useTranslations("wfImport.findings");
   if (notices.length === 0) return null;
   const blocking = notices.some((n) => n.tone === "destructive");
   return (
@@ -133,15 +133,15 @@ export function WorkforceReviewNotices({ notices, onView }: { notices: ReviewNot
           </span>
           <div className="min-w-0">
             <h2 id="review-findings-title" className="type-section-title text-foreground">
-              Review findings
+              {t("title")}
             </h2>
             <p className="type-body text-muted-foreground">
-              {blocking ? "These items need attention before you can publish." : "Worth a look before you publish."}
+              {blocking ? t("blocking") : t("worth")}
             </p>
           </div>
         </div>
         <span className="shrink-0 rounded-full border border-border px-3 py-1 type-meta tabular-nums text-muted-foreground">
-          {notices.length} {notices.length === 1 ? "finding" : "findings"}
+          {t("count", { count: notices.length })}
         </span>
       </header>
       <ul className="mt-4 divide-y divide-border">

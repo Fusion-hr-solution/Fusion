@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { BookOpen, Check, CircleHelp, Download } from "lucide-react";
 import { Button, cn } from "@repo/ds";
 
@@ -11,12 +12,13 @@ export function ImportMatchNextSteps({
   remaining: number;
   onDownloadTemplate: () => void;
 }) {
+  const t = useTranslations("dataImport");
   const steps = [
     remaining
-      ? { title: `Resolve the remaining ${remaining === 1 ? "item" : `${remaining} items`}`, done: false }
-      : { title: "Matching complete", done: true },
-    { title: "Continue to Review", done: false },
-    { title: "Publish when ready", done: false },
+      ? { title: t("nextSteps.resolve", { count: remaining }), done: false }
+      : { title: t("nextSteps.complete"), done: true },
+    { title: t("nextSteps.continue"), done: false },
+    { title: t("nextSteps.publish"), done: false },
   ];
 
   return (
@@ -30,7 +32,7 @@ export function ImportMatchNextSteps({
             <BookOpen className="size-5" strokeWidth={1.75} />
           </span>
           <h2 id="match-next-title" className="type-panel-title font-semibold text-foreground">
-            What happens next?
+            {t("nextSteps.title")}
           </h2>
         </header>
         <ol className="mt-4 space-y-2.5">
@@ -56,9 +58,9 @@ export function ImportMatchNextSteps({
           <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
             <CircleHelp className="size-4.5" strokeWidth={1.75} />
           </span>
-          <h3 className="type-label font-semibold text-foreground">Need help?</h3>
+          <h3 className="type-label font-semibold text-foreground">{t("nextSteps.help")}</h3>
         </div>
-        <p className="type-meta text-muted-foreground">Start from our template to see the expected format.</p>
+        <p className="type-meta text-muted-foreground">{t("nextSteps.helpDescription")}</p>
         <Button
           variant="outline"
           size="sm"
@@ -66,7 +68,7 @@ export function ImportMatchNextSteps({
           onClick={onDownloadTemplate}
         >
           <Download aria-hidden />
-          Download template
+          {t("nextSteps.download")}
         </Button>
       </div>
     </section>

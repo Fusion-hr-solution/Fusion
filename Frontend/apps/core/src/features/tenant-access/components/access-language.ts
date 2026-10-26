@@ -5,6 +5,9 @@ import type {
 } from "@repo/api";
 import type { StatusTone } from "@repo/ds/shell";
 import { dateFormatter } from "@repo/ds/lib/dates";
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { useFormat } from "@repo/ds/lib/use-format";
 
 /**
  * The one terminology source for Access.
@@ -196,4 +199,35 @@ export function formatRelativeDays(value: string): string {
 
 export function isPast(value: string): boolean {
   return new Date(value).getTime() < Date.now();
+}
+
+type CopyKey = Exclude<keyof typeof COPY, "pageDescription" | "soleAdministrator" | "noAdministrators" | "noActivity">;
+
+/** Access's words in the person's language: statuses, continuity, consequences, activity and dates. */
+export function useAccessWords() {
+  const t = useTranslations("admins");
+  const format = useFormat();
+  return useMemo(
+    () => ({
+      status: (status: TenantAdministratorStatus) => t(`status.${status}`),
+      continuity: (state: ContinuityState) => t(`continuity.${state}`),
+      advisory: (state: ContinuityState) => (state === "Healthy" ? null : t(`advisory.${state}`)),
+      copy: (key: CopyKey) => t(`copy.${key}`),
+      /** The recorded event's own words; one this map doesn't know keeps the service's summary. */
+      activity: (action: string, summary: string) =>
+        t.has(`activity.${action}` as "activity.MembershipSuspended") ? t(`activity.${action}` as "activity.MembershipSuspended") : summary,
+      knowsActivity: (action: string) => t.has(`activity.${action}` as "activity.MembershipSuspended"),
+      day: (value: string) => format.parts(value, { day: "numeric", month: "short", year: "numeric" }),
+      moment: (value: string) =>
+        format.parts(value, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }),
+      relativeDays: (value: string) => {
+        const days = Math.round((new Date(value).getTime() - Date.now()) / 86_400_000);
+        if (days < 0) return t("relative.expired");
+        if (days === 0) return t("relative.today");
+        if (days === 1) return t("relative.tomorrow");
+        return t("relative.inDays", { count: days });
+      },
+    }),
+    [t, format]
+  );
 }

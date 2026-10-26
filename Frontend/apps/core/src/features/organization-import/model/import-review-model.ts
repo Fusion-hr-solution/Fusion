@@ -1,3 +1,5 @@
+import { englishSay, type Say } from "@repo/ds/lib/say";
+import { englishMessages } from "@/i18n/messages";
 import type {
   OrganizationImportIssue,
   OrganizationImportIssueSeverity,
@@ -122,7 +124,9 @@ export function attentionByNode(issues: ReviewIssue[]): Map<string, Organization
  * hang from. A unit whose parent reference didn't resolve sits in a visible "unplaced" group, and a
  * file with several tops shows the organization root it still needs.
  */
-export function buildReviewTree(review: OrganizationImportReview): ReviewTreeModel {
+const ENGLISH = englishSay(englishMessages, "orgImport");
+
+export function buildReviewTree(review: OrganizationImportReview, say: Say = ENGLISH): ReviewTreeModel {
   const unplaced = new Set(
     review.issues
       .filter((issue) => issue.code === "MissingParent" && issue.proposalNodeId)
@@ -163,7 +167,7 @@ export function buildReviewTree(review: OrganizationImportReview): ReviewTreeMod
   if (unplaced.size > 0)
     nodes.push({
       id: UNPLACED_PARENT_ID,
-      name: "Unresolved placement",
+      name: say("tree.unresolved"),
       typeName: "",
       businessCode: "",
       parentId: null,
@@ -177,8 +181,8 @@ export function buildReviewTree(review: OrganizationImportReview): ReviewTreeMod
       if (node.parentId === null && node.id !== UNPLACED_PARENT_ID) node.parentId = PLACEHOLDER_ROOT_ID;
     nodes.unshift({
       id: PLACEHOLDER_ROOT_ID,
-      name: "Organization root",
-      typeName: "Organization",
+      name: say("tree.root"),
+      typeName: say("tree.rootType"),
       businessCode: "",
       parentId: null,
       isNew: true,

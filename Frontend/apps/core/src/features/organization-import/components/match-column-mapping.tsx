@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CircleAlert } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -17,7 +18,7 @@ import {
   MAPPABLE_FIELDS,
   columnTargetChange,
   deriveColumnRows,
-  fieldLabel,
+  type MappableField,
   fieldSources,
   missingRequiredFields,
   type ColumnMappingRow,
@@ -35,6 +36,8 @@ export function MatchColumnMapping({
   match: OrganizationImportMatch;
   locked?: boolean;
 }) {
+  const t = useTranslations("orgImport.match.columns");
+  const fields = useTranslations("orgImport.match.fields");
   const rows = deriveColumnRows(table, match);
   const missing = missingRequiredFields(match);
   const sources = fieldSources(table, match);
@@ -46,14 +49,14 @@ export function MatchColumnMapping({
     const displaced = target === IGNORE ? undefined : sources.get(target);
     const saved = await edit(`column:${row.columnIndex}`, target, change);
     if (saved && displaced && displaced.columnIndex !== row.columnIndex)
-      toast(`${fieldLabel(target)} now comes from ${row.label}`, {
-        description: `${displaced.label} is ignored.`,
+      toast(t("now", { field: fields(target as MappableField), column: row.label }), {
+        description: t("ignoredNow", { column: displaced.label }),
       });
   }
 
   return (
-    <MappingSection id="match-columns-title" title="Source column mapping">
-      <MappingHead grid={COLUMN_GRID} labels={["Source column", "Sample values", "Fusion field", "Status"]} />
+    <MappingSection id="match-columns-title" title={t("title")}>
+      <MappingHead grid={COLUMN_GRID} labels={[t("source"), t("samples"), t("field"), t("status")]} />
       <div role="rowgroup" className="divide-y divide-border">
         {rows.map((row) => {
           const key = `column:${row.columnIndex}`;
@@ -74,7 +77,7 @@ export function MatchColumnMapping({
               </span>
               <span role="cell">
                 {typeof row.target === "object" ? (
-                  <span className="type-meta text-foreground">Level {row.target.level}</span>
+                  <span className="type-meta text-foreground">{t("level", { level: row.target.level })}</span>
                 ) : (
                   <Select
                     value={pending ?? row.target}
@@ -82,7 +85,7 @@ export function MatchColumnMapping({
                     onValueChange={(value) => void choose(row, value as ColumnTarget)}
                   >
                     <SelectTrigger
-                      aria-label={`Fusion field for ${row.label}`}
+                      aria-label={t("fieldFor", { column: row.label })}
                       className={cn("w-full", row.status === "needs-review" && "border-primary/70")}
                     >
                       <SelectValue />
@@ -90,11 +93,11 @@ export function MatchColumnMapping({
                     <SelectContent>
                       {MAPPABLE_FIELDS.map((field) => (
                         <SelectItem key={field.key} value={field.key}>
-                          {field.label}
+                          {fields(field.key)}
                         </SelectItem>
                       ))}
                       <SelectSeparator />
-                      <SelectItem value={IGNORE}>Ignore</SelectItem>
+                      <SelectItem value={IGNORE}>{t("ignore")}</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -113,7 +116,7 @@ export function MatchColumnMapping({
           >
             <CircleAlert aria-hidden className="size-4 shrink-0 fill-primary stroke-card" strokeWidth={2.25} />
             <span role="cell">
-              No column supplies <span className="font-semibold">{fieldLabel(field)}</span>
+              {t.rich("missing", { field: fields(field), b: (chunks) => <span className="font-semibold">{chunks}</span> })}
             </span>
           </div>
         ))}

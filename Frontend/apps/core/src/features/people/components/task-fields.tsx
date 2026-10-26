@@ -1,9 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { ArrowDown, CalendarClock } from "lucide-react";
 import { cn } from "@repo/ds";
-import { formatWorkforceDate } from "./workforce-ui";
+import { useWorkforceDate } from "./workforce-ui";
 
 /**
  * The effective date is not a technical field at the bottom of a form — it changes
@@ -15,7 +16,7 @@ export function EffectiveDateField({
   min,
   onChange,
   isFuture,
-  label = "Effective date",
+  label,
 }: {
   value: string;
   min?: string;
@@ -23,6 +24,9 @@ export function EffectiveDateField({
   isFuture: boolean;
   label?: string;
 }) {
+  const t = useTranslations("people.task");
+  const workforceDate = useWorkforceDate();
+  label ??= t("effectiveDate");
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-surface border bg-card px-4 py-3">
       <label className="inline-flex items-center gap-2.5">
@@ -38,7 +42,7 @@ export function EffectiveDateField({
         />
       </label>
       <span className={cn("type-meta", isFuture ? "font-medium text-foreground" : "text-muted-foreground")}>
-        {isFuture ? `Scheduled — takes effect ${formatWorkforceDate(value, { month: "long" })}` : "Takes effect today"}
+        {isFuture ? t("scheduled", { date: workforceDate(value, { month: "long" }) }) : t("today")}
       </span>
     </div>
   );
@@ -66,6 +70,8 @@ export function ConsequencePanel({
   /** True before the user has changed anything — the after block reads as a preview, not a promise. */
   pending?: boolean;
 }) {
+  const t = useTranslations("people.task");
+  const workforceDate = useWorkforceDate();
   const accent = afterTone === "destructive" ? "text-destructive" : "text-primary-ink";
   const ring =
     afterTone === "destructive"
@@ -74,7 +80,7 @@ export function ConsequencePanel({
   return (
     <div className="overflow-hidden rounded-surface border bg-card">
       <div className="border-b px-5 py-3.5">
-        <p className="type-eyebrow text-muted-foreground">Now</p>
+        <p className="type-eyebrow text-muted-foreground">{t("now")}</p>
         <div className="mt-2.5">{now}</div>
       </div>
       <div className="grid place-items-center py-1.5" aria-hidden>
@@ -82,7 +88,7 @@ export function ConsequencePanel({
       </div>
       <div className={cn("px-5 py-4 ring-1 ring-inset", pending ? "bg-inlay ring-transparent" : ring)}>
         <p className={cn("type-eyebrow", pending ? "text-muted-foreground" : accent)}>
-          {isFuture ? `After ${formatWorkforceDate(effectiveDate, { month: "long" })}` : "After this change"}
+          {isFuture ? t("after", { date: workforceDate(effectiveDate, { month: "long" }) }) : t("afterChange")}
         </p>
         <div className={cn("mt-2.5", pending && "text-muted-foreground")}>{after}</div>
       </div>

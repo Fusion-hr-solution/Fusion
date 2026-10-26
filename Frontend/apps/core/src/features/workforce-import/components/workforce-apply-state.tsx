@@ -1,16 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@repo/ds";
 import { Spinner } from "@repo/ds";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import type { WorkforceApplyStatusDto } from "@repo/api";
 
-const PHASE_LABEL: Record<string, string> = {
-  Preparing: "Preparing workforce",
-  Validating: "Validating relationships",
-  Saving: "Saving workforce",
-  Saved: "Saving workforce",
-};
+const PHASES = new Set(["Preparing", "Validating", "Saving", "Saved"]);
 
 /**
  * Applying state — real, honest progress. Only real phases/counters; never "N added"
@@ -25,33 +21,34 @@ export function WorkforceApplyState({
   onReturnToReview: () => void;
   onRetry: () => void;
 }) {
+  const t = useTranslations("wfImport.apply");
   if (status.status === "Failed") {
     return (
       <Centered>
         <AlertTriangle className="size-6 text-[var(--color-warning)]" aria-hidden />
-        <h2 className="mt-3 type-section-title text-foreground">Import wasn&apos;t completed</h2>
-        <p className="mt-1 type-body text-muted-foreground">No employees were added from this attempt.</p>
+        <h2 className="mt-3 type-section-title text-foreground">{t("failedTitle")}</h2>
+        <p className="mt-1 type-body text-muted-foreground">{t("failedDescription")}</p>
         <div className="mt-5 flex items-center gap-3">
           <Button onClick={onRetry}>
-            <RotateCcw className="size-4" aria-hidden /> Retry
+            <RotateCcw className="size-4" aria-hidden /> {t("retry")}
           </Button>
           <Button variant="ghost" onClick={onReturnToReview} className="text-muted-foreground">
-            Return to review
+            {t("returnToReview")}
           </Button>
         </div>
       </Centered>
     );
   }
 
-  const phase = PHASE_LABEL[status.phase] ?? "Completing import";
+  const phase = PHASES.has(status.phase) ? t(`phase.${status.phase}` as "phase.Saving") : t("completing");
   return (
     <Centered>
       <Spinner className="size-6 text-primary-ink" />
-      <h2 className="mt-4 type-section-title text-foreground">Completing import</h2>
+      <h2 className="mt-4 type-section-title text-foreground">{t("completing")}</h2>
       <p className="mt-1 type-body text-muted-foreground">{phase}</p>
       {status.total ? (
         <p className="mt-2 type-meta text-muted-foreground tabular-nums">
-          {status.processed} of {status.total} processed
+          {t("processed", { processed: status.processed, total: status.total })}
         </p>
       ) : null}
     </Centered>

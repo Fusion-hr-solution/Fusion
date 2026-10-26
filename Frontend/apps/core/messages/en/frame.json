@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "people": "People",
+    "administration": "Administration",
+    "overview": "Overview",
+    "myProfile": "My Profile",
+    "myTeam": "My Team",
+    "peopleDirectory": "People",
+    "organization": "Organization",
+    "gettingStarted": "Getting started",
+    "workforceAccess": "Workforce access",
+    "administrators": "Administrators",
+    "settings": "Settings"
+  },
+  "breadcrumb": {
+    "import": "Import",
+    "match": "Match",
+    "review": "Review",
+    "hire": "Hire",
+    "add-existing": "Add existing",
+    "change-work": "Change work",
+    "change-manager": "Change manager",
+    "end-employment": "End employment",
+    "performance": "Performance",
+    "activity": "Activity"
+  },
+  "metadata": {
+    "title": "Core HR — Fusion",
+    "description": "Core HR platform for employee and organizational management"
+  },
+  "loadingCoreHr": "Loading Core HR",
+  "checkingAccess": "Checking Core HR access",
+  "loadingPage": "Loading page",
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Try again in a moment.",
+    "action": "Try again"
+  },
+  "notFound": {
+    "description": "The page you’re looking for doesn’t exist in Core HR.",
+    "action": "Back to Core HR"
+  },
+  "boundary": {
+    "denied": {
+      "title": "Access denied",
+      "description": "You do not have permission to open this area.",
+      "noticeTitle": "This area is not available to your account",
+      "noticeDescription": "Open another Fusion area you can use, or contact your administrator if you expected access.",
+      "action": "Open Fusion"
+    },
+    "platform": {
+      "title": "Core HR is a customer workspace",
+      "description": "Platform administration is kept separate from customer workforce data.",
+      "noticeTitle": "Core HR is not available to Platform Administrators",
+      "noticeDescription": "Use the Platform control plane for platform-level administration.",
+      "action": "Open Platform"
+    },
+    "unavailable": {
+      "title": "Core HR is not available",
+      "description": "This tenant does not currently have the Core HR module enabled.",
+      "noticeTitle": "Module unavailable",
+      "noticeDescription": "Contact your Fusion administrator if Core HR should be enabled for this tenant.",
+      "action": "Open Fusion"
+    }
+  },
+  "skeletons": {
+    "loadingTitle": "Loading {title}…",
+    "dashboard": "Dashboard",
+    "people": "People",
+    "loadingPeople": "Loading people",
+    "openingPerson": "Opening employee details",
+    "myTeam": "My Team",
+    "loadingTeam": "Loading team.",
+    "loadingYourTeam": "Loading your team…",
+    "orgChart": "Org Chart",
+    "orgChartDescription": "Workforce structure and reporting lines.",
+    "accessProfiles": "Access profiles",
+    "openingAccessProfiles": "Opening access profile settings",
+    "setup": "Setup",
+    "setupDescription": "Activate the draft workspace to get started."
+  }
+}

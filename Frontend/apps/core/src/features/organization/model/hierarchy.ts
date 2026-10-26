@@ -1,3 +1,5 @@
+import { englishSay, type Say } from "@repo/ds/lib/say";
+import { englishMessages } from "@/i18n/messages";
 import type {
   OrganizationHierarchyDto,
   OrganizationHierarchyNodeDto,
@@ -99,15 +101,19 @@ export function flattenOrganizationHierarchy(
   return rows;
 }
 
-export function organizationAccessibleName(model: OrganizationHierarchyModel, id: string) {
+const ENGLISH = englishSay(englishMessages, "organization");
+
+export function organizationAccessibleName(model: OrganizationHierarchyModel, id: string, say: Say = ENGLISH) {
   const unit = model.byId.get(id);
-  if (!unit) return "Organizational unit";
+  if (!unit) return say("unit");
   const ancestors = (model.pathById.get(id) ?? [])
     .slice(0, -1)
     .map((ancestorId) => model.byId.get(ancestorId)?.name)
     .filter(Boolean);
-  const context = ancestors.length ? `, under ${ancestors.join(" / ")}` : ", organization root";
-  return `${unit.name}, ${unit.typeName}, code ${unit.code}${context}`;
+  const facts = { name: unit.name, type: unit.typeName, code: unit.code };
+  return ancestors.length
+    ? say("accessible.under", { ...facts, path: ancestors.join(" / ") })
+    : say("accessible.root", facts);
 }
 
 export function isInvalidMoveTarget(model: OrganizationHierarchyModel, sourceId: string, targetId: string) {

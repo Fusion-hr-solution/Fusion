@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import {
   AlertCircle,
   Ban,
@@ -17,24 +18,25 @@ import type { OrganizationImportReview, OrganizationImportSourceDto } from "@rep
 import { formatHumanDate } from "../model/format";
 import { ReviewTypeIcon } from "./review-type-icon";
 
-const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 
 /** Where the proposal stands: ready, ready with things to notice, or blocked, with the facts that decide it. */
 export function ReviewStatusBanner({ review }: { review: OrganizationImportReview }) {
+  const t = useTranslations("orgImport.summary");
+  const locale = useLocale();
   const { readiness, summary } = review;
   const blocked = !readiness.canPublish;
   const noop = readiness.canPublish && readiness.createCount === 0;
-  const title = blocked ? "Not ready to publish" : "Ready to publish";
+  const title = blocked ? t("notReady") : t("ready");
   const detail = blocked
-    ? `Resolve ${readiness.blockingIssueCount} blocking ${plural(readiness.blockingIssueCount, "issue", "issues")} before publishing.`
+    ? t("resolve", { count: readiness.blockingIssueCount })
     : noop
-      ? "Everything in this file already exists in Organization."
-      : "The organization is structurally valid and ready to publish.";
+      ? t("allExist")
+      : t("valid");
   const Icon = blocked ? AlertCircle : CheckCircle2;
 
   return (
     <section
-      aria-label="Review status"
+      aria-label={t("label")}
       className={cn(
         "flex flex-wrap items-center gap-x-8 gap-y-5 rounded-surface border p-4 sm:pe-6 xl:flex-nowrap xl:gap-x-6",
         blocked
@@ -54,20 +56,20 @@ export function ReviewStatusBanner({ review }: { review: OrganizationImportRevie
         </div>
       </div>
       <dl className="grid w-full grid-cols-2 gap-4 border-t border-border pt-4 sm:grid-cols-4 lg:flex lg:w-auto lg:items-center lg:gap-0 lg:divide-x lg:divide-border lg:border-t-0 lg:pt-0 xl:min-w-0 xl:flex-initial">
-        <Metric icon={Layers} value={String(summary.totalUnits)} label={plural(summary.totalUnits, "unit", "units")} />
+        <Metric icon={Layers} value={String(summary.totalUnits)} label={t("units", { count: summary.totalUnits })} />
         <Metric
           icon={Ban}
           value={String(readiness.blockingIssueCount)}
-          label={plural(readiness.blockingIssueCount, "blocker", "blockers")}
+          label={t("blockers", { count: readiness.blockingIssueCount })}
           tone={readiness.blockingIssueCount > 0 ? "destructive" : undefined}
         />
         <Metric
           icon={TriangleAlert}
           value={String(readiness.warningCount)}
-          label={plural(readiness.warningCount, "warning", "warnings")}
+          label={t("warnings", { count: readiness.warningCount })}
           tone={readiness.warningCount > 0 ? "warning" : undefined}
         />
-        <Metric icon={CalendarDays} label="Effective" value={formatHumanDate(review.effectiveDate)} labelFirst />
+        <Metric icon={CalendarDays} label={t("effective")} value={formatHumanDate(review.effectiveDate, locale)} labelFirst />
       </dl>
     </section>
   );
@@ -113,24 +115,26 @@ function Metric({
 
 /** The shape of what will exist: units, root, and how many of each organization type. */
 export function ReviewStructureSummary({ review }: { review: OrganizationImportReview }) {
+  const t = useTranslations("orgImport.summary");
+  const locale = useLocale();
   const { summary } = review;
   return (
     <section aria-labelledby="review-structure-title" className="rounded-surface border border-border bg-card p-5">
       <h2 id="review-structure-title" className="type-section-title text-foreground">
-        Structure
+        {t("structure")}
       </h2>
       <ul className="mt-3 space-y-2">
-        <Fact icon={Layers} value={summary.totalUnits} label={plural(summary.totalUnits, "unit", "units")} />
+        <Fact icon={Layers} value={summary.totalUnits} label={t("units", { count: summary.totalUnits })} />
         {summary.existingUnits > 0 ? (
           <li className="ps-8 type-meta text-muted-foreground">
-            {summary.newUnits} new · {summary.existingUnits} already in Organization
+            {t("newExisting", { created: summary.newUnits, existing: summary.existingUnits })}
           </li>
         ) : null}
-        <Fact icon={Network} value={summary.rootCount} label={plural(summary.rootCount, "root", "roots")} />
+        <Fact icon={Network} value={summary.rootCount} label={t("roots", { count: summary.rootCount })} />
         <Fact
           icon={LayoutGrid}
           value={summary.countsByType.length}
-          label={plural(summary.countsByType.length, "organization type", "organization types")}
+          label={t("types", { count: summary.countsByType.length })}
         />
       </ul>
       {summary.countsByType.length > 0 ? (
@@ -139,7 +143,7 @@ export function ReviewStructureSummary({ review }: { review: OrganizationImportR
             <li key={`${type.typeId}-${type.typeName}`} className="flex items-center gap-3 type-body">
               <ReviewTypeIcon typeName={type.typeName} className="text-muted-foreground" />
               <span className="w-6 text-end font-semibold tabular-nums text-foreground">{type.count}</span>
-              <span className="text-muted-foreground">{pluralType(type.typeName, type.count)}</span>
+              <span className="text-muted-foreground">{pluralType(type.typeName, type.count, locale)}</span>
             </li>
           ))}
         </ul>
@@ -169,9 +173,10 @@ function typeRank(typeName: string) {
 }
 
 /** "Business Unit" x4 reads "Business units". */
-function pluralType(typeName: string, count: number) {
+function pluralType(typeName: string, count: number, locale: string) {
   const sentence = typeName.charAt(0).toUpperCase() + typeName.slice(1).toLowerCase();
-  return count === 1 ? sentence : `${sentence}s`;
+  // Type names are the tenant's own words; only English gets a plural made for it.
+  return count === 1 || locale !== "en" ? sentence : `${sentence}s`;
 }
 
 /** Which file this is and when it takes effect. */
@@ -182,15 +187,17 @@ export function ReviewImportContext({
   review: OrganizationImportReview;
   source: OrganizationImportSourceDto;
 }) {
+  const t = useTranslations("orgImport.summary");
+  const locale = useLocale();
   const sheet = source.sourceFormat.toLowerCase() === "csv" ? null : source.selectedSheetName;
   return (
     <section aria-labelledby="review-context-title" className="rounded-surface border border-border bg-card p-5">
       <h2 id="review-context-title" className="type-section-title text-foreground">
-        Import context
+        {t("context")}
       </h2>
       <dl className="mt-3 space-y-2.5">
-        <ContextRow icon={FileText} label="Source file" value={sheet ? `${source.originalFileName} · ${sheet}` : source.originalFileName} />
-        <ContextRow icon={CalendarDays} label="Effective date" value={formatHumanDate(review.effectiveDate)} />
+        <ContextRow icon={FileText} label={t("sourceFile")} value={sheet ? `${source.originalFileName} · ${sheet}` : source.originalFileName} />
+        <ContextRow icon={CalendarDays} label={t("effectiveDate")} value={formatHumanDate(review.effectiveDate, locale)} />
       </dl>
     </section>
   );

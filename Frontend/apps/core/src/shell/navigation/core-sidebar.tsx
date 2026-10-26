@@ -12,7 +12,7 @@ import {
   canSeeCoreSettingsNavigation,
   canViewTenantAdministration,
 } from "@repo/auth";
-import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
+import { useCoreNav } from "@/shell/navigation/use-core-nav";
 import {
   canSeeEmployeeRosterNavigation,
   canSeeSelfEmployeeProfileNavigation,
@@ -29,6 +29,7 @@ export function CoreSidebar() {
   const activePath = pathname.replace(/^\/core/, "") || "/";
   const { user, logout, isLoading: isAuthLoading } = useAuth();
   const t = useTranslations("ds.sidebar");
+  const nav = useCoreNav();
   const canSeeSetup = canViewTenantAdministration(user);
   // Administrators (Feature 02) is visible only through tenant-administration
   // visibility — Access Profile configuration permissions alone must not expose it.
@@ -40,14 +41,14 @@ export function CoreSidebar() {
   const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user);
   const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user);
 
-  const peopleItems = PEOPLE_NAV.items.filter((item) => {
+  const peopleItems = nav.people.items.filter((item) => {
     if (item.href === "/profile") return canSeeMyProfile;
     if (item.href === "/team") return canSeeMyTeam;
     if (item.href === "/people") return canSeeEmployeeRoster;
     if (item.href === "/organization") return canSeeOrganization;
     return true;
   });
-  const adminItems = ADMIN_NAV.items.filter((item) => {
+  const adminItems = nav.admin.items.filter((item) => {
     if (item.href === "/getting-started") return canSeeSetup;
     if (item.href === "/workforce-access") return canSeeWorkforceAccess;
     if (item.href === "/access") return canSeeAdministrators;
@@ -57,10 +58,10 @@ export function CoreSidebar() {
 
   const visibleSections = adminItems.length
     ? [
-        { ...PEOPLE_NAV, items: peopleItems },
-        { ...ADMIN_NAV, items: adminItems },
+        { ...nav.people, items: peopleItems },
+        { ...nav.admin, items: adminItems },
       ]
-    : [{ ...PEOPLE_NAV, items: peopleItems }];
+    : [{ ...nav.people, items: peopleItems }];
 
   const navigation = useFusionNavigation("core", sectionPaths("/core", visibleSections));
   // Inside Settings the same sidebar switches to settings mode (fusion-settings).

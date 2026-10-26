@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useSay } from "@repo/ds/lib/say";
 import {
   ArrowRight,
   Building2,
@@ -25,16 +27,14 @@ import type { ContinuityState } from "@repo/api";
 import { Button, cn } from "@repo/ds";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { PageContainer, PagePermissionNotice, StatusBadge } from "@repo/ds/shell";
-import {
-  CONTINUITY_LABEL,
-  CONTINUITY_TONE,
-} from "@/features/tenant-access/components/access-language";
+import { CONTINUITY_TONE } from "@/features/tenant-access/components/access-language";
 import { useEmployeeRoster } from "@/app/(pages)/employees/use-employees";
 import { useTenantAccessSummary } from "@/features/tenant-access/api/use-tenant-access";
 import { useAccessRosterSummary } from "@/features/workforce-access/api/use-workforce-access";
 import { useCoreHRReadiness, useOrganizationReadiness } from "@/features/organization/api/use-organization";
 import { canViewCoreOrganization } from "@repo/auth";
 import {
+  capabilityTitle,
   composeSetupCapabilities,
   deriveLaunchpadVariant,
   recommendedNextStep,
@@ -107,6 +107,7 @@ function toneForState(state: CapabilityState): NodeTone {
  */
 export default function SetupLaunchpad() {
   const { user, isLoading } = useAuth();
+  const t = useTranslations("setup");
 
   if (isLoading) {
     return <LaunchpadSkeleton />;
@@ -117,13 +118,13 @@ export default function SetupLaunchpad() {
       <PageContainer className="space-y-6">
         <header className="space-y-2">
           <span className="type-eyebrow text-muted-foreground">
-            Tenant setup
+            {t("eyebrow")}
           </span>
-          <h1 className="type-page-title">Getting started</h1>
+          <h1 className="type-page-title">{t("title")}</h1>
         </header>
         <PagePermissionNotice
-          title="You do not have access to this page"
-          description="Ask an administrator if you need to review tenant setup."
+          title={t("denied.title")}
+          description={t("denied.description")}
         />
       </PageContainer>
     );
@@ -166,6 +167,7 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
       ? undefined
       : (accessSummary.data?.activeAdministrators ?? null);
 
+  const say = useSay("setup");
   const composed = useMemo(
     () =>
       composeSetupCapabilities({
@@ -176,8 +178,10 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
         coreHRReadiness: coreHRReadinessData,
         workforceAccessSummary,
         administratorCount,
+        say,
       }),
     [
+      say,
       effectiveSetupState,
       user,
       workforceTotalCount,
@@ -260,15 +264,9 @@ export function LaunchpadView({
   activeAdministrators: number | null;
   onRetry: (key: string) => void;
 }) {
+  const t = useTranslations("setup");
   const isFresh = variant === "fresh";
-  const description =
-    variant === "fresh"
-      ? "Your tenant is ready. Start building the foundation your organization will use."
-      : variant === "mature"
-        ? "Review and manage the foundation your tenant uses."
-        : variant === "indeterminate"
-          ? "Review and manage your tenant foundation."
-          : "Continue building and managing your tenant foundation.";
+  const description = t(`description.${variant}`);
 
   // Readiness is measured over the real, ownable foundation — the pieces a
   // tenant actually stands up — so planned/entitlement rows never dilute the
@@ -320,16 +318,16 @@ export function LaunchpadView({
     <PageContainer className="mx-auto max-w-5xl space-y-9 pb-14">
       <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl space-y-2.5">
-          <span className="type-eyebrow text-primary-ink">Tenant setup</span>
+          <span className="type-eyebrow text-primary-ink">{t("eyebrow")}</span>
           {isFresh ? (
             <h1 className="type-display text-balance text-4xl leading-[1.05] sm:text-5xl">
               <span className="text-[0.55em] font-medium text-foreground/70">
-                Welcome,
+                {t("welcome")}
               </span>{" "}
               {tenantName}
             </h1>
           ) : (
-            <h1 className="type-display text-balance">Getting started</h1>
+            <h1 className="type-display text-balance">{t("title")}</h1>
           )}
           <p className="type-body max-w-xl text-pretty text-muted-foreground">
             {description}
@@ -356,10 +354,10 @@ export function LaunchpadView({
               id="tenant-foundation-heading"
               className="type-subsection-title text-foreground"
             >
-              Tenant foundation
+              {t("foundationHeading")}
             </h2>
             <span className="type-meta text-muted-foreground">
-              {readyCount} of {foundation.length} ready
+              {t("readyCount", { ready: readyCount, total: foundation.length })}
             </span>
           </div>
 
@@ -385,7 +383,7 @@ export function LaunchpadView({
             id="tenant-administration-heading"
             className="type-subsection-title text-foreground"
           >
-            Administration &amp; configuration
+            {t("administrationHeading")}
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {activeAdministrators !== null || continuity !== null ? (
@@ -407,7 +405,7 @@ export function LaunchpadView({
             id="tenant-modules-heading"
             className="type-subsection-title text-foreground"
           >
-            Modules
+            {t("modulesHeading")}
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {moduleEntries.map((entry) => (
@@ -434,12 +432,10 @@ function ContinuityCard({
   continuity: ContinuityState | null;
   activeAdministrators: number | null;
 }) {
+  const t = useTranslations("setup.continuity");
+  const continuityWord = useTranslations("admins.continuity");
   const countLabel =
-    activeAdministrators === null
-      ? null
-      : `${activeAdministrators} active ${
-          activeAdministrators === 1 ? "administrator" : "administrators"
-        }`;
+    activeAdministrators === null ? null : t("count", { count: activeAdministrators });
 
   return (
     <article className="flex items-center gap-4 rounded-surface border bg-card p-4 shadow-raised sm:p-5">
@@ -449,11 +445,11 @@ function ContinuityCard({
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
           <h3 className="type-subsection-title text-foreground">
-            Administrator continuity
+            {t("title")}
           </h3>
           {continuity ? (
             <StatusBadge tone={CONTINUITY_TONE[continuity]} dot>
-              {CONTINUITY_LABEL[continuity]}
+              {continuityWord(continuity)}
             </StatusBadge>
           ) : null}
         </div>
@@ -465,7 +461,7 @@ function ContinuityCard({
         href="/access"
         className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        Manage access
+        {t("manage")}
         <ArrowRight
           className="size-3.5 transition-transform group-hover/action:translate-x-0.5"
           aria-hidden
@@ -482,9 +478,11 @@ function ContinuityCard({
  */
 function AdministrationCard({ entry }: { entry: ComposedCapability }) {
   const { capability, state, isActionable } = entry;
+  const t = useTranslations("setup");
+  const say = useSay("setup");
   const Glyph = CAPABILITY_ICON[capability.key] ?? Info;
-  const unavailableText = unavailableLabel(state, entry.blockedBy);
-  const action = actionLabel(entry);
+  const unavailableText = unavailableLabel(state, entry.blockedBy, t);
+  const action = actionLabel(entry, t);
 
   return (
     <article className="flex items-center gap-4 rounded-surface border bg-card p-4 shadow-raised sm:p-5">
@@ -493,10 +491,10 @@ function AdministrationCard({ entry }: { entry: ComposedCapability }) {
       </span>
       <div className="min-w-0 flex-1 space-y-1">
         <h3 className="type-subsection-title text-foreground">
-          {capability.title}
+          {capabilityTitle(capability, say)}
         </h3>
         <p className="type-meta text-pretty text-muted-foreground">
-          {capability.purpose}
+          {capabilityPurpose(capability, t)}
         </p>
       </div>
 
@@ -534,15 +532,16 @@ function ReadinessMeter({
   recommendationKey: string | null;
   readyCount: number;
 }) {
+  const t = useTranslations("setup.meter");
   return (
     <div className="flex shrink-0 flex-col gap-2.5 rounded-surface border bg-card px-5 py-4 shadow-raised sm:min-w-[13.5rem]">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="type-eyebrow text-muted-foreground">Foundation</span>
+        <span className="type-eyebrow text-muted-foreground">{t("label")}</span>
         <span className="type-meta text-muted-foreground">
           <span className="type-metric align-baseline text-base text-foreground">
             {readyCount}
           </span>{" "}
-          / {segments.length} ready
+          {t("ready", { total: segments.length })}
         </span>
       </div>
       <div className="flex gap-1" aria-hidden>
@@ -567,21 +566,22 @@ function ReadinessMeter({
 }
 
 function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
+  const t = useTranslations("setup");
   const isOrganization = entry.capability.key === "organization";
   const Icon = isOrganization ? Building2 : Users;
   const title = isOrganization
     ? entry.state === "in-progress"
-      ? "Continue organization setup"
-      : "Set up your organization"
-    : "Add your workforce";
+      ? t("recommendation.continueOrganization")
+      : t("recommendation.setUpOrganization")
+    : t("recommendation.addWorkforce");
   const description = isOrganization
-    ? "Define the structure your workforce and future HR processes will build on."
-    : "Add and manage the people who work in this tenant.";
+    ? t("capabilities.organization.purpose")
+    : t("capabilities.workforce.purpose");
   const action = isOrganization
     ? entry.state === "in-progress"
-      ? "Continue organization setup"
-      : "Open Organization"
-    : "Add workforce";
+      ? t("action.continueOrganization")
+      : t("action.openOrganization")
+    : t("action.addWorkforce");
 
   return (
     <section
@@ -596,7 +596,7 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
           <div className="min-w-0 space-y-2">
             <span className="type-eyebrow flex items-center gap-2 text-primary-ink">
               <span className="size-1.5 rounded-full bg-primary" aria-hidden />
-              Recommended next step
+              {t("recommendation.eyebrow")}
             </span>
             <h2
               id="recommended-destination-heading"
@@ -631,6 +631,8 @@ function LadderNode({
   onRetry: () => void;
 }) {
   const { capability, state, blockedBy, detail, isActionable } = entry;
+  const t = useTranslations("setup");
+  const say = useSay("setup");
   // Immediately available items (actionable now, not yet ready) read green like
   // a live affordance; blocked items ("Available after … setup") read primary.
   const tone: NodeTone =
@@ -640,8 +642,8 @@ function LadderNode({
   const CapabilityGlyph = CAPABILITY_ICON[capability.key] ?? Info;
   const Glyph =
     state === "ready" ? Check : state === "blocked" ? Lock : CapabilityGlyph;
-  const unavailableText = unavailableLabel(state, blockedBy);
-  const action = actionLabel(entry);
+  const unavailableText = unavailableLabel(state, blockedBy, t);
+  const action = actionLabel(entry, t);
   const isQuiet = state === "planned" || state === "blocked";
 
   return (
@@ -679,10 +681,10 @@ function LadderNode({
       >
         <div className={cn("min-w-0 space-y-1", isQuiet && "opacity-80")}>
           <h3 className="type-subsection-title text-foreground">
-            {capability.title}
+            {capabilityTitle(capability, say)}
           </h3>
           <p className="type-meta max-w-md text-pretty text-muted-foreground">
-            {capability.purpose}
+            {capabilityPurpose(capability, t)}
           </p>
         </div>
 
@@ -715,7 +717,7 @@ function LadderNode({
                 onClick={onRetry}
                 className="type-label inline-flex min-h-8 items-center rounded-control text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Retry status
+                {t("retry")}
               </button>
             ) : null}
             {isActionable && capability.route ? (
@@ -737,40 +739,50 @@ function LadderNode({
   );
 }
 
+type SetupWords = ReturnType<typeof useTranslations<"setup">>;
+
+function capabilityPurpose(capability: ComposedCapability["capability"], t: SetupWords): string {
+  const key = `capabilities.${capability.key}.purpose` as "capabilities.organization.purpose";
+  return t.has(key) ? t(key) : capability.purpose;
+}
+
 function unavailableLabel(
   state: CapabilityState,
-  blockedBy: string | null
+  blockedBy: string | null,
+  t: SetupWords
 ): string | null {
-  if (state === "planned") return "Not available in this build";
+  if (state === "planned") return t("unavailable.planned");
   if (state === "blocked" && blockedBy) {
-    return `Available after ${blockedBy.toLowerCase()} setup`;
+    return t("unavailable.blocked", { name: blockedBy.toLowerCase() });
   }
-  if (state === "unknown") return "Status unavailable";
+  if (state === "unknown") return t("unavailable.unknown");
   return null;
 }
 
-function actionLabel(entry: ComposedCapability): string {
+function actionLabel(entry: ComposedCapability, t: SetupWords): string {
   const { key } = entry.capability;
-  if (key === "administrator-access") return "Manage access";
+  if (key === "administrator-access") return t("action.manageAccess");
   if (key === "organization") {
-    if (entry.state === "ready") return "Review organization";
-    if (entry.state === "in-progress") return "Continue organization setup";
-    return "Open Organization";
+    if (entry.state === "ready") return t("action.reviewOrganization");
+    if (entry.state === "in-progress") return t("action.continueOrganization");
+    return t("action.openOrganization");
   }
   if (key === "workforce") {
-    return entry.state === "ready" ? "Manage workforce" : "Add workforce";
+    return entry.state === "ready" ? t("action.manageWorkforce") : t("action.addWorkforce");
   }
-  return entry.capability.actionLabel ?? "Open";
+  if (key === "workforce-access") return t("action.manageWorkforceAccess");
+  return entry.capability.actionLabel ?? t("action.open");
 }
 
 export function LaunchpadSkeleton() {
+  const t = useTranslations("setup");
   return (
     <PageContainer className="mx-auto max-w-5xl pb-14">
       <div
         className="space-y-9"
         role="status"
         aria-busy="true"
-        aria-label="Loading tenant setup"
+        aria-label={t("loading")}
       >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl space-y-3">

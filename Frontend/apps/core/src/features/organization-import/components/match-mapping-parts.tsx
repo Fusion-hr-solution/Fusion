@@ -1,5 +1,6 @@
 "use client";
 
+import { useImportProblem } from "@/features/data-import/components/import-words";
 import { translateOrganizationImportError } from "@repo/api";
 import { useMatchEdit as useSharedMatchEdit } from "@/features/data-import/components/match-table";
 import { useOrganizationImportMutations } from "../api/use-organization-import";
@@ -19,8 +20,9 @@ type MatchChange = Omit<Parameters<ReturnType<typeof useOrganizationImportMutati
 export function useMatchEdit() {
   const { session } = useImportFrame();
   const { updateMatch } = useOrganizationImportMutations();
+  const problemLine = useImportProblem();
   return useSharedMatchEdit<MatchChange>(
     (change) => updateMatch.mutateAsync({ id: session.id, version: session.version, ...change }),
-    (error) => translateOrganizationImportError(error).message
+    (error) => problemLine(translateOrganizationImportError(error))
   );
 }

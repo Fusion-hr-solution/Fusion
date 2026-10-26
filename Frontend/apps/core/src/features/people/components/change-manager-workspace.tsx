@@ -1,9 +1,11 @@
 "use client";
 
+import { useRefusal } from "@/i18n/words";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Field, FieldLabel, Skeleton } from "@repo/ds";
-import { ApiError, type PeopleProfileDto } from "@repo/api";
+import type { PeopleProfileDto } from "@repo/api";
 import { usePeopleProfile, useManagerOptions, useWorkforceMaintenanceMutations } from "../api/use-people";
 import { ManagerPicker, Segmented } from "./workforce-pickers";
 import { TaskShell } from "./task-shell";
@@ -13,24 +15,27 @@ import { EmployeeIdentity } from "./workforce-ui";
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ChangeManagerWorkspace({ employeeKey }: { employeeKey: string }) {
+  const t = useTranslations("people");
   const profile = usePeopleProfile(employeeKey);
 
   if (profile.isLoading) {
     return (
-      <TaskShell employeeKey={employeeKey} subjectName={null} title="Change manager">
+      <TaskShell employeeKey={employeeKey} subjectName={null} title={t("changeManager.title")}>
         <div className="space-y-4"><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /></div>
       </TaskShell>
     );
   }
   const employee = profile.data;
   if (!employee) {
-    return <TaskShell employeeKey={employeeKey} subjectName={null} title="Change manager"><p className="type-body text-muted-foreground">Employee not found.</p></TaskShell>;
+    return <TaskShell employeeKey={employeeKey} subjectName={null} title={t("changeManager.title")}><p className="type-body text-muted-foreground">{t("task.notFound")}</p></TaskShell>;
   }
   return <ChangeManagerForm employeeKey={employeeKey} employee={employee} />;
 }
 
 function ChangeManagerForm({ employeeKey, employee }: { employeeKey: string; employee: PeopleProfileDto }) {
   const router = useRouter();
+  const t = useTranslations("people");
+  const refusal = useRefusal();
   const { changeManager } = useWorkforceMaintenanceMutations(employeeKey);
 
   const [effectiveDate, setEffectiveDate] = useState(today());
@@ -55,16 +60,16 @@ function ChangeManagerForm({ employeeKey, employee }: { employeeKey: string; emp
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    if (mode === "Manager" && !managerEmployeeId) { setError("Select a manager or choose No manager."); return; }
+    if (mode === "Manager" && !managerEmployeeId) { setError(t("changeManager.selectError")); return; }
     try {
       await changeManager.mutateAsync({ effectiveDate, managerEmployeeId: mode === "Manager" ? managerEmployeeId : null });
       router.push(`/people/${employeeKey}`);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "The manager change could not be saved.");
+      setError(refusal(caught, t("changeManager.failed")));
     }
   };
 
-  const noManagerLine = <p className="type-body text-muted-foreground">No manager</p>;
+  const noManagerLine = <p className="type-body text-muted-foreground">{t("changeManager.noManager")}</p>;
   const preview = (
     <ConsequencePanel
       effectiveDate={effectiveDate}
@@ -77,7 +82,7 @@ function ChangeManagerForm({ employeeKey, employee }: { employeeKey: string; emp
         ? noManagerLine
         : selected
           ? <EmployeeIdentity name={selected.displayName} employeeNumber={selected.employeeNumber} secondary={`${selected.jobTitle} · ${selected.organizationName}`} size="sm" />
-          : <p className="type-body">Choose a manager to preview the result.</p>}
+          : <p className="type-body">{t("changeManager.choosePreview")}</p>}
     />
   );
 
@@ -86,19 +91,22 @@ function ChangeManagerForm({ employeeKey, employee }: { employeeKey: string; emp
       employeeKey={employeeKey}
       subjectName={employee.identity.displayName}
       subjectContext={employee.work ? `${employee.work.jobTitle} · ${employee.work.organizationName}` : null}
-      title="Change manager"
+      title={t("changeManager.title")}
       aside={preview}
     >
       <form onSubmit={submit} className="space-y-7">
         <EffectiveDateField value={effectiveDate} min={today()} onChange={setEffectiveDate} isFuture={isFuture} />
 
         <Field>
-          <FieldLabel>New manager</FieldLabel>
+          <FieldLabel>{t("changeManager.newManager")}</FieldLabel>
           <Segmented
             value={mode}
             onValueChange={setMode}
-            label="Manager selection"
-            options={[{ value: "Manager", label: "Assign a manager" }, { value: "None", label: "No manager" }]}
+            label={t("changeManager.selection")}
+            options={[
+              { value: "Manager", label: t("changeManager.assign") },
+              { value: "None", label: t("changeManager.noManager") },
+            ]}
           />
           {mode === "Manager" ? (
             <div className="mt-3">
@@ -111,9 +119,9 @@ function ChangeManagerForm({ employeeKey, employee }: { employeeKey: string; emp
 
         <div className="flex items-center gap-3 border-t pt-6">
           <Button type="submit" disabled={changeManager.isLoading || unchanged || (mode === "Manager" && !managerEmployeeId)}>
-            {isFuture ? "Schedule manager change" : "Save manager change"}
+            {isFuture ? t("changeManager.schedule") : t("changeManager.save")}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => router.push(`/people/${employeeKey}`)}>Cancel</Button>
+          <Button type="button" variant="ghost" onClick={() => router.push(`/people/${employeeKey}`)}>{t("task.cancel")}</Button>
         </div>
       </form>
     </TaskShell>

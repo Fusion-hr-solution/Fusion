@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { canAccessPlatform, useHydratedWorkspaceAccess } from "@repo/auth";
 import {
   PageContainer,
@@ -23,6 +24,7 @@ export function CoreWorkspaceAccessBoundary({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const t = useTranslations("frame");
 
   // The shared hydration-safe mechanism holds the first client render equal to
   // the server's until hydration settles, then resolves access from session
@@ -43,7 +45,7 @@ export function CoreWorkspaceAccessBoundary({
   }, [pathname, searchParams, state]);
 
   if (state === "loading" || state === "sign-in-required") {
-    return <PageSkeleton rows={4} label="Checking Core HR access" />;
+    return <PageSkeleton rows={4} label={t("checkingAccess")} />;
   }
 
   if (state === "forbidden") {
@@ -51,15 +53,15 @@ export function CoreWorkspaceAccessBoundary({
       return (
         <PageContainer className="space-y-6">
           <PageHeader
-            title="Access denied"
-            description="You do not have permission to open this area."
+            title={t("boundary.denied.title")}
+            description={t("boundary.denied.description")}
           />
           <PagePermissionNotice
-            title="This area is not available to your account"
-            description="Open another Fusion area you can use, or contact your administrator if you expected access."
+            title={t("boundary.denied.noticeTitle")}
+            description={t("boundary.denied.noticeDescription")}
             action={
               <Button asChild variant="outline">
-                <a href={buildShellUrl("/").toString()}>Open Fusion</a>
+                <a href={buildShellUrl("/").toString()}>{t("boundary.denied.action")}</a>
               </Button>
             }
           />
@@ -69,15 +71,15 @@ export function CoreWorkspaceAccessBoundary({
     return (
       <PageContainer className="space-y-6">
         <PageHeader
-          title="Core HR is a customer workspace"
-          description="Platform administration is kept separate from customer workforce data."
+          title={t("boundary.platform.title")}
+          description={t("boundary.platform.description")}
         />
         <PagePermissionNotice
-          title="Core HR is not available to Platform Administrators"
-          description="Use the Platform control plane for platform-level administration."
+          title={t("boundary.platform.noticeTitle")}
+          description={t("boundary.platform.noticeDescription")}
           action={
             <Button asChild>
-              <a href={buildShellUrl("/platform").toString()}>Open Platform</a>
+              <a href={buildShellUrl("/platform").toString()}>{t("boundary.platform.action")}</a>
             </Button>
           }
         />
@@ -89,15 +91,15 @@ export function CoreWorkspaceAccessBoundary({
     return (
       <PageContainer className="space-y-6">
         <PageHeader
-          title="Core HR is not available"
-          description="This tenant does not currently have the Core HR module enabled."
+          title={t("boundary.unavailable.title")}
+          description={t("boundary.unavailable.description")}
         />
         <PagePermissionNotice
-          title="Module unavailable"
-          description="Contact your Fusion administrator if Core HR should be enabled for this tenant."
+          title={t("boundary.unavailable.noticeTitle")}
+          description={t("boundary.unavailable.noticeDescription")}
           action={
             <Button asChild variant="outline">
-              <a href={buildShellUrl("/").toString()}>Open Fusion</a>
+              <a href={buildShellUrl("/").toString()}>{t("boundary.unavailable.action")}</a>
             </Button>
           }
         />
@@ -107,5 +109,5 @@ export function CoreWorkspaceAccessBoundary({
 
   if (state === "allowed") return children;
 
-  return <PageSkeleton rows={4} label="Checking Core HR access" />;
+  return <PageSkeleton rows={4} label={t("checkingAccess")} />;
 }

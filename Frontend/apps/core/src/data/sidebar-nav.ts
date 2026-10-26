@@ -10,34 +10,35 @@ import {
 } from "lucide-react";
 import { type ShellNavSection } from "@repo/ds/shell";
 
+// Titles and labels are keys of the `frame.nav` catalogue; `useCoreNav` words them.
 export const PEOPLE_NAV: ShellNavSection = {
-  title: "People",
+  title: "people",
   items: [
-    { label: "Overview", href: "/", icon: LayoutDashboard },
-    { label: "My Profile", href: "/profile", icon: User },
-    { label: "My Team", href: "/team", icon: Users },
-    { label: "People", href: "/people", icon: Users },
-    { label: "Organization", href: "/organization", icon: Network },
+    { label: "overview", href: "/", icon: LayoutDashboard },
+    { label: "myProfile", href: "/profile", icon: User },
+    { label: "myTeam", href: "/team", icon: Users },
+    { label: "peopleDirectory", href: "/people", icon: Users },
+    { label: "organization", href: "/organization", icon: Network },
   ],
 };
 
 export const ADMIN_NAV: ShellNavSection = {
-  title: "Administration",
+  title: "administration",
   items: [
     // Temporary tenant-foundation orientation, reached at the shell-canonical
     // `/getting-started` (it lives outside the Core basePath). Not a permanent
     // primary destination — offered while administrators establish the tenant.
     {
-      label: "Getting started",
+      label: "gettingStarted",
       href: "/getting-started",
       navigateHref: "/getting-started",
       shellRoute: true,
       icon: ClipboardList,
     },
-    { label: "Workforce access", href: "/workforce-access", icon: KeyRound },
+    { label: "workforceAccess", href: "/workforce-access", icon: KeyRound },
     // Feature 02 keeps the `/core/access` route; the customer-facing name is
     // "Administrators" — who administers this tenant, distinct from workforce access.
-    { label: "Administrators", href: "/access", icon: ShieldCheck },
-    { label: "Settings", href: "/settings", icon: Settings2 },
+    { label: "administrators", href: "/access", icon: ShieldCheck },
+    { label: "settings", href: "/settings", icon: Settings2 },
   ],
 };

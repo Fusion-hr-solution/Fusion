@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -14,7 +15,7 @@ import {
 } from "@repo/ds";
 import { AsyncButton } from "@repo/ds/shell";
 import { problemTypeOf, useInviteAdministrator } from "../api/use-tenant-access";
-import { COPY } from "./access-language";
+import { useAccessWords } from "./access-language";
 
 interface InviteAdministratorDialogProps {
   open: boolean;
@@ -35,6 +36,8 @@ export function InviteAdministratorDialog({
   onOpenChange,
   onInvited,
 }: InviteAdministratorDialogProps) {
+  const t = useTranslations("admins");
+  const words = useAccessWords();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -80,19 +83,19 @@ export function InviteAdministratorDialog({
       // is wasted effort the person already spent.
       switch (problemTypeOf(error)) {
         case "duplicate-pending-invitation":
-          setProblem(COPY.duplicatePending);
+          setProblem(words.copy("duplicatePending"));
           break;
         case "existing-account":
-          setProblem(COPY.existingAccount);
+          setProblem(words.copy("existingAccount"));
           break;
         case "validation-failed":
-          setProblem("Enter a valid email address.");
+          setProblem(t("invite.invalidEmail"));
           break;
         case "permission-denied":
-          setProblem(COPY.authorizationChanged);
+          setProblem(words.copy("authorizationChanged"));
           break;
         default:
-          setProblem("The invitation could not be sent.");
+          setProblem(t("invite.failed"));
       }
     }
   }
@@ -102,45 +105,45 @@ export function InviteAdministratorDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Invite administrator</DialogTitle>
+            <DialogTitle>{t("invite.title")}</DialogTitle>
             <DialogDescription>
-              The recipient will be granted Tenant Administrator access.
+              {t("invite.description")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="administrator-first-name">First name</Label>
+                <Label htmlFor="administrator-first-name">{t("invite.firstName")}</Label>
                 <Input
                   id="administrator-first-name"
                   value={firstName}
                   autoFocus
                   autoComplete="off"
-                  placeholder="Jane"
+                  placeholder={t("invite.firstNamePlaceholder")}
                   onChange={(event) => setFirstName(event.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="administrator-last-name">Last name</Label>
+                <Label htmlFor="administrator-last-name">{t("invite.lastName")}</Label>
                 <Input
                   id="administrator-last-name"
                   value={lastName}
                   autoComplete="off"
-                  placeholder="Doe"
+                  placeholder={t("invite.lastNamePlaceholder")}
                   onChange={(event) => setLastName(event.target.value)}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="administrator-email">Email address</Label>
+              <Label htmlFor="administrator-email">{t("invite.email")}</Label>
               <Input
                 id="administrator-email"
                 type="email"
                 value={email}
                 autoComplete="off"
-                placeholder="name@example.com"
+                placeholder={t("invite.emailPlaceholder")}
                 aria-invalid={problem !== null}
                 aria-describedby={problem ? "administrator-email-problem" : undefined}
                 onChange={(event) => setEmail(event.target.value)}
@@ -163,7 +166,7 @@ export function InviteAdministratorDialog({
               Cancel
             </Button>
             <AsyncButton type="submit" pending={invite.isLoading} disabled={!canSubmit}>
-              Send invitation
+              {t("invite.send")}
             </AsyncButton>
           </DialogFooter>
         </form>

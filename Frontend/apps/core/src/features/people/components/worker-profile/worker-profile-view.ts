@@ -7,6 +7,8 @@ import type {
   PeopleTimelineEventDto,
   PeopleUpcomingChangeDto,
 } from "@repo/api";
+import { englishSay, type Say } from "@repo/ds/lib/say";
+import { englishMessages } from "@/i18n/messages";
 import { formatWorkforceDate } from "../workforce-ui";
 import type {
   EmployeeDetailsDto,
@@ -94,40 +96,41 @@ export const ACCESS_TONE: Record<string, StatusTone> = {
   NoAccess: "muted",
 };
 
-const EMPLOYMENT_TYPE_LABELS: Record<string, string> = {
-  FullTime: "Full-time",
-  PartTime: "Part-time",
-  Contract: "Contract",
-  Contractor: "Contractor",
-  Intern: "Intern",
-  Temporary: "Temporary",
-  Seasonal: "Seasonal",
-};
+/** How the view model words things: the `profile` namespace and the language for dates. English by default. */
+export interface ProfileWords {
+  say: Say;
+  locale?: string;
+}
+
+const ENGLISH: ProfileWords = { say: englishSay(englishMessages, "profile") };
+
+const EMPLOYMENT_TYPES = new Set(["FullTime", "PartTime", "Contract", "Contractor", "Intern", "Temporary", "Seasonal"]);
 
 /** Humanize an employment-type enum for display; passes through already-humanized values. */
-export function formatEmploymentType(value: string | null | undefined): string {
-  if (!value) return "Not set";
-  return EMPLOYMENT_TYPE_LABELS[value] ?? value.replace(/([a-z])([A-Z])/g, "$1 $2");
+export function formatEmploymentType(value: string | null | undefined, words: ProfileWords = ENGLISH): string {
+  if (!value) return words.say("employmentType.notSet");
+  return EMPLOYMENT_TYPES.has(value)
+    ? words.say(`employmentType.${value}`)
+    : value.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+/** A Fusion access state in words; an unknown state keeps the server's label. */
+function accessLabel(state: string, label: string, say: Say): string {
+  return state in ACCESS_TONE ? say(`access.${state}`) : label;
 }
 
 /** The People employment state expressed as a plain human line. */
-function employmentLine(employment: PeopleProfileEmploymentDto): string {
+function employmentLine(employment: PeopleProfileEmploymentDto, { say, locale }: ProfileWords): string {
   const { state, start, end } = employment;
+  const long = (value: string) => formatWorkforceDate(value, { month: "long", locale });
   if (state === "Scheduled")
-    return start
-      ? `Starts ${formatWorkforceDate(start, { month: "long" })}`
-      : "Starts later";
+    return start ? say("line.starts", { date: long(start) }) : say("line.startsLater");
   if (state === "Former") {
-    if (start && end)
-      return `${formatWorkforceDate(start, { month: "long" })} – ${formatWorkforceDate(end, { month: "long" })}`;
-    return end
-      ? `Ended ${formatWorkforceDate(end, { month: "long" })}`
-      : "Employment ended";
+    if (start && end) return say("line.period", { start: long(start), end: long(end) });
+    return end ? say("line.ended", { date: long(end) }) : say("line.employmentEnded");
   }
-  if (state === "Incomplete") return "Not employed on this date";
-  return start
-    ? `Since ${formatWorkforceDate(start, { month: "long" })}`
-    : "Active";
+  if (state === "Incomplete") return say("line.notEmployed");
+  return start ? say("line.since", { date: long(start) }) : say("line.active");
 }
 
 const PEOPLE_STATE_TONE: Record<string, StatusTone> = {
@@ -144,8 +147,11 @@ const PEOPLE_STATE_TONE: Record<string, StatusTone> = {
 export function fromSelfDetails(
   details: EmployeeDetailsDto,
   reportingLines: EmployeeReportingLinesDto | undefined,
-  context: { timeline?: PeopleTimelineDto; access?: MyFusionAccessDto | null }
+  context: { timeline?: PeopleTimelineDto; access?: MyFusionAccessDto | null },
+  words: ProfileWords = ENGLISH
 ): WorkerProfileView {
+  const { say, locale } = words;
+  const long = (value: string) => formatWorkforceDate(value, { month: "long", locale });
   const assignment = details.currentWorkAssignment;
   const employment = details.currentEmployment;
   const manager = details.currentManager;
@@ -156,19 +162,19 @@ export function fromSelfDetails(
   const selfEmploymentLine = employment
     ? employment.status === "Ended"
       ? employment.effectiveTo
-        ? `Ended ${formatWorkforceDate(employment.effectiveTo, { month: "long" })}`
-        : "Employment ended"
+        ? say("line.ended", { date: long(employment.effectiveTo) })
+        : say("line.employmentEnded")
       : employment.effectiveFrom
-        ? `Since ${formatWorkforceDate(employment.effectiveFrom, { month: "long" })}`
-        : "Active"
+        ? say("line.since", { date: long(employment.effectiveFrom) })
+        : say("line.active")
     : null;
 
   return {
     displayName: details.displayName,
     employeeNumber: details.employeeNumber ?? null,
     status: active
-      ? { label: "Active", tone: "success" }
-      : { label: "Ended", tone: "muted" },
+      ? { label: say("status.Active"), tone: "success" }
+      : { label: say("status.Ended"), tone: "muted" },
 
     jobTitle: assignment?.jobTitle ?? null,
     orgUnitName: assignment?.orgUnitName ?? null,
@@ -204,7 +210,7 @@ export function fromSelfDetails(
 
     access: access
       ? {
-          label: access.label,
+          label: accessLabel(access.state, access.label, say),
           tone: ACCESS_TONE[access.state] ?? "muted",
           linkedEmail: access.linkedEmail ?? details.email,
           accessProfiles: access.accessProfiles,
@@ -227,15 +233,17 @@ export function fromSelfDetails(
 export function fromPeopleProfile(
   profile: PeopleProfileDto,
   timeline: PeopleTimelineEventDto[] | undefined,
-  access: PeopleAccessStatusDto | null
+  access: PeopleAccessStatusDto | null,
+  words: ProfileWords = ENGLISH
 ): WorkerProfileView {
   const { identity, employment, work, primaryManager } = profile;
+  const { say } = words;
 
   return {
     displayName: identity.displayName,
     employeeNumber: identity.employeeNumber,
     status: {
-      label: employment.state,
+      label: employment.state in PEOPLE_STATE_TONE ? say(`status.${employment.state}`) : employment.state,
       tone: PEOPLE_STATE_TONE[employment.state] ?? "muted",
     },
 
@@ -248,7 +256,7 @@ export function fromPeopleProfile(
 
     employmentType: employment.employmentType,
     employmentStart: employment.start,
-    employmentLine: employmentLine(employment),
+    employmentLine: employmentLine(employment, words),
 
     workEmail: identity.workEmail,
     phone: identity.phone,
@@ -269,7 +277,7 @@ export function fromPeopleProfile(
 
     access: access
       ? {
-          label: access.label,
+          label: accessLabel(access.state, access.label, say),
           tone: ACCESS_TONE[access.state] ?? "muted",
           detail: access.detail,
         }

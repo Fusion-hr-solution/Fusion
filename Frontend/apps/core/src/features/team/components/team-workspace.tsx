@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@repo/auth";
 import {
   PageContainer,
@@ -20,6 +21,7 @@ import {
 
 export default function TeamWorkspace() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const t = useTranslations("team");
   const employeeId = user?.employeeId ?? null;
   const canAccess = canAccessTeamWorkspace(user);
 
@@ -43,7 +45,7 @@ export default function TeamWorkspace() {
   // A linked employee can always fall back to their own profile; an unlinked
   // admin falls back to the Core overview.
   const exitHref = employeeId ? "/profile" : "/";
-  const exitLabel = employeeId ? "Go to your profile" : "Go to overview";
+  const exitLabel = employeeId ? t("goToProfile") : t("goToOverview");
 
   if (isAuthLoading) {
     return <TeamPageSkeleton />;
@@ -52,11 +54,11 @@ export default function TeamWorkspace() {
   if (!canAccess || !employeeId) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="My Team" description="Direct reports." />
+        <PageHeader title={t("title")} description={t("description")} />
         <PageEmpty
           icon={Users}
-          title="No team to manage"
-          description="The team workspace shows people who report to you. You don't have any direct reports right now."
+          title={t("noTeam.title")}
+          description={t("noTeam.description")}
           action={
             <Link
               href={exitHref}
@@ -77,10 +79,10 @@ export default function TeamWorkspace() {
   if (error && !data) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="My Team" description="Direct reports." />
+        <PageHeader title={t("title")} description={t("description")} />
         <PageError
-          title="Team couldn't load"
-          description="Your team didn't load just now. Try again in a moment."
+          title={t("error.title")}
+          description={t("error.description")}
           onRetry={() => refetch()}
         />
         <div className="text-center">
@@ -97,15 +99,14 @@ export default function TeamWorkspace() {
 
   return (
     <PageContainer className="space-y-6">
-      <PageHeader title="My Team" description="Direct reports." />
+      <PageHeader title={t("title")} description={t("description")} />
 
       <Card>
         <CardHeader density="compact">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <CardTitle>Direct reports</CardTitle>
+            <CardTitle>{t("directReports")}</CardTitle>
             <StatusBadge tone="neutral">
-              {directReports.length} direct report
-              {directReports.length === 1 ? "" : "s"}
+              {t("count", { count: directReports.length })}
             </StatusBadge>
           </div>
         </CardHeader>
@@ -113,8 +114,8 @@ export default function TeamWorkspace() {
           {directReports.length === 0 && !isFetching ? (
             <PageEmpty
               icon={Users}
-              title="No direct reports"
-              description="No employees report to you right now."
+              title={t("empty.title")}
+              description={t("empty.description")}
             />
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

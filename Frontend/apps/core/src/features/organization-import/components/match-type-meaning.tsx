@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CircleAlert } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, cn } from "@repo/ds";
 import type { OrganizationImportMatch } from "@repo/api";
@@ -11,6 +12,7 @@ import { TYPE_GRID, MappingHead, MappingSection, MappingStatusPill, useMatchEdit
  * every row carrying it. An unresolved label is emphasized in place; the order never shifts.
  */
 export function MatchTypeMeaning({ match, locked = false }: { match: OrganizationImportMatch; locked?: boolean }) {
+  const t = useTranslations("orgImport.match.types");
   const rows = deriveTypeRows(match);
   const { edit, busy, pendingValue } = useMatchEdit();
   if (rows.length === 0) return null;
@@ -18,10 +20,10 @@ export function MatchTypeMeaning({ match, locked = false }: { match: Organizatio
   return (
     <MappingSection
       id="match-types-title"
-      title="Organization type meaning"
-      description="Map the organization type labels in your file to Fusion’s standard types."
+      title={t("title")}
+      description={t("description")}
     >
-      <MappingHead grid={TYPE_GRID} labels={["Source type label", "Occurrences", "Fusion type", "Status"]} />
+      <MappingHead grid={TYPE_GRID} labels={[t("source"), t("occurrences"), t("fusion"), t("status")]} />
       <div role="rowgroup" className="divide-y divide-border">
         {rows.map((row) => {
           const key = `type:${row.sourceValue}`;
@@ -46,7 +48,7 @@ export function MatchTypeMeaning({ match, locked = false }: { match: Organizatio
                     {row.sourceValue}
                   </span>
                   <span aria-hidden className="block type-meta text-muted-foreground tabular-nums @2xl:hidden">
-                    {row.occurrences} {row.occurrences === 1 ? "occurrence" : "occurrences"}
+                    {t("count", { count: row.occurrences })}
                   </span>
                 </span>
               </span>
@@ -62,10 +64,10 @@ export function MatchTypeMeaning({ match, locked = false }: { match: Organizatio
                   }
                 >
                   <SelectTrigger
-                    aria-label={`Fusion type for ${row.sourceValue}`}
+                    aria-label={t("typeFor", { label: row.sourceValue })}
                     className={cn("w-full", attention && "border-primary/70")}
                   >
-                    <SelectValue placeholder="Select Fusion type" />
+                    <SelectValue placeholder={t("select")} />
                   </SelectTrigger>
                   <SelectContent>
                     {match.typeOptions.map((option) => (

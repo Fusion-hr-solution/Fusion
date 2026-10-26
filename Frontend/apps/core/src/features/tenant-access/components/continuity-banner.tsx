@@ -1,11 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ContinuityState, TenantAccessSummaryDto } from "@repo/api";
 import { Button, cn } from "@repo/ds";
 import { Users } from "lucide-react";
 import {
-  CONTINUITY_ADVISORY,
-  CONTINUITY_LABEL,
+  useAccessWords,
 } from "./access-language";
 
 /**
@@ -44,11 +44,13 @@ export function ContinuityBanner({
   canManage: boolean;
   onInvite: () => void;
 }) {
-  const advisory = CONTINUITY_ADVISORY[summary.continuity];
+  const t = useTranslations("admins.banner");
+  const words = useAccessWords();
+  const advisory = words.advisory(summary.continuity);
 
   return (
     <section
-      aria-label="Administrative continuity"
+      aria-label={t("label")}
       className={cn(
         "flex flex-col gap-6 rounded-surface border p-5 lg:flex-row lg:items-center lg:gap-8",
         POSTURE_SURFACE[summary.continuity]
@@ -63,14 +65,14 @@ export function ContinuityBanner({
         </span>
 
         <div className="min-w-0 space-y-1">
-          <p className="type-eyebrow text-muted-foreground">Administrative continuity</p>
+          <p className="type-eyebrow text-muted-foreground">{t("label")}</p>
           <p className="flex items-center gap-2">
             <span
               aria-hidden
               className={cn("size-2 shrink-0 rounded-full", POSTURE_DOT[summary.continuity])}
             />
             <span className={cn("type-section-title", POSTURE_TEXT[summary.continuity])}>
-              {CONTINUITY_LABEL[summary.continuity]}
+              {words.continuity(summary.continuity)}
             </span>
           </p>
           {advisory ? (
@@ -81,10 +83,10 @@ export function ContinuityBanner({
 
       <div className="flex flex-wrap items-center gap-4 lg:justify-end lg:gap-8">
         <div className="flex items-center gap-6 lg:gap-8 lg:border-s lg:ps-8">
-          <Stat label="Active" value={summary.activeAdministrators} dot="bg-success" />
-          <Stat label="Pending" value={summary.pendingInvitations} dot="bg-warning" />
+          <Stat label={t("active")} value={summary.activeAdministrators} dot="bg-success" />
+          <Stat label={t("pending")} value={summary.pendingInvitations} dot="bg-warning" />
           <Stat
-            label="Suspended"
+            label={t("suspended")}
             value={summary.suspendedAdministrators}
             dot="bg-muted-foreground/50"
           />
@@ -92,7 +94,7 @@ export function ContinuityBanner({
 
         {canManage ? (
           <Button className="w-full shrink-0 sm:w-auto" onClick={onInvite}>
-            Invite administrator
+            {t("invite")}
           </Button>
         ) : null}
       </div>

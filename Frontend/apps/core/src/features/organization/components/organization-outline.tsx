@@ -1,5 +1,7 @@
 "use client";
 
+import { useSay } from "@repo/ds/lib/say";
+import { useTranslations } from "next-intl";
 import {
   useEffect,
   useMemo,
@@ -40,6 +42,8 @@ export function OrganizationOutline({
   onAddChild,
   onStageDragMove,
 }: OrganizationOutlineProps) {
+  const t = useTranslations("organization");
+  const say = useSay("organization");
   const rows = useMemo(() => flattenOrganizationHierarchy(model, collapsed), [collapsed, model]);
   const [activeId, setActiveId] = useState(selectedId ?? rows[0]?.unit.id ?? null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -105,12 +109,12 @@ export function OrganizationOutline({
   }
 
   return (
-    <div role="treegrid" aria-label="Organization structure outline" aria-rowcount={rows.length} className="h-full min-h-[520px] overflow-auto bg-section">
+    <div role="treegrid" aria-label={t("outline.label")} aria-rowcount={rows.length} className="h-full min-h-[520px] overflow-auto bg-section">
       <div role="row" className="sticky top-0 z-10 grid grid-cols-[minmax(280px,1fr)_180px_150px_110px] border-b bg-card px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur-sm">
-        <span role="columnheader">Organizational unit</span>
-        <span role="columnheader">Type</span>
-        <span role="columnheader">Business code</span>
-        <span role="columnheader" className="text-end">Effective</span>
+        <span role="columnheader">{t("outline.unit")}</span>
+        <span role="columnheader">{t("outline.type")}</span>
+        <span role="columnheader">{t("outline.code")}</span>
+        <span role="columnheader" className="text-end">{t("outline.effective")}</span>
       </div>
       {rows.map((row, index) => {
         const selected = row.unit.id === selectedId;
@@ -125,7 +129,7 @@ export function OrganizationOutline({
             aria-level={row.depth + 1}
             aria-expanded={row.hasChildren ? row.expanded : undefined}
             aria-selected={selected}
-            aria-label={organizationAccessibleName(model, row.unit.id)}
+            aria-label={organizationAccessibleName(model, row.unit.id, say)}
             tabIndex={activeId === row.unit.id ? 0 : -1}
             onFocus={() => setActiveId(row.unit.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
@@ -143,7 +147,7 @@ export function OrganizationOutline({
           >
             <div role="gridcell" className="flex min-w-0 items-center" style={{ paddingInlineStart: `${row.depth * 24}px` }}>
               {row.hasChildren ? (
-                <button type="button" aria-label={`${row.expanded ? "Collapse" : "Expand"} ${row.unit.name}`} onClick={() => onToggle(row.unit.id)} className="me-1 grid h-7 w-7 shrink-0 place-items-center rounded-control-sm text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+                <button type="button" aria-label={t(row.expanded ? "outline.collapse" : "outline.expand", { name: row.unit.name })} onClick={() => onToggle(row.unit.id)} className="me-1 grid h-7 w-7 shrink-0 place-items-center rounded-control-sm text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
                   {row.expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 </button>
               ) : <span className="me-1 h-7 w-7 shrink-0" />}
@@ -152,14 +156,14 @@ export function OrganizationOutline({
               </button>
               {dragMovable ? (
                 <div className="ms-auto flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
-                  <Button variant="ghost" size="icon-sm" aria-label={`Add child to ${row.unit.name}`} onClick={() => onAddChild(row.unit.id)}><Plus className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon-sm" aria-label={t("outline.addChild", { name: row.unit.name })} onClick={() => onAddChild(row.unit.id)}><Plus className="h-3.5 w-3.5" /></Button>
                   {canDragRow ? (
                     <span
                       role="button"
                       tabIndex={-1}
                       draggable
-                      aria-label={`Drag to move ${row.unit.name}`}
-                      title="Drag to move"
+                      aria-label={t("outline.drag", { name: row.unit.name })}
+                      title={t("outline.dragHint")}
                       onDragStart={(event) => {
                         event.dataTransfer.effectAllowed = "move";
                         event.dataTransfer.setData("text/plain", row.unit.id);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import {
   AlertDialog,
@@ -145,6 +146,7 @@ export function ConfirmDialog({
   onConfirm,
   onOpenChange,
 }: ConfirmDialogProps) {
+  const t = useTranslations("admins");
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       {/* Width is left to the design system: its own data-size rule outranks a
@@ -164,7 +166,7 @@ export function ConfirmDialog({
         ) : null}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy}>{t("confirm.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             disabled={busy}
             variant={destructive ? "destructive" : "default"}

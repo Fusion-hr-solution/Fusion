@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@repo/ds";
 import {
@@ -36,6 +37,7 @@ export function ImportAccessGate({
   children: React.ReactNode;
 }) {
   const { user, isLoading } = useAuth();
+  const t = useTranslations("orgImport");
   const canView = canViewCoreOrganization(user);
   const canManage = canManageCoreOrganization(user);
 
@@ -43,23 +45,23 @@ export function ImportAccessGate({
   if (!canView)
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Import organization structure" />
+        <PageHeader title={t("title")} />
         <PagePermissionNotice
-          title="Organization access required"
-          description="You do not have permission to view this tenant’s Organization."
+          title={t("access.title")}
+          description={t("access.description")}
         />
       </PageContainer>
     );
   if (!canManage)
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Import organization structure" />
+        <PageHeader title={t("title")} />
         <PagePermissionNotice
-          title="Organization management access required"
-          description="You can view Organization, but importing its structure requires management access."
+          title={t("access.manageTitle")}
+          description={t("access.manageDescription")}
           action={
             <Button asChild variant="outline">
-              <Link href="/organization">Back to Organization</Link>
+              <Link href="/organization">{t("access.back")}</Link>
             </Button>
           }
         />
