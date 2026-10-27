@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
   // for, so every stylesheet and script 404s until dev is restarted. Separate
   // directories make the two incapable of colliding.
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
+  experimental: {
+    // `next dev` keeps every compiled route in memory (~1.4 GB per app seen on a 14 GB dev machine);
+    // past this soft limit Turbopack evicts and recompiles on demand instead of growing.
+    turbopackMemoryLimit: 1024 * 1024 * 1024,
+  },
   outputFileTracingRoot: frontendWorkspaceRoot,
   basePath: "/core",
   transpilePackages: ["@repo/api", "@repo/auth", "@repo/ds", "@repo/performance-ui", "@repo/i18n"],

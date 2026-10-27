@@ -20,6 +20,9 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: frontendWorkspaceRoot,
   transpilePackages: ["@repo/ds", "@repo/auth", "@repo/api", "@repo/i18n", "@repo/performance-ui"],
   experimental: {
+    // `next dev` keeps every compiled route in memory (~1.4 GB per app seen on a 14 GB dev machine);
+    // past this soft limit Turbopack evicts and recompiles on demand instead of growing.
+    turbopackMemoryLimit: 1024 * 1024 * 1024,
     // The shell reverse-proxies module documents to each MFE via `rewrites()`.
     // Next's rewrite proxy defaults to a 30s timeout; when a Next dev server
     // compiles a route on first hit it can exceed that (measured ~33s for a cold

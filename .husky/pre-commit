@@ -1,1 +1,8 @@
-cd Frontend && pnpm lint && pnpm type-check
+# Where the local fusion-dev memory check exists, refuse up front when RAM is short and lint and
+# type-check two packages at a time. Elsewhere (no check script), the hook runs as before.
+check=.agents/skills/fusion-dev/scripts/memory-check.ps1
+if [ -f "$check" ]; then
+  pwsh -NoProfile -File "$check" -NeedGB 2.5 -Job "the pre-commit hook" || exit 1
+  FUSION_HOOK_CONCURRENCY=${FUSION_HOOK_CONCURRENCY:-2}
+fi
+cd Frontend && pnpm lint ${FUSION_HOOK_CONCURRENCY:+--concurrency=$FUSION_HOOK_CONCURRENCY} && pnpm type-check ${FUSION_HOOK_CONCURRENCY:+--concurrency=$FUSION_HOOK_CONCURRENCY}
