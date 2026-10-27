@@ -19,7 +19,6 @@ public class EmployeesControllerAuthorizationTests
     [Theory]
     [InlineData(nameof(EmployeesController.GetAll))]
     [InlineData(nameof(EmployeesController.GetReadinessSummary))]
-    [InlineData(nameof(EmployeesController.GetOrgChart))]
     [InlineData(nameof(EmployeesController.Create))]
     [InlineData(nameof(EmployeesController.GetById))]
     [InlineData(nameof(EmployeesController.Update))]

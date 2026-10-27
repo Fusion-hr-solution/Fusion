@@ -11,7 +11,6 @@ using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeByKey;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
-using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeOrgChart;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLines;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLinesByKey;
@@ -22,7 +21,6 @@ using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
 using ApiResponse = EY.HRPlatform.SharedKernel.Api.ApiResponse;
 using ApiResponseOfEmployeeDetailsDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeDetailsDto>;
-using ApiResponseOfEmployeeOrgChartDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeOrgChartDto>;
 using ApiResponseOfPagedEmployeeList = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Models.Responses.PagedResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeListItemDto>>;
 using ApiResponseOfEmployeeReportingLinesDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeReportingLinesDto>;
 using ApiResponseOfWorkforceReadinessSummaryDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.WorkforceReadinessSummaryDto>;
@@ -358,41 +356,6 @@ public class EmployeesController(
 
         var result = await sender.Send(new GetWorkforceReadinessSummaryQuery(), cancellationToken);
         return Ok(ApiResponseOfWorkforceReadinessSummaryDto.Success(result.Value));
-    }
-
-    /// <summary>
-    /// Get a hierarchy tree for org chart rendering.
-    /// Supports focus-employee root resolution, org unit scoping, and inactive visibility.
-    /// </summary>
-    [HttpGet("org-chart")]
-    [ProducesResponseType(typeof(ApiResponseOfEmployeeOrgChartDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetOrgChart(
-        [FromQuery] Guid? rootEmployeeId,
-        [FromQuery] Guid? focusEmployeeId,
-        [FromQuery] string? rootEmployeeKey,
-        [FromQuery] string? focusEmployeeKey,
-        [FromQuery] Guid? orgUnitId,
-        [FromQuery] string? orgUnitCode,
-        [FromQuery] int maxDepth = 10,
-        [FromQuery] bool includeInactive = false,
-        CancellationToken cancellationToken = default)
-    {
-        if (!accessPolicy.CanViewOrgChart(User))
-        {
-            return Forbid();
-        }
-
-        var result = await sender.Send(
-            new GetEmployeeOrgChartQuery(rootEmployeeId, focusEmployeeId, rootEmployeeKey, focusEmployeeKey, orgUnitId, orgUnitCode, maxDepth, includeInactive),
-            cancellationToken);
-
-        if (result.IsFailure)
-        {
-            return NotFound(ApiResponse.Failure(result.Error.Message));
-        }
-
-        return Ok(ApiResponseOfEmployeeOrgChartDto.Success(result.Value));
     }
 
     /// <summary>

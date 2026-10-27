@@ -81,7 +81,7 @@ public class CoreAccessPolicyServiceTests
         Assert.False(_service.CanViewOverview(user));
         Assert.False(_service.CanViewSetup(user));
         Assert.False(_service.CanViewStructure(user));
-        Assert.False(_service.CanViewOrgChart(user));
+        Assert.Null(_service.GetOrgChartScope(user));
         Assert.False(_service.CanViewAccess(user));
         Assert.False(_service.CanViewTenantEmployees(user));
         Assert.False(_service.CanViewSettings(user));

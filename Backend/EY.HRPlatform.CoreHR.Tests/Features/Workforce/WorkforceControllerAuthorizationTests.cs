@@ -172,7 +172,7 @@ public class WorkforceControllerAuthorizationTests
         public bool CanViewGovernanceSettings(ClaimsPrincipal user) => false;
         public bool CanViewAccessProfiles(ClaimsPrincipal user) => false;
         public bool CanManageAccessProfiles(ClaimsPrincipal user) => false;
-        public bool CanViewOrgChart(ClaimsPrincipal user) => false;
+        public string? GetOrgChartScope(ClaimsPrincipal user) => null;
         public bool CanViewAccess(ClaimsPrincipal user) => canViewAccess;
         public bool CanManageAccess(ClaimsPrincipal user) => canManageAccess;
         public bool CanViewTenantEmployees(ClaimsPrincipal user) => false;

@@ -191,7 +191,7 @@ public class EmployeesControllerLifecycleAuthorizationTests
         public bool CanViewGovernanceSettings(ClaimsPrincipal user) => true;
         public bool CanViewAccessProfiles(ClaimsPrincipal user) => true;
         public bool CanManageAccessProfiles(ClaimsPrincipal user) => true;
-        public bool CanViewOrgChart(ClaimsPrincipal user) => true;
+        public string? GetOrgChartScope(ClaimsPrincipal user) => PermissionScopes.Tenant;
         public bool CanViewAccess(ClaimsPrincipal user) => true;
         public bool CanManageAccess(ClaimsPrincipal user) => true;
         public bool CanViewTenantEmployees(ClaimsPrincipal user) => true;

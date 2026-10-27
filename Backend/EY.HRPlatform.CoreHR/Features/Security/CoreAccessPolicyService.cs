@@ -27,7 +27,8 @@ public interface ICoreAccessPolicyService
     bool CanViewGovernanceSettings(ClaimsPrincipal user);
     bool CanViewAccessProfiles(ClaimsPrincipal user);
     bool CanManageAccessProfiles(ClaimsPrincipal user);
-    bool CanViewOrgChart(ClaimsPrincipal user);
+    /// <summary>The widest org chart scope held (Tenant, then DirectReports), or null without the permission.</summary>
+    string? GetOrgChartScope(ClaimsPrincipal user);
     bool CanViewAccess(ClaimsPrincipal user);
     bool CanManageAccess(ClaimsPrincipal user);
     bool CanViewTenantEmployees(ClaimsPrincipal user);
@@ -138,9 +139,10 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
         => HasTenantPermission(user, CorePermissions.AccessProfilesManageV2)
             || user.HasCorePermission(CorePermissions.AccessProfilesManage, PermissionScopes.Tenant);
 
-    public bool CanViewOrgChart(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.DirectReports);
+    public string? GetOrgChartScope(ClaimsPrincipal user)
+        => user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.Tenant) ? PermissionScopes.Tenant
+            : user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.DirectReports) ? PermissionScopes.DirectReports
+            : null;
 
     public bool CanViewAccess(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
