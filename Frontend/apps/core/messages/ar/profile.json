@@ -60,7 +60,8 @@
     "noManager": "لا مدير مسند",
     "directReports": "المرؤوسون المباشرون · {count}",
     "directReportsOf": "المرؤوسون المباشرون · {shown} من {total}",
-    "more": "+{count} آخرون"
+    "more": "+{count} آخرون",
+    "showInChart": "عرض في الهيكل التنظيمي"
   },
   "employment": {
     "title": "التوظيف",

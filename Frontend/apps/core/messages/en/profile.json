@@ -60,7 +60,8 @@
     "noManager": "No manager assigned",
     "directReports": "Direct reports · {count}",
     "directReportsOf": "Direct reports · {shown} of {total}",
-    "more": "+{count} more"
+    "more": "+{count} more",
+    "showInChart": "Show in org chart"
   },
   "employment": {
     "title": "Employment",

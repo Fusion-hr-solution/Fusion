@@ -1,0 +1,70 @@
+{
+  "title": "Org chart",
+  "meta": "{people, plural, one {# person} other {# people}} · {divisions, plural, =0 {no divisions} one {# division} other {# divisions}}",
+  "views": {
+    "label": "View",
+    "aroundYou": "Around you",
+    "aroundName": "Around {name}",
+    "company": "Whole company"
+  },
+  "search": {
+    "label": "Find a person or team",
+    "none": "No one matches"
+  },
+  "lens": {
+    "label": "Colour by",
+    "division": "Division",
+    "location": "Location",
+    "none": "Nothing",
+    "leadership": "Leadership",
+    "filter": "Show only {label}"
+  },
+  "card": {
+    "you": "You",
+    "new": "New",
+    "since": "since {year}",
+    "team": "<b>{direct}</b> direct",
+    "teamAll": "<b>{direct}</b> direct · <b>{total}</b> in all",
+    "copyEmail": "Copy work email",
+    "copied": "Work email copied",
+    "centre": "Centre here",
+    "showTeam": "Show team",
+    "foldTeam": "Fold team",
+    "more": "{count, plural, one {# more person} other {# more people}}",
+    "moreDetail": "Outside your part of the chart",
+    "dotted": "Dotted line to {name}"
+  },
+  "panel": {
+    "close": "Close",
+    "unit": "Unit",
+    "manager": "Manager",
+    "top": "Top of the company",
+    "dotted": "Dotted line",
+    "team": "Team",
+    "teamCount": "{direct} direct",
+    "teamCountAll": "{direct} direct · {total} in all",
+    "noReports": "No reports",
+    "location": "Location",
+    "since": "Here since",
+    "email": "Work email",
+    "joined": "Joined in {year}",
+    "centre": "Centre here",
+    "openProfile": "Open profile"
+  },
+  "zoom": {
+    "in": "Zoom in",
+    "out": "Zoom out",
+    "fit": "Fit to screen"
+  },
+  "states": {
+    "empty": "No one is on the chart yet.",
+    "emptyAction": "Open People",
+    "error": "The org chart didn't load.",
+    "retry": "Try again"
+  },
+  "access": {
+    "title": "Org chart access required",
+    "description": "Your role doesn't include the org chart. Ask your administrator if you need it."
+  },
+  "showInChart": "Show in org chart"
+}

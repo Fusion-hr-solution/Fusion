@@ -6,7 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Pencil, User } from "lucide-react";
 import { useFieldVisibility } from "@repo/api/query";
-import { canEnterPerformance, useAuth } from "@repo/auth";
+import { canAccessCoreOrgChart, canEnterPerformance, useAuth } from "@repo/auth";
 import { notFound } from "next/navigation";
 import {
   Button,
@@ -163,6 +163,7 @@ export function MyProfile({
             />
           ) : undefined
         }
+        orgChartHref={canAccessCoreOrgChart(user) ? "/org-chart" : undefined}
         reportsFooter={
           truncatedReports ? (
             <Button

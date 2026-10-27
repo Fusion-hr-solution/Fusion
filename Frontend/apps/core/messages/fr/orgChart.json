@@ -1,0 +1,70 @@
+{
+  "title": "Organigramme",
+  "meta": "{people, plural, one {# personne} other {# personnes}} · {divisions, plural, =0 {aucune division} one {# division} other {# divisions}}",
+  "views": {
+    "label": "Vue",
+    "aroundYou": "Autour de vous",
+    "aroundName": "Autour de {name}",
+    "company": "Toute l'entreprise"
+  },
+  "search": {
+    "label": "Trouver une personne ou une équipe",
+    "none": "Personne ne correspond"
+  },
+  "lens": {
+    "label": "Couleur par",
+    "division": "Division",
+    "location": "Site",
+    "none": "Aucune",
+    "leadership": "Direction",
+    "filter": "Afficher seulement {label}"
+  },
+  "card": {
+    "you": "Vous",
+    "new": "Nouveau",
+    "since": "depuis {year}",
+    "team": "<b>{direct}</b> en direct",
+    "teamAll": "<b>{direct}</b> en direct · <b>{total}</b> au total",
+    "copyEmail": "Copier l'e-mail professionnel",
+    "copied": "E-mail professionnel copié",
+    "centre": "Centrer ici",
+    "showTeam": "Afficher l'équipe",
+    "foldTeam": "Replier l'équipe",
+    "more": "{count, plural, one {# autre personne} other {# autres personnes}}",
+    "moreDetail": "Hors de votre partie de l'organigramme",
+    "dotted": "Lien fonctionnel vers {name}"
+  },
+  "panel": {
+    "close": "Fermer",
+    "unit": "Unité",
+    "manager": "Manager",
+    "top": "Sommet de l'entreprise",
+    "dotted": "Lien fonctionnel",
+    "team": "Équipe",
+    "teamCount": "{direct} en direct",
+    "teamCountAll": "{direct} en direct · {total} au total",
+    "noReports": "Aucun collaborateur",
+    "location": "Site",
+    "since": "Présent depuis",
+    "email": "E-mail professionnel",
+    "joined": "Arrivé en {year}",
+    "centre": "Centrer ici",
+    "openProfile": "Ouvrir le profil"
+  },
+  "zoom": {
+    "in": "Zoom avant",
+    "out": "Zoom arrière",
+    "fit": "Ajuster à l'écran"
+  },
+  "states": {
+    "empty": "Personne n'est encore dans l'organigramme.",
+    "emptyAction": "Ouvrir Collaborateurs",
+    "error": "L'organigramme ne s'est pas chargé.",
+    "retry": "Réessayer"
+  },
+  "access": {
+    "title": "Accès à l'organigramme requis",
+    "description": "Votre rôle n'inclut pas l'organigramme. Demandez-le à votre administrateur si besoin."
+  },
+  "showInChart": "Voir dans l'organigramme"
+}

@@ -40,6 +40,7 @@ import {
   canManageCoreEmployees,
   canViewWorkforceAccess,
   useAuth,
+  canAccessCoreOrgChart,
 } from "@repo/auth";
 import { classifyApiError } from "@repo/api";
 import {
@@ -254,6 +255,7 @@ export default function PeopleProfileWorkspace({
       <WorkerProfile
         view={view}
         headingRef={headingRef}
+        orgChartHref={canAccessCoreOrgChart(user) ? `/org-chart?focus=${encodeURIComponent(employeeKey)}` : undefined}
         backLink={
           <Link
             href="/people"

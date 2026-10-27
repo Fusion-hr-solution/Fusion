@@ -57,6 +57,7 @@ vi.mock("@repo/auth", () => ({
   canViewWorkforceAccess: () => true,
   canAccessCoreTeam: () => true,
   canAccessCorePeople: () => true,
+  canAccessCoreOrgChart: () => true,
   canEnterPerformance: () => mockCanEnterPerformance(),
 }));
 
@@ -174,6 +175,7 @@ describe("PeopleProfileWorkspace", () => {
     // the canonical composition, not the old people-only object page
     expect(screen.getByText("Current assignment")).toBeInTheDocument();
     expect(screen.getByText("Organization & reporting")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Show in org chart/i })).toHaveAttribute("href", "/org-chart?focus=E-KEY-1");
     expect(screen.getByText("Employment")).toBeInTheDocument();
     expect(screen.getByText("Fusion access")).toBeInTheDocument();
     expect(screen.getByText("Work contact")).toBeInTheDocument();

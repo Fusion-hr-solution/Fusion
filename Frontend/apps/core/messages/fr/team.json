@@ -16,5 +16,6 @@
   "empty": {
     "title": "Aucun collaborateur direct",
     "description": "Aucun collaborateur ne vous est rattaché pour l’instant."
-  }
+  },
+  "showInChart": "Voir dans l'organigramme"
 }

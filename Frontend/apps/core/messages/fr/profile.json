@@ -60,7 +60,8 @@
     "noManager": "Aucun manager affecté",
     "directReports": "Collaborateurs directs · {count}",
     "directReportsOf": "Collaborateurs directs · {shown} sur {total}",
-    "more": "+{count} autres"
+    "more": "+{count} autres",
+    "showInChart": "Voir dans l'organigramme"
   },
   "employment": {
     "title": "Contrat",

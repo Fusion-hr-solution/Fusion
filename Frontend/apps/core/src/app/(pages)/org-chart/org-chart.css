@@ -1,0 +1,109 @@
+/* People org chart (B-094), ported from the accepted B-126 card canvas, direction C. Tones and corners come
+   from @repo/ds roles in the markup (bg-card, rounded-surface…); this file carries what a canvas needs:
+   absolute placement, the avatar ring in the lens colour, edges, and the three zoom tiers. */
+
+.oc-stage {
+  --oc-line: var(--border);
+  --oc-line-strong: color-mix(in oklab, var(--muted-foreground) 32%, var(--border));
+  --oc-faint: color-mix(in oklab, var(--muted-foreground) 72%, var(--card));
+  position: relative;
+  /* clip, not hidden: a focused card or button must never scroll the stage under its overlays */
+  overflow: clip;
+  touch-action: none;
+  cursor: grab;
+}
+.oc-stage.oc-panning { cursor: grabbing; }
+.oc-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+/* Edges */
+.oc-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; transition: opacity var(--duration-reveal); }
+.oc-edges.oc-hide { opacity: 0; }
+.oc-edges path { fill: none; stroke: var(--oc-line-strong); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.oc-edges path.oc-lit { stroke: var(--primary); stroke-width: 2.4; }
+.oc-edges path.oc-dash { stroke-dasharray: 5 5; }
+.oc-edges path.oc-dot { stroke: var(--muted-foreground); stroke-dasharray: 1 6; stroke-linecap: round; stroke-width: 2.4; }
+
+/* Nodes move to their new place when the layout changes */
+.oc-node {
+  position: absolute; left: 0; top: 0;
+  transition: transform 460ms var(--ease-emphasized), opacity 300ms, border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.oc-world.oc-still .oc-node { transition: border-color var(--duration-fast), box-shadow var(--duration-fast), opacity 300ms; }
+.oc-node.oc-dim { opacity: 0.22; }
+.oc-node:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+/* Avatar: ringed in the lens colour (division by default) */
+.oc-av {
+  --h: var(--oc-line-strong);
+  display: grid; place-items: center; flex: none; border-radius: 9999px; font-weight: 650; letter-spacing: 0.02em;
+  background: color-mix(in oklab, var(--h) 20%, var(--inlay));
+  color: color-mix(in oklab, var(--h) 75%, var(--foreground));
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--h) 70%, transparent);
+}
+.oc-av.oc-neutral { color: var(--foreground); }
+.oc-av.oc-xxl { width: 84px; height: 84px; font-size: 24px; }
+.oc-av.oc-xl { width: 68px; height: 68px; font-size: 20px; }
+.oc-av.oc-md { width: 46px; height: 46px; font-size: 14px; }
+.oc-av.oc-sm { width: 30px; height: 30px; font-size: 10.5px; }
+.oc-av.oc-xs { width: 24px; height: 24px; font-size: 8.5px; letter-spacing: 0; box-shadow: 0 0 0 2px var(--inlay), inset 0 0 0 1.5px color-mix(in oklab, var(--h) 70%, transparent); }
+.oc-av.oc-you { box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--h) 70%, transparent), 0 0 0 3px var(--card), 0 0 0 5px var(--primary); }
+.oc-strip { display: flex; align-items: center; }
+.oc-strip .oc-av + .oc-av { margin-inline-start: -5px; }
+.oc-strip .oc-plus { margin-inline-start: 6px; font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+
+.oc-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 9999px; background: var(--inlay); font-size: 12px; color: var(--muted-foreground); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.oc-chip svg { width: 12px; height: 12px; flex: none; }
+.oc-swatch { width: 7px; height: 7px; border-radius: 9999px; flex: none; }
+
+.oc-badge { position: absolute; top: -11px; inset-inline-end: 14px; z-index: 2; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap; background: var(--primary); color: var(--primary-foreground); }
+.oc-badge.oc-new { background: color-mix(in oklab, var(--primary) 18%, var(--card)); color: var(--primary); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent); }
+.oc-acts { position: absolute; top: 8px; inset-inline-end: 8px; z-index: 3; display: none; gap: 4px; }
+.oc-node:hover .oc-acts, .oc-node:focus-within .oc-acts { display: flex; }
+.oc-node:hover .oc-badge { display: none; }
+.oc-ib { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--oc-line-strong); background: var(--popover); color: var(--muted-foreground); cursor: pointer; }
+.oc-ib:hover { color: var(--foreground); }
+.oc-ib svg { width: 14px; height: 14px; }
+
+/* Leader card: portrait, avatar breaking the top edge, team strip below */
+.oc-lead { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 44px 14px 0; border: 1px solid var(--oc-line); cursor: pointer; }
+.oc-lead:hover { border-color: var(--oc-line-strong); }
+.oc-lead > .oc-av { position: absolute; top: -34px; left: 50%; transform: translateX(-50%); }
+.oc-lead.oc-top { padding-top: 52px; }
+.oc-lead.oc-top > .oc-av { top: -42px; }
+.oc-nm { max-width: 100%; font-size: 16.5px; font-weight: 650; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc-lead.oc-top .oc-nm { font-family: var(--font-editorial); font-size: 22px; font-weight: 600; }
+.oc-ti { max-width: 100%; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc-chips { display: flex; gap: 6px; justify-content: center; max-width: 100%; margin-top: 10px; }
+.oc-team { display: flex; align-items: center; justify-content: space-between; gap: 8px; align-self: stretch; height: 48px; margin: auto -6px 8px; padding: 0 12px; background: var(--inlay); }
+.oc-team .oc-k { font-size: 12.5px; color: var(--muted-foreground); white-space: nowrap; }
+.oc-team .oc-k b { font-size: 14px; font-weight: 650; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.oc-fold { position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 9px; border-radius: 9999px; border: 1px solid var(--oc-line-strong); background: var(--popover); font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; cursor: pointer; }
+.oc-fold:hover { border-color: var(--foreground); }
+.oc-fold svg { width: 12px; height: 12px; }
+.oc-lead.oc-sel, .oc-pc.oc-sel { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.oc-lead.oc-you, .oc-pc.oc-you { border-color: color-mix(in oklab, var(--primary) 65%, var(--oc-line)); }
+
+/* Person card: everyone who doesn't lead a team */
+.oc-pc { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 0 14px; border: 1px solid var(--oc-line); cursor: pointer; }
+.oc-pc:hover { border-color: var(--oc-line-strong); }
+.oc-t { display: grid; gap: 1px; min-width: 0; line-height: 1.25; text-align: start; }
+.oc-t b { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc-t span { font-size: 12.5px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc-t .oc-m { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--oc-faint); }
+.oc-t .oc-m svg { width: 11px; height: 11px; flex: none; }
+.oc-pc.oc-chain { border-radius: 9999px; }
+.oc-pc.oc-more { border-style: dashed; border-color: var(--oc-line-strong); cursor: default; }
+.oc-well { display: grid; place-items: center; width: 46px; height: 46px; flex: none; background: var(--inlay); color: var(--muted-foreground); }
+.oc-well svg { width: 20px; height: 20px; }
+
+/* Zoom tiers: same geometry, less detail */
+.oc-world.oc-z-mid .oc-chips, .oc-world.oc-z-mid .oc-t .oc-m { visibility: hidden; }
+.oc-world.oc-z-mid .oc-nm { font-size: 20px; overflow: visible; }
+.oc-world.oc-z-mid .oc-ti { font-size: 15px; }
+.oc-world.oc-z-mid .oc-t b { font-size: 17px; }
+.oc-world.oc-z-mid .oc-t span { font-size: 14.5px; }
+.oc-world.oc-z-mid .oc-team .oc-k { font-size: 15px; }
+.oc-world.oc-z-far .oc-lead, .oc-world.oc-z-far .oc-pc { background: color-mix(in oklab, var(--lc, var(--muted-foreground)) 36%, var(--card)); border-color: transparent; }
+.oc-world.oc-z-far .oc-lead > *:not(.oc-av), .oc-world.oc-z-far .oc-pc > *, .oc-world.oc-z-far .oc-badge { visibility: hidden; }
+.oc-world.oc-z-far .oc-lead > .oc-av { color: transparent; }
+.oc-world.oc-z-far .oc-you, .oc-world.oc-z-far .oc-sel { background: var(--primary); }

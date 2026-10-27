@@ -1,0 +1,70 @@
+{
+  "title": "الهيكل التنظيمي",
+  "meta": "{people, plural, one {شخص واحد} other {# أشخاص}} · {divisions, plural, =0 {بدون أقسام} one {قسم واحد} other {# أقسام}}",
+  "views": {
+    "label": "العرض",
+    "aroundYou": "من حولك",
+    "aroundName": "حول {name}",
+    "company": "الشركة كاملة"
+  },
+  "search": {
+    "label": "ابحث عن شخص أو فريق",
+    "none": "لا أحد يطابق البحث"
+  },
+  "lens": {
+    "label": "التلوين حسب",
+    "division": "القسم",
+    "location": "الموقع",
+    "none": "بدون",
+    "leadership": "الإدارة العليا",
+    "filter": "عرض {label} فقط"
+  },
+  "card": {
+    "you": "أنت",
+    "new": "جديد",
+    "since": "منذ {year}",
+    "team": "<b>{direct}</b> مباشر",
+    "teamAll": "<b>{direct}</b> مباشر · <b>{total}</b> إجمالاً",
+    "copyEmail": "نسخ البريد المهني",
+    "copied": "تم نسخ البريد المهني",
+    "centre": "التمركز هنا",
+    "showTeam": "إظهار الفريق",
+    "foldTeam": "طي الفريق",
+    "more": "{count, plural, one {شخص آخر} other {# أشخاص آخرين}}",
+    "moreDetail": "خارج الجزء الخاص بك من الهيكل",
+    "dotted": "ارتباط وظيفي مع {name}"
+  },
+  "panel": {
+    "close": "إغلاق",
+    "unit": "الوحدة",
+    "manager": "المدير",
+    "top": "أعلى الشركة",
+    "dotted": "ارتباط وظيفي",
+    "team": "الفريق",
+    "teamCount": "{direct} مباشر",
+    "teamCountAll": "{direct} مباشر · {total} إجمالاً",
+    "noReports": "لا يوجد مرؤوسون",
+    "location": "الموقع",
+    "since": "في الشركة منذ",
+    "email": "البريد المهني",
+    "joined": "انضم في {year}",
+    "centre": "التمركز هنا",
+    "openProfile": "فتح الملف"
+  },
+  "zoom": {
+    "in": "تكبير",
+    "out": "تصغير",
+    "fit": "ملاءمة الشاشة"
+  },
+  "states": {
+    "empty": "لا أحد في الهيكل بعد.",
+    "emptyAction": "فتح الموظفين",
+    "error": "تعذر تحميل الهيكل التنظيمي.",
+    "retry": "إعادة المحاولة"
+  },
+  "access": {
+    "title": "يلزم الوصول إلى الهيكل التنظيمي",
+    "description": "دورك لا يشمل الهيكل التنظيمي. اطلبه من المسؤول إذا احتجت إليه."
+  },
+  "showInChart": "عرض في الهيكل التنظيمي"
+}

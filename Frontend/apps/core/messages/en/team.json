@@ -16,5 +16,6 @@
   "empty": {
     "title": "No direct reports",
     "description": "No employees report to you right now."
-  }
+  },
+  "showInChart": "Show in org chart"
 }

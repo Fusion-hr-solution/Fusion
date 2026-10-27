@@ -82,7 +82,7 @@
   "views": {
     "label": "Représentation de la structure",
     "chartLabel": "Vue organigramme",
-    "chart": "Organigramme",
+    "chart": "Schéma",
     "outlineLabel": "Vue liste",
     "outline": "Liste"
   },

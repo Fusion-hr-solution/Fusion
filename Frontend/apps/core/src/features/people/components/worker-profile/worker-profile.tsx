@@ -20,6 +20,7 @@ import {
   MapPin,
   Phone,
   Users,
+  Workflow,
 } from "lucide-react";
 import type {
   PeopleChangeFieldDto,
@@ -46,6 +47,8 @@ export interface WorkerProfileProps {
   headingRef?: Ref<HTMLHeadingElement>;
   /** Footer under the direct-reports list (self links to the team; other shows "+N more"). */
   reportsFooter?: ReactNode;
+  /** The org chart opened around this person; omitted when the viewer can't see the chart. */
+  orgChartHref?: string;
   /** Fetch state for the Fusion access section (other-worker loads it separately). */
   accessState?: "loading" | "error" | "ready";
   onRetryAccess?: () => void;
@@ -75,6 +78,7 @@ export function WorkerProfile({
   nameBadge,
   headingRef,
   reportsFooter,
+  orgChartHref,
   accessState,
   onRetryAccess,
   timelineLoading = false,
@@ -354,6 +358,15 @@ export function WorkerProfile({
                         </p>
                       ) : null)}
                   </div>
+                ) : null}
+
+                {orgChartHref ? (
+                  <Link
+                    href={orgChartHref}
+                    className="mt-5 inline-flex items-center gap-2 border-t pt-4 type-label text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    <Workflow className="size-4" /> {t("reporting.showInChart")}
+                  </Link>
                 ) : null}
               </ProfileCard>
             </div>

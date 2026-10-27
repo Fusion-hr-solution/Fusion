@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@repo/auth";
+import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
 import {
   PageContainer,
   PageHeader,
@@ -11,6 +11,7 @@ import {
   PageError,
   StatusBadge,
 } from "@repo/ds/shell";
+import { Button } from "@repo/ds";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TeamPageSkeleton } from "@/shell/route-skeletons";
 import { canAccessTeamWorkspace } from "@/lib/employee-roster-access";
@@ -99,7 +100,17 @@ export default function TeamWorkspace() {
 
   return (
     <PageContainer className="space-y-6">
-      <PageHeader title={t("title")} description={t("description")} />
+      <PageHeader
+        title={t("title")}
+        description={t("description")}
+        actions={
+          canAccessCoreOrgChart(user) ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/org-chart">{t("showInChart")}</Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       <Card>
         <CardHeader density="compact">

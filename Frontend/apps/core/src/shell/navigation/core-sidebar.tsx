@@ -9,6 +9,7 @@ import {
   useAuth,
   canViewWorkforceAccess,
   canViewCoreOrganization,
+  canSeeCoreOrgChartNavigation,
   canSeeCoreSettingsNavigation,
   canViewTenantAdministration,
 } from "@repo/auth";
@@ -38,6 +39,7 @@ export function CoreSidebar() {
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
   const canSeeOrganization = canViewCoreOrganization(user);
+  const canSeeOrgChart = canSeeCoreOrgChartNavigation(user);
   const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user);
   const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user);
 
@@ -45,6 +47,7 @@ export function CoreSidebar() {
     if (item.href === "/profile") return canSeeMyProfile;
     if (item.href === "/team") return canSeeMyTeam;
     if (item.href === "/people") return canSeeEmployeeRoster;
+    if (item.href === "/org-chart") return canSeeOrgChart;
     if (item.href === "/organization") return canSeeOrganization;
     return true;
   });
