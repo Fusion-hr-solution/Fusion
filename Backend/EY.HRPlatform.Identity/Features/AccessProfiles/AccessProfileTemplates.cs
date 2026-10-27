@@ -19,6 +19,7 @@ public static class AccessProfileTemplates
             new(CorePermissions.ProfileSelfView, PermissionScopes.Self),
             new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
             new(CorePermissions.EmployeeView, PermissionScopes.Self),
+            new(CorePermissions.OrgChartView, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate Manager = new(
@@ -30,6 +31,7 @@ public static class AccessProfileTemplates
             new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
             new(CorePermissions.EmployeeView, PermissionScopes.DirectReports),
             new(CorePermissions.TeamView, PermissionScopes.DirectReports),
+            new(CorePermissions.OrgChartView, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate HrAdmin = new(
