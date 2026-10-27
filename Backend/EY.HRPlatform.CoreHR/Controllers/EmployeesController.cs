@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.People;
+using EY.HRPlatform.CoreHR.Features.People.Changes;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.ChangeEmployeeManager;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
@@ -151,54 +152,136 @@ public class EmployeesController(
         string employeeKey,
         CancellationToken cancellationToken)
     {
-        // History is a manager/HR view, not part of the colleague directory projection.
-        if (!accessPolicy.CanViewTeam(User))
-            return Forbid();
+        // History is a manager/HR view, not part of the colleague directory projection. A manager without
+        // tenant-wide People access sees it for their own branch only.
+        Guid? branchOf = null;
+        if (!accessPolicy.CanViewTenantEmployees(User))
+        {
+            if (!accessPolicy.CanViewTeam(User) || User.GetEmployeeId() is not { } managerId)
+                return Forbid();
+            branchOf = managerId;
+        }
 
-        var result = await sender.Send(new PeopleTimelineQuery(employeeKey), cancellationToken);
+        var result = await sender.Send(new PeopleTimelineQuery(employeeKey, branchOf), cancellationToken);
         if (result.IsFailure)
             return NotFound(ApiResponse.Failure("Employee was not found."));
 
         return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<PeopleTimelineDto>.Success(result.Value));
     }
 
-    /// <summary>Effective-dated Change Work: schedules or applies the next work context.</summary>
-    [HttpPost("people/{employeeKey}/change-work")]
-    public async Task<IActionResult> ChangeWork(
+    /// <summary>
+    /// Change job: any mix of manager, unit, title and location on one date, with what happens to the team.
+    /// Reporting admins may change only the manager and the team.
+    /// </summary>
+    [HttpPost("people/{employeeKey}/changes/job")]
+    public async Task<IActionResult> ChangeJob(
         string employeeKey,
-        [FromBody] ChangeWorkRequest request,
+        [FromBody] JobChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var canManageEmployees = accessPolicy.CanManageEmployees(User);
+        if (!canManageEmployees && !accessPolicy.CanManageReporting(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new JobChangeCommand(employeeKey, request, GetAuditActor(), canManageEmployees), cancellationToken);
+        return ChangeResult(result);
+    }
+
+    /// <summary>Who reports to someone ending employment, where they go by default, and the dotted lines that end.</summary>
+    [HttpGet("people/{employeeKey}/changes/end-employment/preview")]
+    public async Task<IActionResult> PreviewEndEmploymentChange(
+        string employeeKey,
+        [FromQuery] DateOnly lastDay,
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageEmployees(User))
             return Forbid();
 
-        var result = await sender.Send(
-            new ChangeWorkCommand(employeeKey, request.EffectiveDate, request.OrgUnitId, request.JobTitle, request.Location, GetAuditActor()),
-            cancellationToken);
-        if (result.IsFailure)
-            return MapEmployeeMutationFailure(result.Error);
-
-        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
+        var result = await sender.Send(new EndEmploymentChangePreviewQuery(employeeKey, lastDay), cancellationToken);
+        return ChangeResult(result);
     }
 
-    /// <summary>Effective-dated Change Manager, including an explicit No manager outcome.</summary>
-    [HttpPost("people/{employeeKey}/change-manager")]
-    public async Task<IActionResult> ChangeManagerByKey(
+    /// <summary>Ends employment on the last day; each report goes to a named manager (the leaver's by default).</summary>
+    [HttpPost("people/{employeeKey}/changes/end-employment")]
+    public async Task<IActionResult> EndEmploymentChange(
         string employeeKey,
-        [FromBody] ChangeManagerByKeyRequest request,
+        [FromBody] EndEmploymentChangeRequest request,
         CancellationToken cancellationToken)
     {
-        if (!accessPolicy.CanManageEmployees(User) && !accessPolicy.CanManageReporting(User))
+        if (!accessPolicy.CanManageEmployees(User))
             return Forbid();
 
-        var result = await sender.Send(
-            new ChangeManagerByKeyCommand(employeeKey, request.EffectiveDate, request.ManagerEmployeeId, GetAuditActor()),
-            cancellationToken);
-        if (result.IsFailure)
-            return MapEmployeeMutationFailure(result.Error);
-
-        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
+        var result = await sender.Send(new EndEmploymentChangeCommand(employeeKey, request, GetAuditActor()), cancellationToken);
+        return ChangeResult(result);
     }
+
+    /// <summary>Starts employment again for a former employee.</summary>
+    [HttpPost("people/{employeeKey}/changes/join")]
+    public async Task<IActionResult> JoinChange(
+        string employeeKey,
+        [FromBody] JoinChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(new JoinChangeCommand(employeeKey, request, GetAuditActor()), cancellationToken);
+        return ChangeResult(result);
+    }
+
+    /// <summary>Cancels a person's latest change, from today on; every row it touched goes back.</summary>
+    [HttpPost("people/changes/{changeId:guid}/cancel")]
+    public async Task<IActionResult> CancelChange(Guid changeId, CancellationToken cancellationToken)
+    {
+        var canManageEmployees = accessPolicy.CanManageEmployees(User);
+        if (!canManageEmployees && !accessPolicy.CanManageReporting(User))
+            return Forbid();
+
+        var result = await sender.Send(new CancelWorkforceChangeCommand(changeId, GetAuditActor(), canManageEmployees), cancellationToken);
+        return result.IsFailure ? MapChangeFailure(result.Error) : NoContent();
+    }
+
+    /// <summary>Replaces a scheduled change with a new one of the same kind, in one step.</summary>
+    [HttpPut("people/changes/{changeId:guid}")]
+    public async Task<IActionResult> EditChange(
+        Guid changeId,
+        [FromBody] EditChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var canManageEmployees = accessPolicy.CanManageEmployees(User);
+        if (!canManageEmployees && !accessPolicy.CanManageReporting(User))
+            return Forbid();
+
+        var result = await sender.Send(new EditWorkforceChangeCommand(changeId, request, GetAuditActor(), canManageEmployees), cancellationToken);
+        return ChangeResult(result);
+    }
+
+    /// <summary>Changes coming from today: the whole tenant for People viewers, a manager's branch for managers.</summary>
+    [HttpGet("people/changes/upcoming")]
+    public async Task<IActionResult> GetUpcomingChanges(CancellationToken cancellationToken)
+    {
+        Guid? branchOf = null;
+        if (!accessPolicy.CanViewTenantEmployees(User))
+        {
+            if (!accessPolicy.CanViewTeam(User) || User.GetEmployeeId() is not { } managerId)
+                return Forbid();
+            branchOf = managerId;
+        }
+
+        var result = await sender.Send(new UpcomingWorkforceChangesQuery(branchOf), cancellationToken);
+        return ChangeResult(result);
+    }
+
+    private IActionResult ChangeResult<T>(EY.HRPlatform.SharedKernel.Results.Result<T> result)
+        => result.IsFailure
+            ? MapChangeFailure(result.Error)
+            : Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<T>.Success(result.Value));
+
+    private IActionResult MapChangeFailure(EY.HRPlatform.SharedKernel.Results.Error error)
+        => error.Code == WorkforceChangeService.ForbiddenCode
+            ? StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(error.Message))
+            : MapEmployeeMutationFailure(error);
 
     /// <summary>Adds a dotted-line manager from the effective date, beside the primary chain.</summary>
     [HttpPost("people/{employeeKey}/dotted-lines")]
@@ -231,55 +314,24 @@ public class EmployeesController(
         return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
     }
 
-    /// <summary>Preview of an employment end: the direct reports that would become managerless.</summary>
-    [HttpGet("people/{employeeKey}/end-employment/preview")]
-    public async Task<IActionResult> PreviewEndEmployment(
-        string employeeKey,
-        [FromQuery] DateTime lastEmployedDate,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageEmployees(User))
-            return Forbid();
-
-        var result = await sender.Send(new EndEmploymentPreviewQuery(employeeKey, lastEmployedDate), cancellationToken);
-        if (result.IsFailure)
-            return MapEmployeeMutationFailure(result.Error);
-
-        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<EndEmploymentPreviewDto>.Success(result.Value));
-    }
-
-    /// <summary>Ends employment coherently, releasing direct reports rather than blocking.</summary>
-    [HttpPost("people/{employeeKey}/end-employment")]
-    public async Task<IActionResult> EndEmployment(
-        string employeeKey,
-        [FromBody] EndEmploymentRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageEmployees(User))
-            return Forbid();
-
-        var result = await sender.Send(
-            new EndEmploymentCommand(employeeKey, request.LastEmployedDate, request.Note, GetAuditActor()),
-            cancellationToken);
-        if (result.IsFailure)
-            return MapEmployeeMutationFailure(result.Error);
-
-        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
-    }
-
+    /// <summary>
+    /// People someone can report to on a date. With <paramref name="forEmployee"/>, leaves out that person, their own
+    /// branch (a cycle) and their current manager.
+    /// </summary>
     [HttpGet("people/manager-options")]
     public async Task<IActionResult> GetManagerOptions(
         [FromQuery] DateTime effectiveDate,
         [FromQuery] string? q,
         [FromQuery] Guid? excludeEmployeeId,
+        [FromQuery] Guid? forEmployee,
         [FromQuery] int limit = 30,
         CancellationToken cancellationToken = default)
     {
-        if (!accessPolicy.CanManageEmployees(User))
+        if (!accessPolicy.CanManageEmployees(User) && !accessPolicy.CanManageReporting(User))
             return Forbid();
 
         var result = await sender.Send(
-            new ManagerOptionsQuery(effectiveDate, q, excludeEmployeeId, limit),
+            new ManagerOptionsQuery(effectiveDate, q, excludeEmployeeId, limit, forEmployee),
             cancellationToken);
         return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<IReadOnlyList<ManagerOptionDto>>.Success(result.Value));
     }

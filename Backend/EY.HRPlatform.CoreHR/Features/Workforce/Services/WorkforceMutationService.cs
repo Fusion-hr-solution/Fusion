@@ -298,7 +298,7 @@ public sealed class WorkforceMutationService(
                 "WorkAssignment.EndBeforeStart",
                 "Work assignment end date must be after its start date."));
 
-        var blockingDirectReports = await ResolveBlockingDirectReportsAsync(assignment.Id, at, cancellationToken);
+        var blockingDirectReports = await ResolveBlockingDirectReportsAsync(employeeId, at, cancellationToken);
         if (blockingDirectReports.Count > 0)
         {
             return Result.Failure<Employment>(Error.Validation(
@@ -629,16 +629,14 @@ public sealed class WorkforceMutationService(
         foreach (var dottedLine in dottedLines)
             dottedLine.End(boundary);
 
-        var assignment = await ResolveActivePrimaryAssignmentAsync(employeeId, lastEmployed, cancellationToken);
-        if (assignment is not null)
-        {
-            // Direct reports are RELEASED (left managerless), not blocked.
-            var reportRelationships = await ResolveActiveManagerSideRelationshipsAsync(assignment.Id, lastEmployed, cancellationToken);
-            foreach (var relationship in reportRelationships)
-                relationship.End(boundary);
+        // Direct reports are RELEASED (left managerless), not blocked. They are found by the manager, not the
+        // manager's current assignment: a report linked before the manager's last work change still reports to them.
+        var reportRelationships = await ResolveActiveManagerSideRelationshipsAsync(employeeId, lastEmployed, cancellationToken);
+        foreach (var relationship in reportRelationships)
+            relationship.End(boundary);
 
-            assignment.End(boundary);
-        }
+        var assignment = await ResolveActivePrimaryAssignmentAsync(employeeId, lastEmployed, cancellationToken);
+        assignment?.End(boundary);
 
         employment.End(boundary);
 
@@ -658,11 +656,7 @@ public sealed class WorkforceMutationService(
     {
         var lastEmployed = NormalizeDate(lastEmployedDate);
 
-        var assignment = await ResolveActivePrimaryAssignmentAsync(employeeId, lastEmployed, cancellationToken);
-        if (assignment is null)
-            return Result.Success(new EndEmploymentPreview(lastEmployed, 0, Array.Empty<AffectedDirectReport>()));
-
-        var reports = await ResolveBlockingDirectReportsAsync(assignment.Id, lastEmployed, cancellationToken);
+        var reports = await ResolveBlockingDirectReportsAsync(employeeId, lastEmployed, cancellationToken);
         var affected = reports
             .Select(employee => new AffectedDirectReport(employee.Id, employee.DisplayName, employee.EmployeeNumber))
             .ToList();
@@ -782,19 +776,19 @@ public sealed class WorkforceMutationService(
     }
 
     private async Task<List<ManagerRelationship>> ResolveActiveManagerSideRelationshipsAsync(
-        Guid managerWorkAssignmentId,
+        Guid managerEmployeeId,
         DateTime asOf,
         CancellationToken cancellationToken)
     {
         var locals = dbContext.ManagerRelationships.Local
-            .Where(m => m.ManagerWorkAssignmentId == managerWorkAssignmentId
+            .Where(m => m.ManagerEmployeeId == managerEmployeeId
                 && m.Type == ReportingRelationshipType.PrimaryManager
                 && m.IsActiveOn(asOf))
             .ToList();
 
         var localIds = locals.Select(m => m.Id).ToHashSet();
         var persisted = await dbContext.ManagerRelationships
-            .Where(m => m.ManagerWorkAssignmentId == managerWorkAssignmentId
+            .Where(m => m.ManagerEmployeeId == managerEmployeeId
                 && m.Type == ReportingRelationshipType.PrimaryManager
                 && m.EffectiveFrom <= asOf
                 && (m.EffectiveTo == null || asOf < m.EffectiveTo)
@@ -805,19 +799,19 @@ public sealed class WorkforceMutationService(
     }
 
     private async Task<List<Employee>> ResolveBlockingDirectReportsAsync(
-        Guid managerWorkAssignmentId,
+        Guid managerEmployeeId,
         DateTime asOf,
         CancellationToken cancellationToken)
     {
         var localRelationships = dbContext.ManagerRelationships.Local
-            .Where(m => m.ManagerWorkAssignmentId == managerWorkAssignmentId
+            .Where(m => m.ManagerEmployeeId == managerEmployeeId
                 && m.Type == ReportingRelationshipType.PrimaryManager
                 && m.IsActiveOn(asOf))
             .ToList();
 
         var localRelationshipIds = localRelationships.Select(m => m.Id).ToHashSet();
         var persistedRelationships = await dbContext.ManagerRelationships
-            .Where(m => m.ManagerWorkAssignmentId == managerWorkAssignmentId
+            .Where(m => m.ManagerEmployeeId == managerEmployeeId
                 && m.Type == ReportingRelationshipType.PrimaryManager
                 && m.EffectiveFrom <= asOf
                 && (m.EffectiveTo == null || asOf < m.EffectiveTo)

@@ -86,4 +86,11 @@ public sealed class ManagerRelationship : BaseEntity, ITenantEntity
         EffectiveTo = closed.EffectiveTo;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>Puts back the end a cancelled change replaced (null reopens the row).</summary>
+    public void RestoreEnd(DateTime? effectiveTo)
+    {
+        EffectiveTo = effectiveTo;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

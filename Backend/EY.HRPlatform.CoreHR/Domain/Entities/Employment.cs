@@ -79,6 +79,14 @@ public sealed class Employment : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>Puts back the end a cancelled change replaced; an open end makes the employment active again.</summary>
+    public void RestoreEnd(DateTime? effectiveTo)
+    {
+        EffectiveTo = effectiveTo;
+        Status = effectiveTo is null ? EmploymentStatus.Active : EmploymentStatus.Ended;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void UpdateEmploymentType(string? employmentType)
     {
         EmploymentType = NormalizeEmploymentType(employmentType);

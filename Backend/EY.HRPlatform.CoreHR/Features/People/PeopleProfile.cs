@@ -55,8 +55,8 @@ public sealed record PeopleProfileDto(
     DateTime ViewedDate,
     /// <summary>True when viewing a non-Today date; the snapshot is read-only.</summary>
     bool IsAsOf,
-    /// <summary>Scheduled future changes, present only on the Today view.</summary>
-    IReadOnlyList<PeopleUpcomingChangeDto> Upcoming,
+    /// <summary>Change records from today on (scheduled, or today's while it can be undone); Today view only.</summary>
+    IReadOnlyList<Changes.WorkforceChangeDto> ComingUp,
     /// <summary>Dotted-line (secondary) managers on the viewed date, beside the primary chain.</summary>
     IReadOnlyList<PeopleDottedLineManagerDto> DottedLineManagers);
 
@@ -65,12 +65,13 @@ public sealed record PeopleDottedLineManagerDto(
     string EmployeeKey,
     string DisplayName,
     string EmployeeNumber,
-    Guid EmployeeId);
+    Guid EmployeeId,
+    DateTime Since);
 
 public sealed class PeopleProfileQueryHandler(
     CoreHRDbContext dbContext,
     IOrganizationService organizationService,
-    PeopleTimelineComposer timelineComposer)
+    Changes.WorkforceChangeReader changeReader)
     : IQueryHandler<PeopleProfileQuery, Result<PeopleProfileDto>>
 {
     public async Task<Result<PeopleProfileDto>> Handle(
@@ -167,7 +168,8 @@ public sealed class PeopleProfileQueryHandler(
                     managerEmployee.StableEmployeeKey,
                     (managerEmployee.PreferredName ?? managerEmployee.FirstName) + " " + managerEmployee.LastName,
                     managerEmployee.EmployeeNumber,
-                    managerEmployee.Id))
+                    managerEmployee.Id,
+                    relationship.EffectiveFrom))
                 .ToListAsync(cancellationToken);
 
         var directReportQuery =
@@ -199,9 +201,9 @@ public sealed class PeopleProfileQueryHandler(
                     .FirstOrDefault()))
             .ToListAsync(cancellationToken);
 
-        var upcoming = isAsOf
-            ? (IReadOnlyList<PeopleUpcomingChangeDto>)Array.Empty<PeopleUpcomingChangeDto>()
-            : (await timelineComposer.ComposeAsync(employee.Id, employee.StableEmployeeKey, cancellationToken)).Upcoming;
+        var comingUp = isAsOf || request.Audience == EmployeeReadAudience.Employee
+            ? []
+            : await changeReader.ComingUpAsync(employee.Id, cancellationToken);
 
         var result = new PeopleProfileDto(
             new PeopleProfileIdentityDto(
@@ -229,7 +231,7 @@ public sealed class PeopleProfileQueryHandler(
             employee.Version,
             isAsOf ? asOf!.Value : today,
             isAsOf,
-            upcoming,
+            comingUp,
             dottedLineManagers);
 
         // A plain colleague sees workforce-directory context only: identity, current
@@ -245,7 +247,7 @@ public sealed class PeopleProfileQueryHandler(
                     End = null,
                     EmploymentType = null,
                 },
-                Upcoming = Array.Empty<PeopleUpcomingChangeDto>(),
+                ComingUp = [],
             };
         }
 

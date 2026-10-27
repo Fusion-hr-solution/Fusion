@@ -26,6 +26,20 @@ public sealed class PeopleController(IMediator mediator, IPerformanceAccessPolic
         return MapResult(await mediator.Send(new GetPersonSummaryQuery(employeeId, cycleId, viewer), cancellationToken));
     }
 
+    /// <summary>
+    /// What a reporting-line change does here (reviewer stays, 1:1s end), for Core HR's change panel. Only people who
+    /// may change reporting lines in Core HR ask it.
+    /// </summary>
+    [HttpGet("{employeeId:guid}/line-effects")]
+    public async Task<ActionResult<ApiResponse<LineEffectsDto>>> LineEffects(
+        Guid employeeId, [FromQuery] Guid? manager, CancellationToken cancellationToken)
+    {
+        if (!User.HasCorePermission(CorePermissions.EmployeeManage, PermissionScopes.Tenant)
+            && !User.HasCorePermission(CorePermissions.ReportingManage, PermissionScopes.Tenant))
+            return CapabilityForbidden();
+        return MapResult(await mediator.Send(new GetLineEffectsQuery(employeeId, manager), cancellationToken));
+    }
+
     /// <summary>Active colleagues by name for the feedback, request and praise pickers. Core HR being down answers 503.</summary>
     [HttpGet("directory")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<DirectoryPersonDto>>>> Directory([FromQuery] string? search,

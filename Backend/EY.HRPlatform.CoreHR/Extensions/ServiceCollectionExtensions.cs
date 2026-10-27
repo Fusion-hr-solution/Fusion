@@ -55,6 +55,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WorkforceResolutionScope>();
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
+        services.AddScoped<Features.People.Changes.WorkforceChangeService>();
+        services.AddScoped<Features.People.Changes.WorkforceChangeReader>();
+        services.AddScoped<Features.People.Changes.WorkforceChangeBackfill>();
+        services.AddHostedService<Features.People.Changes.WorkforceChangeBackfillService>();
         services.AddScoped<EY.HRPlatform.CoreHR.Features.People.PeopleTimelineComposer>();
         services.AddScoped<IEmployeeNumberAllocator, EmployeeNumberAllocatorService>();
         services.AddScoped<IWorkEmailOccupancyService, WorkEmailOccupancyService>();

@@ -202,6 +202,20 @@ internal static class EstablishmentOrchestrator
                     ? $"Hire established Employment and work from {employmentStart:yyyy-MM-dd}."
                     : $"Employee established with Employment from {employmentStart:yyyy-MM-dd} and work from {workEffectiveFrom:yyyy-MM-dd}."));
 
+            if (input.EstablishmentAction == WorkforceAuditAction.Hire)
+            {
+                // A hire is a Join change, so a scheduled one shows as coming and can be cancelled.
+                var manager = input.ManagerEmployeeId is { } managerId
+                    ? Changes.WorkforceChangeService.Ref(await dbContext.Employees.FirstAsync(item => item.Id == managerId, cancellationToken))
+                    : null;
+                Changes.WorkforceChangeRecorder.Record(
+                    dbContext, tenantContext.TenantId, employee.Id, WorkforceChangeKind.Join, DateOnly.FromDateTime(employmentStart), null,
+                    Changes.WorkforceChangeService.JoinDetails(
+                        manager, input.OrgUnitId, orgUnit.Name, assignmentResult.Value.JobTitle, assignmentResult.Value.WorkLocation,
+                        input.EmploymentType, isHire: true),
+                    actor);
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
             if (transaction is not null)
                 await transaction.CommitAsync(cancellationToken);

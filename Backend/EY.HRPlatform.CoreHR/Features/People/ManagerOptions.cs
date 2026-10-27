@@ -11,7 +11,9 @@ public sealed record ManagerOptionsQuery(
     DateTime EffectiveDate,
     string? Q = null,
     Guid? ExcludeEmployeeId = null,
-    int Limit = 30) : IQuery<Result<IReadOnlyList<ManagerOptionDto>>>;
+    int Limit = 30,
+    /// <summary>The person who would report to the option: they, their branch and their manager are left out.</summary>
+    Guid? ForEmployeeId = null) : IQuery<Result<IReadOnlyList<ManagerOptionDto>>>;
 
 public sealed record ManagerOptionDto(
     Guid EmployeeId,
@@ -35,6 +37,9 @@ public sealed class ManagerOptionsQueryHandler(
         var at = DateTime.SpecifyKind(request.EffectiveDate.Date, DateTimeKind.Utc);
         var q = request.Q?.Trim().ToLowerInvariant();
         var limit = Math.Clamp(request.Limit, 1, 50);
+        var excluded = request.ForEmployeeId is { } subjectId
+            ? await ExcludedForAsync(subjectId, at, cancellationToken)
+            : [];
         var rows = await (
             from employee in dbContext.Employees.AsNoTracking()
             join employment in dbContext.Employments.AsNoTracking()
@@ -48,6 +53,7 @@ public sealed class ManagerOptionsQueryHandler(
                 && assignment.EffectiveFrom <= at
                 && (assignment.EffectiveTo == null || at < assignment.EffectiveTo)
                 && (!request.ExcludeEmployeeId.HasValue || employee.Id != request.ExcludeEmployeeId.Value)
+                && !excluded.Contains(employee.Id)
                 && (q == null
                     || employee.FirstName.ToLower().Contains(q)
                     || employee.LastName.ToLower().Contains(q)
@@ -87,6 +93,26 @@ public sealed class ManagerOptionsQueryHandler(
                 row.EffectiveFrom > today ? "Scheduled" : "Available");
         }).ToList();
         return Result.Success(result);
+    }
+
+    /// <summary>The person, everyone below them (a cycle) and their current manager, on the date.</summary>
+    private async Task<List<Guid>> ExcludedForAsync(Guid subjectId, DateTime at, CancellationToken cancellationToken)
+    {
+        var lines = await dbContext.ManagerRelationships.AsNoTracking()
+            .Where(line => line.Type == ReportingRelationshipType.PrimaryManager
+                && line.EffectiveFrom <= at && (line.EffectiveTo == null || at < line.EffectiveTo))
+            .Select(line => new { line.SubjectEmployeeId, line.ManagerEmployeeId })
+            .ToListAsync(cancellationToken);
+        var byManager = lines.ToLookup(line => line.ManagerEmployeeId, line => line.SubjectEmployeeId);
+        var excluded = new HashSet<Guid> { subjectId };
+        var queue = new Queue<Guid>([subjectId]);
+        while (queue.Count > 0)
+            foreach (var report in byManager[queue.Dequeue()])
+                if (excluded.Add(report))
+                    queue.Enqueue(report);
+        foreach (var line in lines.Where(line => line.SubjectEmployeeId == subjectId))
+            excluded.Add(line.ManagerEmployeeId);
+        return [.. excluded];
     }
 
     private static IEnumerable<OrganizationHierarchyNodeDto> Flatten(

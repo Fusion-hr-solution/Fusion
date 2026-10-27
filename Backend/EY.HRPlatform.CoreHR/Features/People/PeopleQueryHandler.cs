@@ -252,7 +252,7 @@ public sealed class PeopleQueryHandler(
             LEFT JOIN LATERAL (
                 SELECT mr."ManagerEmployeeId" FROM "corehr"."ManagerRelationships" mr
                 WHERE mr."TenantId" = @tenantId AND mr."SubjectEmployeeId" = wf."EmployeeId"
-                    AND mr."SubjectWorkAssignmentId" = wf."WorkAssignmentId" AND mr."Type" = 'PrimaryManager'
+                    AND mr."Type" = 'PrimaryManager'
                     AND mr."EffectiveFrom" <= wf."DisplayAt"
                     AND (mr."EffectiveTo" IS NULL OR wf."DisplayAt" < mr."EffectiveTo")
                 ORDER BY mr."EffectiveFrom" DESC, mr."Id" ASC LIMIT 1

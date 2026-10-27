@@ -39,7 +39,8 @@ public sealed record PeopleTimelineDto(
     IReadOnlyList<PeopleUpcomingChangeDto> Upcoming,
     IReadOnlyList<PeopleTimelineEventDto> Timeline);
 
-public sealed record PeopleTimelineQuery(string EmployeeKey) : IQuery<Result<PeopleTimelineDto>>;
+/// <param name="BranchOfEmployeeId">Set for a manager without tenant-wide access: only their branch is readable.</param>
+public sealed record PeopleTimelineQuery(string EmployeeKey, Guid? BranchOfEmployeeId = null) : IQuery<Result<PeopleTimelineDto>>;
 
 public sealed class PeopleTimelineQueryHandler(
     CoreHRDbContext dbContext,
@@ -54,6 +55,9 @@ public sealed class PeopleTimelineQueryHandler(
         var employee = await dbContext.Employees.AsNoTracking()
             .FirstOrDefaultAsync(item => item.StableEmployeeKey == key, cancellationToken);
         if (employee is null)
+            return Result.Failure<PeopleTimelineDto>(new Error("Employee.NotFound", "Employee was not found."));
+        if (request.BranchOfEmployeeId is { } managerId
+            && !(await Changes.ChangeSupport.BranchAsync(dbContext, managerId, cancellationToken)).Contains(employee.Id))
             return Result.Failure<PeopleTimelineDto>(new Error("Employee.NotFound", "Employee was not found."));
 
         var timeline = await composer.ComposeAsync(employee.Id, employee.StableEmployeeKey, cancellationToken);

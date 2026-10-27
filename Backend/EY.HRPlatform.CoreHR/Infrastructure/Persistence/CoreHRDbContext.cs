@@ -51,6 +51,8 @@ public class CoreHRDbContext : DbContext
     public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
     public DbSet<OrgUnitEffectiveState> OrgUnitEffectiveStates => Set<OrgUnitEffectiveState>();
     public DbSet<OrganizationChange> OrganizationChanges => Set<OrganizationChange>();
+    public DbSet<WorkforceChange> WorkforceChanges => Set<WorkforceChange>();
+    public DbSet<WorkforceChangeEffect> WorkforceChangeEffects => Set<WorkforceChangeEffect>();
     public DbSet<OrganizationalUnitType> OrganizationalUnitTypes => Set<OrganizationalUnitType>();
     public DbSet<OrgUnitCodeReservation> OrgUnitCodeReservations => Set<OrgUnitCodeReservation>();
     public DbSet<SettingsAuditEvent> SettingsAuditEvents => Set<SettingsAuditEvent>();
@@ -114,6 +116,12 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<OrganizationChange>()
             .HasQueryFilter(change => CurrentTenantId != Guid.Empty && change.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<WorkforceChange>()
+            .HasQueryFilter(change => CurrentTenantId != Guid.Empty && change.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<WorkforceChangeEffect>()
+            .HasQueryFilter(effect => CurrentTenantId != Guid.Empty && effect.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<OrgUnitCodeReservation>()
             .HasQueryFilter(reservation => CurrentTenantId != Guid.Empty && reservation.TenantId == CurrentTenantId);

@@ -19,5 +19,6 @@ public enum WorkforceAuditAction
     EmployeeProfileUpdated,
     ImportPublished,
     ImportCorrectionPublished,
-    ResponsibleManagerChanged
+    ResponsibleManagerChanged,
+    WorkforceChangeCancelled
 }

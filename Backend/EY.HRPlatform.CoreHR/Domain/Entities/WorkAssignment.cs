@@ -92,6 +92,13 @@ public sealed class WorkAssignment : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>Puts back the end a cancelled change replaced (null reopens the row).</summary>
+    public void RestoreEnd(DateTime? effectiveTo)
+    {
+        EffectiveTo = effectiveTo;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void UpdateDetails(Guid orgUnitId, string jobTitle, string? workLocation)
     {
         if (orgUnitId == Guid.Empty)
