@@ -51,7 +51,8 @@ public sealed class ManagerOptionsQueryHandler(
                 && (q == null
                     || employee.FirstName.ToLower().Contains(q)
                     || employee.LastName.ToLower().Contains(q)
-                    || employee.EmployeeNumber.ToLower().Contains(q))
+                    || employee.EmployeeNumber.ToLower().Contains(q)
+                    || employee.StableEmployeeKey == request.Q!.Trim())
             orderby employee.LastName, employee.FirstName, employee.Id
             select new
             {

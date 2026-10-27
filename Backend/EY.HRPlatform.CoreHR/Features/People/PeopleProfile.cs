@@ -56,7 +56,16 @@ public sealed record PeopleProfileDto(
     /// <summary>True when viewing a non-Today date; the snapshot is read-only.</summary>
     bool IsAsOf,
     /// <summary>Scheduled future changes, present only on the Today view.</summary>
-    IReadOnlyList<PeopleUpcomingChangeDto> Upcoming);
+    IReadOnlyList<PeopleUpcomingChangeDto> Upcoming,
+    /// <summary>Dotted-line (secondary) managers on the viewed date, beside the primary chain.</summary>
+    IReadOnlyList<PeopleDottedLineManagerDto> DottedLineManagers);
+
+/// <summary>A dotted-line manager on the profile; the id is what the dotted-line end command takes.</summary>
+public sealed record PeopleDottedLineManagerDto(
+    string EmployeeKey,
+    string DisplayName,
+    string EmployeeNumber,
+    Guid EmployeeId);
 
 public sealed class PeopleProfileQueryHandler(
     CoreHRDbContext dbContext,
@@ -143,6 +152,24 @@ public sealed class PeopleProfileQueryHandler(
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        var dottedLineManagers = assignment is null
+            ? []
+            : await (
+                from relationship in dbContext.ManagerRelationships.AsNoTracking()
+                join managerEmployee in dbContext.Employees.AsNoTracking()
+                    on relationship.ManagerEmployeeId equals managerEmployee.Id
+                where relationship.SubjectEmployeeId == employee.Id
+                    && relationship.Type == ReportingRelationshipType.SecondaryManager
+                    && relationship.EffectiveFrom <= displayAt
+                    && (relationship.EffectiveTo == null || displayAt < relationship.EffectiveTo)
+                orderby managerEmployee.LastName, managerEmployee.FirstName
+                select new PeopleDottedLineManagerDto(
+                    managerEmployee.StableEmployeeKey,
+                    (managerEmployee.PreferredName ?? managerEmployee.FirstName) + " " + managerEmployee.LastName,
+                    managerEmployee.EmployeeNumber,
+                    managerEmployee.Id))
+                .ToListAsync(cancellationToken);
+
         var directReportQuery =
             from relationship in dbContext.ManagerRelationships.AsNoTracking()
             join report in dbContext.Employees.AsNoTracking()
@@ -202,7 +229,8 @@ public sealed class PeopleProfileQueryHandler(
             employee.Version,
             isAsOf ? asOf!.Value : today,
             isAsOf,
-            upcoming);
+            upcoming,
+            dottedLineManagers);
 
         // A plain colleague sees workforce-directory context only: identity, current
         // work, org, and reporting relationships — never employment tenure/type or

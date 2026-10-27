@@ -24,6 +24,7 @@ public sealed record OrgChartDto(
     IReadOnlyList<OrgChartFoldDto> Folded);
 
 /// <param name="StartYear">Year the current employment started; null when the hire date is hidden from the viewer.</param>
+/// <param name="StartDate">The full start date, for HR only (the Tenure lens); everyone else gets the year.</param>
 /// <param name="IsNew">In the first 90 days of employment on the as-of date.</param>
 /// <param name="DirectCount">Direct reports, whole tenant.</param>
 /// <param name="TotalCount">Everyone below, whole tenant.</param>
@@ -36,6 +37,7 @@ public sealed record OrgChartPersonDto(
     string? WorkLocation,
     string? WorkEmail,
     int? StartYear,
+    DateOnly? StartDate,
     bool IsNew,
     string? ManagerKey,
     IReadOnlyList<string> DottedLineManagerKeys,
@@ -172,6 +174,7 @@ public sealed class OrgChartQueryHandler(
                 Shows("workLocation") ? assignment?.WorkLocation : null,
                 Shows("email") ? employee.Email : null,
                 Shows("hireDate") ? start.Year : null,
+                request.HrAudience && Shows("hireDate") ? DateOnly.FromDateTime(start) : null,
                 Shows("hireDate") && (at - start).TotalDays < NewForDays,
                 managerId != Guid.Empty && visible.Contains(managerId) ? keyOf[managerId] : null,
                 (dottedOf.GetValueOrDefault(employee.Id) ?? []).Where(visible.Contains).Select(id => keyOf[id]).ToList(),
@@ -196,15 +199,19 @@ public sealed class OrgChartQueryHandler(
             folded));
     }
 
-    /// <summary>Units as of the date, each with its division: the top-level ancestor under the organization root.</summary>
+    /// <summary>
+    /// Units as of the date, each with its division: the top-level ancestor under the organization root. A unit whose
+    /// Fusion timeline starts after the date (its establishment, not proof it didn't exist) reads as its first state.
+    /// </summary>
     private async Task<Dictionary<Guid, OrgChartUnitDto>> LoadUnitsAsync(DateOnly asOf, CancellationToken cancellationToken)
     {
         var states = (await dbContext.OrgUnitEffectiveStates.AsNoTracking()
-                .Where(s => s.EffectiveFrom <= asOf && (s.EffectiveTo == null || asOf < s.EffectiveTo))
+                .Where(s => s.EffectiveTo == null || asOf < s.EffectiveTo)
                 .Select(s => new { s.OrgUnitId, s.ParentOrgUnitId, s.Name, s.EffectiveFrom })
                 .ToListAsync(cancellationToken))
             .GroupBy(s => s.OrgUnitId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.EffectiveFrom).First());
+            .ToDictionary(g => g.Key, g => g.Where(s => s.EffectiveFrom <= asOf).OrderByDescending(s => s.EffectiveFrom).FirstOrDefault()
+                ?? g.OrderBy(s => s.EffectiveFrom).First());
 
         (Guid Id, string Name)? DivisionOf(Guid id)
         {
@@ -241,5 +248,113 @@ public sealed class OrgChartQueryHandler(
             EmployeeReadAudience.Manager => config.Visible && config.VisibleToManager,
             _ => config.Visible && config.VisibleToEmployee,
         };
+    }
+}
+
+// --- Changes over a window (HR) -------------------------------------------------------------------
+
+public static class OrgChartChangeKinds
+{
+    public const string Join = "Join";
+    public const string Leave = "Leave";
+    public const string Move = "Move";
+}
+
+/// <summary>A dated change to the chart: someone joins, leaves (their last employed day) or moves to a new manager.</summary>
+/// <param name="ManagerKey">The manager they join or move to; null for a leaver.</param>
+/// <param name="Person">The joiner's card as of their first day; null for leavers and moves.</param>
+public sealed record OrgChartChangeDto(
+    string Kind,
+    DateOnly Date,
+    string EmployeeKey,
+    string? ManagerKey,
+    OrgChartPersonDto? Person);
+
+/// <param name="From">First day of the window, inclusive.</param>
+/// <param name="To">Last day of the window, inclusive.</param>
+public sealed record OrgChartChangesQuery(DateOnly From, DateOnly To) : IQuery<Result<IReadOnlyList<OrgChartChangeDto>>>;
+
+public sealed class OrgChartChangesQueryHandler(
+    CoreHRDbContext dbContext,
+    ITenantSettingsReadService tenantSettings) : IQueryHandler<OrgChartChangesQuery, Result<IReadOnlyList<OrgChartChangeDto>>>
+{
+    public async Task<Result<IReadOnlyList<OrgChartChangeDto>>> Handle(OrgChartChangesQuery request, CancellationToken cancellationToken)
+    {
+        var from = request.From.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var to = request.To.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var dayAfterTo = to.AddDays(1);
+
+        var employments = await dbContext.Employments.AsNoTracking()
+            .Where(e => (e.EffectiveFrom >= from && e.EffectiveFrom <= to)
+                || (e.EffectiveTo != null && e.EffectiveTo > from && e.EffectiveTo <= dayAfterTo))
+            .Select(e => new { e.EmployeeId, e.EffectiveFrom, e.EffectiveTo })
+            .ToListAsync(cancellationToken);
+        var relationships = await dbContext.ManagerRelationships.AsNoTracking()
+            .Where(r => r.Type == ReportingRelationshipType.PrimaryManager && r.EffectiveFrom >= from && r.EffectiveFrom <= to)
+            .Select(r => new { r.SubjectEmployeeId, r.ManagerEmployeeId, r.EffectiveFrom })
+            .ToListAsync(cancellationToken);
+
+        // Employment boundaries touching the window, to tell a join from a renewal and a move from a join.
+        var subjects = employments.Select(e => e.EmployeeId).Concat(relationships.Select(r => r.SubjectEmployeeId)).Distinct().ToList();
+        var spans = (await dbContext.Employments.AsNoTracking()
+                .Where(e => subjects.Contains(e.EmployeeId))
+                .Select(e => new { e.EmployeeId, e.EffectiveFrom, e.EffectiveTo })
+                .ToListAsync(cancellationToken))
+            .ToLookup(e => e.EmployeeId);
+        bool EmployedOn(Guid id, DateTime day) => spans[id].Any(e => e.EffectiveFrom <= day && (e.EffectiveTo == null || day < e.EffectiveTo));
+
+        var movers = relationships.Select(r => r.SubjectEmployeeId).Distinct().ToList();
+        var managersOf = (await dbContext.ManagerRelationships.AsNoTracking()
+                .Where(r => r.Type == ReportingRelationshipType.PrimaryManager && movers.Contains(r.SubjectEmployeeId))
+                .Select(r => new { r.SubjectEmployeeId, r.ManagerEmployeeId, r.EffectiveFrom, r.EffectiveTo })
+                .ToListAsync(cancellationToken))
+            .ToLookup(r => r.SubjectEmployeeId);
+        Guid? ManagerOn(Guid id, DateTime day) => managersOf[id]
+            .FirstOrDefault(r => r.EffectiveFrom <= day && (r.EffectiveTo == null || day < r.EffectiveTo))?.ManagerEmployeeId;
+
+        var managerIds = relationships.Select(r => r.ManagerEmployeeId);
+        var keyIds = subjects.Concat(managerIds).Distinct().ToList();
+        var keyOf = await dbContext.Employees.AsNoTracking()
+            .Where(e => keyIds.Contains(e.Id))
+            .ToDictionaryAsync(e => e.Id, e => e.StableEmployeeKey, cancellationToken);
+
+        var changes = new List<OrgChartChangeDto>();
+        var joinDays = employments
+            .Where(e => e.EffectiveFrom >= from && e.EffectiveFrom <= to && !EmployedOn(e.EmployeeId, e.EffectiveFrom.AddDays(-1)))
+            .GroupBy(e => DateOnly.FromDateTime(e.EffectiveFrom));
+        var chart = new OrgChartQueryHandler(dbContext, tenantSettings);
+        foreach (var day in joinDays)
+        {
+            // The joiner's card as HR sees it on their first day: the same read model the chart serves.
+            var snapshot = (await chart.Handle(new OrgChartQuery(day.Key, OrgChartScopes.Tenant, null, HrAudience: true), cancellationToken)).Value;
+            var cards = snapshot.People.ToDictionary(p => p.EmployeeKey);
+            foreach (var join in day)
+            {
+                if (!keyOf.TryGetValue(join.EmployeeId, out var key) || !cards.TryGetValue(key, out var card)) continue;
+                changes.Add(new OrgChartChangeDto(OrgChartChangeKinds.Join, day.Key, key, card.ManagerKey, card));
+            }
+        }
+
+        foreach (var leave in employments.Where(e => e.EffectiveTo is { } end && end > from && end <= dayAfterTo))
+        {
+            var boundary = leave.EffectiveTo!.Value;
+            if (EmployedOn(leave.EmployeeId, boundary) || !keyOf.TryGetValue(leave.EmployeeId, out var key)) continue;
+            changes.Add(new OrgChartChangeDto(OrgChartChangeKinds.Leave, DateOnly.FromDateTime(boundary.AddDays(-1)), key, null, null));
+        }
+
+        foreach (var move in relationships)
+        {
+            // A move leaves one manager for another: a first manager (on the first day, part of the join) or a
+            // re-link to the same manager isn't one.
+            var dayBefore = move.EffectiveFrom.AddDays(-1);
+            if (!EmployedOn(move.SubjectEmployeeId, dayBefore)
+                || ManagerOn(move.SubjectEmployeeId, dayBefore) is not { } previous || previous == move.ManagerEmployeeId) continue;
+            if (!keyOf.TryGetValue(move.SubjectEmployeeId, out var key) || !keyOf.TryGetValue(move.ManagerEmployeeId, out var manager)) continue;
+            changes.Add(new OrgChartChangeDto(OrgChartChangeKinds.Move, DateOnly.FromDateTime(move.EffectiveFrom), key, manager, null));
+        }
+
+        return Result.Success<IReadOnlyList<OrgChartChangeDto>>(changes
+            .OrderBy(c => c.Date).ThenBy(c => c.Kind, StringComparer.Ordinal).ThenBy(c => c.EmployeeKey, StringComparer.Ordinal)
+            .ToList());
     }
 }

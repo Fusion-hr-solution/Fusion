@@ -200,6 +200,37 @@ public class EmployeesController(
         return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
     }
 
+    /// <summary>Adds a dotted-line manager from the effective date, beside the primary chain.</summary>
+    [HttpPost("people/{employeeKey}/dotted-lines")]
+    public Task<IActionResult> AddDottedLine(
+        string employeeKey,
+        [FromBody] DottedLineRequest request,
+        CancellationToken cancellationToken)
+        => ChangeDottedLine(employeeKey, request, end: false, cancellationToken);
+
+    /// <summary>Ends a dotted-line manager on the effective date.</summary>
+    [HttpPost("people/{employeeKey}/dotted-lines/end")]
+    public Task<IActionResult> EndDottedLine(
+        string employeeKey,
+        [FromBody] DottedLineRequest request,
+        CancellationToken cancellationToken)
+        => ChangeDottedLine(employeeKey, request, end: true, cancellationToken);
+
+    private async Task<IActionResult> ChangeDottedLine(
+        string employeeKey, DottedLineRequest request, bool end, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User) && !accessPolicy.CanManageReporting(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new DottedLineCommand(employeeKey, request.EffectiveDate, request.ManagerEmployeeId, end, GetAuditActor()),
+            cancellationToken);
+        if (result.IsFailure)
+            return MapEmployeeMutationFailure(result.Error);
+
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
+    }
+
     /// <summary>Preview of an employment end: the direct reports that would become managerless.</summary>
     [HttpGet("people/{employeeKey}/end-employment/preview")]
     public async Task<IActionResult> PreviewEndEmployment(

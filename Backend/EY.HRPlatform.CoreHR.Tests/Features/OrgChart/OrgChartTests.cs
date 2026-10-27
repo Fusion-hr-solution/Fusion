@@ -34,13 +34,15 @@ public sealed class OrgChartTests
     /// <summary>
     /// Tenant A: Sami (CEO, in the organization root) → Amira → Mariam → Aicha (hired 30 days ago);
     /// Amira → Omar → Leila (dotted line to Mariam); Sami → Nour → Mehdi. Everyone but Sami works in Product A,
-    /// a team under the Product &amp; Engineering business unit. Tenant B holds one person.
+    /// a team under the Product &amp; Engineering business unit, whose Fusion timeline starts 90 days ago. Coming up:
+    /// Leila moves from Omar to Nour in 10 days, Skander joins Mariam in 20, Omar's last day is in 39.
+    /// Tenant B holds one person.
     /// </summary>
     private static async Task<World> SeedAsync()
     {
         var db = Guid.NewGuid().ToString();
         await using var seed = TestDbContextFactory.CreateWithoutTenant(db);
-        var since = new DateOnly(2020, 1, 1);
+        var since = Today.AddDays(-90);
 
         OrgUnit Unit(Guid tenant, string name, OrgUnit? parent)
         {
@@ -59,6 +61,7 @@ public sealed class OrgChartTests
         var ids = new Dictionary<string, Guid>();
         var keys = new Dictionary<string, string>();
         var assignments = new Dictionary<Guid, Guid>();
+        var employments = new Dictionary<Guid, Employment>();
         Guid Person(Guid tenant, string first, string last, string title, OrgUnit unit, DateTime start)
         {
             var employee = Employee.Create(tenant, first, last, $"{first.ToLowerInvariant()}@example.com", employeeNumber: $"E-{Guid.NewGuid():N}");
@@ -68,14 +71,19 @@ public sealed class OrgChartTests
             seed.Employments.Add(employment);
             seed.WorkAssignments.Add(assignment);
             assignments[employee.Id] = assignment.Id;
+            employments[employee.Id] = employment;
             ids[first] = employee.Id;
             keys[first] = employee.StableEmployeeKey;
             return employee.Id;
         }
 
-        void Reports(string subject, string manager, ReportingRelationshipType type = ReportingRelationshipType.PrimaryManager)
-            => seed.ManagerRelationships.Add(ManagerRelationship.Create(TenantA, ids[subject], ids[manager],
-                assignments[ids[subject]], assignments[ids[manager]], type, TodayAt.AddDays(-30), WorkforceSourceType.Manual));
+        ManagerRelationship Reports(string subject, string manager, ReportingRelationshipType type = ReportingRelationshipType.PrimaryManager, int fromDay = -30)
+        {
+            var relationship = ManagerRelationship.Create(TenantA, ids[subject], ids[manager],
+                assignments[ids[subject]], assignments[ids[manager]], type, TodayAt.AddDays(fromDay), WorkforceSourceType.Manual);
+            seed.ManagerRelationships.Add(relationship);
+            return relationship;
+        }
 
         var long_ago = TodayAt.AddYears(-3);
         Person(TenantA, "Sami", "Ben Youssef", "Chief Executive Officer", root, long_ago);
@@ -93,9 +101,13 @@ public sealed class OrgChartTests
         Reports("Mariam", "Amira");
         Reports("Omar", "Amira");
         Reports("Aicha", "Mariam");
-        Reports("Leila", "Omar");
+        Reports("Leila", "Omar").End(TodayAt.AddDays(10));
+        Reports("Leila", "Nour", fromDay: 10);
         Reports("Leila", "Mariam", ReportingRelationshipType.SecondaryManager);
         Reports("Mehdi", "Nour");
+        Person(TenantA, "Skander", "Mejri", "Product Designer", team, TodayAt.AddDays(20));
+        Reports("Skander", "Mariam", fromDay: 20);
+        employments[ids["Omar"]].End(TodayAt.AddDays(40));
         await seed.SaveChangesAsync();
         return new World(db, ids, keys, outsider);
     }
@@ -187,6 +199,65 @@ public sealed class OrgChartTests
         Assert.DoesNotContain(chart.People, p => p.EmployeeKey == world.Keys["Aicha"]); // not hired yet
         Assert.All(chart.People, p => Assert.Null(p.ManagerKey)); // reporting lines start 30 days ago
         Assert.Equal(Today.AddDays(-60), chart.AsOf);
+
+        // Before the units' Fusion timeline starts, they read as their first state rather than vanish.
+        var earlier = await ReadAsync(world, OrgChartScopes.Tenant, null, hr: true, asOf: Today.AddDays(-365));
+        Assert.Equal(("Product A", "Product & Engineering"), (Get(earlier, world, "Mariam").Unit!.Name, Get(earlier, world, "Mariam").Unit!.DivisionName));
+    }
+
+    [Fact]
+    public async Task A_future_date_shows_planned_joins_moves_and_exits()
+    {
+        var world = await SeedAsync();
+        var chart = await ReadAsync(world, OrgChartScopes.Tenant, null, hr: true, asOf: Today.AddDays(45));
+
+        Assert.Equal(world.Keys["Mariam"], Get(chart, world, "Skander").ManagerKey);
+        Assert.Equal(world.Keys["Nour"], Get(chart, world, "Leila").ManagerKey);
+        Assert.DoesNotContain(chart.People, p => p.EmployeeKey == world.Keys["Omar"]);
+    }
+
+    [Fact]
+    public async Task Only_HR_gets_the_full_start_date()
+    {
+        var world = await SeedAsync();
+        Assert.All((await ReadAsync(world, OrgChartScopes.Tenant, world.Ids["Aicha"])).People, p => Assert.Null(p.StartDate));
+        Assert.Equal(Today.AddDays(-30), Get(await ReadAsync(world, OrgChartScopes.Tenant, world.Ids["Nour"], hr: true), world, "Aicha").StartDate);
+    }
+
+    // ── Changes over a window ───────────────────────────────────────────────
+
+    private static async Task<IReadOnlyList<OrgChartChangeDto>> ChangesAsync(World world, DateOnly from, DateOnly to, Guid? tenant = null)
+    {
+        var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenant ?? TenantA), world.Db);
+        var tenantSettings = new Mock<ITenantSettingsReadService>();
+        tenantSettings.Setup(s => s.GetCurrentAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new TenantSettingsDto());
+        var result = await new OrgChartChangesQueryHandler(context, tenantSettings.Object).Handle(new OrgChartChangesQuery(from, to), default);
+        Assert.True(result.IsSuccess);
+        return result.Value;
+    }
+
+    [Fact]
+    public async Task Changes_list_joins_moves_and_leavers_in_the_window()
+    {
+        var world = await SeedAsync();
+        var changes = await ChangesAsync(world, Today.AddDays(1), Today.AddDays(60));
+
+        Assert.Equal(
+            [
+                (OrgChartChangeKinds.Move, Today.AddDays(10), world.Keys["Leila"], (string?)world.Keys["Nour"]),
+                (OrgChartChangeKinds.Join, Today.AddDays(20), world.Keys["Skander"], world.Keys["Mariam"]),
+                (OrgChartChangeKinds.Leave, Today.AddDays(39), world.Keys["Omar"], null),
+            ],
+            changes.Select(c => (c.Kind, c.Date, c.EmployeeKey, c.ManagerKey)));
+        var joiner = changes[1].Person!;
+        Assert.Equal(("Skander Mejri", "Product Designer", "Product A"), (joiner.DisplayName, joiner.JobTitle, joiner.Unit!.Name));
+        Assert.Null(changes[0].Person);
+
+        // Both ends count; a first manager on the first day belongs to the join.
+        var past = await ChangesAsync(world, Today.AddDays(-30), Today.AddDays(-30));
+        Assert.Equal([(OrgChartChangeKinds.Join, world.Keys["Aicha"])], past.Select(c => (c.Kind, c.EmployeeKey)));
+        Assert.Empty(await ChangesAsync(world, Today.AddDays(40), Today.AddDays(60)));
+        Assert.Empty(await ChangesAsync(world, Today.AddDays(1), Today.AddDays(60), tenant: TenantB));
     }
 
     [Fact]
@@ -225,6 +296,8 @@ public sealed class OrgChartTests
         var sender = new Mock<ISender>();
         sender.Setup(s => s.Send(It.IsAny<OrgChartQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((OrgChartQuery q, CancellationToken _) => Result.Success(new OrgChartDto(q.AsOf, q.Scope, null, [], [])));
+        sender.Setup(s => s.Send(It.IsAny<OrgChartChangesQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<IReadOnlyList<OrgChartChangeDto>>([]));
         return (new OrgChartController(sender.Object, new CoreAccessPolicyService())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = caller } },
@@ -270,5 +343,24 @@ public sealed class OrgChartTests
         var (wide, wideSender) = Controller(Caller(me, Branch, Everyone));
         await wide.Get(null, default);
         wideSender.Verify(s => s.Send(It.Is<OrgChartQuery>(q => q.Scope == OrgChartScopes.Tenant), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Changes_are_for_HR_only_over_a_bounded_window()
+    {
+        var (employee, employeeSender) = Controller(Caller(Guid.NewGuid(), Everyone));
+        Assert.IsType<ForbidResult>(await employee.GetChanges(Today, Today.AddDays(30), default));
+        employeeSender.VerifyNoOtherCalls();
+        var (manager, _) = Controller(Caller(Guid.NewGuid(), Branch, (CorePermissions.EmployeeView, PermissionScopes.DirectReports)));
+        Assert.IsType<ForbidResult>(await manager.GetChanges(Today, Today.AddDays(30), default));
+        var (hrWithoutChart, _) = Controller(Caller(Guid.NewGuid(), Hr));
+        Assert.IsType<ForbidResult>(await hrWithoutChart.GetChanges(Today, Today.AddDays(30), default));
+
+        var (hr, hrSender) = Controller(Caller(Guid.NewGuid(), Everyone, Hr));
+        Assert.IsType<BadRequestObjectResult>(await hr.GetChanges(Today, Today.AddDays(-1), default));
+        Assert.IsType<BadRequestObjectResult>(await hr.GetChanges(Today, Today.AddDays(732), default));
+        Assert.IsType<BadRequestObjectResult>(await hr.GetChanges(null, Today, default));
+        Assert.IsType<OkObjectResult>(await hr.GetChanges(Today, Today.AddDays(731), default));
+        hrSender.Verify(s => s.Send(It.Is<OrgChartChangesQuery>(q => q.From == Today && q.To == Today.AddDays(731)), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

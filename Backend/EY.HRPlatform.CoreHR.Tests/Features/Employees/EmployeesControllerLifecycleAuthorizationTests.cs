@@ -7,6 +7,7 @@ using EY.HRPlatform.CoreHR.Features.Employees.Commands.ChangeEmployeeManager;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.RehireEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.People;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Models.Requests;
@@ -96,6 +97,34 @@ public class EmployeesControllerLifecycleAuthorizationTests
         var command = Assert.IsType<ChangeEmployeeManagerCommand>(sender.LastRequest);
         Assert.Equal(employeeId, command.EmployeeId);
         Assert.Equal(managerId, command.ManagerId);
+    }
+
+    [Fact]
+    public async Task DottedLines_WithoutAnyManagePermission_ReturnForbid()
+    {
+        var sender = new RecordingSender();
+        var controller = CreateController(sender, new StubAccessPolicy(canManageEmployees: false, canManageReporting: false));
+        var request = new DottedLineRequest(EffectiveDate, Guid.NewGuid());
+
+        Assert.IsType<ForbidResult>(await controller.AddDottedLine("CDG-001", request, CancellationToken.None));
+        Assert.IsType<ForbidResult>(await controller.EndDottedLine("CDG-001", request, CancellationToken.None));
+        Assert.Null(sender.LastRequest);
+    }
+
+    [Fact]
+    public async Task DottedLines_WithReportingManagePermission_SendCommands()
+    {
+        var sender = new RecordingSender();
+        var controller = CreateController(sender, new StubAccessPolicy(canManageEmployees: false, canManageReporting: true));
+        var managerId = Guid.NewGuid();
+        var request = new DottedLineRequest(EffectiveDate, managerId);
+
+        Assert.IsNotType<ForbidResult>(await controller.AddDottedLine("CDG-001", request, CancellationToken.None));
+        var add = Assert.IsType<DottedLineCommand>(sender.LastRequest);
+        Assert.Equal(("CDG-001", managerId, false), (add.EmployeeKey, add.ManagerEmployeeId, add.End));
+
+        Assert.IsNotType<ForbidResult>(await controller.EndDottedLine("CDG-001", request, CancellationToken.None));
+        Assert.True(Assert.IsType<DottedLineCommand>(sender.LastRequest).End);
     }
 
     [Fact]
@@ -212,6 +241,12 @@ public class EmployeesControllerLifecycleAuthorizationTests
         public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
         {
             LastRequest = request;
+
+            if (typeof(TResponse) == typeof(Result<MaintenanceResultDto>))
+            {
+                return Task.FromResult((TResponse)(object)Result.Failure<MaintenanceResultDto>(
+                    Error.Validation("Test.Stub", "Stubbed failure after authorization passed.")));
+            }
 
             if (typeof(TResponse) == typeof(Result<EmployeeDetailsDto>))
             {

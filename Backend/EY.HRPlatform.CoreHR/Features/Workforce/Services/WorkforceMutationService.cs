@@ -140,6 +140,17 @@ public interface IWorkforceMutationService
         Guid? importBatchId, string? actor, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Adds a dotted-line (secondary) manager from the given date. Dotted lines sit beside the primary chain: they
+    /// never count in it, so they need no cycle guard, but they can't repeat the primary manager or an open dotted line.
+    /// </summary>
+    Task<Result<ManagerRelationship>> AddDottedLineManagerAsync(
+        Guid employeeId, ChangeManagerInput input, string? actor, CancellationToken cancellationToken);
+
+    /// <summary>Ends a dotted-line manager relationship effective the given date.</summary>
+    Task<Result<ManagerRelationship>> EndDottedLineManagerAsync(
+        Guid employeeId, ChangeManagerInput input, string? actor, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Ends employment coherently: the employee is employed through <c>LastEmployedDate</c> and
     /// inactive after it. Closes the active employment, its primary work assignment, and the
     /// employee's own manager relationships, and ends the relationships in which the employee is the
@@ -502,6 +513,92 @@ public sealed class WorkforceMutationService(
         return Result.Success<ManagerRelationship?>(current);
     }
 
+    public async Task<Result<ManagerRelationship>> AddDottedLineManagerAsync(
+        Guid employeeId, ChangeManagerInput input, string? actor, CancellationToken cancellationToken)
+    {
+        var effectiveDate = NormalizeDate(input.EffectiveDate);
+
+        if (input.ManagerEmployeeId == Guid.Empty)
+            return Result.Failure<ManagerRelationship>(Error.Validation(
+                "Manager.Required", "A manager must be specified."));
+        if (input.ManagerEmployeeId == employeeId)
+            return Result.Failure<ManagerRelationship>(Error.Validation(
+                "Manager.Self", "An employee cannot report to themselves."));
+
+        var subjectAssignment = await ResolveActivePrimaryAssignmentAsync(employeeId, effectiveDate, cancellationToken);
+        if (subjectAssignment is null)
+            return Result.Failure<ManagerRelationship>(Error.Validation(
+                "Manager.NoSubjectAssignment",
+                "Employee has no active primary work assignment to attach a manager relationship to."));
+
+        var managerAssignment = await ResolveActivePrimaryAssignmentAsync(input.ManagerEmployeeId, effectiveDate, cancellationToken);
+        if (managerAssignment is null || managerAssignment.TenantId != tenantContext.TenantId)
+            return Result.Failure<ManagerRelationship>(Error.Validation(
+                "Manager.NoManagerAssignment",
+                "The manager has no active primary work assignment in this tenant."));
+
+        var primary = await ResolveActivePrimaryManagerRelationshipAsync(employeeId, effectiveDate, cancellationToken);
+        if (primary?.ManagerEmployeeId == input.ManagerEmployeeId)
+            return Result.Failure<ManagerRelationship>(Error.Validation(
+                "Manager.DottedLineIsPrimary", "This person is already the employee's manager."));
+
+        if (await ResolveDottedLineAsync(employeeId, input.ManagerEmployeeId, effectiveDate, openOnly: false, cancellationToken) is not null)
+            return Result.Failure<ManagerRelationship>(Error.Validation(
+                "Manager.DottedLineExists", "The employee already has a dotted line to this manager."));
+
+        var relationship = ManagerRelationship.Create(
+            tenantContext.TenantId, employeeId, input.ManagerEmployeeId,
+            subjectAssignment.Id, managerAssignment.Id,
+            ReportingRelationshipType.SecondaryManager, effectiveDate,
+            input.Source, effectiveTo: null, input.SourceReference, input.ImportBatchId);
+        dbContext.ManagerRelationships.Add(relationship);
+
+        StageAudit("ManagerRelationship", relationship.Id, WorkforceAuditAction.ManagerChanged,
+            input.Source, actor, effectiveDate, input.SourceReference, input.ImportBatchId,
+            "Dotted-line manager added.");
+
+        return Result.Success(relationship);
+    }
+
+    public async Task<Result<ManagerRelationship>> EndDottedLineManagerAsync(
+        Guid employeeId, ChangeManagerInput input, string? actor, CancellationToken cancellationToken)
+    {
+        var effectiveDate = NormalizeDate(input.EffectiveDate);
+
+        var current = await ResolveDottedLineAsync(employeeId, input.ManagerEmployeeId, effectiveDate, openOnly: true, cancellationToken);
+        if (current is null)
+            return Result.Failure<ManagerRelationship>(Error.Validation(
+                "Manager.DottedLineNotFound", "The employee has no dotted line to this manager on that date."));
+        if (effectiveDate <= current.EffectiveFrom)
+            return Result.Failure<ManagerRelationship>(Error.Validation(
+                "Manager.EffectiveDateNotAfterCurrent",
+                "Manager change date must be after the current relationship's start date."));
+
+        current.End(effectiveDate);
+
+        StageAudit("ManagerRelationship", current.Id, WorkforceAuditAction.ManagerChanged,
+            input.Source, actor, effectiveDate, input.SourceReference, input.ImportBatchId,
+            "Dotted-line manager ended.");
+
+        return Result.Success(current);
+    }
+
+    /// <summary>
+    /// The dotted line from employee to manager active on the date; with <paramref name="openOnly"/> false, also one
+    /// that starts later (a second one would overlap it).
+    /// </summary>
+    private Task<ManagerRelationship?> ResolveDottedLineAsync(
+        Guid employeeId, Guid managerId, DateTime asOf, bool openOnly, CancellationToken cancellationToken)
+    {
+        var lines = dbContext.ManagerRelationships.Where(
+            m => m.SubjectEmployeeId == employeeId
+                && m.ManagerEmployeeId == managerId
+                && m.Type == ReportingRelationshipType.SecondaryManager
+                && (m.EffectiveTo == null || asOf < m.EffectiveTo));
+        if (openOnly) lines = lines.Where(m => m.EffectiveFrom <= asOf);
+        return lines.FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<Result<Employment>> EndEmploymentReleasingReportsAsync(
         Guid employeeId, EndEmploymentInput input, string? actor, CancellationToken cancellationToken)
     {
@@ -521,6 +618,16 @@ public sealed class WorkforceMutationService(
         // so a prior Change Work that superseded the assignment does not orphan it).
         var ownManager = await ResolveActivePrimaryManagerRelationshipAsync(employeeId, lastEmployed, cancellationToken);
         ownManager?.End(boundary);
+
+        // Dotted lines end with the employment on either side: theirs, and the ones others hold to them.
+        var dottedLines = await dbContext.ManagerRelationships
+            .Where(m => m.Type == ReportingRelationshipType.SecondaryManager
+                && (m.SubjectEmployeeId == employeeId || m.ManagerEmployeeId == employeeId)
+                && m.EffectiveFrom <= lastEmployed
+                && (m.EffectiveTo == null || boundary < m.EffectiveTo))
+            .ToListAsync(cancellationToken);
+        foreach (var dottedLine in dottedLines)
+            dottedLine.End(boundary);
 
         var assignment = await ResolveActivePrimaryAssignmentAsync(employeeId, lastEmployed, cancellationToken);
         if (assignment is not null)

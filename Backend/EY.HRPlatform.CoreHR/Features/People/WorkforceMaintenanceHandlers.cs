@@ -18,6 +18,8 @@ public sealed record ChangeWorkRequest(DateTime EffectiveDate, Guid OrgUnitId, s
 
 public sealed record ChangeManagerByKeyRequest(DateTime EffectiveDate, Guid? ManagerEmployeeId);
 
+public sealed record DottedLineRequest(DateTime EffectiveDate, Guid ManagerEmployeeId);
+
 public sealed record EndEmploymentRequest(DateTime LastEmployedDate, string? Note);
 
 public sealed record UpdateWorkEmailRequest(
@@ -46,6 +48,14 @@ public sealed record ChangeManagerByKeyCommand(
     string EmployeeKey,
     DateTime EffectiveDate,
     Guid? ManagerEmployeeId,
+    string Actor) : ICommand<Result<MaintenanceResultDto>>;
+
+/// <param name="End">False adds the dotted line from the date; true ends it on the date.</param>
+public sealed record DottedLineCommand(
+    string EmployeeKey,
+    DateTime EffectiveDate,
+    Guid ManagerEmployeeId,
+    bool End,
     string Actor) : ICommand<Result<MaintenanceResultDto>>;
 
 public sealed record EndEmploymentCommand(
@@ -142,6 +152,33 @@ public sealed class ChangeManagerByKeyCommandHandler(
             }
 
             return Result.Success(new MaintenanceResultDto(employee.StableEmployeeKey, effective, effective > today));
+        }, cancellationToken);
+    }
+}
+
+public sealed class DottedLineCommandHandler(
+    CoreHRDbContext dbContext,
+    IWorkforceMutationService mutationService)
+    : ICommandHandler<DottedLineCommand, Result<MaintenanceResultDto>>
+{
+    public async Task<Result<MaintenanceResultDto>> Handle(DottedLineCommand command, CancellationToken cancellationToken)
+    {
+        var employee = await MaintenanceSupport.FindEmployeeAsync(dbContext, command.EmployeeKey, cancellationToken);
+        if (employee is null)
+            return Result.Failure<MaintenanceResultDto>(new Error("Employee.NotFound", "Employee was not found."));
+
+        var effective = MaintenanceSupport.NormalizeDate(command.EffectiveDate);
+        var today = DateTime.UtcNow.Date;
+        var input = new ChangeManagerInput(command.ManagerEmployeeId, effective, WorkforceSourceType.Manual);
+
+        return await MaintenanceSupport.RunAsync(dbContext, async () =>
+        {
+            var changed = command.End
+                ? await mutationService.EndDottedLineManagerAsync(employee.Id, input, command.Actor, cancellationToken)
+                : await mutationService.AddDottedLineManagerAsync(employee.Id, input, command.Actor, cancellationToken);
+            return changed.IsFailure
+                ? Result.Failure<MaintenanceResultDto>(changed.Error)
+                : Result.Success(new MaintenanceResultDto(employee.StableEmployeeKey, effective, effective > today));
         }, cancellationToken);
     }
 }

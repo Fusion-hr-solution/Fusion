@@ -1,12 +1,16 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Features.OrgChart;
 using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.People;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.Features.Organization;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Npgsql;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.People;
@@ -172,6 +176,86 @@ public sealed class TemporalWorkforceMaintenanceRelationalTests
         Guid KarimId, string KarimKey,
         Guid AminaId, string AminaKey,
         Guid YoussefId, string YoussefKey);
+
+    [RelationalDatabaseFact]
+    public async Task Dotted_lines_are_effective_dated_beside_the_primary_chain_and_feed_the_org_chart()
+    {
+        var baseConnection = Environment.GetEnvironmentVariable("FUSION_COREHR_RELATIONAL_TEST_CONNECTION")!;
+        var databaseName = $"fusion_temporal_{Guid.NewGuid():N}";
+        var connectionString = new NpgsqlConnectionStringBuilder(baseConnection) { Database = databaseName, Pooling = false }.ConnectionString;
+
+        try
+        {
+            await CreateDatabaseAsync(baseConnection, databaseName);
+            var tenantId = Guid.NewGuid();
+            var otherTenantId = Guid.NewGuid();
+            var today = DateTime.UtcNow.Date;
+            var later = today.AddDays(20);
+            await using var db = CreateDb(connectionString, tenantId);
+            await db.Database.MigrateAsync();
+            await using var otherDb = CreateDb(connectionString, otherTenantId);
+
+            var ctx = await SetUpAsync(db, tenantId, today);
+            var other = await SetUpAsync(otherDb, otherTenantId, today);
+            Task<EY.HRPlatform.SharedKernel.Results.Result<MaintenanceResultDto>> Dotted(Guid managerId, DateTime date, bool end = false)
+                => new DottedLineCommandHandler(db, ctx.Mutation).Handle(new DottedLineCommand(ctx.KarimKey, date, managerId, end, Actor), default);
+
+            // Karim (managed by Amina) gets a dotted line to Youssef from today.
+            var added = await Dotted(ctx.YoussefId, today);
+            Assert.True(added.IsSuccess, added.IsFailure ? added.Error.Message : null);
+            Assert.Equal([ctx.YoussefKey], (await ProfileAsync(db, ctx.Organization, ctx.KarimKey)).DottedLineManagers.Select(m => m.EmployeeKey));
+            Assert.Equal([ctx.YoussefId], (await ProfileAsync(db, ctx.Organization, ctx.KarimKey)).DottedLineManagers.Select(m => m.EmployeeId));
+
+            // Manager options find a person by their exact key (the org chart's prefill), and only in this tenant.
+            var byKey = await new ManagerOptionsQueryHandler(db, ctx.Organization).Handle(new ManagerOptionsQuery(today, ctx.YoussefKey, null), default);
+            Assert.Equal([ctx.YoussefId], byKey.Value.Select(o => o.EmployeeId));
+            var otherByKey = await new ManagerOptionsQueryHandler(otherDb, other.Organization).Handle(new ManagerOptionsQuery(today, ctx.YoussefKey, null), default);
+            Assert.Empty(otherByKey.Value);
+            Assert.Equal(ctx.AminaKey, (await ProfileAsync(db, ctx.Organization, ctx.KarimKey)).PrimaryManager!.EmployeeKey);
+
+            // Refused: the same dotted line twice, the primary manager, oneself, someone in another tenant.
+            Assert.Equal("Manager.DottedLineExists", (await Dotted(ctx.YoussefId, later)).Error.Code);
+            Assert.Equal("Manager.DottedLineIsPrimary", (await Dotted(ctx.AminaId, today)).Error.Code);
+            Assert.Equal("Manager.Self", (await Dotted(ctx.KarimId, today)).Error.Code);
+            Assert.Equal("Manager.NoManagerAssignment", (await Dotted(other.YoussefId, today)).Error.Code);
+            Assert.Equal("Manager.DottedLineNotFound", (await Dotted(ctx.AminaId, later, end: true)).Error.Code);
+
+            // The chart draws it today; HR's changes feed sees the planned primary move but not the dotted line.
+            var settings = new Mock<ITenantSettingsReadService>();
+            settings.Setup(s => s.GetCurrentAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new TenantSettingsDto());
+            var chart = (await new OrgChartQueryHandler(db, settings.Object)
+                .Handle(new OrgChartQuery(DateOnly.FromDateTime(today), OrgChartScopes.Tenant, null, HrAudience: true), default)).Value;
+            Assert.Equal([ctx.YoussefKey], chart.People.Single(p => p.EmployeeKey == ctx.KarimKey).DottedLineManagerKeys);
+
+            var move = await new ChangeManagerByKeyCommandHandler(db, ctx.Mutation).Handle(
+                new ChangeManagerByKeyCommand(ctx.KarimKey, later, ctx.YoussefId, Actor), default);
+            Assert.True(move.IsSuccess, move.IsFailure ? move.Error.Message : null);
+            var changes = (await new OrgChartChangesQueryHandler(db, settings.Object)
+                .Handle(new OrgChartChangesQuery(DateOnly.FromDateTime(today.AddDays(1)), DateOnly.FromDateTime(today.AddDays(60))), default)).Value;
+            Assert.Equal([(OrgChartChangeKinds.Move, DateOnly.FromDateTime(later), ctx.KarimKey, (string?)ctx.YoussefKey)],
+                changes.Select(c => (c.Kind, c.Date, c.EmployeeKey, c.ManagerKey)));
+
+            // Ended in 20 days: still there today, gone on the day.
+            var ended = await Dotted(ctx.YoussefId, later, end: true);
+            Assert.True(ended.IsSuccess, ended.IsFailure ? ended.Error.Message : null);
+            Assert.True(ended.Value.IsScheduled);
+            Assert.Single((await ProfileAsync(db, ctx.Organization, ctx.KarimKey)).DottedLineManagers);
+            Assert.Empty((await ProfileAsync(db, ctx.Organization, ctx.KarimKey, later)).DottedLineManagers);
+
+            // After the move, Amina (the former manager) can be a dotted line; it ends with her employment.
+            var toAmina = await Dotted(ctx.AminaId, later.AddDays(1));
+            Assert.True(toAmina.IsSuccess, toAmina.IsFailure ? toAmina.Error.Message : null);
+            var aminaLeaves = await new EndEmploymentCommandHandler(db, ctx.Mutation).Handle(
+                new EndEmploymentCommand(ctx.AminaKey, later.AddDays(9), null, Actor), default);
+            Assert.True(aminaLeaves.IsSuccess, aminaLeaves.IsFailure ? aminaLeaves.Error.Message : null);
+            Assert.Single((await ProfileAsync(db, ctx.Organization, ctx.KarimKey, later.AddDays(9))).DottedLineManagers);
+            Assert.Empty((await ProfileAsync(db, ctx.Organization, ctx.KarimKey, later.AddDays(10))).DottedLineManagers);
+        }
+        finally
+        {
+            await DropDatabaseAsync(baseConnection, databaseName);
+        }
+    }
 
     private static async Task<Fixture> SetUpAsync(CoreHRDbContext db, Guid tenantId, DateTime today)
     {
