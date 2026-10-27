@@ -17,7 +17,7 @@ namespace EY.HRPlatform.CoreHR.Features.People;
 public sealed record DottedLineRequest(DateTime EffectiveDate, Guid ManagerEmployeeId);
 
 public sealed record UpdateWorkEmailRequest(
-    [property: Required, EmailAddress, MaxLength(256)] string WorkEmail);
+    [Required, EmailAddress, MaxLength(256)] string WorkEmail);
 
 // --- Contracts ------------------------------------------------------------------------------------
 

@@ -18,7 +18,7 @@ public sealed record JobChangeRequest(
     Guid? OrgUnitId = null,
     string? JobTitle = null,
     string? Location = null,
-    [property: MaxLength(1000)] string? Note = null);
+    [MaxLength(1000)] string? Note = null);
 
 /// <summary>What happens to the person's direct reports: they go along (default) or stay, reporting to someone.</summary>
 public sealed record TeamOutcomeRequest(bool Stays, Guid? ManagerEmployeeId = null);
@@ -30,7 +30,7 @@ public sealed record TeamOutcomeRequest(bool Stays, Guid? ManagerEmployeeId = nu
 public sealed record EndEmploymentChangeRequest(
     DateTime LastDay,
     IReadOnlyList<ReportReassignmentRequest>? Reports = null,
-    [property: MaxLength(1000)] string? Note = null);
+    [MaxLength(1000)] string? Note = null);
 
 public sealed record ReportReassignmentRequest(Guid EmployeeId, Guid? ManagerEmployeeId);
 
@@ -42,7 +42,7 @@ public sealed record JoinChangeRequest(
     string? Location = null,
     Guid? ManagerEmployeeId = null,
     string? EmploymentType = null,
-    [property: MaxLength(1000)] string? Note = null);
+    [MaxLength(1000)] string? Note = null);
 
 /// <summary>Replaces a scheduled change with a new one of the same kind; exactly one part is set.</summary>
 public sealed record EditChangeRequest(
