@@ -5,7 +5,6 @@ import type {
   PeopleProfileEmploymentDto,
   PeopleTimelineDto,
   PeopleTimelineEventDto,
-  PeopleUpcomingChangeDto,
 } from "@repo/api";
 import { englishSay, type Say } from "@repo/ds/lib/say";
 import { englishMessages } from "@/i18n/messages";
@@ -80,7 +79,6 @@ export interface WorkerProfileView {
   access: WorkerProfileAccess | null;
 
   timeline: PeopleTimelineEventDto[];
-  upcoming: PeopleUpcomingChangeDto[];
 
   /** Viewing a non-Today snapshot (People temporal); the snapshot is read-only. */
   isAsOf: boolean;
@@ -219,7 +217,6 @@ export function fromSelfDetails(
       : null,
 
     timeline: context.timeline?.timeline ?? [],
-    upcoming: [],
 
     isAsOf: false,
     viewedDate: null,
@@ -284,7 +281,6 @@ export function fromPeopleProfile(
       : null,
 
     timeline: timeline ?? [],
-    upcoming: profile.upcoming,
 
     isAsOf: profile.isAsOf,
     viewedDate: profile.viewedDate,

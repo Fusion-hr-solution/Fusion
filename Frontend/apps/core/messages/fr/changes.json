@@ -1,0 +1,155 @@
+{
+  "kind": {
+    "job": "Changer de poste",
+    "manager": "Changer de manager",
+    "end": "Fin d'emploi",
+    "start": "Reprise d'emploi"
+  },
+  "close": "Fermer",
+  "reportsTo": "Rattaché à",
+  "noManager": "Sans manager",
+  "chooseNoManager": "Laisser sans manager",
+  "chooseManager": "Choisir un manager",
+  "team": {
+    "title": "Équipe de {name}",
+    "count": "{count} directs",
+    "along": "Suit {name}",
+    "stays": "Reste dans {unit}",
+    "staysNoUnit": "Reste où elle est",
+    "reportsTo": "Rattachée à",
+    "names": "{names} et {count, plural, one {# autre} other {# autres}}"
+  },
+  "facts": {
+    "title": "Poste",
+    "unit": "Unité",
+    "jobTitle": "Intitulé",
+    "location": "Lieu",
+    "none": "Aucun",
+    "change": "Modifier",
+    "undo": "Annuler",
+    "done": "OK"
+  },
+  "when": {
+    "from": "À partir du",
+    "starts": "Début",
+    "lastDay": "Dernier jour",
+    "today": "Aujourd'hui",
+    "otherDate": "Autre date"
+  },
+  "effects": {
+    "title": "Change aussi",
+    "performance": "Performance",
+    "reviewerStays": "L'évaluation {cycle} reste avec {name}",
+    "oneOnOnesEnd": "Les 1:1 avec {name} se terminent {when}",
+    "endsToday": "aujourd'hui",
+    "endsOn": "le {date}",
+    "dottedEnds": "Le lien en pointillé avec {name} se termine, car cette personne devient le manager"
+  },
+  "end": {
+    "reportsGoTo": "Les collaborateurs vont à",
+    "withTeam": "Avec une équipe de {count}",
+    "leavesFirst": "Part avant",
+    "movesFirst": "Change avant",
+    "leaves": "Part le {date}",
+    "moves": "Change le {date}",
+    "endsOn": "Se termine le {date}",
+    "dottedLine": "Lien en pointillé de {person} avec {manager}",
+    "addNote": "Ajouter une note",
+    "note": "Note"
+  },
+  "start": {
+    "workerId": "Matricule",
+    "kept": "Conservé",
+    "former": "Ancien·ne {title}"
+  },
+  "summary": {
+    "today": "Prend effet <b>aujourd'hui</b>",
+    "scheduled": "Prévu le <b>{date}</b>",
+    "withTeam": "{name} et {count, plural, one {# collaborateur} other {# collaborateurs}} changent le <b>{date}</b>",
+    "reportsMove": "{count, plural, one {# collaborateur change} other {# collaborateurs changent}} le <b>{date}</b>",
+    "lastDay": "Dernier jour le <b>{date}</b>",
+    "joins": "Rejoint l'équipe de {manager} le <b>{date}</b>",
+    "joinsNoManager": "Commence le <b>{date}</b>"
+  },
+  "action": {
+    "save": "Enregistrer",
+    "schedule": "Planifier pour le {date}",
+    "end": "Terminer l'emploi le {date}",
+    "cancel": "Annuler"
+  },
+  "saved": {
+    "job": "{name} est maintenant rattaché·e à {manager}",
+    "jobOnly": "Le poste de {name} a changé",
+    "scheduled": "Prévu le {date}",
+    "ended": "Le dernier jour de {name} est le {date}",
+    "started": "{name} commence le {date}",
+    "undo": "Annuler",
+    "undone": "Changement annulé"
+  },
+  "failed": "Le changement n'a pas pu être enregistré.",
+  "coming": {
+    "title": "À venir",
+    "movesTo": "Rejoint l'équipe de {manager}",
+    "noManager": "Quitte l'équipe de {manager}",
+    "becomes": "Devient {title}",
+    "movesUnit": "Rejoint {unit}",
+    "relocates": "Déménage à {location}",
+    "joins": "Rejoint l'équipe de {manager}",
+    "joinsUnit": "Rejoint {unit}",
+    "startsAgain": "Reprend dans l'équipe de {manager}",
+    "leaves": "Dernier jour le {date}",
+    "teamAlong": "L'équipe de {count} suit",
+    "teamStays": "L'équipe de {count} reste avec {manager}",
+    "reportsMove": "{count, plural, one {# collaborateur change} other {# collaborateurs changent}}",
+    "by": "Par {name} le {date}",
+    "edit": "Modifier",
+    "cancel": "Annuler le changement",
+    "view": "Voir le profil",
+    "today": "Aujourd'hui"
+  },
+  "badge": {
+    "moves": "Change le {date}",
+    "changes": "Change le {date}",
+    "joins": "Arrive le {date}",
+    "leaves": "Part le {date}"
+  },
+  "cancel": {
+    "move": "Annuler le changement d'équipe de {name} le {date} ?",
+    "change": "Annuler le changement de {name} le {date} ?",
+    "end": "Annuler la fin d'emploi de {name} ?",
+    "join": "Annuler l'arrivée de {name} le {date} ?",
+    "staysWith": "{name} reste avec {manager}.",
+    "teamStaysWith": "{name} et {count, plural, one {# collaborateur} other {# collaborateurs}} restent avec {manager}.",
+    "staysAs": "{name} reste {title} dans {unit}.",
+    "staysEmployed": "{name} reste en poste.",
+    "notHired": "{name} ne sera pas embauché·e et quitte People.",
+    "notStarting": "{name} reste un·e ancien·ne employé·e.",
+    "keep": "Garder le changement",
+    "confirm": "Annuler le changement",
+    "done": "Changement annulé",
+    "failed": "Le changement n'a pas pu être annulé."
+  },
+  "menu": {
+    "changeJob": "Changer de poste",
+    "changeManager": "Changer de manager",
+    "endEmployment": "Fin d'emploi",
+    "startEmployment": "Reprise d'emploi",
+    "showInChart": "Voir dans l'organigramme",
+    "more": "Plus d'actions"
+  },
+  "dotted": {
+    "since": "Lien en pointillé · depuis le {date}",
+    "manager": "Manager · depuis le {date}",
+    "add": "Ajouter un lien en pointillé",
+    "addTitle": "Ajouter un lien en pointillé",
+    "end": "Terminer",
+    "endOn": "Se termine le {date}",
+    "failed": "Le lien en pointillé n'a pas pu être enregistré.",
+    "ended": "Lien en pointillé terminé",
+    "added": "Lien en pointillé ajouté"
+  },
+  "refused": {
+    "inBranch": "{target} est rattaché·e à {name}",
+    "already": "Déjà rattaché·e à {name}"
+  }
+}

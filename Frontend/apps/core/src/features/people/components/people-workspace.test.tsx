@@ -58,6 +58,15 @@ vi.mock("@/features/organization/api/use-organization", () => ({
   useOrganizationHierarchy: () => mockUseOrg(),
 }));
 
+vi.mock("../changes/use-changes", () => ({
+  useChangeRights: () => ({ people: false, lines: false, seeComing: false }),
+  useUpcomingChanges: () => ({ data: [] }),
+}));
+
+vi.mock("../changes/change-sheet", () => ({
+  useChangeSheet: () => ({ start: vi.fn(), edit: vi.fn(), element: null }),
+}));
+
 vi.mock("../api/use-people", () => ({
   usePeople: () => mockUsePeople(),
 }));

@@ -89,63 +89,6 @@
     "noManagerOnDate": "Aucun manager disponible à cette date",
     "noManagerMatch": "Aucun manager ne correspond à votre recherche"
   },
-  "task": {
-    "back": "Retour",
-    "effectiveDate": "Date d’effet",
-    "scheduled": "Programmé — prend effet le {date}",
-    "today": "Prend effet aujourd’hui",
-    "now": "Aujourd’hui",
-    "after": "Après le {date}",
-    "afterChange": "Après la modification",
-    "notFound": "Collaborateur introuvable.",
-    "cancel": "Annuler",
-    "optional": "Facultatif"
-  },
-  "changeManager": {
-    "title": "Changer de manager",
-    "selectError": "Choisissez un manager ou « Aucun manager ».",
-    "failed": "Le changement de manager n’a pas pu être enregistré.",
-    "noManager": "Aucun manager",
-    "choosePreview": "Choisissez un manager pour voir le résultat.",
-    "newManager": "Nouveau manager",
-    "selection": "Choix du manager",
-    "assign": "Affecter un manager",
-    "schedule": "Programmer le changement de manager",
-    "save": "Enregistrer le changement de manager"
-  },
-  "changeWork": {
-    "title": "Changer de poste",
-    "noWork": "Ce collaborateur n’a pas de poste actuel à modifier. Renseignez d’abord son poste.",
-    "selectOrganization": "Choisissez une unité.",
-    "titleRequired": "L’intitulé de poste est obligatoire.",
-    "failed": "Le changement de poste n’a pas pu être enregistré.",
-    "jobTitle": "Intitulé",
-    "organization": "Unité",
-    "location": "Lieu",
-    "noLocation": "Aucun lieu",
-    "displayTitle": "Intitulé de poste",
-    "schedule": "Programmer la modification",
-    "save": "Enregistrer la modification"
-  },
-  "endEmployment": {
-    "title": "Mettre fin au contrat",
-    "noActive": "Ce collaborateur n’a pas de contrat actif.",
-    "failed": "Le contrat n’a pas pu être clôturé.",
-    "employment": "Contrat",
-    "active": "Actif",
-    "work": "Poste",
-    "manager": "Manager",
-    "directReports": "Collaborateurs directs",
-    "none": "Aucun",
-    "ended": "Terminé",
-    "noActiveWork": "Aucun poste actif",
-    "noManager": "Aucun manager",
-    "managerless": "{count, plural, one {# collaborateur se retrouve sans manager} other {# collaborateurs se retrouvent sans manager}}",
-    "lastEmployed": "Dernier jour travaillé",
-    "note": "Note",
-    "schedule": "Programmer la fin",
-    "end": "Mettre fin au contrat"
-  },
   "views": {
     "label": "Vues du dossier",
     "profile": "Profil",
@@ -234,13 +177,5 @@
     "add": "Ajouter le collaborateur",
     "resulting": "Collaborateur créé",
     "ready": "Prêt à être ajouté"
-  },
-  "dottedLines": {
-    "title": "Managers fonctionnels",
-    "none": "Aucun manager fonctionnel",
-    "add": "Ajouter",
-    "end": "Terminer",
-    "failed": "Le rattachement fonctionnel n'a pas pu être enregistré.",
-    "scheduled": "Prévu pour le {date}"
   }
 }

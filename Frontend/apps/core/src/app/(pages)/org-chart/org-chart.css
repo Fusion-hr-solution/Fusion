@@ -133,4 +133,7 @@
 .oc-node.oc-lifted { opacity: 0.45; }
 .oc-node.oc-drop { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 .oc-node.oc-nodrop { cursor: not-allowed; }
+/* The person a change panel is about, previewed where the change puts them. */
+.oc-node.oc-preview { border: 1.5px dashed var(--primary); background: color-mix(in oklab, var(--primary) 5%, var(--card)); }
+.oc-dragchip.oc-refused { border-color: color-mix(in oklab, var(--destructive) 50%, var(--border)); }
 .oc-dragchip { position: absolute; left: 0; top: 0; z-index: 30; display: inline-flex; align-items: center; gap: 8px; max-width: 240px; padding: 6px 12px 6px 6px; pointer-events: none; }

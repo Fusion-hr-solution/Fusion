@@ -1,0 +1,155 @@
+{
+  "kind": {
+    "job": "Change job",
+    "manager": "Change manager",
+    "end": "End employment",
+    "start": "Start employment"
+  },
+  "close": "Close",
+  "reportsTo": "Reports to",
+  "noManager": "No manager",
+  "chooseNoManager": "Leave without a manager",
+  "chooseManager": "Choose a manager",
+  "team": {
+    "title": "{name}'s team",
+    "count": "{count} direct",
+    "along": "Goes with {name}",
+    "stays": "Stays in {unit}",
+    "staysNoUnit": "Stays where it is",
+    "reportsTo": "Reports to",
+    "names": "{names} and {count, plural, one {# more} other {# more}}"
+  },
+  "facts": {
+    "title": "Job",
+    "unit": "Unit",
+    "jobTitle": "Title",
+    "location": "Location",
+    "none": "None",
+    "change": "Change",
+    "undo": "Undo",
+    "done": "Done"
+  },
+  "when": {
+    "from": "From",
+    "starts": "Starts",
+    "lastDay": "Last day",
+    "today": "Today",
+    "otherDate": "Other date"
+  },
+  "effects": {
+    "title": "Also changes",
+    "performance": "Performance",
+    "reviewerStays": "{cycle} review stays with {name}",
+    "oneOnOnesEnd": "1:1s with {name} end {when}",
+    "endsToday": "today",
+    "endsOn": "on {date}",
+    "dottedEnds": "The dotted line to {name} ends, as they become the manager"
+  },
+  "end": {
+    "reportsGoTo": "Reports go to",
+    "withTeam": "With a team of {count}",
+    "leavesFirst": "Leaves first",
+    "movesFirst": "Moves first",
+    "leaves": "Leaves {date}",
+    "moves": "Moves {date}",
+    "endsOn": "Ends on {date}",
+    "dottedLine": "{person}'s dotted line to {manager}",
+    "addNote": "Add a note",
+    "note": "Note"
+  },
+  "start": {
+    "workerId": "Worker ID",
+    "kept": "Kept",
+    "former": "Former {title}"
+  },
+  "summary": {
+    "today": "Takes effect <b>today</b>",
+    "scheduled": "Scheduled for <b>{date}</b>",
+    "withTeam": "{name} and {count, plural, one {# report} other {# reports}} change on <b>{date}</b>",
+    "reportsMove": "{count, plural, one {# report moves} other {# reports move}} on <b>{date}</b>",
+    "lastDay": "Last day <b>{date}</b>",
+    "joins": "Joins {manager}'s team on <b>{date}</b>",
+    "joinsNoManager": "Starts on <b>{date}</b>"
+  },
+  "action": {
+    "save": "Save change",
+    "schedule": "Schedule for {date}",
+    "end": "End employment on {date}",
+    "cancel": "Cancel"
+  },
+  "saved": {
+    "job": "{name} now reports to {manager}",
+    "jobOnly": "{name}'s job changed",
+    "scheduled": "Scheduled for {date}",
+    "ended": "{name}'s last day is {date}",
+    "started": "{name} starts on {date}",
+    "undo": "Undo",
+    "undone": "Change undone"
+  },
+  "failed": "The change could not be saved.",
+  "coming": {
+    "title": "Coming up",
+    "movesTo": "Moves to {manager}'s team",
+    "noManager": "Leaves {manager}'s team",
+    "becomes": "Becomes {title}",
+    "movesUnit": "Moves to {unit}",
+    "relocates": "Moves to {location}",
+    "joins": "Joins {manager}'s team",
+    "joinsUnit": "Joins {unit}",
+    "startsAgain": "Starts again in {manager}'s team",
+    "leaves": "Last day {date}",
+    "teamAlong": "Team of {count} goes along",
+    "teamStays": "Team of {count} stays with {manager}",
+    "reportsMove": "{count, plural, one {# report moves} other {# reports move}}",
+    "by": "By {name} on {date}",
+    "edit": "Edit",
+    "cancel": "Cancel change",
+    "view": "View profile",
+    "today": "Today"
+  },
+  "badge": {
+    "moves": "Moves {date}",
+    "changes": "Changes {date}",
+    "joins": "Joins {date}",
+    "leaves": "Leaves {date}"
+  },
+  "cancel": {
+    "move": "Cancel {name}'s move on {date}?",
+    "change": "Cancel {name}'s change on {date}?",
+    "end": "Cancel {name}'s end of employment?",
+    "join": "Cancel {name}'s start on {date}?",
+    "staysWith": "{name} stays with {manager}.",
+    "teamStaysWith": "{name} and their {count, plural, one {# report} other {# reports}} stay with {manager}.",
+    "staysAs": "{name} stays {title} in {unit}.",
+    "staysEmployed": "{name} stays employed.",
+    "notHired": "{name} won't be hired and leaves People.",
+    "notStarting": "{name} stays a former employee.",
+    "keep": "Keep the change",
+    "confirm": "Cancel change",
+    "done": "Change cancelled",
+    "failed": "The change could not be cancelled."
+  },
+  "menu": {
+    "changeJob": "Change job",
+    "changeManager": "Change manager",
+    "endEmployment": "End employment",
+    "startEmployment": "Start employment",
+    "showInChart": "Show in org chart",
+    "more": "More actions"
+  },
+  "dotted": {
+    "since": "Dotted line · since {date}",
+    "manager": "Manager · since {date}",
+    "add": "Add dotted line",
+    "addTitle": "Add a dotted line",
+    "end": "End",
+    "endOn": "Ends {date}",
+    "failed": "The dotted line could not be saved.",
+    "ended": "Dotted line ended",
+    "added": "Dotted line added"
+  },
+  "refused": {
+    "inBranch": "{target} reports to {name}",
+    "already": "Already reports to {name}"
+  }
+}

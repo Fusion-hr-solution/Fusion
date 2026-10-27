@@ -2,22 +2,17 @@
 
 import { useCallback, useMemo } from "react";
 import {
-  coreOrgChartQueryKeys,
   corePeopleQueryKeys,
   createCorePeopleApi,
   createPlatformApiClient,
   type AddExistingEmployeeRequest,
-  type ChangeManagerByKeyRequestBody,
-  type ChangeWorkRequestBody,
-  type DottedLineRequestBody,
-  type EndEmploymentRequestBody,
   type HireEmployeeRequest,
   type EstablishmentReviewRequest,
   type PeopleQueryParams,
 } from "@repo/api";
 import { keepPreviousData, useApiMutation, useApiQuery } from "@repo/api/query";
 import { useQueryClient } from "@tanstack/react-query";
-import { canManageCoreEmployees, useAuth } from "@repo/auth";
+import { useAuth } from "@repo/auth";
 import {
   canAccessEmployeeProfile,
   canAccessEmployeeRoster,
@@ -77,76 +72,6 @@ export function usePeopleTimeline(employeeKey: string, enabled = true) {
   );
 }
 
-export function useEndEmploymentPreview(
-  employeeKey: string,
-  lastEmployedDate: string,
-  enabled = true
-) {
-  const api = usePeopleApi();
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const canRead =
-    !isLoading &&
-    isAuthenticated &&
-    canManageCoreEmployees(user) &&
-    Boolean(employeeKey) &&
-    Boolean(lastEmployedDate) &&
-    enabled;
-  return useApiQuery(
-    corePeopleQueryKeys.endEmploymentPreview(employeeKey, lastEmployedDate),
-    useCallback(
-      (signal) =>
-        api.endEmploymentPreview(employeeKey, lastEmployedDate, signal),
-      [api, employeeKey, lastEmployedDate]
-    ),
-    { enabled: canRead, placeholderData: keepPreviousData }
-  );
-}
-
-export function useWorkforceMaintenanceMutations(employeeKey: string) {
-  const api = usePeopleApi();
-  const queryClient = useQueryClient();
-  const refresh = useCallback(() => {
-    void queryClient.invalidateQueries({
-      queryKey: corePeopleQueryKeys.profiles(),
-    });
-    void queryClient.invalidateQueries({
-      queryKey: corePeopleQueryKeys.lists(),
-    });
-    void queryClient.invalidateQueries({
-      queryKey: coreOrgChartQueryKeys.all(),
-    });
-  }, [queryClient]);
-  return {
-    changeWork: useApiMutation(
-      (request: ChangeWorkRequestBody) => api.changeWork(employeeKey, request),
-      {
-        onSuccess: refresh,
-      }
-    ),
-    changeManager: useApiMutation(
-      (request: ChangeManagerByKeyRequestBody) =>
-        api.changeManager(employeeKey, request),
-      {
-        onSuccess: refresh,
-      }
-    ),
-    dottedLine: useApiMutation(
-      ({ end, ...request }: DottedLineRequestBody & { end: boolean }) =>
-        api.dottedLine(employeeKey, request, end),
-      {
-        onSuccess: refresh,
-      }
-    ),
-    endEmployment: useApiMutation(
-      (request: EndEmploymentRequestBody) =>
-        api.endEmployment(employeeKey, request),
-      {
-        onSuccess: refresh,
-      }
-    ),
-  };
-}
-
 export function useUpdatePeopleWorkEmail(employeeKey: string) {
   const api = usePeopleApi();
   const queryClient = useQueryClient();
@@ -190,24 +115,6 @@ export function usePeopleAccessStatus(employeeKey: string, enabled = true) {
       [api, employeeKey]
     ),
     { enabled: canRead }
-  );
-}
-
-export function useManagerOptions(effectiveDate: string, q: string) {
-  const api = usePeopleApi();
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const enabled =
-    !isLoading &&
-    isAuthenticated &&
-    canManageCoreEmployees(user) &&
-    Boolean(effectiveDate);
-  return useApiQuery(
-    corePeopleQueryKeys.managerOptions(effectiveDate, q),
-    useCallback(
-      (signal) => api.managerOptions(effectiveDate, q, signal),
-      [api, effectiveDate, q]
-    ),
-    { enabled, placeholderData: keepPreviousData }
   );
 }
 

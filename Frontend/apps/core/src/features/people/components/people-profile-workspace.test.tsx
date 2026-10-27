@@ -54,6 +54,7 @@ vi.mock("@repo/auth", () => ({
     isLoading: false,
   }),
   canManageCoreEmployees: () => true,
+  canManageCoreReporting: () => true,
   canViewWorkforceAccess: () => true,
   canAccessCoreTeam: () => true,
   canAccessCorePeople: () => true,
@@ -65,6 +66,12 @@ vi.mock("@repo/api/query", () => ({
   useApiQuery: () => mockSummary(),
   useReactToPraise: () => ({ mutate: vi.fn(), isLoading: false }),
   useCompanyValues: () => ({ data: [] }),
+}));
+
+vi.mock("../changes/use-changes", () => ({
+  useChangeRights: () => ({ people: true, lines: true, seeComing: true }),
+  useChangeMutations: () => ({ dottedLine: { isLoading: false, mutateAsync: vi.fn() } }),
+  useCancelChange: () => ({ isLoading: false, mutateAsync: vi.fn() }),
 }));
 
 vi.mock("../api/use-people", () => ({
@@ -123,7 +130,7 @@ function profile(overrides: Partial<PeopleProfileDto> = {}): PeopleProfileDto {
     version: 1,
     viewedDate: "2026-08-18T00:00:00Z",
     isAsOf: false,
-    upcoming: [],
+    comingUp: [],
     dottedLineManagers: [],
     ...overrides,
   };
@@ -180,42 +187,45 @@ describe("PeopleProfileWorkspace", () => {
     expect(screen.getByText("Employment")).toBeInTheDocument();
     expect(screen.getByText("Fusion access")).toBeInTheDocument();
     expect(screen.getByText("Work contact")).toBeInTheDocument();
-    // contextual change actions are present on the Today view for managers
-    expect(
-      screen.getByRole("link", { name: /Change work/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Change manager/i })
-    ).toBeInTheDocument();
+    // one change action opens the change panel; ending employment sits in the menu
+    expect(screen.getByRole("button", { name: /Change job/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /More actions/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Change work/i })).not.toBeInTheDocument();
   });
 
-  it("surfaces scheduled upcoming changes with a path to view as of that date", () => {
+  it("shows a scheduled change inside the hero with Edit and Cancel", () => {
     mockProfile.mockReturnValue(
       q({
         data: profile({
-          upcoming: [
+          comingUp: [
             {
-              effectiveDate: "2099-09-01T00:00:00Z",
-              kind: "Work",
-              employeeKey: "E-KEY-1",
-              fields: [
-                {
-                  label: "Title",
-                  from: "Principal Engineer",
-                  to: "Staff Engineer",
-                },
-              ],
+              id: "change-1",
+              kind: "JobChange",
+              effectiveDate: "2099-09-01",
+              status: "Scheduled",
+              canCancel: true,
+              canEdit: true,
+              person: { employeeId: "employee-1", employeeKey: "E-KEY-1", displayName: "Ada Lovelace" },
+              createdBy: "Amira Khelifi",
+              createdAt: "2026-10-26T10:00:00Z",
+              note: null,
+              details: {
+                managerFrom: null, managerTo: null, managerChanged: false,
+                unitFromId: "ORG-1", unitFrom: "Platform", unitToId: "ORG-1", unitTo: null,
+                titleFrom: "Principal Engineer", titleTo: "Staff Engineer", locationFrom: "Tunis", locationTo: null,
+                unitChanged: false, titleChanged: true, locationChanged: false,
+                teamOutcome: "Along", teamCount: 1, teamManager: null, reassigned: null, dottedLinesEnded: [],
+                lastDay: null, isHire: false, employmentType: null, isReportingOnly: false,
+              },
             },
           ],
         }),
       })
     );
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
-    expect(screen.getByText("Upcoming")).toBeInTheDocument();
-    expect(screen.getByText("Work change")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /View as of/i })
-    ).toBeInTheDocument();
+    expect(screen.getByText("Becomes Staff Engineer")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Cancel change/i })).toBeInTheDocument();
   });
 
   it("shows managerless and incomplete-work truth without inventing current facts", () => {
@@ -386,7 +396,7 @@ describe("PeopleProfileWorkspace", () => {
         data: profile({
           isAsOf: true,
           viewedDate: "2099-09-01T00:00:00Z",
-          upcoming: [],
+          comingUp: [],
         }),
       })
     );
@@ -395,7 +405,7 @@ describe("PeopleProfileWorkspace", () => {
     expect(screen.getByRole("button", { name: /Today/i })).toBeInTheDocument();
     // read-only: change actions are hidden on a non-Today snapshot
     expect(
-      screen.queryByRole("link", { name: /Change work/i })
+      screen.queryByRole("button", { name: /Change job/i })
     ).not.toBeInTheDocument();
   });
 

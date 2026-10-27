@@ -19,6 +19,7 @@ export interface PeopleManagerDto {
 /** A dotted-line manager on the profile; the id is what ending the dotted line takes. */
 export interface PeopleDottedLineManagerDto extends PeopleManagerDto {
   employeeId: string;
+  since: string;
 }
 
 export interface PeopleWorkDto {
@@ -144,8 +145,8 @@ export interface PeopleProfileDto {
   viewedDate: string;
   /** True when viewing a non-Today date; the snapshot is read-only. */
   isAsOf: boolean;
-  /** Scheduled future changes, present only on the Today view. */
-  upcoming: PeopleUpcomingChangeDto[];
+  /** Change records from today on (scheduled, or today's while it can be undone); Today view only. */
+  comingUp: WorkforceChangeDto[];
   /** Dotted-line (secondary) managers on the viewed date, beside the primary chain. */
   dottedLineManagers: PeopleDottedLineManagerDto[];
 }
@@ -156,37 +157,139 @@ export interface MaintenanceResultDto {
   isScheduled: boolean;
 }
 
-export interface AffectedReportDto {
-  displayName: string;
-  employeeNumber: string;
-}
-
-export interface EndEmploymentPreviewDto {
-  lastEmployedDate: string;
-  directReportCount: number;
-  directReports: AffectedReportDto[];
-}
-
-export interface ChangeWorkRequestBody {
-  effectiveDate: string;
-  orgUnitId: string;
-  jobTitle: string;
-  location?: string | null;
-}
-
-export interface ChangeManagerByKeyRequestBody {
-  effectiveDate: string;
-  managerEmployeeId?: string | null;
-}
-
 export interface DottedLineRequestBody {
   effectiveDate: string;
   managerEmployeeId: string;
 }
 
-export interface EndEmploymentRequestBody {
-  lastEmployedDate: string;
+// --- People changes: one record per decision (join, job change, end of employment) ----------------
+
+export type WorkforceChangeKind = "Join" | "JobChange" | "EndEmployment";
+export type WorkforceChangeStatus = "Scheduled" | "InEffect" | "Cancelled";
+
+export interface ChangePersonRef {
+  employeeId: string;
+  employeeKey: string;
+  displayName: string;
+}
+
+export interface ReassignedReport {
+  person: ChangePersonRef;
+  manager: ChangePersonRef | null;
+}
+
+export interface EndedDottedLine {
+  person: ChangePersonRef;
+  manager: ChangePersonRef;
+}
+
+/** What a change did, captured when it was made; "to" values are set only for the parts that change. */
+export interface WorkforceChangeDetails {
+  managerFrom: ChangePersonRef | null;
+  managerTo: ChangePersonRef | null;
+  managerChanged: boolean;
+  unitFromId: string | null;
+  unitFrom: string | null;
+  unitToId: string | null;
+  unitTo: string | null;
+  titleFrom: string | null;
+  titleTo: string | null;
+  locationFrom: string | null;
+  locationTo: string | null;
+  unitChanged: boolean;
+  titleChanged: boolean;
+  locationChanged: boolean;
+  /** "Along" or "Stays" when the person had reports. */
+  teamOutcome: "Along" | "Stays" | null;
+  teamCount: number;
+  teamManager: ChangePersonRef | null;
+  reassigned: ReassignedReport[] | null;
+  dottedLinesEnded: EndedDottedLine[] | null;
+  lastDay: string | null;
+  isHire: boolean;
+  employmentType: string | null;
+  isReportingOnly: boolean;
+}
+
+export interface WorkforceChangeDto {
+  id: string;
+  kind: WorkforceChangeKind;
+  /** First day in effect; for an end of employment, the day after the last day. */
+  effectiveDate: string;
+  status: WorkforceChangeStatus;
+  canCancel: boolean;
+  canEdit: boolean;
+  person: ChangePersonRef;
+  createdBy: string | null;
+  createdAt: string;
+  note: string | null;
+  details: WorkforceChangeDetails;
+}
+
+export interface TeamOutcomeRequest {
+  stays: boolean;
+  managerEmployeeId?: string | null;
+}
+
+/** A null part stays as it is; an empty location clears it. */
+export interface JobChangeRequest {
+  effectiveDate: string;
+  managerEmployeeId?: string | null;
+  removeManager?: boolean;
+  team?: TeamOutcomeRequest | null;
+  orgUnitId?: string | null;
+  jobTitle?: string | null;
+  location?: string | null;
   note?: string | null;
+}
+
+export interface ReportReassignmentRequest {
+  employeeId: string;
+  /** Null leaves the report without a manager, by choice. */
+  managerEmployeeId: string | null;
+}
+
+export interface EndEmploymentChangeRequest {
+  lastDay: string;
+  reports?: ReportReassignmentRequest[];
+  note?: string | null;
+}
+
+export interface JoinChangeRequest {
+  startDate: string;
+  orgUnitId: string;
+  jobTitle: string;
+  location?: string | null;
+  managerEmployeeId?: string | null;
+  employmentType?: string | null;
+  note?: string | null;
+}
+
+export interface EditChangeRequest {
+  job?: JobChangeRequest;
+  end?: EndEmploymentChangeRequest;
+  join?: JoinChangeRequest;
+}
+
+export interface EndEmploymentReportDto {
+  person: ChangePersonRef;
+  jobTitle: string | null;
+  directReportCount: number;
+  outcome: "Reassign" | "LeavesFirst" | "MovesFirst";
+  outcomeDate: string | null;
+}
+
+export interface EndEmploymentChangePreviewDto {
+  lastDay: string;
+  defaultManager: ChangePersonRef | null;
+  reports: EndEmploymentReportDto[];
+  dottedLinesEnding: EndedDottedLine[];
+}
+
+/** What a new reporting line does in Performance (read from Performance for the change panel). */
+export interface LineEffectsDto {
+  reviewersStay: { cycleId: string; cycleName: string; reviewerEmployeeId: string; reviewerName: string }[];
+  oneOnOnesEnd: { seriesId: string; managerEmployeeId: string; managerName: string }[];
 }
 
 export interface UpdateWorkEmailRequestBody {
@@ -294,18 +397,24 @@ export const corePeoplePaths = {
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/access-status`,
   managerOptions: () => "/corehr/employees/people/manager-options",
   establishmentReview: () => "/corehr/employees/people/establishment-review",
-  changeWork: (employeeKey: string) =>
-    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/change-work`,
-  changeManager: (employeeKey: string) =>
-    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/change-manager`,
+  jobChange: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/changes/job`,
+  endEmploymentChange: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/changes/end-employment`,
+  endEmploymentPreview: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/changes/end-employment/preview`,
+  joinChange: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/changes/join`,
+  change: (changeId: string) => `/corehr/employees/people/changes/${encodeURIComponent(changeId)}`,
+  cancelChange: (changeId: string) =>
+    `/corehr/employees/people/changes/${encodeURIComponent(changeId)}/cancel`,
+  upcomingChanges: () => "/corehr/employees/people/changes/upcoming",
+  lineEffects: (employeeId: string) =>
+    `/performance/people/${encodeURIComponent(employeeId)}/line-effects`,
   dottedLines: (employeeKey: string) =>
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/dotted-lines`,
   endDottedLine: (employeeKey: string) =>
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/dotted-lines/end`,
-  endEmployment: (employeeKey: string) =>
-    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/end-employment`,
-  endEmploymentPreview: (employeeKey: string) =>
-    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/end-employment/preview`,
   updateWorkEmail: (employeeKey: string) =>
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/work-email`,
   hire: () => "/corehr/employees/hire",
@@ -322,17 +431,15 @@ export const corePeopleQueryKeys = {
     [...corePeopleQueryKeys.profiles(), employeeKey, asOf ?? "today"] as const,
   timeline: (employeeKey: string) =>
     [...corePeopleQueryKeys.profiles(), employeeKey, "timeline"] as const,
-  endEmploymentPreview: (employeeKey: string, lastEmployedDate: string) =>
-    [
-      ...corePeopleQueryKeys.profiles(),
-      employeeKey,
-      "end-preview",
-      lastEmployedDate,
-    ] as const,
+  endEmploymentPreview: (employeeKey: string, lastDay: string) =>
+    [...corePeopleQueryKeys.profiles(), employeeKey, "end-preview", lastDay] as const,
+  upcomingChanges: () => [...corePeopleQueryKeys.all(), "upcomingChanges"] as const,
+  lineEffects: (employeeId: string, managerId: string | null) =>
+    [...corePeopleQueryKeys.all(), "lineEffects", employeeId, managerId ?? "none"] as const,
   accessStatus: (employeeKey: string) =>
     [...corePeopleQueryKeys.profiles(), employeeKey, "access"] as const,
-  managerOptions: (effectiveDate: string, q: string) =>
-    [...corePeopleQueryKeys.all(), "managerOptions", effectiveDate, q] as const,
+  managerOptions: (effectiveDate: string, q: string, forEmployee?: string | null) =>
+    [...corePeopleQueryKeys.all(), "managerOptions", effectiveDate, q, forEmployee ?? "any"] as const,
 } as const;
 
 /** Canonical typed transport for the Workforce Slice 1 People surface. */
@@ -356,40 +463,33 @@ export function createCorePeopleApi(client: ApiClient) {
       client.get<PeopleTimelineDto>(corePeoplePaths.timeline(employeeKey), {
         signal,
       }),
-    endEmploymentPreview: (
-      employeeKey: string,
-      lastEmployedDate: string,
-      signal?: AbortSignal
-    ) =>
-      client.get<EndEmploymentPreviewDto>(
-        corePeoplePaths.endEmploymentPreview(employeeKey),
-        {
-          params: { lastEmployedDate },
-          signal,
-        }
-      ),
-    changeWork: (employeeKey: string, request: ChangeWorkRequestBody) =>
-      client.post<MaintenanceResultDto>(
-        corePeoplePaths.changeWork(employeeKey),
-        request
-      ),
-    changeManager: (
-      employeeKey: string,
-      request: ChangeManagerByKeyRequestBody
-    ) =>
-      client.post<MaintenanceResultDto>(
-        corePeoplePaths.changeManager(employeeKey),
-        request
-      ),
+    endEmploymentPreview: (employeeKey: string, lastDay: string, signal?: AbortSignal) =>
+      client.get<EndEmploymentChangePreviewDto>(corePeoplePaths.endEmploymentPreview(employeeKey), {
+        params: { lastDay },
+        signal,
+      }),
+    changeJob: (employeeKey: string, request: JobChangeRequest) =>
+      client.post<WorkforceChangeDto>(corePeoplePaths.jobChange(employeeKey), request),
+    endEmployment: (employeeKey: string, request: EndEmploymentChangeRequest) =>
+      client.post<WorkforceChangeDto>(corePeoplePaths.endEmploymentChange(employeeKey), request),
+    startEmployment: (employeeKey: string, request: JoinChangeRequest) =>
+      client.post<WorkforceChangeDto>(corePeoplePaths.joinChange(employeeKey), request),
+    /** Replaces a scheduled change with a new one of the same kind, in one step. */
+    editChange: (changeId: string, request: EditChangeRequest) =>
+      client.put<WorkforceChangeDto>(corePeoplePaths.change(changeId), request),
+    cancelChange: (changeId: string) => client.post<void>(corePeoplePaths.cancelChange(changeId), {}),
+    /** Coming changes: the tenant for People viewers, the caller's branch for managers. */
+    upcomingChanges: (signal?: AbortSignal) =>
+      client.get<WorkforceChangeDto[]>(corePeoplePaths.upcomingChanges(), { signal }),
+    lineEffects: (employeeId: string, managerId: string | null, signal?: AbortSignal) =>
+      client.get<LineEffectsDto>(corePeoplePaths.lineEffects(employeeId), {
+        params: managerId ? { manager: managerId } : undefined,
+        signal,
+      }),
     /** Adds a dotted-line manager from the date, or with `end` ends one on the date. */
     dottedLine: (employeeKey: string, request: DottedLineRequestBody, end = false) =>
       client.post<MaintenanceResultDto>(
         end ? corePeoplePaths.endDottedLine(employeeKey) : corePeoplePaths.dottedLines(employeeKey),
-        request
-      ),
-    endEmployment: (employeeKey: string, request: EndEmploymentRequestBody) =>
-      client.post<MaintenanceResultDto>(
-        corePeoplePaths.endEmployment(employeeKey),
         request
       ),
     updateWorkEmail: (
@@ -405,9 +505,10 @@ export function createCorePeopleApi(client: ApiClient) {
         corePeoplePaths.accessStatus(employeeKey),
         { signal }
       ),
-    managerOptions: (effectiveDate: string, q = "", signal?: AbortSignal) =>
+    /** With `forEmployee`, leaves out that person, their own branch and their current manager. */
+    managerOptions: (effectiveDate: string, q = "", signal?: AbortSignal, forEmployee?: string | null) =>
       client.get<ManagerOptionDto[]>(corePeoplePaths.managerOptions(), {
-        params: { effectiveDate, q, limit: 30 },
+        params: { effectiveDate, q, limit: 30, ...(forEmployee ? { forEmployee } : {}) },
         signal,
       }),
     establishmentReview: (request: EstablishmentReviewRequest) =>

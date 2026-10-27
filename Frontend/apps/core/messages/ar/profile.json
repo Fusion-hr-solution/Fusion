@@ -39,10 +39,6 @@
     "location": "الموقع",
     "manager": "المدير"
   },
-  "upcoming": "قادم",
-  "workChange": "تغيير العمل",
-  "managerChange": "تغيير المدير",
-  "viewAsOf": "العرض بتاريخ {date}",
   "assignment": {
     "title": "الإسناد الحالي",
     "unavailable": "تفاصيل العمل غير متاحة",
@@ -106,10 +102,6 @@
     "added": "تمت الإضافة",
     "asOf": "بتاريخ {date}",
     "today": "اليوم",
-    "changeWork": "تغيير العمل",
-    "changeManager": "تغيير المدير",
-    "more": "إجراءات أخرى",
-    "endEmployment": "إنهاء التوظيف",
     "backToPeople": "العودة إلى الموظفين",
     "retry": "إعادة المحاولة",
     "asOfToday": "بتاريخ اليوم",

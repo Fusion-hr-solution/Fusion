@@ -89,63 +89,6 @@
     "noManagerOnDate": "لا مدير متاح في هذا التاريخ",
     "noManagerMatch": "لا مدير يطابق بحثك"
   },
-  "task": {
-    "back": "رجوع",
-    "effectiveDate": "تاريخ السريان",
-    "scheduled": "مجدول — يسري في {date}",
-    "today": "يسري اليوم",
-    "now": "الآن",
-    "after": "بعد {date}",
-    "afterChange": "بعد هذا التغيير",
-    "notFound": "الموظف غير موجود.",
-    "cancel": "إلغاء",
-    "optional": "اختياري"
-  },
-  "changeManager": {
-    "title": "تغيير المدير",
-    "selectError": "اختر مديرًا أو «لا مدير».",
-    "failed": "تعذّر حفظ تغيير المدير.",
-    "noManager": "لا مدير",
-    "choosePreview": "اختر مديرًا لمعاينة النتيجة.",
-    "newManager": "المدير الجديد",
-    "selection": "اختيار المدير",
-    "assign": "إسناد مدير",
-    "schedule": "جدولة تغيير المدير",
-    "save": "حفظ تغيير المدير"
-  },
-  "changeWork": {
-    "title": "تغيير العمل",
-    "noWork": "ليس لهذا الموظف عمل حالي لتغييره. حدّد سياق عمله أولًا.",
-    "selectOrganization": "اختر وحدة.",
-    "titleRequired": "المسمى المعروض مطلوب.",
-    "failed": "تعذّر حفظ تغيير العمل.",
-    "jobTitle": "المسمى",
-    "organization": "الوحدة",
-    "location": "الموقع",
-    "noLocation": "لا موقع",
-    "displayTitle": "المسمى المعروض",
-    "schedule": "جدولة التغيير",
-    "save": "حفظ التغيير"
-  },
-  "endEmployment": {
-    "title": "إنهاء التوظيف",
-    "noActive": "ليس لهذا الموظف توظيف نشط لإنهائه.",
-    "failed": "تعذّر إنهاء التوظيف.",
-    "employment": "التوظيف",
-    "active": "نشط",
-    "work": "العمل",
-    "manager": "المدير",
-    "directReports": "المرؤوسون المباشرون",
-    "none": "لا أحد",
-    "ended": "منتهٍ",
-    "noActiveWork": "لا عمل نشط",
-    "noManager": "لا مدير",
-    "managerless": "{count, plural, one {سيصبح مرؤوس واحد بلا مدير} two {سيصبح مرؤوسان بلا مدير} other {سيصبح # مرؤوسين بلا مدير}}",
-    "lastEmployed": "آخر يوم عمل",
-    "note": "ملاحظة",
-    "schedule": "جدولة الإنهاء",
-    "end": "إنهاء التوظيف"
-  },
   "views": {
     "label": "عروض السجل",
     "profile": "الملف",
@@ -234,13 +177,5 @@
     "add": "إضافة الموظف",
     "resulting": "الموظف الناتج",
     "ready": "جاهز للإضافة"
-  },
-  "dottedLines": {
-    "title": "المديرون الوظيفيون",
-    "none": "لا يوجد مدير وظيفي",
-    "add": "إضافة",
-    "end": "إنهاء",
-    "failed": "تعذّر حفظ الارتباط الوظيفي.",
-    "scheduled": "مجدول في {date}"
   }
 }

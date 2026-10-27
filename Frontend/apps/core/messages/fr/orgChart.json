@@ -91,14 +91,5 @@
     "summary": "{people, plural, one {# personne} other {# personnes}}{coming, plural, =0 {} one { · # changement à venir} other { · # changements à venir}}",
     "replay": "Rejouer",
     "stop": "Arrêter"
-  },
-  "move": {
-    "title": "Rattacher {name} à l'équipe de {manager} ?",
-    "team": "Suivent",
-    "teamMoves": "{count, plural, one {# personne de son équipe} other {# personnes de son équipe}}",
-    "alone": "Personne d'autre",
-    "from": "À partir du",
-    "cancel": "Annuler",
-    "continue": "Continuer"
   }
 }

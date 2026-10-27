@@ -89,63 +89,6 @@
     "noManagerOnDate": "No manager is available on this date",
     "noManagerMatch": "No manager matches your search"
   },
-  "task": {
-    "back": "Back",
-    "effectiveDate": "Effective date",
-    "scheduled": "Scheduled — takes effect {date}",
-    "today": "Takes effect today",
-    "now": "Now",
-    "after": "After {date}",
-    "afterChange": "After this change",
-    "notFound": "Employee not found.",
-    "cancel": "Cancel",
-    "optional": "Optional"
-  },
-  "changeManager": {
-    "title": "Change manager",
-    "selectError": "Select a manager or choose No manager.",
-    "failed": "The manager change could not be saved.",
-    "noManager": "No manager",
-    "choosePreview": "Choose a manager to preview the result.",
-    "newManager": "New manager",
-    "selection": "Manager selection",
-    "assign": "Assign a manager",
-    "schedule": "Schedule manager change",
-    "save": "Save manager change"
-  },
-  "changeWork": {
-    "title": "Change work",
-    "noWork": "This employee has no current work to change. Establish their work context first.",
-    "selectOrganization": "Select an organization.",
-    "titleRequired": "Display title is required.",
-    "failed": "The work change could not be saved.",
-    "jobTitle": "Title",
-    "organization": "Organization",
-    "location": "Location",
-    "noLocation": "No location",
-    "displayTitle": "Display title",
-    "schedule": "Schedule change",
-    "save": "Save change"
-  },
-  "endEmployment": {
-    "title": "End employment",
-    "noActive": "This employee has no active employment to end.",
-    "failed": "The employment could not be ended.",
-    "employment": "Employment",
-    "active": "Active",
-    "work": "Work",
-    "manager": "Manager",
-    "directReports": "Direct reports",
-    "none": "None",
-    "ended": "Ended",
-    "noActiveWork": "No active work",
-    "noManager": "No manager",
-    "managerless": "{count, plural, one {# report becomes managerless} other {# reports become managerless}}",
-    "lastEmployed": "Last employed date",
-    "note": "Note",
-    "schedule": "Schedule end",
-    "end": "End employment"
-  },
   "views": {
     "label": "Record views",
     "profile": "Profile",
@@ -234,13 +177,5 @@
     "add": "Add employee",
     "resulting": "Resulting employee",
     "ready": "Ready to add"
-  },
-  "dottedLines": {
-    "title": "Dotted-line managers",
-    "none": "No dotted-line manager",
-    "add": "Add",
-    "end": "End",
-    "failed": "The dotted line could not be saved.",
-    "scheduled": "Scheduled for {date}"
   }
 }

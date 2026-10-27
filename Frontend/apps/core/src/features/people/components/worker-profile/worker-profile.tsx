@@ -10,7 +10,6 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   CalendarDays,
-  ChevronRight,
   Clock,
   FileText,
   IdCard,
@@ -25,7 +24,6 @@ import {
 import type {
   PeopleChangeFieldDto,
   PeopleTimelineEventDto,
-  PeopleUpcomingChangeDto,
 } from "@repo/api";
 import { Monogram, OrgPath, useWorkforceDate } from "../workforce-ui";
 import {
@@ -58,16 +56,14 @@ export interface WorkerProfileProps {
   accessAction?: ReactNode;
   /** Trigger to add or edit the canonical work email (other-worker, when permitted). */
   workEmailAction?: ReactNode;
-  /** View the worker as of a scheduled change's effective date (other-worker). */
-  onViewAsOf?: (isoDate: string) => void;
+  /** Coming changes, shown inside the hero where the facts they change are (other-worker, Today view). */
+  comingUp?: ReactNode;
+  /** Under the manager on the reporting line: the dotted lines (other-worker). */
+  reportingExtra?: ReactNode;
   /** Sibling-view switcher (Profile | Performance) rendered under the record header. */
   viewSwitcher?: ReactNode;
   /** Another view's body under the same header; when given, the profile sections are not rendered. */
   children?: ReactNode;
-}
-
-function isoDay(value: string): string {
-  return value.length >= 10 ? value.slice(0, 10) : value;
 }
 
 export function WorkerProfile({
@@ -84,7 +80,8 @@ export function WorkerProfile({
   timelineLoading = false,
   accessAction,
   workEmailAction,
-  onViewAsOf,
+  comingUp,
+  reportingExtra,
   viewSwitcher,
   children,
 }: WorkerProfileProps) {
@@ -92,7 +89,6 @@ export function WorkerProfile({
     manager,
     directReports,
     directReportCount,
-    upcoming,
     timeline,
     access,
   } = view;
@@ -103,7 +99,6 @@ export function WorkerProfile({
   const showAccess =
     accessState === "loading" || accessState === "error" || Boolean(access);
   const showTimeline = timelineLoading || timeline.length > 0;
-  const showUpcoming = !view.isAsOf && upcoming.length > 0;
 
   return (
     <PageContainer width="wide" className="max-w-6xl space-y-6 pb-16">
@@ -198,32 +193,13 @@ export function WorkerProfile({
             </HeroFact>
           ) : null}
         </dl>
+        {comingUp ? <div className="relative mt-[18px] grid gap-2.5">{comingUp}</div> : null}
       </section>
 
       {viewSwitcher}
 
       {children ?? (
         <>
-          {/* Upcoming — delta-first scheduled changes; collapses entirely when empty */}
-          {showUpcoming ? (
-            <section className="motion-safe:animate-in motion-safe:fade-in">
-              <h2 className="type-eyebrow text-muted-foreground">{t("upcoming")}</h2>
-              <ul className="mt-3.5 grid gap-3 sm:grid-cols-2">
-                {upcoming.map((item, index) => (
-                  <UpcomingCard
-                    key={`${item.kind}-${item.effectiveDate}-${index}`}
-                    item={item}
-                    onView={
-                      onViewAsOf
-                        ? () => onViewAsOf(isoDay(item.effectiveDate))
-                        : undefined
-                    }
-                  />
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
           <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             {/* Left column */}
             <div className="space-y-6">
@@ -320,6 +296,7 @@ export function WorkerProfile({
                       {t("reporting.noManager")}
                     </p>
                   )}
+                  {reportingExtra}
                 </div>
 
                 {directReportCount > 0 ? (
@@ -658,46 +635,6 @@ function ChangeField({ field }: { field: PeopleChangeFieldDto }) {
       ) : null}
       <span className="font-medium text-foreground">{field.to ?? "—"}</span>
     </p>
-  );
-}
-
-function UpcomingCard({
-  item,
-  onView,
-}: {
-  item: PeopleUpcomingChangeDto;
-  onView?: () => void;
-}) {
-  const t = useTranslations("profile");
-  const workforceDate = useWorkforceDate();
-  const kindLabel = item.kind === "Work" ? t("workChange") : t("managerChange");
-  return (
-    <li className="group flex flex-col justify-between gap-3 rounded-surface border bg-card p-4 transition-colors hover:border-primary/30 motion-reduce:transition-none">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded-control bg-primary-tint px-1.5 py-0.5 type-meta font-medium tabular-nums text-primary-ink">
-            {workforceDate(item.effectiveDate)}
-          </span>
-          <span className="type-label">{kindLabel}</span>
-        </div>
-        <div className="mt-2 space-y-0.5">
-          {item.fields.map((field) => (
-            <ChangeField key={field.label} field={field} />
-          ))}
-        </div>
-      </div>
-      {onView ? (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="-ms-2 self-start text-muted-foreground group-hover:text-foreground"
-          onClick={onView}
-        >
-          {t("viewAsOf", { date: workforceDate(item.effectiveDate) })}
-          <ChevronRight className="size-4" />
-        </Button>
-      ) : null}
-    </li>
   );
 }
 

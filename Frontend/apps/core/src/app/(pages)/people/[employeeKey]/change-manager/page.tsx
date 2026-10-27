@@ -1,9 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { use } from "react";
-import ChangeManagerWorkspace from "@/features/people/components/change-manager-workspace";
-
-export default function ChangeManagerPage({ params }: { params: Promise<{ employeeKey: string }> }) {
-  const { employeeKey } = use(params);
-  return <ChangeManagerWorkspace employeeKey={employeeKey} />;
+/** Changes happen in the change panel now; old links open the profile with it. */
+export default async function OldChangePage({ params }: { params: Promise<{ employeeKey: string }> }) {
+  const { employeeKey } = await params;
+  redirect(`/people/${encodeURIComponent(employeeKey)}?change=job`);
 }

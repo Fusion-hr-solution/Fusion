@@ -39,10 +39,6 @@
     "location": "Location",
     "manager": "Manager"
   },
-  "upcoming": "Upcoming",
-  "workChange": "Work change",
-  "managerChange": "Manager change",
-  "viewAsOf": "View as of {date}",
   "assignment": {
     "title": "Current assignment",
     "unavailable": "Work details unavailable",
@@ -106,10 +102,6 @@
     "added": "Added",
     "asOf": "As of {date}",
     "today": "Today",
-    "changeWork": "Change work",
-    "changeManager": "Change manager",
-    "more": "More actions",
-    "endEmployment": "End employment",
     "backToPeople": "Back to People",
     "retry": "Retry",
     "asOfToday": "As of Today",

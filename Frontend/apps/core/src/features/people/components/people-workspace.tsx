@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Empty,
   EmptyContent,
@@ -40,6 +41,7 @@ import {
   useAuth,
 } from "@repo/auth";
 import type {
+  WorkforceChangeDto,
   OrganizationHierarchyNodeDto,
   PeopleEmploymentState,
   PeopleOrganizationScope,
@@ -49,6 +51,7 @@ import type {
   PeopleSortField,
 } from "@repo/api";
 import {
+  ArrowLeftRight,
   ArrowRight,
   Building2,
   ChevronDown,
@@ -57,13 +60,20 @@ import {
   Plus,
   RotateCcw,
   Search,
+  MoreHorizontal,
   Upload,
   UserRoundPlus,
+  UserRoundX,
+  Workflow,
   X,
 } from "lucide-react";
 import { useOrganizationHierarchy } from "@/features/organization/api/use-organization";
 import { OrganizationTree } from "@/features/organization/components/organization-tree";
 import { usePeople } from "../api/use-people";
+import { useChangeSheet } from "../changes/change-sheet";
+import { ChangeBadge } from "../changes/coming-up";
+import { useChangeRights, useUpcomingChanges } from "../changes/use-changes";
+import type { ChangeKind } from "../changes/change-panel";
 import {
   EmployeeIdentity,
   EmploymentStatus,
@@ -247,7 +257,43 @@ function PersonMobileRow({ person }: { person: PeopleRowDto }) {
   );
 }
 
-function PeopleTable({ people, emptyState }: { people: PeopleRowDto[]; emptyState?: ReactNode }) {
+/** What a row offers: the change panel's entry points and the person's next coming change. */
+interface RowChanges {
+  coming: Map<string, WorkforceChangeDto>;
+  canLines: boolean;
+  canAll: boolean;
+  onChange: (employeeKey: string, kind: ChangeKind) => void;
+}
+
+function RowMenu({ person, changes }: { person: PeopleRowDto; changes: RowChanges }) {
+  const t = useTranslations("changes.menu");
+  if (!changes.canLines || person.employmentState === "Former") return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon-sm" variant="ghost" aria-label={t("more")}><MoreHorizontal className="size-4" /></Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => changes.onChange(person.employeeKey, "job")}>
+          <ArrowLeftRight className="size-4" /> {changes.canAll ? t("changeJob") : t("changeManager")}
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/org-chart?focus=${encodeURIComponent(person.employeeKey)}`}><Workflow className="size-4" /> {t("showInChart")}</Link>
+        </DropdownMenuItem>
+        {changes.canAll ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => changes.onChange(person.employeeKey, "end")}>
+              <UserRoundX className="size-4" /> {t("endEmployment")}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function PeopleTable({ people, emptyState, changes }: { people: PeopleRowDto[]; emptyState?: ReactNode; changes: RowChanges }) {
   const t = useTranslations("people");
   // Location is optional workforce data; a whole column of dashes is dead weight, so
   // the column only exists when at least one person on the page actually has a location.
@@ -288,17 +334,21 @@ function PeopleTable({ people, emptyState }: { people: PeopleRowDto[]; emptyStat
               <TableHead className="w-[20%] type-eyebrow text-muted-foreground max-lg:hidden">{t("columns.manager")}</TableHead>
               {showLocation ? <TableHead className="w-[14%] type-eyebrow text-muted-foreground max-xl:hidden">{t("columns.location")}</TableHead> : null}
               <TableHead className="w-[16%] type-eyebrow text-muted-foreground">{t("columns.employment")}</TableHead>
+              {changes.canLines ? <TableHead className="w-12" /> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
             {people.map((person) => (
               <TableRow key={person.employeeKey} className="h-[4.5rem]">
                 <TableCell>
-                  <EmployeeIdentity
-                    name={person.displayName}
-                    employeeNumber={person.employeeNumber}
-                    href={`/people/${person.employeeKey}`}
-                  />
+                  <div className="flex min-w-0 items-center gap-2">
+                    <EmployeeIdentity
+                      name={person.displayName}
+                      employeeNumber={person.employeeNumber}
+                      href={`/people/${person.employeeKey}`}
+                    />
+                    {changes.coming.get(person.employeeKey) ? <ChangeBadge change={changes.coming.get(person.employeeKey)!} /> : null}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <p className="type-body truncate">{person.work?.jobTitle ?? t("workUnavailable")}</p>
@@ -334,6 +384,7 @@ function PeopleTable({ people, emptyState }: { people: PeopleRowDto[]; emptyStat
                   </TableCell>
                 ) : null}
                 <TableCell><EmploymentCell person={person} /></TableCell>
+                {changes.canLines ? <TableCell className="text-end"><RowMenu person={person} changes={changes} /></TableCell> : null}
               </TableRow>
             ))}
           </TableBody>
@@ -406,6 +457,14 @@ export default function PeopleWorkspace() {
   const canManage = canManageCoreEmployees(user);
   const canImport = canImportCoreEmployees(user);
   const canManageAccess = canManageWorkforceAccess(user);
+  const rights = useChangeRights();
+  const changeSheet = useChangeSheet();
+  const upcoming = useUpcomingChanges();
+  const rowChanges = useMemo<RowChanges>(() => {
+    const coming = new Map<string, WorkforceChangeDto>();
+    for (const change of upcoming.data ?? []) if (!coming.has(change.person.employeeKey)) coming.set(change.person.employeeKey, change);
+    return { coming, canLines: rights.lines, canAll: rights.people, onChange: changeSheet.start };
+  }, [upcoming.data, rights.lines, rights.people, changeSheet.start]);
   const q = searchParams.get("q") ?? "";
   const [search, setSearch] = useState(q);
   const stateParam = searchParams.get("status");
@@ -556,6 +615,7 @@ export default function PeopleWorkspace() {
       ) : (
         <PeopleTable
           people={items}
+          changes={rowChanges}
           emptyState={
             isTrueEmpty ? (
               <EstablishWorkforce canManage={canManage} canImport={canImport} />
@@ -570,6 +630,7 @@ export default function PeopleWorkspace() {
         />
       )}
 
+      {changeSheet.element}
       {people.data && people.data.totalCount > 0 ? (
         <PeoplePagination
           page={page}

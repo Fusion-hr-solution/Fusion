@@ -45,7 +45,7 @@ import {
 import { classifyApiError } from "@repo/api";
 import {
   ArrowLeft,
-  BriefcaseBusiness,
+  ArrowLeftRight,
   CalendarDays,
   Check,
   ChevronRight,
@@ -53,7 +53,9 @@ import {
   RotateCcw,
   ShieldAlert,
   UserRound,
+  UserRoundPlus,
   UserRoundX,
+  Workflow,
 } from "lucide-react";
 import {
   usePeopleAccessStatus,
@@ -67,6 +69,10 @@ import { PerformanceRecordView, RecordViewSwitcher } from "./record-views";
 import { WorkerProfileSkeleton } from "./worker-profile/worker-profile-skeleton";
 import { fromPeopleProfile } from "./worker-profile/worker-profile-view";
 import { useRecentRecord } from "@repo/api/react";
+import { useChangeSheet } from "../changes/change-sheet";
+import { ComingUpCard } from "../changes/coming-up";
+import { DottedLines } from "../changes/dotted-lines";
+import { useChangeRights } from "../changes/use-changes";
 
 function isoDay(value: string): string {
   return value.length >= 10 ? value.slice(0, 10) : value;
@@ -91,6 +97,9 @@ export default function PeopleProfileWorkspace({
   const locale = useLocale();
   const workforceDate = useWorkforceDate();
   const canManage = canManageCoreEmployees(user);
+  const rights = useChangeRights();
+  const changeSheet = useChangeSheet(employeeKey);
+  const tc = useTranslations("changes.menu");
   // The Performance view exists only where the viewer can enter Performance (hide, don't deny).
   const showPerformance = canEnterPerformance(user);
   if (recordView === "performance" && !authLoading && !showPerformance)
@@ -202,8 +211,10 @@ export default function PeopleProfileWorkspace({
     { say, locale }
   );
 
-  const showActions =
-    canManage && !isAsOf && employee.employment.state !== "Former";
+  const isFormer = employee.employment.state === "Former";
+  // Reporting admins change the line too; the panel shows them only the line and the team.
+  const showActions = rights.lines && !isAsOf && (!isFormer || canManage);
+  const orgChartHref = canAccessCoreOrgChart(user) ? `/org-chart?focus=${encodeURIComponent(employeeKey)}` : undefined;
   const goAsOf = (date: string) => router.push(`${pathname}?asOf=${date}`);
   const returnToToday = () => router.push(pathname);
 
@@ -255,7 +266,7 @@ export default function PeopleProfileWorkspace({
       <WorkerProfile
         view={view}
         headingRef={headingRef}
-        orgChartHref={canAccessCoreOrgChart(user) ? `/org-chart?focus=${encodeURIComponent(employeeKey)}` : undefined}
+        orgChartHref={orgChartHref}
         backLink={
           <Link
             href="/people"
@@ -297,43 +308,46 @@ export default function PeopleProfileWorkspace({
               ) : null}
               {showActions ? (
                 <div className="flex items-center gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/people/${employeeKey}/change-work`}>
-                      <BriefcaseBusiness className="size-4" /> {t("changeWork")}
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/people/${employeeKey}/change-manager`}>
-                      {t("changeManager")}
-                    </Link>
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={t("more")}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href={`/people/${employeeKey}/end-employment`}
+                  {isFormer ? (
+                    <Button size="sm" variant="outline" onClick={() => changeSheet.start(employeeKey, "start")}>
+                      <UserRoundPlus className="size-4" /> {tc("startEmployment")}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => changeSheet.start(employeeKey, "job")}>
+                      <ArrowLeftRight className="size-4" /> {canManage ? tc("changeJob") : tc("changeManager")}
+                    </Button>
+                  )}
+                  {canManage && !isFormer ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="outline" aria-label={tc("more")}>
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {orgChartHref ? (
+                          <DropdownMenuItem asChild>
+                            <Link href={orgChartHref}><Workflow className="size-4" /> {tc("showInChart")}</Link>
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
+                          onSelect={() => changeSheet.start(employeeKey, "end")}
                         >
-                          <UserRoundX className="size-4" /> {t("endEmployment")}
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          <UserRoundX className="size-4" /> {tc("endEmployment")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
                 </div>
               ) : null}
             </>
           ) : undefined
         }
-        onViewAsOf={goAsOf}
+        comingUp={!isAsOf && employee.comingUp.length ? employee.comingUp.map((change) => (
+          <ComingUpCard key={change.id} change={change} canChange={change.details.isReportingOnly ? rights.lines : rights.people} onEdit={changeSheet.edit} />
+        )) : undefined}
+        reportingExtra={!isAsOf ? <DottedLines person={employee} canEdit={rights.lines && !isFormer} /> : undefined}
         viewSwitcher={
           showPerformance ? (
             <RecordViewSwitcher
@@ -364,6 +378,7 @@ export default function PeopleProfileWorkspace({
           <PerformanceRecordView employeeId={employee.identity.employeeId} />
         ) : undefined}
       </WorkerProfile>
+      {changeSheet.element}
       <WorkEmailEditorDialog
         open={workEmailEditorOpen}
         onOpenChange={setWorkEmailEditorOpen}

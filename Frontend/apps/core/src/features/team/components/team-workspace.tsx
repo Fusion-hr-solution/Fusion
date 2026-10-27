@@ -15,10 +15,36 @@ import { Button } from "@repo/ds";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TeamPageSkeleton } from "@/shell/route-skeletons";
 import { canAccessTeamWorkspace } from "@/lib/employee-roster-access";
+import { ComingUpCard } from "@/features/people/changes/coming-up";
+import { useUpcomingChanges } from "@/features/people/changes/use-changes";
 import {
   useEmployeeDetailsById,
   useEmployeeReportingLines,
 } from "@/features/people/api/use-employees";
+
+/** What is coming in the manager's branch: who joins, leaves or moves in and out. Read only; absent when nothing is. */
+function TeamComingUp() {
+  const t = useTranslations("changes.coming");
+  const upcoming = useUpcomingChanges();
+  if (!upcoming.data?.length) return null;
+  return (
+    <section className="grid gap-2.5" aria-labelledby="team-coming-up">
+      <h2 id="team-coming-up" className="type-eyebrow text-muted-foreground">{t("title")}</h2>
+      {upcoming.data.map((change) => (
+        <ComingUpCard
+          key={change.id}
+          change={change}
+          canChange={false}
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/people/${change.person.employeeKey}`}>{t("view")}</Link>
+            </Button>
+          }
+        />
+      ))}
+    </section>
+  );
+}
 
 export default function TeamWorkspace() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -111,6 +137,8 @@ export default function TeamWorkspace() {
           ) : undefined
         }
       />
+
+      <TeamComingUp />
 
       <Card>
         <CardHeader density="compact">

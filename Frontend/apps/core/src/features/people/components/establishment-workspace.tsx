@@ -43,7 +43,9 @@ import {
 } from "lucide-react";
 import { useOrganizationHierarchy } from "@/features/organization/api/use-organization";
 import { OrganizationTree } from "@/features/organization/components/organization-tree";
-import { useManagerOptions, usePeopleEstablishmentMutations } from "../api/use-people";
+import { usePeopleEstablishmentMutations } from "../api/use-people";
+import { useManagerOptions } from "../changes/use-changes";
+import { ManagerPicker } from "./workforce-pickers";
 import { EmployeeIdentity, Monogram, OrgPath, initials, useWorkforceDate } from "./workforce-ui";
 
 type EstablishmentMode = "hire" | "add-existing";
@@ -154,81 +156,6 @@ function OrganizationPicker({
   );
 }
 
-function ManagerPicker({
-  options,
-  value,
-  onChange,
-  loading,
-  invalid,
-}: {
-  options: ManagerOptionDto[];
-  value: string;
-  onChange: (value: string) => void;
-  loading: boolean;
-  invalid: boolean;
-}) {
-  const t = useTranslations("people.pickers");
-  const [query, setQuery] = useState("");
-  const selected = options.find((option) => option.employeeId === value);
-  const visible = options.filter((option) =>
-    !query.trim() || `${option.displayName} ${option.employeeNumber} ${option.organizationPath}`.toLowerCase().includes(query.trim().toLowerCase()),
-  );
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" aria-invalid={invalid} className={cn("h-auto min-h-11 w-full justify-between py-2 font-normal", selected && "border-foreground/25")}>
-          {selected ? (
-            <span className="flex min-w-0 items-center gap-2.5">
-              <Monogram name={selected.displayName} size="sm" />
-              <span className="min-w-0 text-start">
-                <span className="block truncate type-label">{selected.displayName}</span>
-                <span className="block truncate type-meta text-muted-foreground">{selected.jobTitle}</span>
-              </span>
-            </span>
-          ) : (
-            <span className="text-muted-foreground">{t("searchManager")}</span>
-          )}
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-[min(34rem,calc(100vw-2rem))] p-0">
-        <div className="relative border-b p-3">
-          <Search className="pointer-events-none absolute inset-s-6 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("managerSearch")} aria-label={t("searchManagers")} className="ps-9" />
-        </div>
-        <div className="max-h-72 overflow-y-auto p-1">
-          {loading ? (
-            <div className="space-y-2 p-3"><Skeleton className="h-12" /><Skeleton className="h-12" /></div>
-          ) : visible.map((option) => (
-            <button
-              type="button"
-              key={option.employeeId}
-              onClick={() => onChange(option.employeeId)}
-              aria-pressed={value === option.employeeId}
-              className="flex w-full items-center justify-between gap-3 rounded-control px-2.5 py-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-muted"
-            >
-              <EmployeeIdentity
-                name={option.displayName}
-                employeeNumber={option.employeeNumber}
-                secondary={`${option.jobTitle} · ${option.organizationName}`}
-              />
-              <span className="flex shrink-0 items-center gap-2">
-                {option.availability === "Scheduled" ? <StatusBadge tone="info">{t("startsLater")}</StatusBadge> : null}
-                {value === option.employeeId ? <Check className="size-4" /> : null}
-              </span>
-            </button>
-          ))}
-          {!loading && visible.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">
-              {options.length === 0 ? t("noManagerOnDate") : t("noManagerMatch")}
-            </p>
-          ) : null}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="border-t pt-8 first:border-t-0 first:pt-0">
@@ -266,7 +193,14 @@ export default function EstablishmentWorkspace({ mode }: { mode: EstablishmentMo
   const effectiveDate = isHire ? form.startDate : form.workDate;
   const hierarchy = useOrganizationHierarchy(effectiveDate || today(), Boolean(effectiveDate));
   const orgChoices = useMemo(() => flattenOrg(hierarchy.data?.roots ?? []), [hierarchy.data?.roots]);
-  const managers = useManagerOptions(effectiveDate || today(), "");
+  // The server searches every possible manager; the chosen one stays listed while another search runs.
+  const [managerSearch, setManagerSearch] = useState("");
+  const managers = useManagerOptions(effectiveDate || today(), managerSearch);
+  const [pickedManager, setPickedManager] = useState<ManagerOptionDto | null>(null);
+  const managerChoices = useMemo(() => {
+    const found = managers.data ?? [];
+    return pickedManager && !found.some((option) => option.employeeId === pickedManager.employeeId) ? [pickedManager, ...found] : found;
+  }, [managers.data, pickedManager]);
   const mutations = usePeopleEstablishmentMutations();
   const mutation = isHire ? mutations.hire : mutations.addExisting;
   const selectedOrg = orgChoices.find((choice) => choice.id === form.orgUnitId);
@@ -508,7 +442,7 @@ export default function EstablishmentWorkspace({ mode }: { mode: EstablishmentMo
               {form.managerMode === "Manager" ? (
                 <Field data-invalid={Boolean(errors.managerEmployeeId)} className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1">
                   <FieldLabel>{t("fields.manager")}</FieldLabel>
-                  <ManagerPicker options={managers.data ?? []} value={form.managerEmployeeId} onChange={(value) => set("managerEmployeeId", value)} loading={managers.isLoading} invalid={Boolean(errors.managerEmployeeId)} />
+                  <ManagerPicker options={managerChoices} value={form.managerEmployeeId} onChange={(value) => { setPickedManager(managerChoices.find((option) => option.employeeId === value) ?? null); set("managerEmployeeId", value); }} loading={managers.isLoading} invalid={Boolean(errors.managerEmployeeId)} onQueryChange={setManagerSearch} />
                   <FieldError>{errors.managerEmployeeId}</FieldError>
                 </Field>
               ) : null}

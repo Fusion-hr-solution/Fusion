@@ -1,9 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { use } from "react";
-import EndEmploymentWorkspace from "@/features/people/components/end-employment-workspace";
-
-export default function EndEmploymentPage({ params }: { params: Promise<{ employeeKey: string }> }) {
-  const { employeeKey } = use(params);
-  return <EndEmploymentWorkspace employeeKey={employeeKey} />;
+/** Changes happen in the change panel now; old links open the profile with it. */
+export default async function OldChangePage({ params }: { params: Promise<{ employeeKey: string }> }) {
+  const { employeeKey } = await params;
+  redirect(`/people/${encodeURIComponent(employeeKey)}?change=end`);
 }

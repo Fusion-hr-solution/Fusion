@@ -91,14 +91,5 @@
     "summary": "{people, plural, one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}{coming, plural, =0 {} one { · تغيير قادم} other { · # تغييرات قادمة}}",
     "replay": "إعادة العرض",
     "stop": "إيقاف"
-  },
-  "move": {
-    "title": "نقل {name} إلى فريق {manager}؟",
-    "team": "ينتقل معه",
-    "teamMoves": "{count, plural, one {شخص واحد من فريقه} two {شخصان من فريقه} few {# أشخاص من فريقه} many {# شخصًا من فريقه} other {# شخص من فريقه}}",
-    "alone": "لا أحد غيره",
-    "from": "اعتبارًا من",
-    "cancel": "إلغاء",
-    "continue": "متابعة"
   }
 }

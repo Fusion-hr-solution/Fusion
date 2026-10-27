@@ -1,0 +1,155 @@
+{
+  "kind": {
+    "job": "تغيير الوظيفة",
+    "manager": "تغيير المدير",
+    "end": "إنهاء العمل",
+    "start": "استئناف العمل"
+  },
+  "close": "إغلاق",
+  "reportsTo": "يتبع",
+  "noManager": "بدون مدير",
+  "chooseNoManager": "الإبقاء بدون مدير",
+  "chooseManager": "اختيار مدير",
+  "team": {
+    "title": "فريق {name}",
+    "count": "{count} مباشرون",
+    "along": "ينتقل مع {name}",
+    "stays": "يبقى في {unit}",
+    "staysNoUnit": "يبقى في مكانه",
+    "reportsTo": "يتبع",
+    "names": "{names} و{count, plural, one {# آخر} other {# آخرون}}"
+  },
+  "facts": {
+    "title": "الوظيفة",
+    "unit": "الوحدة",
+    "jobTitle": "المسمى",
+    "location": "الموقع",
+    "none": "لا شيء",
+    "change": "تغيير",
+    "undo": "تراجع",
+    "done": "تم"
+  },
+  "when": {
+    "from": "ابتداءً من",
+    "starts": "البداية",
+    "lastDay": "آخر يوم",
+    "today": "اليوم",
+    "otherDate": "تاريخ آخر"
+  },
+  "effects": {
+    "title": "يتغير أيضًا",
+    "performance": "الأداء",
+    "reviewerStays": "يبقى تقييم {cycle} مع {name}",
+    "oneOnOnesEnd": "تنتهي اجتماعات 1:1 مع {name} {when}",
+    "endsToday": "اليوم",
+    "endsOn": "في {date}",
+    "dottedEnds": "ينتهي الخط المنقط مع {name} لأنه يصبح المدير"
+  },
+  "end": {
+    "reportsGoTo": "ينتقل المرؤوسون إلى",
+    "withTeam": "مع فريق من {count}",
+    "leavesFirst": "يغادر قبله",
+    "movesFirst": "ينتقل قبله",
+    "leaves": "يغادر في {date}",
+    "moves": "ينتقل في {date}",
+    "endsOn": "ينتهي في {date}",
+    "dottedLine": "الخط المنقط بين {person} و{manager}",
+    "addNote": "إضافة ملاحظة",
+    "note": "ملاحظة"
+  },
+  "start": {
+    "workerId": "رقم الموظف",
+    "kept": "محفوظ",
+    "former": "{title} سابق"
+  },
+  "summary": {
+    "today": "يسري <b>اليوم</b>",
+    "scheduled": "مجدول في <b>{date}</b>",
+    "withTeam": "يتغير {name} و{count, plural, one {# مرؤوس} other {# مرؤوسين}} في <b>{date}</b>",
+    "reportsMove": "{count, plural, one {ينتقل # مرؤوس} other {ينتقل # مرؤوسين}} في <b>{date}</b>",
+    "lastDay": "آخر يوم <b>{date}</b>",
+    "joins": "ينضم إلى فريق {manager} في <b>{date}</b>",
+    "joinsNoManager": "يبدأ في <b>{date}</b>"
+  },
+  "action": {
+    "save": "حفظ التغيير",
+    "schedule": "جدولة في {date}",
+    "end": "إنهاء العمل في {date}",
+    "cancel": "إلغاء"
+  },
+  "saved": {
+    "job": "{name} يتبع الآن {manager}",
+    "jobOnly": "تغيرت وظيفة {name}",
+    "scheduled": "مجدول في {date}",
+    "ended": "آخر يوم لـ{name} هو {date}",
+    "started": "يبدأ {name} في {date}",
+    "undo": "تراجع",
+    "undone": "تم التراجع عن التغيير"
+  },
+  "failed": "تعذر حفظ التغيير.",
+  "coming": {
+    "title": "قادم",
+    "movesTo": "ينتقل إلى فريق {manager}",
+    "noManager": "يغادر فريق {manager}",
+    "becomes": "يصبح {title}",
+    "movesUnit": "ينتقل إلى {unit}",
+    "relocates": "ينتقل إلى {location}",
+    "joins": "ينضم إلى فريق {manager}",
+    "joinsUnit": "ينضم إلى {unit}",
+    "startsAgain": "يعود إلى فريق {manager}",
+    "leaves": "آخر يوم {date}",
+    "teamAlong": "فريق من {count} ينتقل معه",
+    "teamStays": "فريق من {count} يبقى مع {manager}",
+    "reportsMove": "{count, plural, one {ينتقل # مرؤوس} other {ينتقل # مرؤوسين}}",
+    "by": "بواسطة {name} في {date}",
+    "edit": "تعديل",
+    "cancel": "إلغاء التغيير",
+    "view": "عرض الملف",
+    "today": "اليوم"
+  },
+  "badge": {
+    "moves": "ينتقل {date}",
+    "changes": "يتغير {date}",
+    "joins": "ينضم {date}",
+    "leaves": "يغادر {date}"
+  },
+  "cancel": {
+    "move": "إلغاء انتقال {name} في {date}؟",
+    "change": "إلغاء تغيير {name} في {date}؟",
+    "end": "إلغاء إنهاء عمل {name}؟",
+    "join": "إلغاء بدء {name} في {date}؟",
+    "staysWith": "يبقى {name} مع {manager}.",
+    "teamStaysWith": "يبقى {name} و{count, plural, one {# مرؤوس} other {# مرؤوسين}} مع {manager}.",
+    "staysAs": "يبقى {name} {title} في {unit}.",
+    "staysEmployed": "يبقى {name} في العمل.",
+    "notHired": "لن يتم توظيف {name} وسيُحذف من الأشخاص.",
+    "notStarting": "يبقى {name} موظفًا سابقًا.",
+    "keep": "الإبقاء على التغيير",
+    "confirm": "إلغاء التغيير",
+    "done": "تم إلغاء التغيير",
+    "failed": "تعذر إلغاء التغيير."
+  },
+  "menu": {
+    "changeJob": "تغيير الوظيفة",
+    "changeManager": "تغيير المدير",
+    "endEmployment": "إنهاء العمل",
+    "startEmployment": "استئناف العمل",
+    "showInChart": "عرض في الهيكل التنظيمي",
+    "more": "مزيد من الإجراءات"
+  },
+  "dotted": {
+    "since": "خط منقط · منذ {date}",
+    "manager": "مدير · منذ {date}",
+    "add": "إضافة خط منقط",
+    "addTitle": "إضافة خط منقط",
+    "end": "إنهاء",
+    "endOn": "ينتهي {date}",
+    "failed": "تعذر حفظ الخط المنقط.",
+    "ended": "انتهى الخط المنقط",
+    "added": "أضيف الخط المنقط"
+  },
+  "refused": {
+    "inBranch": "{target} يتبع {name}",
+    "already": "يتبع {name} بالفعل"
+  }
+}

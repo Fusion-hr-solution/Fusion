@@ -39,10 +39,6 @@
     "location": "Lieu",
     "manager": "Manager"
   },
-  "upcoming": "À venir",
-  "workChange": "Changement de poste",
-  "managerChange": "Changement de manager",
-  "viewAsOf": "Voir au {date}",
   "assignment": {
     "title": "Poste actuel",
     "unavailable": "Poste non renseigné",
@@ -106,10 +102,6 @@
     "added": "Ajouté",
     "asOf": "Au {date}",
     "today": "Aujourd’hui",
-    "changeWork": "Changer de poste",
-    "changeManager": "Changer de manager",
-    "more": "Autres actions",
-    "endEmployment": "Mettre fin au contrat",
     "backToPeople": "Retour aux collaborateurs",
     "retry": "Réessayer",
     "asOfToday": "Aujourd’hui",

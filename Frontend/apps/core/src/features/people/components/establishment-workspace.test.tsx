@@ -39,8 +39,11 @@ vi.mock("@/features/organization/api/use-organization", () => ({
 }));
 
 vi.mock("../api/use-people", () => ({
-  useManagerOptions: () => mockUseManagers(),
   usePeopleEstablishmentMutations: () => mockMutations(),
+}));
+
+vi.mock("../changes/use-changes", () => ({
+  useManagerOptions: () => mockUseManagers(),
 }));
 
 import EstablishmentWorkspace from "./establishment-workspace";

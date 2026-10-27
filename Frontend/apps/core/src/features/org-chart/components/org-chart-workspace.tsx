@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { AlertTriangle, Maximize, Minus, Play, Plus, Search, Square, X } from "lucide-react";
-import type { OrgChartDto, OrgChartPersonDto } from "@repo/api";
+import { AlertTriangle, ArrowLeftRight, Maximize, Minus, Play, Plus, Search, Square, X } from "lucide-react";
+import type { OrgChartDto, OrgChartPersonDto, WorkforceChangeDto } from "@repo/api";
 import {
   canAccessCoreOrgChart,
   canAccessCorePeople,
@@ -19,13 +19,6 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
   Button,
   Input,
   Select,
@@ -77,8 +70,15 @@ import {
   type OrgView,
 } from "../model/org-chart-model";
 import { ChainPill, LeadCard, MoreCard, OrgAvatar, PersonCard, type CardContext } from "./org-chart-cards";
+import { ChangePanel, type ChangeDraft, type ChangeKind } from "@/features/people/changes/change-panel";
+import { ComingUpCard } from "@/features/people/changes/coming-up";
+import { useChangeRights, useUpcomingChanges } from "@/features/people/changes/use-changes";
 
 const PANEL_WIDTH = 344;
+const CHANGE_PANEL_WIDTH = 452;
+
+/** A change open in the panel slot: who, which kind, and (from a drop) the new manager, or the change being edited. */
+type OpenChange = { id: string; kind: ChangeKind; managerKey: string | null; editing: WorkforceChangeDto | null };
 const SETTLE_MS = 470;
 /** Replay holds each quarter long enough for the cards to settle. */
 const REPLAY_STEP_MS = 650;
@@ -171,8 +171,8 @@ function StageSkeleton() {
 
 function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | null; onAsOf: (date: string | null) => void }) {
   const t = useTranslations("orgChart");
+  const tc = useTranslations("changes");
   const { user } = useAuth();
-  const router = useRouter();
   const params = useSearchParams();
 
   // ── Time (HR): past and future dates, upcoming changes, Replay ──
@@ -184,7 +184,25 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   const showsChanges = hr && !replaying && date >= range.lo && date < range.hi;
   const changes = useOrgChartChanges(addDays(date, 1), range.hi, showsChanges);
   const upcoming = showsChanges ? changes.data : undefined;
-  const tree = useMemo(() => buildTree(data, upcoming ?? []), [data, upcoming]);
+
+  // ── A change in the panel: the chart itself previews where the person (and their team) will sit ──
+  const rights = useChangeRights();
+  const records = useUpcomingChanges(rights.seeComing && hr);
+  const [change, setChange] = useState<OpenChange | null>(null);
+  const [draft, setDraft] = useState<ChangeDraft | null>(null);
+  const previewed = useMemo(() => {
+    if (!change || !draft) return data;
+    const subject = data.people.find((person) => person.employeeKey === change.id);
+    if (!subject || draft.managerKey === subject.managerKey && !draft.teamManagerKey) return data;
+    return {
+      ...data,
+      people: data.people.map((person) =>
+        person.employeeKey === change.id ? { ...person, managerKey: draft.managerKey }
+          : draft.teamManagerKey && person.managerKey === change.id ? { ...person, managerKey: draft.teamManagerKey }
+          : person),
+    };
+  }, [data, change, draft]);
+  const tree = useMemo(() => buildTree(previewed, upcoming ?? []), [previewed, upcoming]);
 
   const requested = params.get("focus");
   const initialFocus = requested && tree.people.has(requested) ? requested : tree.viewerKey;
@@ -240,8 +258,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
 
   const viewport = useCallback(() => {
     const rect = stageRef.current?.getBoundingClientRect();
-    return { width: rect?.width ?? 1200, height: rect?.height ?? 700, panel: selected ? PANEL_WIDTH : 0 };
-  }, [selected]);
+    return { width: rect?.width ?? 1200, height: rect?.height ?? 700, panel: change ? CHANGE_PANEL_WIDTH : selected ? PANEL_WIDTH : 0 };
+  }, [selected, change]);
 
   const zoomBy = useCallback((factor: number, cx?: number, cy?: number) => {
     const v = viewport();
@@ -295,14 +313,21 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
 
   // ── Drag to change manager (HR who manage people, today or later) ──
   const movable = (canManageCoreEmployees(user) || canManageCoreReporting(user)) && date >= today && !replaying;
-  type CardDrag = { id: string; x: number; y: number; over: string | null; target: string | null };
+  type CardDrag = { id: string; x: number; y: number; over: string | null; target: string | null; refused: string | null };
   const cardDrag = useRef<CardDrag | null>(null);
   const [drag, setDrag] = useState<CardDrag | null>(null);
-  const [moveAsk, setMoveAsk] = useState<{ id: string; manager: string } | null>(null);
   /** A new manager must be on the chart today, outside the person's own branch, and not their manager already. */
   const canReportTo = (id: string, manager: string) =>
     manager !== id && tree.people.has(manager) && !tree.ghosts.has(manager)
     && !isInBranchOf(tree, manager, id) && tree.people.get(id)?.managerKey !== manager;
+  /** Why a drop is refused, in the chip under the pointer (the server refuses the same). */
+  const refusedBecause = (id: string, manager: string) => {
+    const name = (key: string) => (tree.people.get(key)?.displayName ?? "").split(" ")[0] ?? "";
+    if (manager === id || !tree.people.has(manager)) return null;
+    if (tree.people.get(id)?.managerKey === manager) return tc("refused.already", { name: tree.people.get(manager)?.displayName ?? "" });
+    if (isInBranchOf(tree, manager, id)) return tc("refused.inBranch", { target: name(manager), name: name(id) });
+    return null;
+  };
 
   function startCardDrag(event: React.PointerEvent, id: string) {
     const stage = stageRef.current!.getBoundingClientRect();
@@ -312,7 +337,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
       if (!dragged.current && Math.hypot(e.clientX - start.x, e.clientY - start.y) <= 5) return;
       dragged.current = true;
       const over = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-oc-id]")?.dataset.ocId ?? null;
-      cardDrag.current = { id, x: e.clientX - stage.left, y: e.clientY - stage.top, over, target: over && canReportTo(id, over) ? over : null };
+      const target = over && canReportTo(id, over) ? over : null;
+      cardDrag.current = { id, x: e.clientX - stage.left, y: e.clientY - stage.top, over, target, refused: over && !target ? refusedBecause(id, over) : null };
       setDrag(cardDrag.current);
     };
     const up = () => {
@@ -321,7 +347,10 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
       const dropped = cardDrag.current;
       cardDrag.current = null;
       setDrag(null);
-      if (dropped?.target) setMoveAsk({ id: dropped.id, manager: dropped.target });
+      if (dropped?.target) {
+        setSelected(null);
+        setChange({ id: dropped.id, kind: "job", managerKey: dropped.target, editing: null });
+      }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -658,6 +687,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
                   ghost && "oc-ghost",
                   movable && !isChain && !isMore(id) && !ghost && "oc-movable",
                   drag?.id === id && "oc-lifted",
+                  change && draft && change.id === id && "oc-preview",
                   drag && drag.over === id && (drag.target === id ? "oc-drop" : "oc-nodrop"),
                   filter && (!lens || lens.key !== filter) && "oc-dim",
                 )}
@@ -701,9 +731,12 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
         ) : null}
 
         {drag ? (
-          <span className="oc-dragchip rounded-control border bg-popover shadow-overlay" style={{ transform: `translate(${drag.x + 14}px, ${drag.y + 14}px)` }}>
+          <span className={cn("oc-dragchip rounded-control border bg-popover shadow-overlay", drag.refused && "oc-refused")} style={{ transform: `translate(${drag.x + 14}px, ${drag.y + 14}px)` }}>
             <OrgAvatar id={drag.id} size="sm" ctx={ctx} />
-            <span className="truncate text-sm font-semibold">{tree.people.get(drag.id)?.displayName}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">{tree.people.get(drag.id)?.displayName}</span>
+              {drag.refused ? <span className="block truncate text-xs text-destructive">{drag.refused}</span> : null}
+            </span>
           </span>
         ) : null}
 
@@ -714,33 +747,41 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
           <button type="button" aria-label={t("zoom.fit")} onClick={() => flyTo(fitTo(boundsOf(layout.nodes), viewport()))} className="grid h-8 w-[34px] place-items-center border-t text-muted-foreground hover:bg-inlay hover:text-foreground"><Maximize className="size-4" /></button>
         </div>
 
-        {selected && tree.people.has(selected) ? (
+        {change ? (
+          <aside
+            data-oc-overlay
+            aria-label={tree.people.get(change.id)?.displayName}
+            className="absolute inset-y-3 end-3 z-20 flex cursor-default flex-col overflow-hidden rounded-surface border bg-popover shadow-overlay"
+            style={{ width: CHANGE_PANEL_WIDTH }}
+          >
+            <ChangePanel
+              key={`${change.id}-${change.managerKey ?? ""}-${change.editing?.id ?? "new"}`}
+              employeeKey={change.id}
+              kind={change.kind}
+              editing={change.editing}
+              initialManagerKey={change.managerKey}
+              onDraft={setDraft}
+              onClose={() => { setChange(null); setDraft(null); }}
+            />
+          </aside>
+        ) : selected && tree.people.has(selected) ? (
           <PersonPanel
             person={tree.people.get(selected)!}
             tree={tree}
             ctx={ctx}
             showCentre={view === "company" || focus !== selected}
             profileHref={profileHref(tree.people.get(selected)!)}
+            coming={(records.data ?? []).filter((item) => item.person.employeeKey === selected)}
+            canChangeLines={movable}
+            canChangeAll={rights.people}
+            onChangeJob={() => setChange({ id: selected, kind: "job", managerKey: null, editing: null })}
+            onEdit={(item) => setChange({ id: selected, kind: item.kind === "EndEmployment" ? "end" : item.kind === "Join" ? "start" : "job", managerKey: null, editing: item })}
             onClose={() => { setSelected(null); setLit(null); setAnimate(false); }}
             onGoTo={goTo}
             onCentre={centreOn}
           />
         ) : null}
       </div>
-
-      {moveAsk ? (
-        <MoveDialog
-          tree={tree}
-          ctx={ctx}
-          subject={moveAsk.id}
-          manager={moveAsk.manager}
-          from={date}
-          onCancel={() => setMoveAsk(null)}
-          onContinue={() => router.push(
-            `/people/${encodeURIComponent(moveAsk.id)}/change-manager?manager=${encodeURIComponent(moveAsk.manager)}&from=${date}&back=org-chart`,
-          )}
-        />
-      ) : null}
     </Frame>
   );
 }
@@ -796,57 +837,6 @@ function TimeBar({
   );
 }
 
-/** Dropping a card on a new manager: who moves along, then the Change manager task, prefilled. */
-function MoveDialog({
-  tree, ctx, subject, manager, from, onCancel, onContinue,
-}: {
-  tree: OrgTree;
-  ctx: CardContext;
-  subject: string;
-  manager: string;
-  from: string;
-  onCancel: () => void;
-  onContinue: () => void;
-}) {
-  const t = useTranslations("orgChart.move");
-  const format = useFormat();
-  const person = tree.people.get(subject)!;
-  const next = tree.people.get(manager)!;
-  const team = (tree.kids.get(subject) ?? []).filter((kid) => !isMore(kid) && !tree.ghosts.has(kid));
-  return (
-    <AlertDialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t("title", { name: person.displayName, manager: next.displayName })}</AlertDialogTitle>
-        </AlertDialogHeader>
-        <dl className="grid border-t text-sm">
-          <div className="grid grid-cols-[96px_1fr] items-center gap-3 border-b py-2.5">
-            <dt className="text-muted-foreground">{t("team")}</dt>
-            <dd className="flex min-w-0 items-center gap-2.5">
-              {person.totalCount ? (
-                <>
-                  <span className="oc-strip">
-                    {team.slice(0, 6).map((kid) => <OrgAvatar key={kid} id={kid} size="xs" ctx={ctx} />)}
-                  </span>
-                  {t("teamMoves", { count: person.totalCount })}
-                </>
-              ) : t("alone")}
-            </dd>
-          </div>
-          <div className="grid grid-cols-[96px_1fr] gap-3 border-b py-2.5">
-            <dt className="text-muted-foreground">{t("from")}</dt>
-            <dd>{format.date(from, { year: "always" })}</dd>
-          </div>
-        </dl>
-        <AlertDialogFooter>
-          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-          <AlertDialogAction onClick={onContinue}>{t("continue")}</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 function Edges({ tree, layout, lit }: { tree: OrgTree; layout: ReturnType<typeof layoutChart>; lit: Set<string> }) {
   const paths: { key: string; d: string; className?: string }[] = [];
   for (const edge of layout.edges) {
@@ -870,18 +860,25 @@ function Edges({ tree, layout, lit }: { tree: OrgTree; layout: ReturnType<typeof
 }
 
 function PersonPanel({
-  person, tree, ctx, showCentre, profileHref, onClose, onGoTo, onCentre,
+  person, tree, ctx, showCentre, profileHref, coming, canChangeLines, canChangeAll, onChangeJob, onEdit, onClose, onGoTo, onCentre,
 }: {
   person: OrgChartPersonDto;
   tree: OrgTree;
   ctx: CardContext;
   showCentre: boolean;
   profileHref: string | null;
+  /** The person's coming change records (HR), with Edit and Cancel. */
+  coming: WorkforceChangeDto[];
+  canChangeLines: boolean;
+  canChangeAll: boolean;
+  onChangeJob: () => void;
+  onEdit: (change: WorkforceChangeDto) => void;
   onClose: () => void;
   onGoTo: (id: string) => void;
   onCentre: (id: string) => void;
 }) {
   const t = useTranslations("orgChart.panel");
+  const tc = useTranslations("changes");
   const format = useFormat();
   const manager = person.managerKey ? tree.people.get(person.managerKey) : undefined;
   const flag = tree.flags.get(person.employeeKey);
@@ -923,6 +920,14 @@ function PersonPanel({
           </span>
         ) : null}
       </div>
+      {coming.length ? (
+        <section className="grid gap-3 border-t pt-3.5">
+          <h3 className="type-label font-semibold">{tc("coming.title")}</h3>
+          {coming.map((item) => (
+            <ComingUpCard key={item.id} compact change={item} canChange={item.details.isReportingOnly ? canChangeLines : canChangeAll} onEdit={onEdit} />
+          ))}
+        </section>
+      ) : null}
       <dl className="grid border-t">
         {person.unit ? fact(t("unit"), (
           <>
@@ -943,10 +948,15 @@ function PersonPanel({
         {person.startYear ? fact(t("since"), String(person.startYear)) : null}
         {person.workEmail ? fact(t("email"), person.workEmail) : null}
       </dl>
-      {showCentre || profileHref ? (
+      {showCentre || profileHref || canChangeLines ? (
         <div className="flex flex-wrap gap-2">
           {showCentre ? <Button variant="outline" size="sm" onClick={() => onCentre(person.employeeKey)}>{t("centre")}</Button> : null}
           {profileHref ? <Button asChild variant="outline" size="sm"><Link href={profileHref}>{t("openProfile")}</Link></Button> : null}
+          {canChangeLines ? (
+            <Button variant="outline" size="sm" onClick={onChangeJob}>
+              <ArrowLeftRight className="size-3.5" /> {canChangeAll ? tc("menu.changeJob") : tc("menu.changeManager")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </aside>
