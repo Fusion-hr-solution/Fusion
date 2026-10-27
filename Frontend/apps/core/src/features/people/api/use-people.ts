@@ -2,12 +2,14 @@
 
 import { useCallback, useMemo } from "react";
 import {
+  coreOrgChartQueryKeys,
   corePeopleQueryKeys,
   createCorePeopleApi,
   createPlatformApiClient,
   type AddExistingEmployeeRequest,
   type ChangeManagerByKeyRequestBody,
   type ChangeWorkRequestBody,
+  type DottedLineRequestBody,
   type EndEmploymentRequestBody,
   type HireEmployeeRequest,
   type EstablishmentReviewRequest,
@@ -110,6 +112,9 @@ export function useWorkforceMaintenanceMutations(employeeKey: string) {
     void queryClient.invalidateQueries({
       queryKey: corePeopleQueryKeys.lists(),
     });
+    void queryClient.invalidateQueries({
+      queryKey: coreOrgChartQueryKeys.all(),
+    });
   }, [queryClient]);
   return {
     changeWork: useApiMutation(
@@ -121,6 +126,13 @@ export function useWorkforceMaintenanceMutations(employeeKey: string) {
     changeManager: useApiMutation(
       (request: ChangeManagerByKeyRequestBody) =>
         api.changeManager(employeeKey, request),
+      {
+        onSuccess: refresh,
+      }
+    ),
+    dottedLine: useApiMutation(
+      ({ end, ...request }: DottedLineRequestBody & { end: boolean }) =>
+        api.dottedLine(employeeKey, request, end),
       {
         onSuccess: refresh,
       }

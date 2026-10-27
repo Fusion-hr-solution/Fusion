@@ -17,7 +17,16 @@
     "location": "Location",
     "none": "Nothing",
     "leadership": "Leadership",
-    "filter": "Show only {label}"
+    "filter": "Show only {label}",
+    "tenure": "Tenure",
+    "span": "Span of control",
+    "tenure0": "Under a year",
+    "tenure1": "1 to 3 years",
+    "tenure2": "3 to 5 years",
+    "tenure3": "5 years or more",
+    "span0": "1 to 3 direct",
+    "span1": "4 to 7 direct",
+    "span2": "8 or more direct"
   },
   "card": {
     "you": "You",
@@ -32,7 +41,10 @@
     "foldTeam": "Fold team",
     "more": "{count, plural, one {# more person} other {# more people}}",
     "moreDetail": "Outside your part of the chart",
-    "dotted": "Dotted line to {name}"
+    "dotted": "Dotted line to {name}",
+    "join": "Joins {date}",
+    "leave": "Leaves {date}",
+    "move": "Moves {date}"
   },
   "panel": {
     "close": "Close",
@@ -49,7 +61,12 @@
     "email": "Work email",
     "joined": "Joined in {year}",
     "centre": "Centre here",
-    "openProfile": "Open profile"
+    "openProfile": "Open profile",
+    "upcoming": {
+      "join": "Joins on {date}",
+      "leave": "Last day {date}",
+      "move": "Reports to {manager} from {date}"
+    }
   },
   "zoom": {
     "in": "Zoom in",
@@ -66,5 +83,22 @@
     "title": "Org chart access required",
     "description": "Your role doesn't include the org chart. Ask your administrator if you need it."
   },
-  "showInChart": "Show in org chart"
+  "showInChart": "Show in org chart",
+  "time": {
+    "asOf": "Org chart as of",
+    "today": "Today",
+    "todayDate": "Today, {date}",
+    "summary": "{people, plural, one {# person} other {# people}}{coming, plural, =0 {} one { · # change coming} other { · # changes coming}}",
+    "replay": "Replay",
+    "stop": "Stop"
+  },
+  "move": {
+    "title": "Move {name} to {manager}'s team?",
+    "team": "Moves along",
+    "teamMoves": "{count, plural, one {# person in their team} other {# people in their team}}",
+    "alone": "No one else",
+    "from": "From",
+    "cancel": "Cancel",
+    "continue": "Continue"
+  }
 }

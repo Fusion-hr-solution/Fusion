@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Input,
@@ -119,17 +119,25 @@ export function ManagerPicker({
   onChange,
   loading,
   invalid,
+  onQueryChange,
 }: {
   options: ManagerOptionDto[];
   value: string;
   onChange: (value: string) => void;
   loading: boolean;
   invalid: boolean;
+  /** Searches on the server instead of filtering the loaded options (which stop at the first 30). */
+  onQueryChange?: (query: string) => void;
 }) {
   const t = useTranslations("people.pickers");
   const [query, setQuery] = useState("");
+  useEffect(() => {
+    if (!onQueryChange) return;
+    const timer = setTimeout(() => onQueryChange(query.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [query, onQueryChange]);
   const selected = options.find((option) => option.employeeId === value);
-  const visible = options.filter((option) =>
+  const visible = onQueryChange ? options : options.filter((option) =>
     !query.trim() || `${option.displayName} ${option.employeeNumber} ${option.organizationPath}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
   return (
@@ -179,7 +187,7 @@ export function ManagerPicker({
           ))}
           {!loading && visible.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
-              {options.length === 0 ? t("noManagerOnDate") : t("noManagerMatch")}
+              {options.length === 0 && !query.trim() ? t("noManagerOnDate") : t("noManagerMatch")}
             </p>
           ) : null}
         </div>

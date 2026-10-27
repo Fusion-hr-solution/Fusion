@@ -11,6 +11,8 @@ export interface OrgChartPersonDto {
   workEmail: string | null;
   /** Year the current employment started. */
   startYear: number | null;
+  /** The full start date (yyyy-mm-dd), for HR only: the Tenure lens. */
+  startDate: string | null;
   /** In the first 90 days of employment. */
   isNew: boolean;
   /** Null for the top of the company, or when the manager is outside the viewer's slice. */
@@ -47,19 +49,37 @@ export interface OrgChartDto {
   folded: OrgChartFoldDto[];
 }
 
+export type OrgChartChangeKind = "Join" | "Leave" | "Move";
+
+/** A dated change: someone joins, leaves (`date` is their last day) or moves to a new manager. */
+export interface OrgChartChangeDto {
+  kind: OrgChartChangeKind;
+  date: string;
+  employeeKey: string;
+  /** The manager they join or move to; null for a leaver. */
+  managerKey: string | null;
+  /** The joiner's card as of their first day; null for leavers and moves. */
+  person: OrgChartPersonDto | null;
+}
+
 export const coreOrgChartPaths = {
   chart: () => "/corehr/org-chart",
+  changes: () => "/corehr/org-chart/changes",
 } as const;
 
 export const coreOrgChartQueryKeys = {
   all: () => ["core-org-chart"] as const,
   chart: (asOf: string | null) => [...coreOrgChartQueryKeys.all(), asOf ?? "today"] as const,
+  changes: (from: string, to: string) => [...coreOrgChartQueryKeys.all(), "changes", from, to] as const,
 };
 
 export function createCoreOrgChartApi(client: ApiClient) {
   return {
     chart: (asOf: string | null, signal?: AbortSignal) =>
       client.get<OrgChartDto>(coreOrgChartPaths.chart(), { params: asOf ? { asOf } : undefined, signal }),
+    /** `GET /api/corehr/org-chart/changes`: HR only, both days included, two years at most. */
+    changes: (from: string, to: string, signal?: AbortSignal) =>
+      client.get<OrgChartChangeDto[]>(coreOrgChartPaths.changes(), { params: { from, to }, signal }),
   };
 }
 

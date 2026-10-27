@@ -17,7 +17,16 @@
     "location": "Site",
     "none": "Aucune",
     "leadership": "Direction",
-    "filter": "Afficher seulement {label}"
+    "filter": "Afficher seulement {label}",
+    "tenure": "Ancienneté",
+    "span": "Étendue managériale",
+    "tenure0": "Moins d'un an",
+    "tenure1": "1 à 3 ans",
+    "tenure2": "3 à 5 ans",
+    "tenure3": "5 ans ou plus",
+    "span0": "1 à 3 directs",
+    "span1": "4 à 7 directs",
+    "span2": "8 directs ou plus"
   },
   "card": {
     "you": "Vous",
@@ -32,7 +41,10 @@
     "foldTeam": "Replier l'équipe",
     "more": "{count, plural, one {# autre personne} other {# autres personnes}}",
     "moreDetail": "Hors de votre partie de l'organigramme",
-    "dotted": "Lien fonctionnel vers {name}"
+    "dotted": "Lien fonctionnel vers {name}",
+    "join": "Arrive le {date}",
+    "leave": "Part le {date}",
+    "move": "Change le {date}"
   },
   "panel": {
     "close": "Fermer",
@@ -49,7 +61,12 @@
     "email": "E-mail professionnel",
     "joined": "Arrivé en {year}",
     "centre": "Centrer ici",
-    "openProfile": "Ouvrir le profil"
+    "openProfile": "Ouvrir le profil",
+    "upcoming": {
+      "join": "Arrive le {date}",
+      "leave": "Dernier jour le {date}",
+      "move": "Rattaché à {manager} à partir du {date}"
+    }
   },
   "zoom": {
     "in": "Zoom avant",
@@ -66,5 +83,22 @@
     "title": "Accès à l'organigramme requis",
     "description": "Votre rôle n'inclut pas l'organigramme. Demandez-le à votre administrateur si besoin."
   },
-  "showInChart": "Voir dans l'organigramme"
+  "showInChart": "Voir dans l'organigramme",
+  "time": {
+    "asOf": "Organigramme au",
+    "today": "Aujourd'hui",
+    "todayDate": "Aujourd'hui, {date}",
+    "summary": "{people, plural, one {# personne} other {# personnes}}{coming, plural, =0 {} one { · # changement à venir} other { · # changements à venir}}",
+    "replay": "Rejouer",
+    "stop": "Arrêter"
+  },
+  "move": {
+    "title": "Rattacher {name} à l'équipe de {manager} ?",
+    "team": "Suivent",
+    "teamMoves": "{count, plural, one {# personne de son équipe} other {# personnes de son équipe}}",
+    "alone": "Personne d'autre",
+    "from": "À partir du",
+    "cancel": "Annuler",
+    "continue": "Continuer"
+  }
 }

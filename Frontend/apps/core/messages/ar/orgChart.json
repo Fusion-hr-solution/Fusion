@@ -17,7 +17,16 @@
     "location": "الموقع",
     "none": "بدون",
     "leadership": "الإدارة العليا",
-    "filter": "عرض {label} فقط"
+    "filter": "عرض {label} فقط",
+    "tenure": "الأقدمية",
+    "span": "نطاق الإشراف",
+    "tenure0": "أقل من سنة",
+    "tenure1": "من 1 إلى 3 سنوات",
+    "tenure2": "من 3 إلى 5 سنوات",
+    "tenure3": "5 سنوات أو أكثر",
+    "span0": "من 1 إلى 3 مباشرين",
+    "span1": "من 4 إلى 7 مباشرين",
+    "span2": "8 مباشرين أو أكثر"
   },
   "card": {
     "you": "أنت",
@@ -32,7 +41,10 @@
     "foldTeam": "طي الفريق",
     "more": "{count, plural, one {شخص آخر} other {# أشخاص آخرين}}",
     "moreDetail": "خارج الجزء الخاص بك من الهيكل",
-    "dotted": "ارتباط وظيفي مع {name}"
+    "dotted": "ارتباط وظيفي مع {name}",
+    "join": "ينضم في {date}",
+    "leave": "يغادر في {date}",
+    "move": "ينتقل في {date}"
   },
   "panel": {
     "close": "إغلاق",
@@ -49,7 +61,12 @@
     "email": "البريد المهني",
     "joined": "انضم في {year}",
     "centre": "التمركز هنا",
-    "openProfile": "فتح الملف"
+    "openProfile": "فتح الملف",
+    "upcoming": {
+      "join": "ينضم في {date}",
+      "leave": "آخر يوم {date}",
+      "move": "يتبع {manager} اعتبارًا من {date}"
+    }
   },
   "zoom": {
     "in": "تكبير",
@@ -66,5 +83,22 @@
     "title": "يلزم الوصول إلى الهيكل التنظيمي",
     "description": "دورك لا يشمل الهيكل التنظيمي. اطلبه من المسؤول إذا احتجت إليه."
   },
-  "showInChart": "عرض في الهيكل التنظيمي"
+  "showInChart": "عرض في الهيكل التنظيمي",
+  "time": {
+    "asOf": "الهيكل التنظيمي بتاريخ",
+    "today": "اليوم",
+    "todayDate": "اليوم، {date}",
+    "summary": "{people, plural, one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}{coming, plural, =0 {} one { · تغيير قادم} other { · # تغييرات قادمة}}",
+    "replay": "إعادة العرض",
+    "stop": "إيقاف"
+  },
+  "move": {
+    "title": "نقل {name} إلى فريق {manager}؟",
+    "team": "ينتقل معه",
+    "teamMoves": "{count, plural, one {شخص واحد من فريقه} two {شخصان من فريقه} few {# أشخاص من فريقه} many {# شخصًا من فريقه} other {# شخص من فريقه}}",
+    "alone": "لا أحد غيره",
+    "from": "اعتبارًا من",
+    "cancel": "إلغاء",
+    "continue": "متابعة"
+  }
 }

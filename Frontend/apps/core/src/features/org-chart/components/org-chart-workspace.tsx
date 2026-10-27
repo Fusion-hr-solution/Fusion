@@ -2,16 +2,30 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { AlertTriangle, Maximize, Minus, Plus, Search, X } from "lucide-react";
+import { AlertTriangle, Maximize, Minus, Play, Plus, Search, Square, X } from "lucide-react";
 import type { OrgChartDto, OrgChartPersonDto } from "@repo/api";
-import { canAccessCoreOrgChart, canAccessCoreTeam, useAuth } from "@repo/auth";
+import {
+  canAccessCoreOrgChart,
+  canAccessCorePeople,
+  canAccessCoreTeam,
+  canManageCoreEmployees,
+  canManageCoreReporting,
+  useAuth,
+} from "@repo/auth";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   Input,
   Select,
@@ -25,28 +39,40 @@ import {
   cn,
 } from "@repo/ds";
 import { PageHeader, PagePermissionNotice } from "@repo/ds/shell";
+import { useFormat } from "@repo/ds/lib/use-format";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
-import { useOrgChart } from "../api/use-org-chart";
+import { useOrgChart, useOrgChartChanges, usePrefetchOrgChart } from "../api/use-org-chart";
 import {
+  HR_LENSES,
   MAX_ZOOM,
   MIN_ZOOM,
+  addDays,
   boundsOf,
   buildTree,
   centerOn,
   createLens,
+  dayAt,
+  dayIndex,
   dottedPath,
   edgePath,
   fitTo,
   fitTop,
+  isInBranchOf,
   isMore,
+  isOrderedLens,
+  isoDay,
   layoutChart,
   litLine,
+  monthTicks,
   parentOf,
+  replaySteps,
   searchPeople,
   stepFrom,
+  timeWindow,
   zoomTier,
   type Camera,
   type LensKey,
+  type LensWords,
   type OrgTree,
   type OrgView,
 } from "../model/org-chart-model";
@@ -54,6 +80,8 @@ import { ChainPill, LeadCard, MoreCard, OrgAvatar, PersonCard, type CardContext 
 
 const PANEL_WIDTH = 344;
 const SETTLE_MS = 470;
+/** Replay holds each quarter long enough for the cards to settle. */
+const REPLAY_STEP_MS = 650;
 
 type FitRequest = { mode: "fit" | "top" } | { mode: "centre"; id: string; s: number } | null;
 
@@ -61,7 +89,9 @@ export default function OrgChartWorkspace() {
   const t = useTranslations("orgChart");
   const { user, isLoading: authLoading } = useAuth();
   const canView = canAccessCoreOrgChart(user);
-  const chart = useOrgChart();
+  // HR's time bar: null is today. The previous chart stays on screen while the next date loads.
+  const [asOf, setAsOf] = useState<string | null>(null);
+  const chart = useOrgChart(asOf);
 
   if (authLoading) return <Frame title={t("title")}><StageSkeleton /></Frame>;
   if (!canView) {
@@ -105,7 +135,7 @@ export default function OrgChartWorkspace() {
       </Frame>
     );
   }
-  return <OrgChart data={chart.data} />;
+  return <OrgChart data={chart.data} asOf={asOf} onAsOf={setAsOf} />;
 }
 
 function Frame({ title, description, actions, children }: { title: string; description?: string; actions?: React.ReactNode; children: React.ReactNode }) {
@@ -139,11 +169,22 @@ function StageSkeleton() {
   );
 }
 
-function OrgChart({ data }: { data: OrgChartDto }) {
+function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | null; onAsOf: (date: string | null) => void }) {
   const t = useTranslations("orgChart");
   const { user } = useAuth();
+  const router = useRouter();
   const params = useSearchParams();
-  const tree = useMemo(() => buildTree(data), [data]);
+
+  // ── Time (HR): past and future dates, upcoming changes, Replay ──
+  const hr = canAccessCorePeople(user);
+  const today = useMemo(() => isoDay(Date.now()), []);
+  const date = asOf ?? today;
+  const range = useMemo(() => timeWindow(today), [today]);
+  const [replaying, setReplaying] = useState(false);
+  const showsChanges = hr && !replaying && date >= range.lo && date < range.hi;
+  const changes = useOrgChartChanges(addDays(date, 1), range.hi, showsChanges);
+  const upcoming = showsChanges ? changes.data : undefined;
+  const tree = useMemo(() => buildTree(data, upcoming ?? []), [data, upcoming]);
 
   const requested = params.get("focus");
   const initialFocus = requested && tree.people.has(requested) ? requested : tree.viewerKey;
@@ -159,7 +200,12 @@ function OrgChart({ data }: { data: OrgChartDto }) {
   const [fitRequest, setFitRequest] = useState<FitRequest>({ mode: view === "focus" ? "top" : "fit" });
 
   const layout = useMemo(() => layoutChart(tree, { view, focus, folded, unfolded }), [tree, view, focus, folded, unfolded]);
-  const lensOf = useMemo(() => createLens(tree, lensKey, t("lens.leadership")), [tree, lensKey, t]);
+  const lensWords = useMemo<LensWords>(() => ({
+    leadership: t("lens.leadership"),
+    tenure: [t("lens.tenure0"), t("lens.tenure1"), t("lens.tenure2"), t("lens.tenure3")],
+    span: [t("lens.span0"), t("lens.span1"), t("lens.span2")],
+  }), [t]);
+  const lensOf = useMemo(() => createLens(tree, lensKey, lensWords, data.asOf), [tree, lensKey, lensWords, data.asOf]);
   const litIds = useMemo(() => litLine(tree, lit), [tree, lit]);
 
   // ── Camera: transform applied straight to the world element, not through React ──
@@ -246,8 +292,48 @@ function OrgChart({ data }: { data: OrgChartDto }) {
   // Drag pans; a drag never counts as a click on what it started on.
   const dragged = useRef(false);
   const [panning, setPanning] = useState(false);
+
+  // ── Drag to change manager (HR who manage people, today or later) ──
+  const movable = (canManageCoreEmployees(user) || canManageCoreReporting(user)) && date >= today && !replaying;
+  type CardDrag = { id: string; x: number; y: number; over: string | null; target: string | null };
+  const cardDrag = useRef<CardDrag | null>(null);
+  const [drag, setDrag] = useState<CardDrag | null>(null);
+  const [moveAsk, setMoveAsk] = useState<{ id: string; manager: string } | null>(null);
+  /** A new manager must be on the chart today, outside the person's own branch, and not their manager already. */
+  const canReportTo = (id: string, manager: string) =>
+    manager !== id && tree.people.has(manager) && !tree.ghosts.has(manager)
+    && !isInBranchOf(tree, manager, id) && tree.people.get(id)?.managerKey !== manager;
+
+  function startCardDrag(event: React.PointerEvent, id: string) {
+    const stage = stageRef.current!.getBoundingClientRect();
+    const start = { x: event.clientX, y: event.clientY };
+    dragged.current = false;
+    const move = (e: PointerEvent) => {
+      if (!dragged.current && Math.hypot(e.clientX - start.x, e.clientY - start.y) <= 5) return;
+      dragged.current = true;
+      const over = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-oc-id]")?.dataset.ocId ?? null;
+      cardDrag.current = { id, x: e.clientX - stage.left, y: e.clientY - stage.top, over, target: over && canReportTo(id, over) ? over : null };
+      setDrag(cardDrag.current);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      const dropped = cardDrag.current;
+      cardDrag.current = null;
+      setDrag(null);
+      if (dropped?.target) setMoveAsk({ id: dropped.id, manager: dropped.target });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
   function onPointerDown(event: React.PointerEvent) {
     if (event.button !== 0 || (event.target as HTMLElement).closest("[data-oc-overlay]")) return;
+    const card = (event.target as HTMLElement).closest<HTMLElement>("[data-oc-drag]");
+    if (movable && card && !(event.target as HTMLElement).closest("button")) {
+      startCardDrag(event, card.dataset.ocId!);
+      return;
+    }
     cancelAnimationFrame(flight.current);
     const start = { x: event.clientX, y: event.clientY, cx: cam.current.x, cy: cam.current.y };
     dragged.current = false;
@@ -320,6 +406,44 @@ function OrgChart({ data }: { data: OrgChartDto }) {
     setLit(null);
     relayout({ mode: next === "focus" ? "top" : "fit" });
   };
+  const replayRun = useRef(0);
+  const prefetch = usePrefetchOrgChart();
+  const stopReplay = () => {
+    replayRun.current += 1;
+    setReplaying(false);
+  };
+  const changeDate = (next: string) => {
+    stopReplay();
+    setAnimate(true);
+    onAsOf(next === today ? null : next);
+  };
+  /** Replay: the company from its first day to today, a quarter at a time, the camera fitting it as it grows. */
+  const replay = async () => {
+    if (replaying) {
+      stopReplay();
+      return;
+    }
+    const starts = data.people.map((p) => p.startDate).filter((d): d is string => Boolean(d)).sort();
+    const run = ++replayRun.current;
+    setReplaying(true);
+    setView("company");
+    setSelected(null);
+    setLit(null);
+    for (const step of replaySteps(starts[0] ?? today, today)) {
+      await prefetch(step).catch(() => undefined);
+      if (replayRun.current !== run) return;
+      onAsOf(step === today ? null : step);
+      relayout({ mode: "fit" });
+      await new Promise((resolve) => window.setTimeout(resolve, REPLAY_STEP_MS));
+      if (replayRun.current !== run) return;
+    }
+    setReplaying(false);
+  };
+  useEffect(() => {
+    const run = replayRun;
+    return () => { run.current += 1; };
+  }, []);
+
   const copyEmail = (person: OrgChartPersonDto) => {
     if (!person.workEmail) return;
     void navigator.clipboard?.writeText(person.workEmail).then(() => toast.success(t("card.copied")));
@@ -381,7 +505,8 @@ function OrgChart({ data }: { data: OrgChartDto }) {
       entry.n += 1;
       counts.set(lens.key, entry);
     }
-    return [...counts.values()].sort((a, b) => (a.key === "lead" ? -1 : b.key === "lead" ? 1 : a.label.localeCompare(b.label)));
+    return [...counts.values()].sort((a, b) => isOrderedLens(lensKey) ? a.key.localeCompare(b.key)
+      : a.key === "lead" ? -1 : b.key === "lead" ? 1 : a.label.localeCompare(b.label));
   }, [layout, lensOf, lensKey]);
 
   const divisions = useMemo(() => new Set(data.people.map((p) => p.unit?.divisionId).filter(Boolean)).size, [data]);
@@ -464,9 +589,23 @@ function OrgChart({ data }: { data: OrgChartDto }) {
           <SelectContent>
             <SelectItem value="division">{t("lens.division")}</SelectItem>
             <SelectItem value="location">{t("lens.location")}</SelectItem>
+            {hr ? HR_LENSES.map((key) => <SelectItem key={key} value={key}>{t(`lens.${key}`)}</SelectItem>) : null}
             <SelectItem value="none">{t("lens.none")}</SelectItem>
           </SelectContent>
         </Select>
+        {hr ? (
+          <TimeBar
+            date={date}
+            today={today}
+            lo={range.lo}
+            hi={range.hi}
+            people={data.people.length}
+            coming={tree.flags.size}
+            replaying={replaying}
+            onDate={changeDate}
+            onReplay={() => void replay()}
+          />
+        ) : null}
       </div>
 
       <div
@@ -497,10 +636,12 @@ function OrgChart({ data }: { data: OrgChartDto }) {
             const lens = isMore(id) ? null : lensOf(id);
             const isChain = node.kind === "chain";
             const label = isMore(id) ? undefined : tree.people.get(id)?.displayName;
+            const ghost = tree.ghosts.has(id);
             return (
               <div
                 key={id}
                 data-oc-id={id}
+                data-oc-drag={movable && !isChain && !isMore(id) && !ghost ? "" : undefined}
                 role={isMore(id) ? undefined : "button"}
                 tabIndex={isMore(id) ? -1 : 0}
                 aria-label={label}
@@ -514,6 +655,10 @@ function OrgChart({ data }: { data: OrgChartDto }) {
                   node.kind === "more" && "oc-more",
                   id === tree.viewerKey && !isChain && "oc-you",
                   selected === id && "oc-sel",
+                  ghost && "oc-ghost",
+                  movable && !isChain && !isMore(id) && !ghost && "oc-movable",
+                  drag?.id === id && "oc-lifted",
+                  drag && drag.over === id && (drag.target === id ? "oc-drop" : "oc-nodrop"),
                   filter && (!lens || lens.key !== filter) && "oc-dim",
                 )}
                 style={{
@@ -555,6 +700,13 @@ function OrgChart({ data }: { data: OrgChartDto }) {
           </div>
         ) : null}
 
+        {drag ? (
+          <span className="oc-dragchip rounded-control border bg-popover shadow-overlay" style={{ transform: `translate(${drag.x + 14}px, ${drag.y + 14}px)` }}>
+            <OrgAvatar id={drag.id} size="sm" ctx={ctx} />
+            <span className="truncate text-sm font-semibold">{tree.people.get(drag.id)?.displayName}</span>
+          </span>
+        ) : null}
+
         <span className="pointer-events-none absolute bottom-[18px] end-[58px] text-xs text-muted-foreground tabular-nums">{zoomLabel}</span>
         <div data-oc-overlay className="absolute bottom-3.5 end-3.5 grid overflow-hidden rounded-control border bg-popover shadow-overlay">
           <button type="button" aria-label={t("zoom.in")} onClick={() => zoomBy(1.25)} className="grid h-8 w-[34px] place-items-center text-muted-foreground hover:bg-inlay hover:text-foreground"><Plus className="size-4" /></button>
@@ -575,7 +727,123 @@ function OrgChart({ data }: { data: OrgChartDto }) {
           />
         ) : null}
       </div>
+
+      {moveAsk ? (
+        <MoveDialog
+          tree={tree}
+          ctx={ctx}
+          subject={moveAsk.id}
+          manager={moveAsk.manager}
+          from={date}
+          onCancel={() => setMoveAsk(null)}
+          onContinue={() => router.push(
+            `/people/${encodeURIComponent(moveAsk.id)}/change-manager?manager=${encodeURIComponent(moveAsk.manager)}&from=${date}&back=org-chart`,
+          )}
+        />
+      ) : null}
     </Frame>
+  );
+}
+
+/** HR's date control: the canvas's slider over the year with month ticks and Today, plus Replay. */
+function TimeBar({
+  date, today, lo, hi, people, coming, replaying, onDate, onReplay,
+}: {
+  date: string;
+  today: string;
+  lo: string;
+  hi: string;
+  people: number;
+  coming: number;
+  replaying: boolean;
+  onDate: (date: string) => void;
+  onReplay: () => void;
+}) {
+  const t = useTranslations("orgChart.time");
+  const format = useFormat();
+  const span = dayIndex(hi) - dayIndex(lo);
+  const at = (day: string) => `${((dayIndex(day) - dayIndex(lo)) / span) * 100}%`;
+  const value = Math.min(dayIndex(hi), Math.max(dayIndex(lo), dayIndex(date)));
+  const shown = format.date(date, { year: "always" });
+  return (
+    <div className="oc-timebar ms-auto">
+      <Button type="button" variant="outline" size="sm" aria-pressed={replaying} onClick={onReplay}>
+        {replaying ? <Square /> : <Play />}
+        {replaying ? t("stop") : t("replay")}
+      </Button>
+      <div className="oc-track">
+        <input
+          type="range"
+          min={dayIndex(lo)}
+          max={dayIndex(hi)}
+          value={value}
+          aria-label={t("asOf")}
+          aria-valuetext={shown}
+          onChange={(event) => onDate(dayAt(Number(event.target.value)))}
+        />
+        <div className="oc-ticks">
+          {monthTicks(lo, hi, today).map((month) => (
+            <span key={month} aria-hidden style={{ insetInlineStart: at(month) }}>{format.parts(month, { month: "short" })}</span>
+          ))}
+          <button type="button" className="oc-today" style={{ insetInlineStart: at(today) }} onClick={() => onDate(today)}>{t("today")}</button>
+        </div>
+      </div>
+      <p className="oc-timeinfo" aria-live="polite">
+        <b>{date === today ? t("todayDate", { date: shown }) : shown}</b>
+        {t("summary", { people, coming })}
+      </p>
+    </div>
+  );
+}
+
+/** Dropping a card on a new manager: who moves along, then the Change manager task, prefilled. */
+function MoveDialog({
+  tree, ctx, subject, manager, from, onCancel, onContinue,
+}: {
+  tree: OrgTree;
+  ctx: CardContext;
+  subject: string;
+  manager: string;
+  from: string;
+  onCancel: () => void;
+  onContinue: () => void;
+}) {
+  const t = useTranslations("orgChart.move");
+  const format = useFormat();
+  const person = tree.people.get(subject)!;
+  const next = tree.people.get(manager)!;
+  const team = (tree.kids.get(subject) ?? []).filter((kid) => !isMore(kid) && !tree.ghosts.has(kid));
+  return (
+    <AlertDialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("title", { name: person.displayName, manager: next.displayName })}</AlertDialogTitle>
+        </AlertDialogHeader>
+        <dl className="grid border-t text-sm">
+          <div className="grid grid-cols-[96px_1fr] items-center gap-3 border-b py-2.5">
+            <dt className="text-muted-foreground">{t("team")}</dt>
+            <dd className="flex min-w-0 items-center gap-2.5">
+              {person.totalCount ? (
+                <>
+                  <span className="oc-strip">
+                    {team.slice(0, 6).map((kid) => <OrgAvatar key={kid} id={kid} size="xs" ctx={ctx} />)}
+                  </span>
+                  {t("teamMoves", { count: person.totalCount })}
+                </>
+              ) : t("alone")}
+            </dd>
+          </div>
+          <div className="grid grid-cols-[96px_1fr] gap-3 border-b py-2.5">
+            <dt className="text-muted-foreground">{t("from")}</dt>
+            <dd>{format.date(from, { year: "always" })}</dd>
+          </div>
+        </dl>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+          <AlertDialogAction onClick={onContinue}>{t("continue")}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -585,7 +853,8 @@ function Edges({ tree, layout, lit }: { tree: OrgTree; layout: ReturnType<typeof
     const to = layout.nodes.get(edge.to);
     if (!to) continue;
     const isLit = lit.has(edge.to) && lit.has(edge.from);
-    paths.push({ key: `${edge.from}>${edge.to}`, d: edgePath(edge, to), className: isLit ? "oc-lit" : isMore(edge.to) ? "oc-dash" : undefined });
+    const dashed = isMore(edge.to) || tree.ghosts.has(edge.to);
+    paths.push({ key: `${edge.from}>${edge.to}`, d: edgePath(edge, to), className: isLit ? "oc-lit" : dashed ? "oc-dash" : undefined });
   }
   for (const [id, person] of tree.people) {
     const from = layout.nodes.get(id);
@@ -613,7 +882,10 @@ function PersonPanel({
   onCentre: (id: string) => void;
 }) {
   const t = useTranslations("orgChart.panel");
+  const format = useFormat();
   const manager = person.managerKey ? tree.people.get(person.managerKey) : undefined;
+  const flag = tree.flags.get(person.employeeKey);
+  const flagManager = flag?.managerKey ? tree.people.get(flag.managerKey)?.displayName ?? "" : "";
   const dotted = person.dottedLineManagerKeys.map((key) => tree.people.get(key)).filter((p): p is OrgChartPersonDto => Boolean(p));
   const fact = (label: string, value: React.ReactNode) => (
     <div className="grid grid-cols-[80px_1fr] gap-2.5 border-b py-2.5 text-sm">
@@ -639,7 +911,12 @@ function PersonPanel({
           <h2 className="type-panel-title">{person.displayName}</h2>
           {person.jobTitle ? <p className="type-body-secondary">{person.jobTitle}</p> : null}
         </div>
-        {person.isNew && person.startYear ? (
+        {flag ? (
+          <span className="inline-flex items-center gap-1.5 text-xs">
+            <i className="oc-swatch" style={{ background: flag.kind === "leave" ? "var(--destructive)" : "var(--info)" }} />
+            {t(`upcoming.${flag.kind}`, { date: format.date(flag.date, { year: "always" }), manager: flagManager })}
+          </span>
+        ) : person.isNew && person.startYear ? (
           <span className="inline-flex items-center gap-1.5 text-xs">
             <i className="oc-swatch" style={{ background: "var(--primary)" }} />
             {t("joined", { year: String(person.startYear) })}

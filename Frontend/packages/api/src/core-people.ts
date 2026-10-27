@@ -16,6 +16,11 @@ export interface PeopleManagerDto {
   employeeNumber: string;
 }
 
+/** A dotted-line manager on the profile; the id is what ending the dotted line takes. */
+export interface PeopleDottedLineManagerDto extends PeopleManagerDto {
+  employeeId: string;
+}
+
 export interface PeopleWorkDto {
   orgUnitId: string | null;
   jobTitle: string;
@@ -141,6 +146,8 @@ export interface PeopleProfileDto {
   isAsOf: boolean;
   /** Scheduled future changes, present only on the Today view. */
   upcoming: PeopleUpcomingChangeDto[];
+  /** Dotted-line (secondary) managers on the viewed date, beside the primary chain. */
+  dottedLineManagers: PeopleDottedLineManagerDto[];
 }
 
 export interface MaintenanceResultDto {
@@ -170,6 +177,11 @@ export interface ChangeWorkRequestBody {
 export interface ChangeManagerByKeyRequestBody {
   effectiveDate: string;
   managerEmployeeId?: string | null;
+}
+
+export interface DottedLineRequestBody {
+  effectiveDate: string;
+  managerEmployeeId: string;
 }
 
 export interface EndEmploymentRequestBody {
@@ -286,6 +298,10 @@ export const corePeoplePaths = {
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/change-work`,
   changeManager: (employeeKey: string) =>
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/change-manager`,
+  dottedLines: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/dotted-lines`,
+  endDottedLine: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/dotted-lines/end`,
   endEmployment: (employeeKey: string) =>
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/end-employment`,
   endEmploymentPreview: (employeeKey: string) =>
@@ -363,6 +379,12 @@ export function createCorePeopleApi(client: ApiClient) {
     ) =>
       client.post<MaintenanceResultDto>(
         corePeoplePaths.changeManager(employeeKey),
+        request
+      ),
+    /** Adds a dotted-line manager from the date, or with `end` ends one on the date. */
+    dottedLine: (employeeKey: string, request: DottedLineRequestBody, end = false) =>
+      client.post<MaintenanceResultDto>(
+        end ? corePeoplePaths.endDottedLine(employeeKey) : corePeoplePaths.dottedLines(employeeKey),
         request
       ),
     endEmployment: (employeeKey: string, request: EndEmploymentRequestBody) =>

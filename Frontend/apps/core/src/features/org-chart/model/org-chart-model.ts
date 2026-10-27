@@ -1,19 +1,32 @@
-import type { OrgChartDto, OrgChartPersonDto } from "@repo/api";
+import type { OrgChartChangeDto, OrgChartDto, OrgChartPersonDto } from "@repo/api";
 
 // The people org chart's model, ported from the accepted B-126 card canvas (direction C): one card per person;
 // leaders get a portrait card with their team's faces, individual contributors sit in two columns on a spine
 // under their manager, sub-teams branch below on a bus, lines turn with soft corners.
 
 export type OrgView = "focus" | "company";
-export type LensKey = "division" | "location" | "none";
+export type LensKey = "division" | "location" | "tenure" | "span" | "none";
+/** Tenure and Span of control read HR-only facts (the full start date, everyone's team size). */
+export const HR_LENSES: LensKey[] = ["tenure", "span"];
 
 /** Placeholder child that stands for people outside the viewer's slice (DirectReports scope). */
 const MORE = "more:";
 export const moreId = (parentKey: string) => `${MORE}${parentKey}`;
 export const isMore = (id: string) => id.startsWith(MORE);
 
+/** What HR sees coming for someone after the chart's date: the first upcoming change only. */
+export interface UpcomingFlag {
+  kind: "join" | "leave" | "move";
+  date: string;
+  /** The manager they join or move to. */
+  managerKey: string | null;
+}
+
 export interface OrgTree {
   people: Map<string, OrgChartPersonDto>;
+  /** People who join later: dashed cards under their manager, outside every count. */
+  ghosts: Set<string>;
+  flags: Map<string, UpcomingFlag>;
   /** Visible children per person, the `more:` placeholder last. */
   kids: Map<string, string[]>;
   /** Hidden people counted under a visible person. */
@@ -24,11 +37,28 @@ export interface OrgTree {
 
 const byName = (a: OrgChartPersonDto, b: OrgChartPersonDto) => a.displayName.localeCompare(b.displayName);
 
-export function buildTree(chart: OrgChartDto): OrgTree {
+const FLAG_KIND = { Join: "join", Leave: "leave", Move: "move" } as const;
+
+/**
+ * The reporting tree as of the chart's date. With `upcoming` (HR's changes after that date), joiners whose manager is
+ * on the chart come in as ghosts, and the first change coming for each person is flagged.
+ */
+export function buildTree(chart: OrgChartDto, upcoming: OrgChartChangeDto[] = []): OrgTree {
   const people = new Map(chart.people.map((person) => [person.employeeKey, person]));
+  const ghosts = new Set<string>();
+  const flags = new Map<string, UpcomingFlag>();
+  for (const change of [...upcoming].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (flags.has(change.employeeKey)) continue;
+    if (change.kind === "Join") {
+      if (people.has(change.employeeKey) || !change.person || !change.managerKey || !people.has(change.managerKey)) continue;
+      people.set(change.employeeKey, { ...change.person, managerKey: change.managerKey, dottedLineManagerKeys: [] });
+      ghosts.add(change.employeeKey);
+    } else if (!people.has(change.employeeKey)) continue;
+    flags.set(change.employeeKey, { kind: FLAG_KIND[change.kind], date: change.date, managerKey: change.managerKey });
+  }
   const kids = new Map<string, string[]>();
   const roots: OrgChartPersonDto[] = [];
-  for (const person of [...chart.people].sort(byName)) {
+  for (const person of [...people.values()].sort(byName)) {
     const manager = person.managerKey && people.has(person.managerKey) ? person.managerKey : null;
     if (!manager) {
       roots.push(person);
@@ -43,7 +73,7 @@ export function buildTree(chart: OrgChartDto): OrgTree {
     kids.set(fold.parentKey, [...(kids.get(fold.parentKey) ?? []), moreId(fold.parentKey)]);
   }
   roots.sort((a, b) => b.totalCount - a.totalCount || byName(a, b));
-  return { people, kids, folds, roots: roots.map((person) => person.employeeKey), viewerKey: chart.viewerKey };
+  return { people, ghosts, flags, kids, folds, roots: roots.map((person) => person.employeeKey), viewerKey: chart.viewerKey };
 }
 
 export const isLead = (tree: OrgTree, id: string) => !isMore(id) && (tree.kids.get(id)?.length ?? 0) > 0;
@@ -87,8 +117,46 @@ export interface LensValue {
 /** Colour only for five or fewer categories (identity hues); with more, cards carry the label and the legend filters. */
 const MAX_HUES = 5;
 
-export function createLens(tree: OrgTree, lens: LensKey, leadershipLabel: string): (id: string) => LensValue | null {
+export interface LensWords {
+  leadership: string;
+  /** Under a year, 1 to 3 years, 3 to 5 years, 5 years or more. */
+  tenure: [string, string, string, string];
+  /** 1 to 3 direct reports, 4 to 7, 8 or more. */
+  span: [string, string, string];
+}
+
+/** An ordered scale: one hue, stronger with each step (the canvas's tenure ramp). */
+const ramp = (percent: number) => `color-mix(in oklab, var(--identity-1) ${percent}%, var(--card))`;
+const TENURE_STEPS = [30, 55, 80, 100];
+const SPAN_STEPS = [40, 70, 100];
+const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+
+/** Whole years between two yyyy-mm-dd dates, as a fraction. */
+export const yearsBetween = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / YEAR_MS;
+
+/** Ordered lenses list their legend in scale order, categories by name. */
+export const isOrderedLens = (lens: LensKey) => lens === "tenure" || lens === "span";
+
+export function createLens(tree: OrgTree, lens: LensKey, words: LensWords, asOf: string): (id: string) => LensValue | null {
   if (lens === "none") return () => null;
+  if (lens === "tenure") {
+    return (id) => {
+      const start = tree.ghosts.has(id) ? null : tree.people.get(id)?.startDate;
+      if (!start) return null;
+      const years = yearsBetween(start, asOf);
+      const step = years < 1 ? 0 : years < 3 ? 1 : years < 5 ? 2 : 3;
+      return { key: `t${step}`, label: words.tenure[step], color: ramp(TENURE_STEPS[step]!) };
+    };
+  }
+  if (lens === "span") {
+    // Team size is a leader's fact; everyone else stays neutral.
+    return (id) => {
+      const direct = tree.people.get(id)?.directCount ?? 0;
+      if (!direct) return null;
+      const step = direct <= 3 ? 0 : direct <= 7 ? 1 : 2;
+      return { key: `s${step}`, label: words.span[step], color: ramp(SPAN_STEPS[step]!) };
+    };
+  }
   if (lens === "location") {
     return (id) => {
       const place = tree.people.get(id)?.workLocation;
@@ -106,7 +174,7 @@ export function createLens(tree: OrgTree, lens: LensKey, leadershipLabel: string
     const person = tree.people.get(id);
     if (!person?.unit) return null;
     const division = person.unit.divisionId;
-    if (!division) return { key: "lead", label: leadershipLabel, color: colored ? "var(--primary)" : null };
+    if (!division) return { key: "lead", label: words.leadership, color: colored ? "var(--primary)" : null };
     return { key: division, label: divisions.get(division) ?? "", color: colored ? (hue.get(division) ?? null) : null };
   };
 }
@@ -318,4 +386,45 @@ export function stepFrom(tree: OrgTree, id: string, key: "ArrowUp" | "ArrowDown"
   const at = peers.indexOf(id);
   if (at < 0 || peers.length < 2) return null;
   return peers[(at + (key === "ArrowRight" ? 1 : peers.length - 1)) % peers.length] ?? null;
+}
+
+// ── Time (HR) ───────────────────────────────────────────────────────────
+
+const DAY_MS = 24 * 3600 * 1000;
+export const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+export const addDays = (day: string, days: number) => isoDay(Date.parse(day) + days * DAY_MS);
+export const dayIndex = (day: string) => Math.round(Date.parse(day) / DAY_MS);
+export const dayAt = (index: number) => isoDay(index * DAY_MS);
+
+/** The time bar's window, as on the canvas: the 1st of the month nine months back to the end of the month two ahead. */
+export function timeWindow(today: string): { lo: string; hi: string } {
+  const [y, m] = today.split("-").map(Number) as [number, number];
+  return {
+    lo: isoDay(Date.UTC(y, m - 1 - 9, 1)),
+    hi: isoDay(Date.UTC(y, m - 1 + 3, 0)),
+  };
+}
+
+/** Month ticks every other month inside the window, leaving room around Today. */
+export function monthTicks(lo: string, hi: string, today: string): string[] {
+  const ticks: string[] = [];
+  const [y, m] = lo.split("-").map(Number) as [number, number];
+  for (let i = 1; ; i += 2) {
+    const tick = isoDay(Date.UTC(y, m - 1 + i, 1));
+    if (tick > hi) break;
+    if (Math.abs(dayIndex(tick) - dayIndex(today)) > 31) ticks.push(tick);
+  }
+  return ticks;
+}
+
+/** Replay: the company's first day, the 1st of each quarter after it, then today. */
+export function replaySteps(first: string, today: string): string[] {
+  const [y, m] = first.split("-").map(Number) as [number, number];
+  const steps: string[] = [];
+  for (let q = Math.floor((m - 1) / 3) * 3; ; q += 3) {
+    const step = isoDay(Date.UTC(y, q, 1));
+    if (step >= today) break;
+    if (step > first) steps.push(step);
+  }
+  return first < today ? [first, ...steps, today] : [today];
 }

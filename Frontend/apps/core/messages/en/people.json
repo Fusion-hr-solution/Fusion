@@ -234,5 +234,13 @@
     "add": "Add employee",
     "resulting": "Resulting employee",
     "ready": "Ready to add"
+  },
+  "dottedLines": {
+    "title": "Dotted-line managers",
+    "none": "No dotted-line manager",
+    "add": "Add",
+    "end": "End",
+    "failed": "The dotted line could not be saved.",
+    "scheduled": "Scheduled for {date}"
   }
 }

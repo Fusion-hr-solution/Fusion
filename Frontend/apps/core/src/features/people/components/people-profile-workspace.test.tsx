@@ -124,6 +124,7 @@ function profile(overrides: Partial<PeopleProfileDto> = {}): PeopleProfileDto {
     viewedDate: "2026-08-18T00:00:00Z",
     isAsOf: false,
     upcoming: [],
+    dottedLineManagers: [],
     ...overrides,
   };
 }

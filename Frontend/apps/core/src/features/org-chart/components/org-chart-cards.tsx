@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Building2, ChevronDown, ChevronUp, Crosshair, Mail, MapPin, MoreHorizontal, Users } from "lucide-react";
 import type { OrgChartPersonDto } from "@repo/api";
 import { cn } from "@repo/ds";
+import { useFormat } from "@repo/ds/lib/use-format";
 import { isMore, type LensKey, type LensValue, type OrgTree } from "../model/org-chart-model";
 
 export interface CardContext {
@@ -34,9 +35,19 @@ export function OrgAvatar({ id, size, ctx }: { id: string; size: "xxl" | "xl" | 
   );
 }
 
+/** You, then what HR sees coming (Joins, Moves, Leaves with the date), then New. */
 function Badge({ person, ctx }: { person: OrgChartPersonDto; ctx: CardContext }) {
   const t = useTranslations("orgChart.card");
+  const format = useFormat();
   if (person.employeeKey === ctx.tree.viewerKey) return <span className="oc-badge">{t("you")}</span>;
+  const flag = ctx.tree.flags.get(person.employeeKey);
+  if (flag) {
+    return (
+      <span className={cn("oc-badge", flag.kind === "leave" ? "oc-out" : "oc-up")}>
+        {t(flag.kind, { date: format.date(flag.date) })}
+      </span>
+    );
+  }
   if (person.isNew) return <span className="oc-badge oc-new">{t("new")}</span>;
   return null;
 }
@@ -74,7 +85,7 @@ export function LeadCard({ id, ctx }: { id: string; ctx: CardContext }) {
   const t = useTranslations("orgChart.card");
   const person = ctx.tree.people.get(id)!;
   const kids = ctx.tree.kids.get(id) ?? [];
-  const faces = kids.filter((kid) => !isMore(kid));
+  const faces = kids.filter((kid) => !isMore(kid) && !ctx.tree.ghosts.has(kid));
   // Five faces, or four and a count, so the strip never runs into the team figures.
   const shown = faces.length > 5 ? 4 : 5;
   const isFolded = ctx.folded.has(id);

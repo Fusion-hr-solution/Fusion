@@ -234,5 +234,13 @@
     "add": "Ajouter le collaborateur",
     "resulting": "Collaborateur créé",
     "ready": "Prêt à être ajouté"
+  },
+  "dottedLines": {
+    "title": "Managers fonctionnels",
+    "none": "Aucun manager fonctionnel",
+    "add": "Ajouter",
+    "end": "Terminer",
+    "failed": "Le rattachement fonctionnel n'a pas pu être enregistré.",
+    "scheduled": "Prévu pour le {date}"
   }
 }

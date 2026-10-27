@@ -13,7 +13,7 @@
   cursor: grab;
 }
 .oc-stage.oc-panning { cursor: grabbing; }
-.oc-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.oc-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; }
 
 /* Edges */
 .oc-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; transition: opacity var(--duration-reveal); }
@@ -107,3 +107,30 @@
 .oc-world.oc-z-far .oc-lead > *:not(.oc-av), .oc-world.oc-z-far .oc-pc > *, .oc-world.oc-z-far .oc-badge { visibility: hidden; }
 .oc-world.oc-z-far .oc-lead > .oc-av { color: transparent; }
 .oc-world.oc-z-far .oc-you, .oc-world.oc-z-far .oc-sel { background: var(--primary); }
+
+/* HR's time: upcoming changes as badges, joiners as dashed cards */
+.oc-badge.oc-up { background: var(--info-subtle); color: var(--info); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--info) 45%, transparent); }
+.oc-badge.oc-out { background: color-mix(in oklab, var(--destructive) 14%, var(--card)); color: var(--destructive); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive) 40%, transparent); }
+.oc-lead.oc-ghost, .oc-pc.oc-ghost { border-style: dashed; border-color: color-mix(in oklab, var(--info) 55%, var(--oc-line)); }
+/* A card that arrives (a later date, an opened team) fades in where it lands */
+.oc-node { animation: oc-enter 320ms var(--ease-emphasized); }
+@keyframes oc-enter { from { opacity: 0; } }
+
+.oc-timebar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; flex: 1; min-width: 0; max-width: 760px; }
+.oc-timebar svg { width: 14px; height: 14px; }
+.oc-track { position: relative; height: 32px; }
+.oc-track input { position: absolute; inset: 4px 0 auto; width: 100%; margin: 0; accent-color: var(--primary); cursor: pointer; }
+.oc-ticks { position: absolute; inset-inline: 0; top: 21px; font-size: 10.5px; line-height: 1; color: var(--oc-faint, var(--muted-foreground)); }
+.oc-ticks > * { position: absolute; translate: -50% 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+[dir="rtl"] .oc-ticks > * { translate: 50% 0; }
+.oc-ticks .oc-today { color: var(--primary); font-weight: 600; cursor: pointer; }
+.oc-ticks .oc-today:hover { text-decoration: underline; }
+.oc-timeinfo { min-width: 190px; font-size: 12.5px; line-height: 1.3; color: var(--muted-foreground); text-align: end; }
+.oc-timeinfo b { display: block; font-size: 13.5px; font-weight: 600; color: var(--foreground); }
+
+/* Drag to change manager */
+.oc-node.oc-movable { cursor: grab; }
+.oc-node.oc-lifted { opacity: 0.45; }
+.oc-node.oc-drop { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.oc-node.oc-nodrop { cursor: not-allowed; }
+.oc-dragchip { position: absolute; left: 0; top: 0; z-index: 30; display: inline-flex; align-items: center; gap: 8px; max-width: 240px; padding: 6px 12px 6px 6px; pointer-events: none; }
