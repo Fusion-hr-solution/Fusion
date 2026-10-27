@@ -295,7 +295,7 @@ public sealed class OrgChartTests
     {
         var sender = new Mock<ISender>();
         sender.Setup(s => s.Send(It.IsAny<OrgChartQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((OrgChartQuery q, CancellationToken _) => Result.Success(new OrgChartDto(q.AsOf, q.Scope, null, [], [])));
+            .ReturnsAsync((OrgChartQuery q, CancellationToken _) => Result.Success(new OrgChartDto(q.AsOf, q.Scope, null, [], [], [])));
         sender.Setup(s => s.Send(It.IsAny<OrgChartChangesQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<IReadOnlyList<OrgChartChangeDto>>([]));
         return (new OrgChartController(sender.Object, new CoreAccessPolicyService())

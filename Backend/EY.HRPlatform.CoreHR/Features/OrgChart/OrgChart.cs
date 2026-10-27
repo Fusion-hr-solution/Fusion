@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
@@ -14,14 +15,16 @@ namespace EY.HRPlatform.CoreHR.Features.OrgChart;
 /// <summary>
 /// The people org chart as of a date, shaped for the viewer on the server. A Tenant-scope viewer gets everyone;
 /// a DirectReports-scope viewer gets their own chain and branch, with every other branch folded into a count
-/// under the visible person it hangs from.
+/// under the visible person it hangs from. Open roles hang under their manager when the manager is visible: open
+/// ones for everyone, on-hold ones for HR, and only from today on (they are a plan, not history).
 /// </summary>
 public sealed record OrgChartDto(
     DateOnly AsOf,
     string Scope,
     string? ViewerKey,
     IReadOnlyList<OrgChartPersonDto> People,
-    IReadOnlyList<OrgChartFoldDto> Folded);
+    IReadOnlyList<OrgChartFoldDto> Folded,
+    IReadOnlyList<OrgChartOpenRoleDto> OpenRoles);
 
 /// <param name="StartYear">Year the current employment started; null when the hire date is hidden from the viewer.</param>
 /// <param name="StartDate">The full start date, for HR only (the Tenure lens); everyone else gets the year.</param>
@@ -111,7 +114,7 @@ public sealed class OrgChartQueryHandler(
             .GroupBy(r => r.SubjectEmployeeId)
             .ToDictionary(g => g.Key, g => g.Select(r => r.ManagerEmployeeId).Distinct().ToList());
 
-        var units = await LoadUnitsAsync(request.AsOf, cancellationToken);
+        var units = await LoadUnitsAsync(dbContext, request.AsOf, cancellationToken);
 
         // Reporting tree over the whole tenant: counts are the same for every viewer.
         var reports = managerOf.GroupBy(pair => pair.Value)
@@ -190,20 +193,35 @@ public sealed class OrgChartQueryHandler(
                 .ToList()
             : [];
 
+        List<OrgChartOpenRoleDto> openRoles = [];
+        if (request.AsOf >= DateOnly.FromDateTime(DateTime.UtcNow))
+        {
+            var roles = await dbContext.OpenRoles.AsNoTracking()
+                .Where(role => visible.Contains(role.ManagerEmployeeId)
+                    && (role.Status == OpenRoleStatus.Open || request.HrAudience && role.Status == OpenRoleStatus.OnHold))
+                .OrderBy(role => role.CreatedAt)
+                .ToListAsync(cancellationToken);
+            openRoles = roles.Where(role => keyOf.ContainsKey(role.ManagerEmployeeId))
+                .Select(role => new OrgChartOpenRoleDto(role.Id, role.JobTitle, keyOf[role.ManagerEmployeeId],
+                    units.GetValueOrDefault(role.OrgUnitId), role.TargetStartDate, role.Status))
+                .ToList();
+        }
+
         var viewerKey = request.ViewerEmployeeId is { } self && keyOf.TryGetValue(self, out var key) ? key : null;
         return Result.Success(new OrgChartDto(
             request.AsOf,
             request.Scope,
             viewerKey,
             people.OrderBy(p => p.DisplayName, StringComparer.Ordinal).ToList(),
-            folded));
+            folded,
+            openRoles));
     }
 
     /// <summary>
     /// Units as of the date, each with its division: the top-level ancestor under the organization root. A unit whose
     /// Fusion timeline starts after the date (its establishment, not proof it didn't exist) reads as its first state.
     /// </summary>
-    private async Task<Dictionary<Guid, OrgChartUnitDto>> LoadUnitsAsync(DateOnly asOf, CancellationToken cancellationToken)
+    internal static async Task<Dictionary<Guid, OrgChartUnitDto>> LoadUnitsAsync(CoreHRDbContext dbContext, DateOnly asOf, CancellationToken cancellationToken)
     {
         var states = (await dbContext.OrgUnitEffectiveStates.AsNoTracking()
                 .Where(s => s.EffectiveTo == null || asOf < s.EffectiveTo)

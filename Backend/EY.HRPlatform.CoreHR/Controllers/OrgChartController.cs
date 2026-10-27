@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Features.OrgChart;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
@@ -54,6 +55,47 @@ public sealed class OrgChartController(
 
         var result = await sender.Send(new OrgChartChangesQuery(start, end), cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<OrgChartChangeDto>>.Success(result.Value));
+    }
+
+    /// <summary>Adds an open role under a manager: a dashed Hiring card in their line. People admins only.</summary>
+    [HttpPost("open-roles")]
+    [ProducesResponseType(typeof(ApiResponse<OrgChartOpenRoleDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CreateOpenRole([FromBody] OpenRoleRequest request, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User)) return Forbid();
+
+        var result = await sender.Send(new CreateOpenRoleCommand(request, AuditActor()), cancellationToken);
+        return result.IsFailure
+            ? OpenRoleFailure(result.Error)
+            : StatusCode(StatusCodes.Status201Created, ApiResponse<OrgChartOpenRoleDto>.Success(result.Value));
+    }
+
+    /// <summary>Edits an open role: title, manager, unit, target start and status (Filled or Closed take it off the chart).</summary>
+    [HttpPut("open-roles/{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<OrgChartOpenRoleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateOpenRole(Guid id, [FromBody] OpenRoleRequest request, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User)) return Forbid();
+
+        var result = await sender.Send(new UpdateOpenRoleCommand(id, request, AuditActor()), cancellationToken);
+        return result.IsFailure ? OpenRoleFailure(result.Error) : Ok(ApiResponse<OrgChartOpenRoleDto>.Success(result.Value));
+    }
+
+    private IActionResult OpenRoleFailure(EY.HRPlatform.SharedKernel.Results.Error error)
+        => error.Code == OpenRoleErrors.NotFoundCode
+            ? NotFound(ApiResponse.Failure(error.Message))
+            : BadRequest(ApiResponse.Failure(error.Message));
+
+    private string AuditActor()
+    {
+        var id = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
+        var name = User.FindFirstValue(CustomClaimTypes.FullName) ?? User.FindFirstValue(ClaimTypes.Email) ?? "Unknown user";
+        return $"{id}|{name}";
     }
 
     private const int MaxChangeWindowDays = 731;
