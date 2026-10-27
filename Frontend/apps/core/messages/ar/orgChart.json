@@ -1,6 +1,6 @@
 {
   "title": "الهيكل التنظيمي",
-  "meta": "{people, plural, one {شخص واحد} other {# أشخاص}} · {divisions, plural, =0 {بدون أقسام} one {قسم واحد} other {# أقسام}}",
+  "meta": "{people, plural, one {شخص واحد} other {# أشخاص}} · {divisions, plural, =0 {بلا أقسام} one {قسم واحد} other {# أقسام}}{open, plural, =0 {} one { · وظيفة شاغرة واحدة} other { · # وظائف شاغرة}}",
   "views": {
     "label": "العرض",
     "aroundYou": "من حولك",
@@ -44,7 +44,8 @@
     "dotted": "ارتباط وظيفي مع {name}",
     "join": "ينضم في {date}",
     "leave": "يغادر في {date}",
-    "move": "ينتقل في {date}"
+    "move": "ينتقل في {date}",
+    "open": " · <b>{count}</b> شاغرة"
   },
   "panel": {
     "close": "إغلاق",
@@ -66,7 +67,8 @@
       "join": "ينضم في {date}",
       "leave": "آخر يوم {date}",
       "move": "يتبع {manager} اعتبارًا من {date}"
-    }
+    },
+    "addRole": "إضافة وظيفة شاغرة"
   },
   "zoom": {
     "in": "تكبير",
@@ -91,5 +93,47 @@
     "summary": "{people, plural, one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}{coming, plural, =0 {} one { · تغيير قادم} other { · # تغييرات قادمة}}",
     "replay": "إعادة العرض",
     "stop": "إيقاف"
+  },
+  "role": {
+    "hiring": "توظيف",
+    "hiringFrom": "توظيف · من {date}",
+    "onHold": "معلّقة",
+    "kind": "وظيفة شاغرة",
+    "new": "وظيفة شاغرة جديدة",
+    "untitled": "وظيفة جديدة",
+    "inTeam": "في فريق {name}",
+    "close": "إغلاق",
+    "team": "الفريق",
+    "targetStart": "تاريخ البدء المستهدف",
+    "noStart": "غير محدد",
+    "edit": "تعديل الوظيفة",
+    "jobTitle": "المسمى الوظيفي",
+    "reportsTo": "يتبع",
+    "unit": "الوحدة",
+    "optional": "اختياري",
+    "clear": "مسح",
+    "pickDate": "اختر تاريخًا",
+    "statusLabel": "الحالة",
+    "status": {
+      "Open": "مفتوحة",
+      "OnHold": "معلّقة",
+      "Filled": "مشغولة",
+      "Closed": "مغلقة"
+    },
+    "summary": {
+      "open": "يراها الجميع في فريق <b>{name}</b>.",
+      "onHold": "لا يراها إلا الموارد البشرية ما دامت معلّقة.",
+      "leaves": "تخرج من الهيكل عند الحفظ."
+    },
+    "cancel": "إلغاء",
+    "save": "إضافة الوظيفة",
+    "saveEdit": "حفظ التغييرات",
+    "saved": {
+      "added": "أضيفت {title} إلى فريق {name}",
+      "updated": "حُفظت الوظيفة",
+      "filled": "شُغلت {title}",
+      "closed": "أُغلقت {title}"
+    },
+    "failed": "لم تُحفظ الوظيفة."
   }
 }

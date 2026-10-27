@@ -95,6 +95,10 @@
 .oc-pc.oc-more { border-style: dashed; border-color: var(--oc-line-strong); cursor: default; }
 .oc-well { display: grid; place-items: center; width: 46px; height: 46px; flex: none; background: var(--inlay); color: var(--muted-foreground); }
 .oc-well svg { width: 20px; height: 20px; }
+/* An open role: dashed, a briefcase well in the amber tint (the canvas's hire card) */
+.oc-pc.oc-role { border-style: dashed; border-color: var(--oc-line-strong); background: color-mix(in oklab, var(--primary) 3%, var(--card)); }
+.oc-pc.oc-role .oc-well { background: var(--primary-tint); color: var(--primary); }
+.oc-pc.oc-role.oc-draft { border-color: var(--primary); }
 
 /* Zoom tiers: same geometry, less detail */
 .oc-world.oc-z-mid .oc-chips, .oc-world.oc-z-mid .oc-t .oc-m { visibility: hidden; }

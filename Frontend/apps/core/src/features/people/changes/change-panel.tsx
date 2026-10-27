@@ -509,7 +509,7 @@ function toRef(option: ManagerOptionDto): ChangePersonRef {
   return { employeeId: option.employeeId, employeeKey: option.employeeKey, displayName: option.displayName };
 }
 
-function Block({ title, aside, children }: { title?: string; aside?: ReactNode; children: ReactNode }) {
+export function Block({ title, aside, children }: { title?: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <section className="grid gap-2.5 border-t py-3.5 first:border-t-0">
       {title ? (
@@ -597,7 +597,7 @@ function FactRow({
   );
 }
 
-function UnitEditor({ date, value, onChange }: { date: string; value: string; onChange: (unit: { id: string; name: string }) => void }) {
+export function UnitEditor({ date, value, onChange }: { date: string; value: string; onChange: (unit: { id: string; name: string }) => void }) {
   const hierarchy = useOrganizationHierarchy(date);
   const roots = hierarchy.data?.roots ?? [];
   const units = useMemo(() => flattenOrg(roots), [roots]);
@@ -651,7 +651,7 @@ export function DottedMark() {
   );
 }
 
-function Footer({ summary, children }: { summary: ReactNode; children: ReactNode }) {
+export function Footer({ summary, children }: { summary: ReactNode; children: ReactNode }) {
   return (
     <footer className="flex items-center gap-2.5 border-t bg-popover px-[22px] py-3.5">
       <p className="min-w-0 flex-1 type-meta text-muted-foreground">{summary}</p>

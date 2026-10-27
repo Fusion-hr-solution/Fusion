@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OrgChartDto, OrgChartPersonDto } from "@repo/api";
 import {
-  G, buildTree, chainOf, createLens, isMore, layoutChart, litLine, monthTicks, moreId, replaySteps, searchPeople, stepFrom, timeWindow,
+  G, buildTree, chainOf, createLens, isLead, isMore, openRolesOf, parentOf, roleId, layoutChart, litLine, monthTicks, moreId, replaySteps, searchPeople, stepFrom, timeWindow,
   type LensWords,
 } from "./org-chart-model";
 
@@ -23,7 +23,7 @@ function person(key: string, managerKey: string | null, division: string | null 
 
 // Sami leads Amira (who leads Mariam → Aicha, Aymen) and Nour (no reports).
 const chart: OrgChartDto = {
-  asOf: "2026-10-27", scope: "Tenant", viewerKey: "Aicha", folded: [],
+  asOf: "2026-10-27", scope: "Tenant", viewerKey: "Aicha", folded: [], openRoles: [],
   people: [
     person("Sami", null, null), person("Amira", "Sami"), person("Nour", "Sami", "d2"),
     person("Mariam", "Amira"), person("Aicha", "Mariam"), person("Aymen", "Mariam"),
@@ -146,5 +146,20 @@ describe("org chart model", () => {
     expect(monthTicks("2026-01-01", "2026-12-31", "2026-10-27")).toEqual(["2026-02-01", "2026-04-01", "2026-06-01", "2026-08-01", "2026-12-01"]);
     expect(replaySteps("2025-05-07", "2026-01-15")).toEqual(["2025-05-07", "2025-07-01", "2025-10-01", "2026-01-01", "2026-01-15"]);
     expect(replaySteps("2026-10-27", "2026-10-27")).toEqual(["2026-10-27"]);
+  });
+
+  it("hangs open roles under their manager as dashed cards on the spine, making a leader of someone with only roles", () => {
+    const role = (id: string, managerKey: string) => ({ id, jobTitle: "Data Engineer", managerKey, unit: null, targetStartDate: null, status: "Open" as const });
+    const hiring = buildTree({ ...chart, openRoles: [role("r1", "Mariam"), role("r2", "Nour"), role("r3", "Gone")] });
+    expect(hiring.kids.get("Mariam")).toEqual(["Aicha", "Aymen", roleId("r1")]);
+    expect(openRolesOf(hiring, "Mariam")).toEqual([roleId("r1")]);
+    expect(parentOf(hiring, roleId("r2"))).toBe("Nour");
+    // A role whose manager isn't on the chart stays off it.
+    expect(hiring.roles.has(roleId("r3"))).toBe(false);
+    expect(isLead(hiring, "Nour")).toBe(true);
+    expect(isLead(hiring, roleId("r1"))).toBe(false);
+    const layout = layoutChart(hiring, { view: "focus", focus: "Aicha", folded: new Set(), unfolded: new Set() });
+    expect(layout.nodes.get(roleId("r1"))?.kind).toBe("role");
+    expect(layout.edges.some((edge) => edge.from === "Mariam" && edge.to === roleId("r1"))).toBe(true);
   });
 });

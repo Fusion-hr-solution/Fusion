@@ -1,6 +1,6 @@
 {
   "title": "Organigramme",
-  "meta": "{people, plural, one {# personne} other {# personnes}} · {divisions, plural, =0 {aucune division} one {# division} other {# divisions}}",
+  "meta": "{people, plural, one {# personne} other {# personnes}} · {divisions, plural, =0 {aucune division} one {# division} other {# divisions}}{open, plural, =0 {} one { · # poste ouvert} other { · # postes ouverts}}",
   "views": {
     "label": "Vue",
     "aroundYou": "Autour de vous",
@@ -44,7 +44,8 @@
     "dotted": "Lien fonctionnel vers {name}",
     "join": "Arrive le {date}",
     "leave": "Part le {date}",
-    "move": "Change le {date}"
+    "move": "Change le {date}",
+    "open": " · <b>{count}</b> {count, plural, one {ouvert} other {ouverts}}"
   },
   "panel": {
     "close": "Fermer",
@@ -66,7 +67,8 @@
       "join": "Arrive le {date}",
       "leave": "Dernier jour le {date}",
       "move": "Rattaché à {manager} à partir du {date}"
-    }
+    },
+    "addRole": "Ajouter un poste ouvert"
   },
   "zoom": {
     "in": "Zoom avant",
@@ -91,5 +93,47 @@
     "summary": "{people, plural, one {# personne} other {# personnes}}{coming, plural, =0 {} one { · # changement à venir} other { · # changements à venir}}",
     "replay": "Rejouer",
     "stop": "Arrêter"
+  },
+  "role": {
+    "hiring": "Recrutement",
+    "hiringFrom": "Recrutement · dès {date}",
+    "onHold": "En pause",
+    "kind": "Poste ouvert",
+    "new": "Nouveau poste ouvert",
+    "untitled": "Nouveau poste",
+    "inTeam": "Dans l'équipe de {name}",
+    "close": "Fermer",
+    "team": "Équipe",
+    "targetStart": "Arrivée prévue",
+    "noStart": "Non définie",
+    "edit": "Modifier le poste",
+    "jobTitle": "Intitulé du poste",
+    "reportsTo": "Rattaché à",
+    "unit": "Unité",
+    "optional": "Facultatif",
+    "clear": "Effacer",
+    "pickDate": "Choisir une date",
+    "statusLabel": "Statut",
+    "status": {
+      "Open": "Ouvert",
+      "OnHold": "En pause",
+      "Filled": "Pourvu",
+      "Closed": "Fermé"
+    },
+    "summary": {
+      "open": "Tout le monde le voit dans l'équipe de <b>{name}</b>.",
+      "onHold": "Seuls les RH le voient tant qu'il est en pause.",
+      "leaves": "Il quitte l'organigramme à l'enregistrement."
+    },
+    "cancel": "Annuler",
+    "save": "Ajouter le poste",
+    "saveEdit": "Enregistrer",
+    "saved": {
+      "added": "{title} ajouté à l'équipe de {name}",
+      "updated": "Poste enregistré",
+      "filled": "{title} pourvu",
+      "closed": "{title} fermé"
+    },
+    "failed": "Le poste n'a pas été enregistré."
   }
 }

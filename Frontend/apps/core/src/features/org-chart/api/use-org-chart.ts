@@ -2,8 +2,8 @@
 
 import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { coreOrgChartQueryKeys, createCoreOrgChartApi, createPlatformApiClient } from "@repo/api";
-import { keepPreviousData, useApiQuery } from "@repo/api/query";
+import { coreOrgChartQueryKeys, createCoreOrgChartApi, createPlatformApiClient, type OpenRoleRequest } from "@repo/api";
+import { keepPreviousData, useApiMutation, useApiQuery } from "@repo/api/query";
 import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
 
 function useOrgChartApi() {
@@ -47,4 +47,15 @@ export function usePrefetchOrgChart() {
       }),
     [queryClient, api]
   );
+}
+
+/** Add and edit open roles (people admins); the chart refreshes after each. */
+export function useOpenRoleMutations() {
+  const queryClient = useQueryClient();
+  const api = useOrgChartApi();
+  const onSuccess = useCallback(() => void queryClient.invalidateQueries({ queryKey: coreOrgChartQueryKeys.all() }), [queryClient]);
+  return {
+    create: useApiMutation((request: OpenRoleRequest) => api.createOpenRole(request), { onSuccess }),
+    update: useApiMutation(({ id, request }: { id: string; request: OpenRoleRequest }) => api.updateOpenRole(id, request), { onSuccess }),
+  };
 }

@@ -2,11 +2,11 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Building2, ChevronDown, ChevronUp, Crosshair, Mail, MapPin, MoreHorizontal, Users } from "lucide-react";
+import { Briefcase, Building2, ChevronDown, ChevronUp, Crosshair, Mail, MapPin, MoreHorizontal, Users } from "lucide-react";
 import type { OrgChartPersonDto } from "@repo/api";
 import { cn } from "@repo/ds";
 import { useFormat } from "@repo/ds/lib/use-format";
-import { isMore, type LensKey, type LensValue, type OrgTree } from "../model/org-chart-model";
+import { isPlaceholder, openRolesOf, type LensKey, type LensValue, type OrgTree } from "../model/org-chart-model";
 
 export interface CardContext {
   tree: OrgTree;
@@ -85,7 +85,8 @@ export function LeadCard({ id, ctx }: { id: string; ctx: CardContext }) {
   const t = useTranslations("orgChart.card");
   const person = ctx.tree.people.get(id)!;
   const kids = ctx.tree.kids.get(id) ?? [];
-  const faces = kids.filter((kid) => !isMore(kid) && !ctx.tree.ghosts.has(kid));
+  const faces = kids.filter((kid) => !isPlaceholder(kid) && !ctx.tree.ghosts.has(kid));
+  const open = openRolesOf(ctx.tree, id).length;
   // Five faces, or four and a count, so the strip never runs into the team figures.
   const shown = faces.length > 5 ? 4 : 5;
   const isFolded = ctx.folded.has(id);
@@ -117,6 +118,7 @@ export function LeadCard({ id, ctx }: { id: string; ctx: CardContext }) {
           {person.totalCount > person.directCount
             ? t.rich("teamAll", { direct: person.directCount, total: person.totalCount, b: strong })
             : t.rich("team", { direct: person.directCount, b: strong })}
+          {open ? t.rich("open", { count: open, b: strong }) : null}
         </span>
       </div>
       {kids.length ? (
@@ -179,6 +181,24 @@ export function ChainPill({ id, ctx }: { id: string; ctx: CardContext }) {
       <span className="oc-t">
         <b>{person.displayName}</b>
         {person.jobTitle ? <span>{person.jobTitle}</span> : null}
+      </span>
+    </>
+  );
+}
+
+/** An open role: a dashed card with a briefcase well, in its manager's line. */
+export function RoleCard({ id, ctx }: { id: string; ctx: CardContext }) {
+  const t = useTranslations("orgChart.role");
+  const format = useFormat();
+  const role = ctx.tree.roles.get(id)!;
+  const when = role.targetStartDate ? format.parts(role.targetStartDate, { month: "short", year: "numeric" }) : null;
+  return (
+    <>
+      <span className="oc-well rounded-control"><Briefcase /></span>
+      <span className="oc-t">
+        <b>{role.jobTitle}</b>
+        <span>{role.status === "OnHold" ? t("onHold") : when ? t("hiringFrom", { date: when }) : t("hiring")}</span>
+        {role.unit ? <span className="oc-m"><Building2 />{role.unit.name}</span> : null}
       </span>
     </>
   );

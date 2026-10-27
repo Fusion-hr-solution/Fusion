@@ -1,4 +1,4 @@
-import type { OrgChartChangeDto, OrgChartDto, OrgChartPersonDto } from "@repo/api";
+import type { OrgChartChangeDto, OrgChartDto, OrgChartOpenRoleDto, OrgChartPersonDto } from "@repo/api";
 
 // The people org chart's model, ported from the accepted B-126 card canvas (direction C): one card per person;
 // leaders get a portrait card with their team's faces, individual contributors sit in two columns on a spine
@@ -14,6 +14,13 @@ const MORE = "more:";
 export const moreId = (parentKey: string) => `${MORE}${parentKey}`;
 export const isMore = (id: string) => id.startsWith(MORE);
 
+/** An open role: a dashed Hiring card in its manager's line, after the people. */
+const ROLE = "role:";
+export const roleId = (id: string) => `${ROLE}${id}`;
+export const isRole = (id: string) => id.startsWith(ROLE);
+/** Cards that stand for no one yet: placeholders and open roles. */
+export const isPlaceholder = (id: string) => isMore(id) || isRole(id);
+
 /** What HR sees coming for someone after the chart's date: the first upcoming change only. */
 export interface UpcomingFlag {
   kind: "join" | "leave" | "move";
@@ -27,7 +34,9 @@ export interface OrgTree {
   /** People who join later: dashed cards under their manager, outside every count. */
   ghosts: Set<string>;
   flags: Map<string, UpcomingFlag>;
-  /** Visible children per person, the `more:` placeholder last. */
+  /** Open roles on the chart, by node id (`role:<id>`). */
+  roles: Map<string, OrgChartOpenRoleDto>;
+  /** Visible children per person: people, then open roles, the `more:` placeholder last. */
   kids: Map<string, string[]>;
   /** Hidden people counted under a visible person. */
   folds: Map<string, number>;
@@ -66,6 +75,12 @@ export function buildTree(chart: OrgChartDto, upcoming: OrgChartChangeDto[] = []
     }
     kids.set(manager, [...(kids.get(manager) ?? []), person.employeeKey]);
   }
+  const roles = new Map<string, OrgChartOpenRoleDto>();
+  for (const role of chart.openRoles ?? []) {
+    if (!people.has(role.managerKey)) continue;
+    roles.set(roleId(role.id), role);
+    kids.set(role.managerKey, [...(kids.get(role.managerKey) ?? []), roleId(role.id)]);
+  }
   const folds = new Map<string, number>();
   for (const fold of chart.folded) {
     if (!people.has(fold.parentKey)) continue;
@@ -73,13 +88,17 @@ export function buildTree(chart: OrgChartDto, upcoming: OrgChartChangeDto[] = []
     kids.set(fold.parentKey, [...(kids.get(fold.parentKey) ?? []), moreId(fold.parentKey)]);
   }
   roots.sort((a, b) => b.totalCount - a.totalCount || byName(a, b));
-  return { people, ghosts, flags, kids, folds, roots: roots.map((person) => person.employeeKey), viewerKey: chart.viewerKey };
+  return { people, ghosts, flags, roles, kids, folds, roots: roots.map((person) => person.employeeKey), viewerKey: chart.viewerKey };
 }
 
-export const isLead = (tree: OrgTree, id: string) => !isMore(id) && (tree.kids.get(id)?.length ?? 0) > 0;
+export const isLead = (tree: OrgTree, id: string) => !isPlaceholder(id) && (tree.kids.get(id)?.length ?? 0) > 0;
+
+/** A leader's open roles, in their line. */
+export const openRolesOf = (tree: OrgTree, id: string) => (tree.kids.get(id) ?? []).filter(isRole);
 
 export function parentOf(tree: OrgTree, id: string): string | null {
   if (isMore(id)) return id.slice(MORE.length);
+  if (isRole(id)) return tree.roles.get(id)?.managerKey ?? null;
   const manager = tree.people.get(id)?.managerKey ?? null;
   return manager && tree.people.has(manager) ? manager : null;
 }
@@ -184,7 +203,7 @@ export function createLens(tree: OrgTree, lens: LensKey, words: LensWords, asOf:
 /** Card and gap sizes from the canvas: lead 248×214 (the top's 292×240), person 252×84, spine gap 52. */
 export const G = { LW: 248, LH: 214, RW: 292, RH: 240, PW: 252, PH: 84, SP: 52, RG: 16, VG: 70, HG: 40, TOP: 48, CHAIN: 70 };
 
-export type NodeKind = "lead" | "pc" | "chain" | "more";
+export type NodeKind = "lead" | "pc" | "chain" | "more" | "role";
 export interface LayoutNode { x: number; y: number; w: number; h: number; kind: NodeKind; top: boolean }
 export interface LayoutEdge { from: string; to: string; type: "down" | "fish" | "tree"; sx: number; sy: number; side?: "l" | "r" }
 export interface Layout { nodes: Map<string, LayoutNode>; edges: LayoutEdge[]; folded: Set<string>; root: string | null }
@@ -246,7 +265,7 @@ export function layoutChart(tree: OrgTree, state: LayoutState): Layout {
       const col = i % 2;
       const px = one ? cx - G.PW / 2 : col === 0 ? cx - G.SP / 2 - G.PW : cx + G.SP / 2;
       const py = first + Math.floor(i / 2) * (G.PH + G.RG);
-      nodes.set(kid, { x: px, y: py, w: G.PW, h: G.PH, kind: isMore(kid) ? "more" : "pc", top: false });
+      nodes.set(kid, { x: px, y: py, w: G.PW, h: G.PH, kind: isMore(kid) ? "more" : isRole(kid) ? "role" : "pc", top: false });
       edges.push(one
         ? { from: id, to: kid, type: "down", sx: cx, sy: y + h }
         : { from: id, to: kid, type: "fish", sx: cx, sy: y + h, side: col === 0 ? "l" : "r" });
@@ -380,7 +399,7 @@ export function searchPeople(tree: OrgTree, query: string, limit = 7): OrgChartP
 /** Arrow keys move between manager (up), reports (down) and peers (left, right). */
 export function stepFrom(tree: OrgTree, id: string, key: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight"): string | null {
   if (key === "ArrowUp") return parentOf(tree, id);
-  if (key === "ArrowDown") return (tree.kids.get(id) ?? []).find((kid) => !isMore(kid)) ?? null;
+  if (key === "ArrowDown") return isRole(id) ? null : (tree.kids.get(id) ?? []).find((kid) => !isMore(kid)) ?? null;
   const parent = parentOf(tree, id);
   const peers = (parent ? (tree.kids.get(parent) ?? []) : tree.roots).filter((kid) => !isMore(kid));
   const at = peers.indexOf(id);

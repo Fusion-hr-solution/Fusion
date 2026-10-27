@@ -47,6 +47,31 @@ export interface OrgChartDto {
   viewerKey: string | null;
   people: OrgChartPersonDto[];
   folded: OrgChartFoldDto[];
+  /** Open roles under visible managers, from today on: Open for everyone, On hold for HR. */
+  openRoles: OrgChartOpenRoleDto[];
+}
+
+/** Filled and Closed take a role off the chart. */
+export type OpenRoleStatus = "Open" | "OnHold" | "Filled" | "Closed";
+
+/** A role planned in a manager's line before anyone holds it: a dashed Hiring card. */
+export interface OrgChartOpenRoleDto {
+  id: string;
+  jobTitle: string;
+  managerKey: string;
+  unit: OrgChartUnitDto | null;
+  /** yyyy-mm-dd; null when not set. */
+  targetStartDate: string | null;
+  status: OpenRoleStatus;
+}
+
+/** `POST /api/corehr/org-chart/open-roles` and `PUT …/{id}` (people admins). A new role is Open or OnHold. */
+export interface OpenRoleRequest {
+  jobTitle: string;
+  managerKey: string;
+  orgUnitId: string;
+  targetStartDate?: string | null;
+  status?: OpenRoleStatus;
 }
 
 export type OrgChartChangeKind = "Join" | "Leave" | "Move";
@@ -65,6 +90,8 @@ export interface OrgChartChangeDto {
 export const coreOrgChartPaths = {
   chart: () => "/corehr/org-chart",
   changes: () => "/corehr/org-chart/changes",
+  openRoles: () => "/corehr/org-chart/open-roles",
+  openRole: (id: string) => `/corehr/org-chart/open-roles/${encodeURIComponent(id)}`,
 } as const;
 
 export const coreOrgChartQueryKeys = {
@@ -80,6 +107,8 @@ export function createCoreOrgChartApi(client: ApiClient) {
     /** `GET /api/corehr/org-chart/changes`: HR only, both days included, two years at most. */
     changes: (from: string, to: string, signal?: AbortSignal) =>
       client.get<OrgChartChangeDto[]>(coreOrgChartPaths.changes(), { params: { from, to }, signal }),
+    createOpenRole: (request: OpenRoleRequest) => client.post<OrgChartOpenRoleDto>(coreOrgChartPaths.openRoles(), request),
+    updateOpenRole: (id: string, request: OpenRoleRequest) => client.put<OrgChartOpenRoleDto>(coreOrgChartPaths.openRole(id), request),
   };
 }
 

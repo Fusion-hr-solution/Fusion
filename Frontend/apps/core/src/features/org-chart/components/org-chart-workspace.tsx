@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowLeftRight, Maximize, Minus, Play, Plus, Search, Square, X } from "lucide-react";
-import type { OrgChartDto, OrgChartPersonDto, WorkforceChangeDto } from "@repo/api";
+import { AlertTriangle, ArrowLeftRight, Briefcase, Maximize, Minus, Play, Plus, Search, Square, X } from "lucide-react";
+import type { ChangePersonRef, OrgChartDto, OrgChartOpenRoleDto, OrgChartPersonDto, WorkforceChangeDto } from "@repo/api";
 import {
   canAccessCoreOrgChart,
   canAccessCorePeople,
@@ -53,12 +53,15 @@ import {
   isInBranchOf,
   isMore,
   isOrderedLens,
+  isPlaceholder,
+  isRole,
   isoDay,
   layoutChart,
   litLine,
   monthTicks,
   parentOf,
   replaySteps,
+  roleId,
   searchPeople,
   stepFrom,
   timeWindow,
@@ -69,7 +72,8 @@ import {
   type OrgTree,
   type OrgView,
 } from "../model/org-chart-model";
-import { ChainPill, LeadCard, MoreCard, OrgAvatar, PersonCard, type CardContext } from "./org-chart-cards";
+import { ChainPill, LeadCard, MoreCard, OrgAvatar, PersonCard, RoleCard, type CardContext } from "./org-chart-cards";
+import { OpenRolePanel, type OpenRoleDraft } from "./open-role-panel";
 import { ChangePanel, type ChangeDraft, type ChangeKind } from "@/features/people/changes/change-panel";
 import { ComingUpCard } from "@/features/people/changes/coming-up";
 import { useChangeRights, useUpcomingChanges } from "@/features/people/changes/use-changes";
@@ -79,6 +83,10 @@ const CHANGE_PANEL_WIDTH = 452;
 
 /** A change open in the panel slot: who, which kind, and (from a drop) the new manager, or the change being edited. */
 type OpenChange = { id: string; kind: ChangeKind; managerKey: string | null; editing: WorkforceChangeDto | null };
+/** An open role in the panel slot: a new one under a manager, or one being edited. */
+type OpenRoleEdit = { editing: OrgChartOpenRoleDto | null; manager: ChangePersonRef; unit: { id: string; name: string } | null };
+/** The dashed card a new role previews as, until it is saved. */
+const DRAFT_ROLE = "draft";
 const SETTLE_MS = 470;
 /** Replay holds each quarter long enough for the cards to settle. */
 const REPLAY_STEP_MS = 650;
@@ -190,7 +198,25 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   const records = useUpcomingChanges(rights.seeComing && hr);
   const [change, setChange] = useState<OpenChange | null>(null);
   const [draft, setDraft] = useState<ChangeDraft | null>(null);
+  const [roleEdit, setRoleEdit] = useState<OpenRoleEdit | null>(null);
+  const [roleDraft, setRoleDraft] = useState<OpenRoleDraft | null>(null);
+  const withRoleDraft = useMemo(() => {
+    if (!roleEdit || !roleDraft) return data;
+    const id = roleEdit.editing?.id ?? DRAFT_ROLE;
+    const shown = roleDraft.status === "Open" || roleDraft.status === "OnHold";
+    const card: OrgChartOpenRoleDto = {
+      id,
+      jobTitle: roleDraft.jobTitle || t("role.untitled"),
+      managerKey: roleDraft.managerKey,
+      unit: roleDraft.unitName ? { id: "", name: roleDraft.unitName, divisionId: null, divisionName: null } : null,
+      targetStartDate: roleDraft.targetStartDate,
+      status: roleDraft.status,
+    };
+    const others = data.openRoles.filter((role) => role.id !== id);
+    return { ...data, openRoles: shown ? [...others, card] : others };
+  }, [data, roleEdit, roleDraft, t]);
   const previewed = useMemo(() => {
+    const data = withRoleDraft;
     if (!change || !draft) return data;
     const subject = data.people.find((person) => person.employeeKey === change.id);
     if (!subject || draft.managerKey === subject.managerKey && !draft.teamManagerKey) return data;
@@ -201,7 +227,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
           : draft.teamManagerKey && person.managerKey === change.id ? { ...person, managerKey: draft.teamManagerKey }
           : person),
     };
-  }, [data, change, draft]);
+  }, [withRoleDraft, change, draft]);
   const tree = useMemo(() => buildTree(previewed, upcoming ?? []), [previewed, upcoming]);
 
   const requested = params.get("focus");
@@ -258,8 +284,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
 
   const viewport = useCallback(() => {
     const rect = stageRef.current?.getBoundingClientRect();
-    return { width: rect?.width ?? 1200, height: rect?.height ?? 700, panel: change ? CHANGE_PANEL_WIDTH : selected ? PANEL_WIDTH : 0 };
-  }, [selected, change]);
+    return { width: rect?.width ?? 1200, height: rect?.height ?? 700, panel: change || roleEdit ? CHANGE_PANEL_WIDTH : selected ? PANEL_WIDTH : 0 };
+  }, [selected, change, roleEdit]);
 
   const zoomBy = useCallback((factor: number, cx?: number, cy?: number) => {
     const v = viewport();
@@ -389,7 +415,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
     setAnimate(!still);
     setFitRequest(fit);
   };
-  const centreOn = (id: string) => {
+  const centreOn = (target: string) => {
+    const id = isRole(target) ? parentOf(tree, target) ?? target : target;
     setView("focus");
     setFocus(id);
     setSelected(id);
@@ -398,7 +425,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   };
   const select = (id: string) => {
     setSelected(id);
-    setLit(view === "company" ? id : null);
+    setLit(view === "company" ? (isRole(id) ? parentOf(tree, id) : id) : null);
     setAnimate(false);
   };
   const goTo = (id: string) => {
@@ -539,6 +566,28 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   }, [layout, lensOf, lensKey]);
 
   const divisions = useMemo(() => new Set(data.people.map((p) => p.unit?.divisionId).filter(Boolean)).size, [data]);
+  const openCount = data.openRoles.filter((role) => role.status === "Open").length;
+  /** HR who manage people add and edit open roles, on today's chart or later. */
+  const managesRoles = rights.people && date >= today && !replaying;
+  const closeRole = () => { setRoleEdit(null); setRoleDraft(null); };
+  const addRoleUnder = (person: OrgChartPersonDto) => {
+    setSelected(null);
+    setChange(null);
+    setRoleEdit({
+      editing: null,
+      manager: { employeeId: "", employeeKey: person.employeeKey, displayName: person.displayName },
+      unit: person.unit ? { id: person.unit.id, name: person.unit.name } : null,
+    });
+  };
+  const editRole = (role: OrgChartOpenRoleDto) => {
+    const manager = tree.people.get(role.managerKey);
+    setSelected(null);
+    setRoleEdit({
+      editing: role,
+      manager: { employeeId: "", employeeKey: role.managerKey, displayName: manager?.displayName ?? "" },
+      unit: role.unit ? { id: role.unit.id, name: role.unit.name } : null,
+    });
+  };
   const focusPerson = focus ? tree.people.get(focus) : undefined;
   const aroundLabel = !focus || focus === tree.viewerKey ? t("views.aroundYou") : t("views.aroundName", { name: focusPerson?.displayName.split(" ")[0] ?? "" });
   const bounds = boundsOf(layout.nodes);
@@ -553,7 +602,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   return (
     <Frame
       title={t("title")}
-      description={t("meta", { people: data.people.length, divisions })}
+      description={t("meta", { people: data.people.length, divisions, open: openCount })}
       actions={
         <ToggleGroup
           type="single"
@@ -662,15 +711,15 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
             {edgesShown ? <Edges tree={tree} layout={layout} lit={litIds} /> : null}
           </svg>
           {[...layout.nodes].map(([id, node]) => {
-            const lens = isMore(id) ? null : lensOf(id);
+            const lens = isPlaceholder(id) ? null : lensOf(id);
             const isChain = node.kind === "chain";
-            const label = isMore(id) ? undefined : tree.people.get(id)?.displayName;
+            const label = isMore(id) ? undefined : isRole(id) ? tree.roles.get(id)?.jobTitle : tree.people.get(id)?.displayName;
             const ghost = tree.ghosts.has(id);
             return (
               <div
                 key={id}
                 data-oc-id={id}
-                data-oc-drag={movable && !isChain && !isMore(id) && !ghost ? "" : undefined}
+                data-oc-drag={movable && !isChain && !isPlaceholder(id) && !ghost ? "" : undefined}
                 role={isMore(id) ? undefined : "button"}
                 tabIndex={isMore(id) ? -1 : 0}
                 aria-label={label}
@@ -682,14 +731,16 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
                   node.kind === "lead" ? cn("oc-lead rounded-surface", node.top && "oc-top") : "oc-pc rounded-surface",
                   isChain && "oc-chain",
                   node.kind === "more" && "oc-more",
+                  node.kind === "role" && "oc-role",
+                  roleEdit && id === roleId(roleEdit.editing?.id ?? DRAFT_ROLE) && "oc-draft",
                   id === tree.viewerKey && !isChain && "oc-you",
                   selected === id && "oc-sel",
                   ghost && "oc-ghost",
-                  movable && !isChain && !isMore(id) && !ghost && "oc-movable",
+                  movable && !isChain && !isPlaceholder(id) && !ghost && "oc-movable",
                   drag?.id === id && "oc-lifted",
                   change && draft && change.id === id && "oc-preview",
                   drag && drag.over === id && (drag.target === id ? "oc-drop" : "oc-nodrop"),
-                  filter && (!lens || lens.key !== filter) && "oc-dim",
+                  filter && !isRole(id) && (!lens || lens.key !== filter) && "oc-dim",
                 )}
                 style={{
                   transform: `translate(${node.x}px, ${node.y}px)`,
@@ -700,6 +751,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
               >
                 {node.kind === "lead" ? <LeadCard id={id} ctx={ctx} />
                   : node.kind === "more" ? <MoreCard id={id} ctx={ctx} />
+                  : node.kind === "role" ? <RoleCard id={id} ctx={ctx} />
                   : isChain ? <ChainPill id={id} ctx={ctx} />
                   : <PersonCard id={id} ctx={ctx} />}
               </div>
@@ -747,7 +799,23 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
           <button type="button" aria-label={t("zoom.fit")} onClick={() => flyTo(fitTo(boundsOf(layout.nodes), viewport()))} className="grid h-8 w-[34px] place-items-center border-t text-muted-foreground hover:bg-inlay hover:text-foreground"><Maximize className="size-4" /></button>
         </div>
 
-        {change ? (
+        {roleEdit ? (
+          <aside
+            data-oc-overlay
+            aria-label={roleEdit.editing?.jobTitle ?? t("role.new")}
+            className="absolute inset-y-3 end-3 z-20 flex cursor-default flex-col overflow-hidden rounded-surface border bg-popover shadow-overlay"
+            style={{ width: CHANGE_PANEL_WIDTH }}
+          >
+            <OpenRolePanel
+              key={roleEdit.editing?.id ?? `new-${roleEdit.manager.employeeKey}`}
+              editing={roleEdit.editing}
+              manager={roleEdit.manager}
+              unit={roleEdit.unit}
+              onDraft={setRoleDraft}
+              onClose={closeRole}
+            />
+          </aside>
+        ) : change ? (
           <aside
             data-oc-overlay
             aria-label={tree.people.get(change.id)?.displayName}
@@ -764,6 +832,15 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
               onClose={() => { setChange(null); setDraft(null); }}
             />
           </aside>
+        ) : selected && tree.roles.has(selected) ? (
+          <RolePanel
+            role={tree.roles.get(selected)!}
+            tree={tree}
+            canEdit={managesRoles}
+            onEdit={editRole}
+            onClose={() => { setSelected(null); setLit(null); setAnimate(false); }}
+            onGoTo={goTo}
+          />
         ) : selected && tree.people.has(selected) ? (
           <PersonPanel
             person={tree.people.get(selected)!}
@@ -774,6 +851,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
             coming={(records.data ?? []).filter((item) => item.person.employeeKey === selected)}
             canChangeLines={movable}
             canChangeAll={rights.people}
+            canAddRole={managesRoles && !tree.ghosts.has(selected)}
+            onAddRole={() => addRoleUnder(tree.people.get(selected)!)}
             onChangeJob={() => setChange({ id: selected, kind: "job", managerKey: null, editing: null })}
             onEdit={(item) => setChange({ id: selected, kind: item.kind === "EndEmployment" ? "end" : item.kind === "Join" ? "start" : "job", managerKey: null, editing: item })}
             onClose={() => { setSelected(null); setLit(null); setAnimate(false); }}
@@ -843,7 +922,7 @@ function Edges({ tree, layout, lit }: { tree: OrgTree; layout: ReturnType<typeof
     const to = layout.nodes.get(edge.to);
     if (!to) continue;
     const isLit = lit.has(edge.to) && lit.has(edge.from);
-    const dashed = isMore(edge.to) || tree.ghosts.has(edge.to);
+    const dashed = isPlaceholder(edge.to) || tree.ghosts.has(edge.to);
     paths.push({ key: `${edge.from}>${edge.to}`, d: edgePath(edge, to), className: isLit ? "oc-lit" : dashed ? "oc-dash" : undefined });
   }
   for (const [id, person] of tree.people) {
@@ -860,7 +939,7 @@ function Edges({ tree, layout, lit }: { tree: OrgTree; layout: ReturnType<typeof
 }
 
 function PersonPanel({
-  person, tree, ctx, showCentre, profileHref, coming, canChangeLines, canChangeAll, onChangeJob, onEdit, onClose, onGoTo, onCentre,
+  person, tree, ctx, showCentre, profileHref, coming, canChangeLines, canChangeAll, canAddRole, onAddRole, onChangeJob, onEdit, onClose, onGoTo, onCentre,
 }: {
   person: OrgChartPersonDto;
   tree: OrgTree;
@@ -871,6 +950,8 @@ function PersonPanel({
   coming: WorkforceChangeDto[];
   canChangeLines: boolean;
   canChangeAll: boolean;
+  canAddRole: boolean;
+  onAddRole: () => void;
   onChangeJob: () => void;
   onEdit: (change: WorkforceChangeDto) => void;
   onClose: () => void;
@@ -948,7 +1029,7 @@ function PersonPanel({
         {person.startYear ? fact(t("since"), String(person.startYear)) : null}
         {person.workEmail ? fact(t("email"), person.workEmail) : null}
       </dl>
-      {showCentre || profileHref || canChangeLines ? (
+      {showCentre || profileHref || canChangeLines || canAddRole ? (
         <div className="flex flex-wrap gap-2">
           {showCentre ? <Button variant="outline" size="sm" onClick={() => onCentre(person.employeeKey)}>{t("centre")}</Button> : null}
           {profileHref ? <Button asChild variant="outline" size="sm"><Link href={profileHref}>{t("openProfile")}</Link></Button> : null}
@@ -957,6 +1038,65 @@ function PersonPanel({
               <ArrowLeftRight className="size-3.5" /> {canChangeAll ? tc("menu.changeJob") : tc("menu.changeManager")}
             </Button>
           ) : null}
+          {canAddRole ? (
+            <Button variant="outline" size="sm" onClick={onAddRole}>
+              <Briefcase className="size-3.5" /> {t("addRole")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
+/** An open role: what it is, whose team, where, and when; people admins edit it. */
+function RolePanel({
+  role, tree, canEdit, onEdit, onClose, onGoTo,
+}: {
+  role: OrgChartOpenRoleDto;
+  tree: OrgTree;
+  canEdit: boolean;
+  onEdit: (role: OrgChartOpenRoleDto) => void;
+  onClose: () => void;
+  onGoTo: (id: string) => void;
+}) {
+  const t = useTranslations("orgChart");
+  const format = useFormat();
+  const manager = tree.people.get(role.managerKey);
+  const fact = (label: string, value: React.ReactNode) => (
+    <div className="grid grid-cols-[96px_1fr] gap-2.5 border-b py-2.5 text-sm">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words">{value}</dd>
+    </div>
+  );
+  return (
+    <aside
+      data-oc-overlay
+      aria-label={role.jobTitle}
+      className="absolute inset-y-3 end-3 z-20 flex w-[320px] cursor-default flex-col gap-4 overflow-auto rounded-surface border bg-popover p-[18px] shadow-overlay"
+    >
+      <Button variant="ghost" size="icon-sm" aria-label={t("panel.close")} onClick={onClose} className="absolute end-3 top-3">
+        <X className="size-4" />
+      </Button>
+      <div className="grid gap-2.5">
+        <span className="grid size-[52px] place-items-center rounded-control bg-primary-tint text-primary"><Briefcase className="size-6" /></span>
+        <div>
+          <h2 className="type-panel-title">{role.jobTitle}</h2>
+          <p className="type-body-secondary">{role.status === "OnHold" ? t("role.onHold") : t("role.kind")}</p>
+        </div>
+      </div>
+      <dl className="grid border-t">
+        {fact(t("role.team"), manager ? (
+          <button type="button" className="text-start font-semibold hover:underline" onClick={() => onGoTo(manager.employeeKey)}>{manager.displayName}</button>
+        ) : null)}
+        {role.unit ? fact(t("panel.unit"), role.unit.name) : null}
+        {fact(t("role.targetStart"), role.targetStartDate
+          ? format.date(role.targetStartDate, { year: "always" })
+          : <span className="text-muted-foreground">{t("role.noStart")}</span>)}
+      </dl>
+      {canEdit ? (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => onEdit(role)}>{t("role.edit")}</Button>
         </div>
       ) : null}
     </aside>

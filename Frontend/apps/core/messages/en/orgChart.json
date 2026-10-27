@@ -1,6 +1,6 @@
 {
   "title": "Org chart",
-  "meta": "{people, plural, one {# person} other {# people}} · {divisions, plural, =0 {no divisions} one {# division} other {# divisions}}",
+  "meta": "{people, plural, one {# person} other {# people}} · {divisions, plural, =0 {no divisions} one {# division} other {# divisions}}{open, plural, =0 {} one { · # open role} other { · # open roles}}",
   "views": {
     "label": "View",
     "aroundYou": "Around you",
@@ -44,7 +44,8 @@
     "dotted": "Dotted line to {name}",
     "join": "Joins {date}",
     "leave": "Leaves {date}",
-    "move": "Moves {date}"
+    "move": "Moves {date}",
+    "open": " · <b>{count}</b> open"
   },
   "panel": {
     "close": "Close",
@@ -66,7 +67,8 @@
       "join": "Joins on {date}",
       "leave": "Last day {date}",
       "move": "Reports to {manager} from {date}"
-    }
+    },
+    "addRole": "Add open role"
   },
   "zoom": {
     "in": "Zoom in",
@@ -91,5 +93,47 @@
     "summary": "{people, plural, one {# person} other {# people}}{coming, plural, =0 {} one { · # change coming} other { · # changes coming}}",
     "replay": "Replay",
     "stop": "Stop"
+  },
+  "role": {
+    "hiring": "Hiring",
+    "hiringFrom": "Hiring · from {date}",
+    "onHold": "On hold",
+    "kind": "Open role",
+    "new": "New open role",
+    "untitled": "New role",
+    "inTeam": "In {name}'s team",
+    "close": "Close",
+    "team": "Team",
+    "targetStart": "Target start",
+    "noStart": "Not set",
+    "edit": "Edit open role",
+    "jobTitle": "Job title",
+    "reportsTo": "Reports to",
+    "unit": "Unit",
+    "optional": "Optional",
+    "clear": "Clear",
+    "pickDate": "Pick a date",
+    "statusLabel": "Status",
+    "status": {
+      "Open": "Open",
+      "OnHold": "On hold",
+      "Filled": "Filled",
+      "Closed": "Closed"
+    },
+    "summary": {
+      "open": "Everyone sees it in <b>{name}</b>'s line.",
+      "onHold": "Only HR sees it while it's on hold.",
+      "leaves": "It leaves the chart when you save."
+    },
+    "cancel": "Cancel",
+    "save": "Add open role",
+    "saveEdit": "Save changes",
+    "saved": {
+      "added": "{title} added to {name}'s team",
+      "updated": "Open role saved",
+      "filled": "{title} marked filled",
+      "closed": "{title} closed"
+    },
+    "failed": "The open role wasn't saved."
   }
 }
