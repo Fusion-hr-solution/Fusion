@@ -8,6 +8,8 @@ using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.People;
 using EY.HRPlatform.CoreHR.Features.People.Changes;
 using EY.HRPlatform.CoreHR.Features.Security;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Infrastructure.Photos;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
@@ -87,11 +89,15 @@ public sealed class PeopleProfileTabsTests : IDisposable
         => new PeoplePersonalQueryHandler(Db(tenant ?? TenantA)).Handle(new PeoplePersonalQuery(key, viewer), default);
 
     private async Task<EY.HRPlatform.SharedKernel.Results.Result<PeoplePersonalDto>> UpdateAsync(
-        string key, PeopleViewer viewer, UpdatePersonalRequest body, Guid? tenant = null, uint? version = null)
+        string key, PeopleViewer viewer, UpdatePersonalRequest body, Guid? tenant = null, uint? version = null,
+        SelfServiceSettings? selfService = null)
     {
         var db = Db(tenant ?? TenantA);
         var current = await new PeoplePersonalQueryHandler(db).Handle(new PeoplePersonalQuery(key, PeopleAdmin(Guid.Empty)), default);
-        return await new UpdatePeoplePersonalCommandHandler(db, TestTenantContext.WithTenant(tenant ?? TenantA))
+        var settings = new Mock<ITenantSettingsReadService>();
+        settings.Setup(item => item.GetCurrentAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TenantSettingsDto { SelfService = selfService ?? new SelfServiceSettings() });
+        return await new UpdatePeoplePersonalCommandHandler(db, TestTenantContext.WithTenant(tenant ?? TenantA), settings.Object)
             .Handle(new UpdatePeoplePersonalCommand(key, viewer, version ?? (current.IsSuccess ? current.Value.Version : 0), body, "test|Tester"), default);
     }
 
@@ -200,6 +206,23 @@ public sealed class PeopleProfileTabsTests : IDisposable
         Assert.Equal(PeopleAccess.ForbiddenCode, (await UpdateAsync(_nourKey, selfWithoutUpdate, Body())).Error.Code);
 
         Assert.True((await UpdateAsync(_nourKey, PeopleAdmin(_amira), Body())).IsSuccess);
+    }
+
+    [Fact]
+    public async Task The_companys_self_service_settings_bind_the_person_but_not_hr()
+    {
+        await SeedAsync();
+        var locked = new SelfServiceSettings(CanEditPreferredName: false, CanEditPhone: false);
+        var name = await UpdateAsync(_nourKey, Colleague(_nour), Body(), selfService: locked with { CanEditPhone = true });
+        Assert.Equal("Your company doesn't let you change your preferred name.", name.Error.Message);
+        var mobile = await UpdateAsync(_nourKey, Colleague(_nour), Body(), selfService: locked with { CanEditPreferredName = true });
+        Assert.Equal("Your company doesn't let you change your mobile.", mobile.Error.Message);
+
+        // Leaving the locked fields as they are, the rest still saves.
+        var rest = Body() with { PreferredName = null, Mobile = " +216 20 000 000 " };
+        Assert.True((await UpdateAsync(_nourKey, Colleague(_nour), rest, selfService: locked)).IsSuccess);
+
+        Assert.True((await UpdateAsync(_nourKey, PeopleAdmin(_amira), Body(), selfService: locked)).IsSuccess);
     }
 
     [Fact]

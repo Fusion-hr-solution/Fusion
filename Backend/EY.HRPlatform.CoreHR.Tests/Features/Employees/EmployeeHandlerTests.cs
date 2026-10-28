@@ -2,7 +2,6 @@ using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
-using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateOwnEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
@@ -640,81 +639,6 @@ public class EmployeeHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("Employee.UpdateManagerRequiresDedicatedAction", result.Error.Code);
-    }
-
-    #endregion
-
-    #region UpdateOwnEmployeeProfileCommandHandler Tests
-
-    [Fact]
-    public async Task UpdateOwnEmployeeProfile_WithPreferredName_UpdatesEmployee()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
-        seedContext.Employees.Add(employee);
-        await seedContext.SaveChangesAsync();
-        var version = employee.Version;
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateOwnEmployeeProfileCommandHandler(context);
-
-        var result = await handler.Handle(
-            new UpdateOwnEmployeeProfileCommand(employee.Id, version, "Sally"),
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-
-        var updated = await context.Employees.IgnoreQueryFilters().FirstAsync(e => e.Id == employee.Id);
-        Assert.Equal("Sally", updated.PreferredName);
-    }
-
-    [Fact]
-    public async Task UpdateOwnEmployeeProfile_WithWhitespacePreferredName_ClearsValue()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
-        employee.UpdatePreferredName("Sally");
-        seedContext.Employees.Add(employee);
-        await seedContext.SaveChangesAsync();
-        var version = employee.Version;
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateOwnEmployeeProfileCommandHandler(context);
-
-        var result = await handler.Handle(
-            new UpdateOwnEmployeeProfileCommand(employee.Id, version, "   "),
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-
-        var updated = await context.Employees.IgnoreQueryFilters().FirstAsync(e => e.Id == employee.Id);
-        Assert.Null(updated.PreferredName);
-    }
-
-    [Fact]
-    public async Task UpdateOwnEmployeeProfile_WithStaleVersion_ThrowsConcurrencyException()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
-        seedContext.Employees.Add(employee);
-        await seedContext.SaveChangesAsync();
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateOwnEmployeeProfileCommandHandler(context);
-
-        await Assert.ThrowsAsync<ConcurrencyException>(() =>
-            handler.Handle(
-                new UpdateOwnEmployeeProfileCommand(employee.Id, 999, "Sally"),
-                CancellationToken.None));
     }
 
     #endregion

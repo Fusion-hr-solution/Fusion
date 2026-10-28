@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Multitenancy;
@@ -121,9 +122,15 @@ public sealed class PeoplePersonalQueryHandler(CoreHRDbContext dbContext)
     }
 }
 
-public sealed class UpdatePeoplePersonalCommandHandler(CoreHRDbContext dbContext, ITenantContext tenantContext)
+public sealed class UpdatePeoplePersonalCommandHandler(
+    CoreHRDbContext dbContext,
+    ITenantContext tenantContext,
+    ITenantSettingsReadService? tenantSettingsReadService = null)
     : ICommandHandler<UpdatePeoplePersonalCommand, Result<PeoplePersonalDto>>
 {
+    private readonly ITenantSettingsReadService tenantSettingsReader =
+        tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
+
     public async Task<Result<PeoplePersonalDto>> Handle(UpdatePeoplePersonalCommand command, CancellationToken cancellationToken)
     {
         var employee = await PersonalSupport.FindAsync(dbContext, command.EmployeeKey, tracked: true, cancellationToken);
@@ -137,6 +144,16 @@ public sealed class UpdatePeoplePersonalCommandHandler(CoreHRDbContext dbContext
             throw new ConcurrencyException("Employee", employee.Id);
 
         var body = command.Request;
+        // The company's self-service settings bind the person, never HR.
+        if (!command.Viewer.ManagesPeople)
+        {
+            var selfService = (await tenantSettingsReader.GetCurrentAsync(cancellationToken)).SelfService;
+            if (!selfService.CanEditPreferredName && Blank(body.PreferredName) != employee.PreferredName)
+                return Result.Failure<PeoplePersonalDto>(PeopleAccess.Forbidden("Your company doesn't let you change your preferred name."));
+            if (!selfService.CanEditPhone && Blank(body.Mobile) != employee.Phone)
+                return Result.Failure<PeoplePersonalDto>(PeopleAccess.Forbidden("Your company doesn't let you change your mobile."));
+        }
+
         IReadOnlyList<string> changed;
         try
         {
@@ -165,6 +182,8 @@ public sealed class UpdatePeoplePersonalCommandHandler(CoreHRDbContext dbContext
 
         return Result.Success(PersonalSupport.Project(employee, decision));
     }
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
 internal static class PersonalSupport

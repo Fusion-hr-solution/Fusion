@@ -7,7 +7,6 @@ using EY.HRPlatform.CoreHR.Features.Employees.Commands.ChangeEmployeeManager;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.RehireEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.TerminateEmployee;
-using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateOwnEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeByKey;
@@ -682,35 +681,6 @@ public class EmployeesController(
         return Ok(ApiResponseOfEmployeeDetailsDto.Success(result.Value));
     }
 
-    [HttpPut("{id:guid}/self-profile")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
-    public async Task<IActionResult> UpdateSelfProfile(
-        Guid id,
-        [FromBody] UpdateOwnEmployeeProfileRequest request,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanUpdateOwnProfile(User) || !CanUpdateOwnProfile(id))
-        {
-            return Forbid();
-        }
-
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-        {
-            return StatusCode(
-                StatusCodes.Status412PreconditionFailed,
-                ApiResponse.Failure("If-Match header with valid version is required for updates."));
-        }
-
-        await sender.Send(
-            new UpdateOwnEmployeeProfileCommand(id, expectedVersion, request.PreferredName, request.Phone),
-            cancellationToken);
-
-        return NoContent();
-    }
-
     /// <summary>
     /// Terminate an employee's active canonical employment chain.
     /// Requires If-Match header with current version for optimistic concurrency.
@@ -898,12 +868,6 @@ public class EmployeesController(
         }
 
         return scope == PermissionScopes.DirectReports && employee.ManagerId == linkedEmployeeId.Value;
-    }
-
-    private bool CanUpdateOwnProfile(Guid employeeId)
-    {
-        var linkedEmployeeId = User.GetEmployeeId();
-        return linkedEmployeeId.HasValue && linkedEmployeeId.Value == employeeId;
     }
 
     private bool CanViewEmployeeDetails(Guid employeeId)
