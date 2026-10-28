@@ -78,18 +78,18 @@ export function WorkerProfile({
     <PageContainer width="wide" className="max-w-6xl pb-16">
       {backLink ? <div className="mb-4">{backLink}</div> : null}
 
-      <section aria-labelledby="profile-name" className="relative rounded-surface bg-section px-6 pt-6 sm:px-8 sm:pt-7">
-        <div className="relative mb-4 w-fit sm:absolute sm:start-8 sm:-bottom-16 sm:mb-0">
+      <section aria-labelledby="profile-name" className="relative z-10 rounded-surface bg-section px-6 pt-6 sm:grid sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:gap-x-8 sm:px-8 sm:pt-7">
+        <div className="relative mb-4 w-fit sm:row-span-2 sm:-mb-16 sm:self-end">
           <PersonAvatar
             name={view.displayName}
             photo={photo}
             size="profile"
             className="size-24 border-[6px] border-background bg-inlay text-3xl text-foreground/85 sm:size-[9.5rem] sm:text-[2.75rem]"
           />
-          {photoAction ? <div className="absolute end-1 bottom-1 sm:end-2 sm:bottom-2">{photoAction}</div> : null}
+          {photoAction ? <div className="absolute end-[4%] bottom-[4%]">{photoAction}</div> : null}
         </div>
 
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 sm:ms-[11.5rem]">
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 sm:col-start-2">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <h1 id="profile-name" ref={headingRef} tabIndex={-1} className="type-page-title min-w-0 max-w-full truncate outline-none">
@@ -115,7 +115,7 @@ export function WorkerProfile({
         </div>
 
         {tabs?.length ? (
-          <nav aria-label={t("tabs.label")} className="-mb-px mt-5 flex gap-1 overflow-x-auto sm:ms-[11.5rem]">
+          <nav aria-label={t("tabs.label")} className="-mb-px mt-5 flex gap-1 overflow-x-auto sm:col-start-2">
             {tabs.map((tab) => (
               <Link
                 key={tab.key}
@@ -134,7 +134,7 @@ export function WorkerProfile({
             ))}
           </nav>
         ) : (
-          <div className="h-6 sm:h-8" />
+          <div className="h-6 sm:col-start-2 sm:h-8" />
         )}
       </section>
 
