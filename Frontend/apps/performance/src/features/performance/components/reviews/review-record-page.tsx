@@ -18,7 +18,7 @@ import { Button } from "@repo/ds/components/ui/button";
 import { Input } from "@repo/ds/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@repo/ds/components/ui/popover";
 import { Textarea } from "@repo/ds/components/ui/textarea";
-import { AsyncButton, PageContainer, PagePermissionNotice, PageSkeleton, StatusBadge } from "@repo/ds/shell";
+import { AsyncButton, PageContainer, PageHeader, PagePermissionNotice, PageSkeleton, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { AvatarStack, ObjectiveStatusBadge, PersonInitials, ValueChip } from "@repo/performance-ui";
 import { Ban, CalendarDays, Check, ChevronDown, Download, FeedbackIcon, FileText, Lock, OneOnOnes, Send, Star, Target, UserRoundCheck } from "@/lib/icons";
@@ -26,7 +26,6 @@ import { useReview, useReviewAssessmentMutations } from "../../api/use-reviews";
 import { useAcknowledge, useDownloadReviewPdf, usePeerCommands, useScheduleCommands } from "../../api/use-review-work";
 import { RecordCycleScope, useWorkspaceContext } from "../../api/use-workspace";
 import { ContentUnavailable } from "../content-unavailable";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { measurementSummary } from "../../lib";
 import { CalibratedOutcome } from "./calibrated-outcome";
 import { ReviewDraftBlock } from "./review-draft";
@@ -147,7 +146,7 @@ function SubjectView({ record }: { record: PerformanceReviewDto }) {
 function SubjectHeading({ record, actions, detail }: { record: PerformanceReviewDto; actions?: ReactNode; detail?: string }) {
   const t = useTranslations("reviews.SubjectHeading");
   return (
-    <PerformancePageHeading
+    <PageHeader className="mb-4"
       back={{ href: "/reviews", label: t("reviews") }}
       leading={<PersonInitials name={record.subjectDisplayName} size="xl" />}
       title={t("your", { toLowerCase: record.reviewRoundName.toLowerCase() })}
@@ -663,7 +662,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
   const selfIn = Boolean(record.selfAssessment?.submittedAt);
   return (
     <div className="pb-16">
-      <PerformancePageHeading
+      <PageHeader className="mb-4"
         back={{ href: "/reviews", label: t("reviews") }}
         leading={<span className="flex"><PersonInitials name={record.subjectDisplayName} size="xl" /><PersonInitials name={record.reviewerDisplayName} size="xl" className="-ms-4 ring-2 ring-background" /></span>}
         title={record.subjectDisplayName}
@@ -887,7 +886,7 @@ function AdministratorView({ record }: { record: PerformanceReviewDto }) {
   const peers = record.peers;
   return (
     <div className="pb-16">
-      <PerformancePageHeading
+      <PageHeader className="mb-4"
         back={{ href: withCycle(roundHref(record.reviewRoundId), record.cycleId), label: record.reviewRoundName }}
         leading={<PersonInitials name={record.subjectDisplayName} size="xl" />}
         title={record.subjectDisplayName}

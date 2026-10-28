@@ -21,14 +21,13 @@ import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ds/components/ui/select";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
-import { AsyncButton, PageContainer, StatusBadge } from "@repo/ds/shell";
+import { AsyncButton, PageContainer, PageHeader, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { AvatarStack, ObjectiveStatusBadge, PersonInitials, PlanDial } from "@repo/performance-ui";
 import { CalendarDays, Check, ChevronDown, Flag, Plus, X } from "@/lib/icons";
 import { useOneOnOne, useOneOnOneCommands } from "../../api/use-conversations";
 import { usePersonSummary } from "../../api/use-performance";
 import { ContentUnavailable } from "../content-unavailable";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { PlanDocument, PlanSection, SidebarSection } from "../plan/plan-layout";
 import { NotesEditor } from "./notes-editor";
 import {
@@ -87,7 +86,7 @@ function SeriesView({ series }: { series: OneOnOneSeriesDto }) {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading
+      <PageHeader className="mb-4"
         back={{ href: "/one-on-ones", label: "1:1s" }}
         leading={<AvatarStack names={[me.displayName, other.displayName]} size="xl" className={series.ended ? "opacity-80" : undefined} />}
         eyebrow={series.ended ? <StatusBadge tone="muted">{t("ended")} {series.endedAt ? shortDay(series.endedAt, format.locale) : ""}</StatusBadge> : undefined}

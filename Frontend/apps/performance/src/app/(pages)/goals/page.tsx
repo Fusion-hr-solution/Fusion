@@ -9,14 +9,8 @@ import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@repo/ds/components/ui/toggle-group";
 import { useOrgHierarchy } from "@repo/workforce-ui";
-import {
-  PageContainer,
-  PageError,
-  PagePermissionNotice,
-  PageSkeleton,
-} from "@repo/ds/shell";
+import { PageContainer, PageError, PageHeader, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { useObjectiveRecord } from "@/features/performance/components/objective-record/use-objective-record";
 import { ObjectiveWorkspace } from "@/features/performance/components/goals/objective-workspace";
 import {
@@ -297,7 +291,7 @@ function GoalsWorkspace() {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading
+      <PageHeader className="mb-4"
         title={t("organizationDirection")}
         back={{ href: "/", label: t("overview") }}
         actions={actions}

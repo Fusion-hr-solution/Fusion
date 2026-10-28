@@ -6,14 +6,13 @@ import type { ReactNode } from "react";
 import type { ReviewsWorkspaceDto, ReviewsWorkspaceOwnDto, ReviewsWorkspaceRoundDto, ReviewsWorkspaceSessionDto, ReviewsWorkspaceTeamRowDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
-import { PageContainer, StatusBadge } from "@repo/ds/shell";
+import { PageContainer, PageHeader, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { AvatarStack, PersonInitials } from "@repo/performance-ui";
 import { ArrowRight, Check, ChevronRight, Download, Layers, Pencil, Plus } from "@/lib/icons";
 import { useSelectedCycleId } from "../../api/use-workspace";
 import { useDownloadReviewPdf, useReviewsWorkspace } from "../../api/use-review-work";
 import { ContentUnavailable } from "../content-unavailable";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { formatDate } from "../../lib";
 import { calibrationHref, newReviewRoundHref, peerRequestHref, reviewHref, roundHref, withCycle } from "@/lib/performance-routes";
 import { CountTile, DueChip, SectionHeading, StageTrack, dayLabel, dueIn, type Step } from "./review-parts";
@@ -63,7 +62,7 @@ function Workspace({ data }: { data: ReviewsWorkspaceDto }) {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading
+      <PageHeader className="mb-4"
         title={t("reviews")}
         size="display"
         description={headline(data, running, headlineWords, format.locale)}
@@ -626,7 +625,7 @@ function WorkspaceSkeleton() {
   const t = useTranslations("reviews.WorkspaceSkeleton");
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title={t("reviews")} size="display" />
+      <PageHeader className="mb-4" title={t("reviews")} size="display" />
       <div className="space-y-6" aria-label={t("loadingReviews")} role="status">
         <Skeleton className="h-56 rounded-surface" />
         <div className="grid gap-3 sm:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-surface" />)}</div>

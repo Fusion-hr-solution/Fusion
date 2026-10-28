@@ -7,14 +7,13 @@ import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { Textarea } from "@repo/ds/components/ui/textarea";
-import { AsyncButton, PageContainer, StatusBadge } from "@repo/ds/shell";
+import { AsyncButton, PageContainer, PageHeader, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { PersonInitials } from "@repo/performance-ui";
 import { Check, Eye, Send } from "@/lib/icons";
 import { useFeedbackRequest, useFeedbackRequestCommands } from "../../api/use-conversations";
 import { formatDay } from "../one-on-ones/one-on-one-lib";
 import { ContentUnavailable } from "../content-unavailable";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { FEEDBACK_MAX } from "./composers";
 import { DueBlock, SubjectChip, firstName } from "./conversation-parts";
 import { useTranslations } from "next-intl";
@@ -42,7 +41,7 @@ function RequestView({ request }: { request: FeedbackRequestDto }) {
   return (
     <PageContainer>
       <div className="mx-auto max-w-3xl">
-        <PerformancePageHeading
+        <PageHeader className="mb-4"
           back={{ href: "/feedback?tab=requests", label: t("requests") }}
           eyebrow={
             invitee ? (

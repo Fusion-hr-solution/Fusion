@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@repo/ds/components/ui/button";
 import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";
-import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PageHeader, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { useReviewRoundMutations } from "@/features/performance/api/use-reviews";
 import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { roundHref, withCycle } from "@/lib/performance-routes";
 import { useTranslations } from "next-intl";
 import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
@@ -50,7 +49,7 @@ export default function NewReviewRoundPage() {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title={t("startAReviewRound")} eyebrow={cycle.name} back={{ href: withCycle("/reviews", cycle.id), label: t("reviews") }} />
+      <PageHeader className="mb-4" title={t("startAReviewRound")} eyebrow={cycle.name} back={{ href: withCycle("/reviews", cycle.id), label: t("reviews") }} />
       <form onSubmit={submit} className="max-w-3xl">
         <p className="max-w-2xl text-sm text-muted-foreground">{t("aRoundOpensAReview")}</p>
         <div className="mt-7 grid gap-5 sm:grid-cols-2">

@@ -2,13 +2,12 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
+import { PageContainer, PageHeader, PagePermissionNotice } from "@repo/ds/shell";
 import { CycleSurfaceSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { useCurrentCycle, useCycleClosure } from "@/features/performance/api/use-performance";
 import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { ClosureSection, CloseCycleAction } from "@/features/performance/components/cycle/cycle-closure";
-import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { MilestoneRail } from "@/features/performance/components/milestone-rail";
 import { CycleInsights } from "@/features/performance/components/cycle/cycle-insights";
 import { cn } from "@repo/ds/lib/utils";
@@ -76,7 +75,7 @@ export default function CyclePage() {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading
+      <PageHeader className="mb-4"
         title={cycleDetail.cycle.name}
         description={isActive ? t(`phase.${cycleDetail.phase ?? "Planning"}`) : t("closed")}
         actions={isActive ? <CloseCycleAction detail={cycleDetail} closure={closure.data} /> : null}

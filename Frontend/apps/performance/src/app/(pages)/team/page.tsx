@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { PageContainer } from "@repo/ds/shell";
+import { PageContainer, PageHeader } from "@repo/ds/shell";
 import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { ArrowRight, Users } from "@/lib/icons";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { TeamDirection, TeamDirectionSkeleton } from "@/features/performance/components/team/team-direction";
 import type { YourPeopleQuery } from "@repo/api";
 import {
@@ -65,7 +64,7 @@ export default function MyTeamPage() {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading
+      <PageHeader className="mb-4"
         title={t("myTeam")}
         size="display"
         description={people.data ? teamSubtitle(people.data, summaryWords, format.locale) : undefined}
@@ -95,7 +94,7 @@ function NoReports({ cycleName }: { cycleName: string | null }) {
   const t = useTranslations("team.NoReports");
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title={t("myTeam")} size="display" />
+      <PageHeader className="mb-4" title={t("myTeam")} size="display" />
       <div className="mt-8 flex flex-col items-center rounded-surface bg-card px-6 py-16 text-center ring-1 ring-inset ring-border">
         <Users className="size-8 text-muted-foreground" aria-hidden />
         <p className="mt-3 type-section-title text-foreground">

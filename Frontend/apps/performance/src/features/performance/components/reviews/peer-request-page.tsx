@@ -6,12 +6,11 @@ import { toast } from "sonner";
 import type { PeerRequestDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Textarea } from "@repo/ds/components/ui/textarea";
-import { AsyncButton, PageContainer, PageSkeleton, StatusBadge } from "@repo/ds/shell";
+import { AsyncButton, PageContainer, PageHeader, PageSkeleton, StatusBadge } from "@repo/ds/shell";
 import { PersonInitials } from "@repo/performance-ui";
 import { Ban, Eye, Lock, Send } from "@/lib/icons";
 import { usePeerRequest, usePeerRequestCommands } from "../../api/use-review-work";
 import { ContentUnavailable } from "../content-unavailable";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { DueChip, dayLabel } from "./review-parts";
 import { useTranslations } from "next-intl";
 import { useFormat } from "@repo/ds/lib/use-format";
@@ -82,7 +81,7 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
   return (
     <PageContainer>
       <div className="mx-auto max-w-3xl">
-        <PerformancePageHeading
+        <PageHeader className="mb-4"
           back={{ href: "/reviews", label: t("reviews") }}
           leading={<PersonInitials name={request.subjectDisplayName} size="xl" />}
           eyebrow={<span className="type-meta text-muted-foreground">{t("inputForA", { toLowerCase: request.reviewRoundName.toLowerCase() })}</span>}

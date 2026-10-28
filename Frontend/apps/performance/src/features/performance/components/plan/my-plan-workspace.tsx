@@ -1,9 +1,8 @@
 "use client";
 
 import type { CycleSummaryDto } from "@repo/api";
-import { PageContainer } from "@repo/ds/shell";
+import { PageContainer, PageHeader } from "@repo/ds/shell";
 import { useMyPlan } from "../../api/use-performance";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { MyPlan } from "./my-plan";
 import { NotStartedBadge, PlanStateBadge } from "./plan-header";
 import { useTranslations } from "next-intl";
@@ -23,7 +22,7 @@ export function MyPlanWorkspace({ cycle, enabled = true }: { cycle: CycleSummary
       <MyPlan
         cycle={cycle}
         heading={(actions) => (
-          <PerformancePageHeading
+          <PageHeader
             className="mb-6"
             title={t("myPlan")}
             status={

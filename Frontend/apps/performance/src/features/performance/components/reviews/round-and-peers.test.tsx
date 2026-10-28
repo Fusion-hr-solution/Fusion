@@ -17,9 +17,6 @@ const m = vi.hoisted(() => ({
 }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ roundId: "round-1", requestId: "p1" }), useRouter: () => ({ push: m.push, refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("../performance-page-heading", () => ({
-  PerformancePageHeading: ({ title, actions }: { title: React.ReactNode; actions?: React.ReactNode }) => <header><h1>{title}</h1>{actions}</header>,
-}));
 vi.mock("../content-unavailable", () => ({ ContentUnavailable: () => <div>Unavailable</div> }));
 vi.mock("../conversations/colleague-picker", () => ({
   ColleaguePicker: ({ onChange }: { onChange: (p: { employeeId: string; displayName: string; subtitle: null }) => void }) =>

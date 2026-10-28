@@ -4,14 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { canEnterCoreHr, useAuth } from "@repo/auth";
 import { Button, Skeleton } from "@repo/ds";
-import { PageContainer } from "@repo/ds/shell";
+import { PageContainer, PageHeader } from "@repo/ds/shell";
 import { PersonPerformanceSummary, type RenderSummaryLink } from "@repo/performance-ui";
 import { useReactToPraise } from "@repo/api/query";
 import { usePersonSummary } from "../../api/use-performance";
 import { REACTION_ICONS } from "../conversations/reaction-icons";
 import { FeedbackComposer } from "../conversations/composers";
 import { useState } from "react";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { useRecentRecord } from "@repo/api/react";
 import { useTranslations } from "next-intl";
 
@@ -48,7 +47,7 @@ export function PersonPage({ employeeId }: { employeeId: string }) {
   return (
     <PageContainer width="wide">
       {person ? (
-        <PerformancePageHeading
+        <PageHeader className="mb-4"
           title={person.displayName ?? t("person")}
           description={context.length ? context.join(", ") : undefined}
           actions={
@@ -63,7 +62,7 @@ export function PersonPage({ employeeId }: { employeeId: string }) {
           }
         />
       ) : summary.error ? (
-        <PerformancePageHeading title={t("person")} />
+        <PageHeader className="mb-4" title={t("person")} />
       ) : (
         <div className="mb-4 space-y-2" aria-hidden>
           <Skeleton className="h-8 w-56" />

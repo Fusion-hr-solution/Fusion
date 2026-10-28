@@ -9,7 +9,7 @@ import { Button } from "@repo/ds/components/ui/button";
 import { Input } from "@repo/ds/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@repo/ds/components/ui/popover";
 import { Textarea } from "@repo/ds/components/ui/textarea";
-import { AsyncButton, PageContainer, PagePermissionNotice, PageSkeleton, StatusBadge } from "@repo/ds/shell";
+import { AsyncButton, PageContainer, PageHeader, PagePermissionNotice, PageSkeleton, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { AvatarStack, PersonInitials } from "@repo/performance-ui";
 import { Bell, CalendarDays, Check, FileText, Send } from "@/lib/icons";
@@ -18,7 +18,6 @@ import { useReviewRound, useReviewRoundFinalization, useReviewRoundMutations } f
 import { useScheduleCommands } from "../../api/use-review-work";
 import { useApis } from "../../api/use-performance";
 import { ContentUnavailable } from "../content-unavailable";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { calibrationHref, reviewHref, withCycle } from "@/lib/performance-routes";
 import { CountTile, DueChip, SectionHeading, dayLabel } from "./review-parts";
 import { RoundSetup } from "./round-setup";
@@ -52,7 +51,7 @@ export function RoundPage() {
   return (
     <RecordCycleScope cycleId={round.cycleId}>
       <PageContainer width="wide">
-        <PerformancePageHeading
+        <PageHeader className="mb-4"
           back={{ href: withCycle("/reviews", round.cycleId), label: t("reviews") }}
           title={<span className="inline-flex flex-wrap items-center gap-3">{round.name}<RoundBadge round={round} /></span>}
           description={describe(round, (key, values) => t(`describe.${key}` as "describe.draft", values as never), format)}

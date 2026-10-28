@@ -2,9 +2,8 @@
 
 import { Fragment } from "react";
 import type { OverviewRowDto } from "@repo/api";
-import { PageContainer, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PageHeader, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { useOverview, useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { YearBand } from "@/features/performance/components/overview/year-band";
 import {
@@ -77,7 +76,7 @@ export default function OverviewPage() {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title={t("overview")} size="display" />
+      <PageHeader className="mb-4" title={t("overview")} size="display" />
       <div className="mt-8 max-w-5xl space-y-8">
         {year && cycle ? <YearBand year={year} cycleName={cycle.name} /> : null}
         <div className="[&>section:first-child]:border-t-0">

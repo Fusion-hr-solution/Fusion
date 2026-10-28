@@ -9,7 +9,7 @@ import { useReactToPraise } from "@repo/api/query";
 import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ds/components/ui/tabs";
-import { PageContainer, StatusBadge } from "@repo/ds/shell";
+import { PageContainer, PageHeader, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { AvatarStack, PersonInitials, PraiseList, VALUE_TONE, ValueChip, useValueTones } from "@repo/performance-ui";
 import { ChevronRight, MessageSquare, Send, Star, Target } from "@/lib/icons";
@@ -25,7 +25,6 @@ import {
 
 import { formatDay } from "../one-on-ones/one-on-one-lib";
 import { ContentUnavailable } from "../content-unavailable";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { PlanDocument, SidebarSection } from "../plan/plan-layout";
 import { FeedbackComposer, PraiseComposer, RequestComposer, type FixedObjective } from "./composers";
 import { ByMonth, DueBlock, SubjectChip, firstName } from "./conversation-parts";
@@ -75,7 +74,7 @@ export function FeedbackWorkspace() {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading
+      <PageHeader className="mb-4"
         title={tr("feedback")}
         actions={
           <>

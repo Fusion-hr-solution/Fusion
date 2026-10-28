@@ -6,13 +6,12 @@ import { useAuth } from "@repo/auth";
 import type { AgendaSourceKind, OneOnOneOwedActionDto, OneOnOnePersonDto, OneOnOneRowDto, OneOnOnesDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
-import { PageContainer, StatusBadge } from "@repo/ds/shell";
+import { PageContainer, PageHeader, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { PersonInitials } from "@repo/performance-ui";
 import { ArrowRight, ChevronRight, Flag, MessageSquare, Plus, RefreshCw, Star, Target } from "@/lib/icons";
 import { useOneOnOne, useOneOnOnes } from "../../api/use-conversations";
 import { ContentUnavailable } from "../content-unavailable";
-import { PerformancePageHeading } from "../performance-page-heading";
 import { PlanDocument, SidebarSection } from "../plan/plan-layout";
 import { formatDay, shortDay, useOneOnOneWords } from "./one-on-one-lib";
 import { RhythmScale, RhythmStrip, SourceWell, TimeBlock } from "./one-on-one-parts";
@@ -48,7 +47,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
   if (!data.withManager && !data.startWithManager && !hasTeam && data.ended.length === 0) {
     return (
       <PageContainer>
-        <PerformancePageHeading title={t("n11s")} />
+        <PageHeader className="mb-4" title={t("n11s")} />
         <p className="mt-6 type-body-secondary text-muted-foreground">
           {data.lineAvailable ? t("youHaveNoManagerOr") : t("yourReportingLineCouldntBe")}
         </p>
@@ -124,7 +123,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title={t("n11s")} />
+      <PageHeader className="mb-4" title={t("n11s")} />
       <div className="mt-6">
         <PlanDocument main={main} sidebar={data.startWithManager && !hasTeam && !data.withManager ? undefined : sidebar} />
       </div>
