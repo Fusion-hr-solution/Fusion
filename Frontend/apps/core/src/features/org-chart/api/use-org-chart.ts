@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { coreOrgChartQueryKeys, createCoreOrgChartApi, createPlatformApiClient, type OpenRoleRequest } from "@repo/api";
+import { coreOrgChartQueryKeys, createCoreOrgChartApi, createPlatformApiClient, createReviewsApi, reviewQueryKeys, type OpenRoleRequest } from "@repo/api";
 import { keepPreviousData, useApiMutation, useApiQuery } from "@repo/api/query";
 import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
 
@@ -32,6 +32,12 @@ export function useOrgChartChanges(from: string, to: string, enabled: boolean) {
     useCallback((signal) => api.changes(from, to, signal), [api, from, to]),
     { enabled: enabled && from <= to, placeholderData: keepPreviousData }
   );
+}
+
+/** Today's review progress from Performance, for the Review progress lens: only the reviews the viewer may read there. */
+export function useReviewProgress(enabled: boolean) {
+  const api = useMemo(() => createReviewsApi(createPlatformApiClient()), []);
+  return useApiQuery(reviewQueryKeys.progress(), useCallback((signal) => api.getProgress(signal), [api]), { enabled });
 }
 
 /** Loads the chart for a date ahead of showing it: Replay steps through dates without waiting on each. */

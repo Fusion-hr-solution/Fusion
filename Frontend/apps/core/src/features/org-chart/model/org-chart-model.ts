@@ -1,11 +1,11 @@
-import type { OrgChartChangeDto, OrgChartDto, OrgChartOpenRoleDto, OrgChartPersonDto } from "@repo/api";
+import type { OrgChartChangeDto, OrgChartDto, OrgChartOpenRoleDto, OrgChartPersonDto, ReviewProgressPersonDto } from "@repo/api";
 
 // The people org chart's model, ported from the accepted B-126 card canvas (direction C): one card per person;
 // leaders get a portrait card with their team's faces, individual contributors sit in two columns on a spine
 // under their manager, sub-teams branch below on a bus, lines turn with soft corners.
 
 export type OrgView = "focus" | "company";
-export type LensKey = "division" | "location" | "tenure" | "span" | "none";
+export type LensKey = "division" | "location" | "tenure" | "span" | "review" | "none";
 /** Tenure and Span of control read HR-only facts (the full start date, everyone's team size). */
 export const HR_LENSES: LensKey[] = ["tenure", "span"];
 
@@ -142,22 +142,38 @@ export interface LensWords {
   tenure: [string, string, string, string];
   /** 1 to 3 direct reports, 4 to 7, 8 or more. */
   span: [string, string, string];
+  /** Late, then the review's steps in order: self-assessment, manager review, calibration, ready to release, released. */
+  review: [string, string, string, string, string, string];
 }
 
 /** An ordered scale: one hue, stronger with each step (the canvas's tenure ramp). */
 const ramp = (percent: number) => `color-mix(in oklab, var(--identity-1) ${percent}%, var(--card))`;
 const TENURE_STEPS = [30, 55, 80, 100];
 const SPAN_STEPS = [40, 70, 100];
+/** Steps still under way ramp up; a released review reads as done, a late one as needing attention. */
+const REVIEW_COLORS = ["var(--destructive)", ramp(30), ramp(55), ramp(80), ramp(100), "var(--success)"];
+const REVIEW_STEP: Partial<Record<ReviewProgressPersonDto["state"], number>> = {
+  SelfAssessment: 1, ManagerAssessment: 2, Calibration: 3, ReadyToFinalize: 4, Finalized: 5,
+};
 const YEAR_MS = 365.25 * 24 * 3600 * 1000;
 
 /** Whole years between two yyyy-mm-dd dates, as a fraction. */
 export const yearsBetween = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / YEAR_MS;
 
 /** Ordered lenses list their legend in scale order, categories by name. */
-export const isOrderedLens = (lens: LensKey) => lens === "tenure" || lens === "span";
+export const isOrderedLens = (lens: LensKey) => lens === "tenure" || lens === "span" || lens === "review";
 
-export function createLens(tree: OrgTree, lens: LensKey, words: LensWords, asOf: string): (id: string) => LensValue | null {
+/** Review progress comes from Performance, keyed by employee; people it doesn't return stay neutral. */
+export function createLens(tree: OrgTree, lens: LensKey, words: LensWords, asOf: string,
+  review?: ReadonlyMap<string, ReviewProgressPersonDto>): (id: string) => LensValue | null {
   if (lens === "none") return () => null;
+  if (lens === "review") {
+    return (id) => {
+      const progress = tree.ghosts.has(id) ? undefined : review?.get(id);
+      const step = progress ? (progress.isOverdue ? 0 : REVIEW_STEP[progress.state]) : undefined;
+      return step === undefined ? null : { key: `r${step}`, label: words.review[step]!, color: REVIEW_COLORS[step]! };
+    };
+  }
   if (lens === "tenure") {
     return (id) => {
       const start = tree.ghosts.has(id) ? null : tree.people.get(id)?.startDate;

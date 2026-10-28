@@ -34,6 +34,15 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
             User.GetUserId(), policy.CanCalibrateReviews(User))), token));
     }
 
+    /// <summary>Each readable person's step in the active review rounds, for Core HR's org chart lens.</summary>
+    [HttpGet("progress")]
+    public async Task<ActionResult<ApiResponse<ReviewProgressDto>>> Progress(CancellationToken token)
+    {
+        if (!policy.CanEnterPerformance(User) && !policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new GetReviewProgressQuery(new ReviewActor(User.GetEmployeeId() ?? Guid.Empty,
+            policy.CanAdministerCycles(User), CanReviewReports: policy.CanReviewDirectReports(User))), token));
+    }
+
     [HttpGet("{reviewId:guid}")]
     public async Task<ActionResult<ApiResponse<PerformanceReviewDto>>> Get(Guid reviewId, CancellationToken token)
     {

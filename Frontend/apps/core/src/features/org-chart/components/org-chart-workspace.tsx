@@ -10,6 +10,7 @@ import type { ChangePersonRef, OrgChartDto, OrgChartOpenRoleDto, OrgChartPersonD
 import {
   canAccessCoreOrgChart,
   canAccessCorePeople,
+  canEnterPerformance,
   canAccessCoreTeam,
   canManageCoreEmployees,
   canManageCoreReporting,
@@ -29,12 +30,13 @@ import {
   Skeleton,
   ToggleGroup,
   ToggleGroupItem,
+  Spinner,
   cn,
 } from "@repo/ds";
 import { PageHeader, PagePermissionNotice } from "@repo/ds/shell";
 import { useFormat } from "@repo/ds/lib/use-format";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
-import { useOrgChart, useOrgChartChanges, usePrefetchOrgChart } from "../api/use-org-chart";
+import { useOrgChart, useOrgChartChanges, usePrefetchOrgChart, useReviewProgress } from "../api/use-org-chart";
 import {
   HR_LENSES,
   MAX_ZOOM,
@@ -190,6 +192,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   const range = useMemo(() => timeWindow(today), [today]);
   const [replaying, setReplaying] = useState(false);
   const showsChanges = hr && !replaying && date >= range.lo && date < range.hi;
+  // Review progress is today's, from Performance: offered to anyone who can enter it, on today's chart only.
+  const reviewLens = canEnterPerformance(user) && date === today;
   const changes = useOrgChartChanges(addDays(date, 1), range.hi, showsChanges);
   const upcoming = showsChanges ? changes.data : undefined;
 
@@ -236,8 +240,13 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   const [focus, setFocus] = useState<string | null>(initialFocus);
   const [folded, setFolded] = useState<Set<string>>(() => new Set());
   const [unfolded, setUnfolded] = useState<Set<string>>(() => new Set());
-  const [lensKey, setLensKey] = useState<LensKey>("division");
-  const [filter, setFilter] = useState<string | null>(null);
+  const [chosenLens, setLensKey] = useState<LensKey>("division");
+  const lensKey: LensKey = chosenLens === "review" && !reviewLens ? "division" : chosenLens;
+  const progress = useReviewProgress(lensKey === "review");
+  const [chosenFilter, setFilter] = useState<string | null>(null);
+  // A legend filter belongs to the lens it was picked in.
+  const filter = lensKey === chosenLens ? chosenFilter : null;
+  const reviewByKey = useMemo(() => new Map(progress.data?.people.map((p) => [p.employeeKey, p]) ?? []), [progress.data]);
   const [selected, setSelected] = useState<string | null>(requested && tree.people.has(requested) ? requested : null);
   const [lit, setLit] = useState<string | null>(null);
   const [animate, setAnimate] = useState(true);
@@ -248,8 +257,9 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
     leadership: t("lens.leadership"),
     tenure: [t("lens.tenure0"), t("lens.tenure1"), t("lens.tenure2"), t("lens.tenure3")],
     span: [t("lens.span0"), t("lens.span1"), t("lens.span2")],
+    review: [t("lens.review0"), t("lens.review1"), t("lens.review2"), t("lens.review3"), t("lens.review4"), t("lens.review5")],
   }), [t]);
-  const lensOf = useMemo(() => createLens(tree, lensKey, lensWords, data.asOf), [tree, lensKey, lensWords, data.asOf]);
+  const lensOf = useMemo(() => createLens(tree, lensKey, lensWords, data.asOf, reviewByKey), [tree, lensKey, lensWords, data.asOf, reviewByKey]);
   const litIds = useMemo(() => litLine(tree, lit), [tree, lit]);
 
   // ── Camera: transform applied straight to the world element, not through React ──
@@ -668,6 +678,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
             <SelectItem value="division">{t("lens.division")}</SelectItem>
             <SelectItem value="location">{t("lens.location")}</SelectItem>
             {hr ? HR_LENSES.map((key) => <SelectItem key={key} value={key}>{t(`lens.${key}`)}</SelectItem>) : null}
+            {reviewLens ? <SelectItem value="review">{t("lens.review")}</SelectItem> : null}
             <SelectItem value="none">{t("lens.none")}</SelectItem>
           </SelectContent>
         </Select>
@@ -779,6 +790,17 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
                 <span className="text-muted-foreground tabular-nums">{entry.n}</span>
               </button>
             ))}
+          </div>
+        ) : lensKey === "review" ? (
+          <div data-oc-overlay className="absolute bottom-3.5 start-3.5 inline-flex h-7 items-center gap-1.5 rounded-full border bg-popover px-2.5 text-xs text-muted-foreground">
+            {progress.isLoading ? <><Spinner className="size-3" />{t("lens.reviewLoading")}</>
+              : progress.error ? (
+                <>
+                  <AlertTriangle className="size-3 text-destructive" />
+                  {t("lens.reviewError")}
+                  <button type="button" onClick={() => void progress.refetch()} className="font-medium text-foreground underline-offset-2 hover:underline">{t("states.retry")}</button>
+                </>
+              ) : t("lens.reviewNone")}
           </div>
         ) : null}
 

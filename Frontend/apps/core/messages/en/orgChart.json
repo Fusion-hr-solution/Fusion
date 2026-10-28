@@ -26,7 +26,17 @@
     "tenure3": "5 years or more",
     "span0": "1 to 3 direct",
     "span1": "4 to 7 direct",
-    "span2": "8 or more direct"
+    "span2": "8 or more direct",
+    "review": "Review progress",
+    "review0": "Late",
+    "review1": "Self-assessment",
+    "review2": "Manager review",
+    "review3": "Calibration",
+    "review4": "Ready to release",
+    "review5": "Released",
+    "reviewLoading": "Loading review progress",
+    "reviewError": "Review progress didn't load.",
+    "reviewNone": "No reviews in progress"
   },
   "card": {
     "you": "You",

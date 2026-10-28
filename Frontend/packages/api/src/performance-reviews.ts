@@ -453,10 +453,21 @@ export interface ReviewDraftDto {
   sourceKinds: string[];
 }
 
+/** One person's step in an active review round, keyed by Core HR's employee key (the org chart lens). Never a rating. */
+export interface ReviewProgressPersonDto {
+  employeeKey: string;
+  state: PerformanceReviewState;
+  dueDate: string | null;
+  isOverdue: boolean;
+}
+/** The reviews the caller may read in active rounds, under Performance's review read rule. */
+export interface ReviewProgressDto { people: ReviewProgressPersonDto[] }
+
 // ── Paths, keys and transport ────────────────────────────────────────────────────
 
 export const reviewPaths = {
   workspace: () => "/performance/reviews/workspace",
+  progress: () => "/performance/reviews/progress",
   reviewQuestions: () => "/performance/settings/review-questions",
   reviewQuestion: (id: string) => `/performance/settings/review-questions/${id}`,
   reviewQuestionOrder: () => "/performance/settings/review-questions/order",
@@ -476,6 +487,7 @@ export const reviewPaths = {
 export const reviewQueryKeys = {
   all: () => ["performance", "reviews"] as const,
   workspace: (cycleId: string | null) => [...reviewQueryKeys.all(), "workspace", cycleId] as const,
+  progress: () => [...reviewQueryKeys.all(), "progress"] as const,
   questions: () => ["performance", "settings", "review-questions"] as const,
   peerSuggestions: (reviewId: string) => [...reviewQueryKeys.all(), "peer-suggestions", reviewId] as const,
   peerRequest: (requestId: string) => [...reviewQueryKeys.all(), "peer-request", requestId] as const,
@@ -485,6 +497,7 @@ export function createReviewsApi(client: ApiClient) {
   return {
     getWorkspace: (cycleId?: string | null, signal?: AbortSignal) =>
       client.get<ReviewsWorkspaceDto>(reviewPaths.workspace(), { params: cycleId ? { cycle: cycleId } : undefined, signal }),
+    getProgress: (signal?: AbortSignal) => client.get<ReviewProgressDto>(reviewPaths.progress(), { signal }),
 
     // Question library
     listQuestions: (signal?: AbortSignal) => client.get<ReviewQuestionDto[]>(reviewPaths.reviewQuestions(), { signal }),

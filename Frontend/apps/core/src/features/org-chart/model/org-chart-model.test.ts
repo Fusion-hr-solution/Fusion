@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OrgChartDto, OrgChartPersonDto } from "@repo/api";
+import type { OrgChartDto, OrgChartPersonDto, ReviewProgressPersonDto } from "@repo/api";
 import {
   G, buildTree, chainOf, createLens, isLead, isMore, openRolesOf, parentOf, roleId, layoutChart, litLine, monthTicks, moreId, replaySteps, searchPeople, stepFrom, timeWindow,
   type LensWords,
@@ -9,6 +9,7 @@ const words: LensWords = {
   leadership: "Leadership",
   tenure: ["Under a year", "1 to 3 years", "3 to 5 years", "5 years or more"],
   span: ["1 to 3 direct", "4 to 7 direct", "8 or more direct"],
+  review: ["Late", "Self-assessment", "Manager review", "Calibration", "Ready to release", "Released"],
 };
 const lens = (tree: ReturnType<typeof buildTree>, key: Parameters<typeof createLens>[1]) => createLens(tree, key, words, "2026-10-27");
 
@@ -139,6 +140,20 @@ describe("org chart model", () => {
     expect(lens(hr, "span")("Amira")?.key).toBe("s0");
     expect(lens(hr, "span")("Nour")).toBeNull();
     expect(lens(tree, "tenure")("Sami")).toBeNull(); // no start date outside HR
+  });
+
+  it("colours review progress by step, late first, and leaves people Performance didn't return neutral", () => {
+    const progress = new Map<string, ReviewProgressPersonDto>([
+      ["Sami", { employeeKey: "Sami", state: "Finalized", dueDate: null, isOverdue: false }],
+      ["Amira", { employeeKey: "Amira", state: "ManagerAssessment", dueDate: "2026-10-01", isOverdue: true }],
+      ["Nour", { employeeKey: "Nour", state: "SelfAssessment", dueDate: "2026-11-01", isOverdue: false }],
+    ]);
+    const review = createLens(tree, "review", words, "2026-10-27", progress);
+    expect(review("Sami")).toMatchObject({ key: "r5", label: "Released", color: "var(--success)" });
+    expect(review("Amira")).toMatchObject({ key: "r0", label: "Late", color: "var(--destructive)" });
+    expect(review("Nour")).toMatchObject({ key: "r1", label: "Self-assessment" });
+    expect(review("Aicha")).toBeNull();
+    expect(createLens(tree, "review", words, "2026-10-27")("Sami")).toBeNull();
   });
 
   it("frames the time bar like the canvas and replays by quarter", () => {

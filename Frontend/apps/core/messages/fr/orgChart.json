@@ -26,7 +26,17 @@
     "tenure3": "5 ans ou plus",
     "span0": "1 à 3 directs",
     "span1": "4 à 7 directs",
-    "span2": "8 directs ou plus"
+    "span2": "8 directs ou plus",
+    "review": "Avancement des évaluations",
+    "review0": "En retard",
+    "review1": "Auto-évaluation",
+    "review2": "Évaluation du manager",
+    "review3": "Calibrage",
+    "review4": "Prête à publier",
+    "review5": "Publiée",
+    "reviewLoading": "Chargement de l'avancement",
+    "reviewError": "L'avancement des évaluations n'a pas pu être chargé.",
+    "reviewNone": "Aucune évaluation en cours"
   },
   "card": {
     "you": "Vous",
