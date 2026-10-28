@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
 export default function Error({
-  error,
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string };

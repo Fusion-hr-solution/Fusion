@@ -599,7 +599,7 @@ function FactRow({
 
 export function UnitEditor({ date, value, onChange }: { date: string; value: string; onChange: (unit: { id: string; name: string }) => void }) {
   const hierarchy = useOrganizationHierarchy(date);
-  const roots = hierarchy.data?.roots ?? [];
+  const roots = useMemo(() => hierarchy.data?.roots ?? [], [hierarchy.data]);
   const units = useMemo(() => flattenOrg(roots), [roots]);
   if (hierarchy.isLoading) return <Skeleton className="h-11" />;
   return (

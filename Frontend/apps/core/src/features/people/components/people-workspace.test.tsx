@@ -34,7 +34,7 @@ const {
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
+  default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
     <a href={typeof href === "string" ? href : String(href)} {...props}>
       {children}
     </a>

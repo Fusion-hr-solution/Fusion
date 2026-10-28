@@ -18,7 +18,6 @@ import {
   PopoverTrigger,
   RadioGroup,
   RadioGroupItem,
-  Skeleton,
   cn,
 } from "@repo/ds";
 import { PageContainer, StatusBadge } from "@repo/ds/shell";
@@ -39,7 +38,6 @@ import {
   LoaderCircle,
   Pencil,
   Plus,
-  Search,
 } from "lucide-react";
 import { useOrganizationHierarchy } from "@/features/organization/api/use-organization";
 import { OrganizationTree } from "@/features/organization/components/organization-tree";
