@@ -134,10 +134,12 @@ public class EmployeesController(
         if (accessPolicy.GetEmployeeViewScope(User) is null)
             return Forbid();
 
-        // Temporal as-of exploration is a manager/HR affordance, not a colleague one.
+        // Temporal as-of exploration is a manager/HR affordance, not a colleague one. A manager is one for their
+        // own branch only; a missing employee id gives an empty branch, so it fails closed.
         var effectiveAsOf = audience == EmployeeReadAudience.Employee ? null : asOf;
+        Guid? branchOf = audience == EmployeeReadAudience.Manager ? User.GetEmployeeId() ?? Guid.Empty : null;
         var result = await sender.Send(
-            new PeopleProfileQuery(employeeKey, effectiveAsOf, audience),
+            new PeopleProfileQuery(employeeKey, effectiveAsOf, audience, branchOf),
             cancellationToken);
         if (result.IsFailure)
             return NotFound(ApiResponse.Failure("Employee was not found."));

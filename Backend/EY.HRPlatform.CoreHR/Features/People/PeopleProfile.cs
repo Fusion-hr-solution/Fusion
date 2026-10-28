@@ -13,10 +13,15 @@ namespace EY.HRPlatform.CoreHR.Features.People;
 /// The viewer's read audience. HR admins and managers see the full record; a plain
 /// colleague (Employee) receives a reduced workforce-directory projection.
 /// </param>
+/// <param name="BranchOfEmployeeId">
+/// Set for a manager without tenant-wide access: they read their own branch as a manager and everyone else
+/// (themselves included) as a colleague.
+/// </param>
 public sealed record PeopleProfileQuery(
     string EmployeeKey,
     DateTime? AsOf = null,
-    EmployeeReadAudience Audience = EmployeeReadAudience.HrAdmin) : IQuery<Result<PeopleProfileDto>>;
+    EmployeeReadAudience Audience = EmployeeReadAudience.HrAdmin,
+    Guid? BranchOfEmployeeId = null) : IQuery<Result<PeopleProfileDto>>;
 
 public sealed record PeopleProfileIdentityDto(
     string EmployeeKey,
@@ -83,6 +88,10 @@ public sealed class PeopleProfileQueryHandler(
             .FirstOrDefaultAsync(item => item.StableEmployeeKey == key, cancellationToken);
         if (employee is null)
             return Result.Failure<PeopleProfileDto>(new Error("Employee.NotFound", "Employee was not found."));
+
+        if (request.Audience == EmployeeReadAudience.Manager && request.BranchOfEmployeeId is { } managerId
+            && !(await Changes.ChangeSupport.BranchAsync(dbContext, managerId, cancellationToken)).Contains(employee.Id))
+            request = request with { Audience = EmployeeReadAudience.Employee, AsOf = null };
 
         var today = DateTime.UtcNow.Date;
         var asOf = request.AsOf?.Date is { } requested
