@@ -21,7 +21,8 @@ public sealed record PeopleProfileQuery(
     string EmployeeKey,
     DateTime? AsOf = null,
     EmployeeReadAudience Audience = EmployeeReadAudience.HrAdmin,
-    Guid? BranchOfEmployeeId = null) : IQuery<Result<PeopleProfileDto>>;
+    Guid? BranchOfEmployeeId = null,
+    Guid? ViewerEmployeeId = null) : IQuery<Result<PeopleProfileDto>>;
 
 public sealed record PeopleProfileIdentityDto(
     string EmployeeKey,
@@ -33,7 +34,9 @@ public sealed record PeopleProfileIdentityDto(
     string? WorkEmail,
     string? Phone,
     /// <summary>The worker's id, which other modules (Performance) key their records by.</summary>
-    Guid EmployeeId);
+    Guid EmployeeId,
+    /// <summary>API-relative photo address with a cache version, or null without a photo.</summary>
+    string? PhotoUrl = null);
 
 public sealed record PeopleProfileEmploymentDto(
     PeopleEmploymentState State,
@@ -223,8 +226,10 @@ public sealed class PeopleProfileQueryHandler(
                 employee.LastName,
                 employee.PreferredName,
                 employee.Email,
-                employee.Phone,
-                employee.Id),
+                // The mobile follows the Personal tab: the person, HR and their branch manager; not colleagues.
+                request.Audience != EmployeeReadAudience.Employee || employee.Id == request.ViewerEmployeeId ? employee.Phone : null,
+                employee.Id,
+                EmployeePhotos.UrlFor(employee.StableEmployeeKey, employee.PhotoKey)),
             new PeopleProfileEmploymentDto(
                 state,
                 employment?.EffectiveFrom,

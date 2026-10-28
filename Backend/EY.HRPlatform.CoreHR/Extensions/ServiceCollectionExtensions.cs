@@ -60,6 +60,17 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Features.People.Changes.WorkforceChangeBackfill>();
         services.AddHostedService<Features.People.Changes.WorkforceChangeBackfillService>();
         services.AddScoped<EY.HRPlatform.CoreHR.Features.People.PeopleTimelineComposer>();
+
+        // Profile photos are stored like Performance evidence: on disk outside Production, where a private object store
+        // is still to be chosen (B-053) and uploads are refused until it is.
+        var photoRoot = configuration["Photos:LocalRootPath"];
+        if (string.IsNullOrWhiteSpace(photoRoot))
+            photoRoot = Path.Combine(AppContext.BaseDirectory, "photo-store");
+        services.AddScoped<Infrastructure.Photos.IEmployeePhotoStore>(sp =>
+            sp.GetRequiredService<IHostEnvironment>().IsProduction()
+                ? new Infrastructure.Photos.UnconfiguredEmployeePhotoStore()
+                : new Infrastructure.Photos.LocalEmployeePhotoStore(sp.GetRequiredService<ITenantContext>(), photoRoot));
+
         services.AddScoped<IEmployeeNumberAllocator, EmployeeNumberAllocatorService>();
         services.AddScoped<IWorkEmailOccupancyService, WorkEmailOccupancyService>();
         services.AddScoped<IOrganizationService, OrganizationService>();

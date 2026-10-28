@@ -88,7 +88,8 @@ public sealed class PeopleQueryHandler(
                     GetNullableDateTime(reader, "EmploymentEnd"),
                     work,
                     manager,
-                    work is null ? "WorkDetailsUnavailable" : "Complete"));
+                    work is null ? "WorkDetailsUnavailable" : "Complete",
+                    EmployeePhotos.UrlFor(reader.GetString(reader.GetOrdinal("EmployeeKey")), GetNullableString(reader, "PhotoKey"))));
             }
 
             return Result.Success(new PeoplePageDto(
@@ -133,7 +134,8 @@ public sealed class PeopleQueryHandler(
             null,
             null,
             null,
-            "WorkDetailsUnavailable")).ToList();
+            "WorkDetailsUnavailable",
+            EmployeePhotos.UrlFor(employee.StableEmployeeKey, employee.PhotoKey))).ToList();
         return Result.Success(new PeoplePageDto(rows, total, page, pageSize, total == 0 ? 0 : (int)Math.Ceiling(total / (double)pageSize)));
     }
 
@@ -185,7 +187,7 @@ public sealed class PeopleQueryHandler(
         ),
         facts AS (
             SELECT e."Id" AS "EmployeeId", e."StableEmployeeKey" AS "EmployeeKey",
-                e."EmployeeNumber", e."FirstName", e."LastName", e."Email" AS "WorkEmail",
+                e."EmployeeNumber", e."FirstName", e."LastName", e."Email" AS "WorkEmail", e."PhotoKey",
                 COALESCE(NULLIF(e."PreferredName", ''), e."FirstName") || ' ' || e."LastName" AS "DisplayName",
                 re."Id" AS "EmploymentId", re."EffectiveFrom" AS "EmploymentStart", re."EffectiveTo" AS "EmploymentEnd",
                 CASE

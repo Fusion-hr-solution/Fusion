@@ -139,7 +139,7 @@ public class EmployeesController(
         var effectiveAsOf = audience == EmployeeReadAudience.Employee ? null : asOf;
         Guid? branchOf = audience == EmployeeReadAudience.Manager ? User.GetEmployeeId() ?? Guid.Empty : null;
         var result = await sender.Send(
-            new PeopleProfileQuery(employeeKey, effectiveAsOf, audience, branchOf),
+            new PeopleProfileQuery(employeeKey, effectiveAsOf, audience, branchOf, User.GetEmployeeId()),
             cancellationToken);
         if (result.IsFailure)
             return NotFound(ApiResponse.Failure("Employee was not found."));

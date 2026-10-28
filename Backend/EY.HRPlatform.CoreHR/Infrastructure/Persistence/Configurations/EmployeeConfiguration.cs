@@ -32,6 +32,19 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         builder.Property(e => e.Department).HasMaxLength(100);
 
+        // Personal details (B-127): the person and HR see them; a branch manager sees only the mobile.
+        builder.Property(e => e.PersonalEmail).HasMaxLength(256);
+        builder.Property(e => e.HomeStreet).HasMaxLength(200);
+        builder.Property(e => e.HomeCity).HasMaxLength(100);
+        builder.Property(e => e.HomePostalCode).HasMaxLength(20);
+        builder.Property(e => e.HomeCountry).HasMaxLength(100);
+        builder.Property(e => e.PhotoKey).HasMaxLength(200);
+        builder.HasMany(e => e.EmergencyContacts)
+            .WithOne()
+            .HasForeignKey(contact => contact.EmployeeId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(e => e.EmergencyContacts).UsePropertyAccessMode(PropertyAccessMode.Field);
+
         // Audit fields inherited from BaseEntity
         builder.Property(e => e.CreatedBy).HasMaxLength(256);
         builder.Property(e => e.UpdatedBy).HasMaxLength(256);
@@ -56,5 +69,25 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         // DomainEvents from AggregateRoot must be explicitly ignored;
         // EF would otherwise attempt to map the public collection.
         builder.Ignore(e => e.DomainEvents);
+    }
+}
+
+public sealed class EmergencyContactConfiguration : IEntityTypeConfiguration<EmergencyContact>
+{
+    public void Configure(EntityTypeBuilder<EmergencyContact> builder)
+    {
+        builder.ToTable("EmergencyContacts");
+        builder.HasKey(contact => contact.Id);
+        // Ids are set in the domain and the contacts reach EF through the employee's collection, so a set key must
+        // still mean "new" (a generated key that is already set would be taken for an existing row).
+        builder.Property(contact => contact.Id).ValueGeneratedNever();
+        builder.Property(contact => contact.TenantId).IsRequired();
+        builder.Property(contact => contact.Name).HasMaxLength(200).IsRequired();
+        builder.Property(contact => contact.Relationship).HasMaxLength(60);
+        builder.Property(contact => contact.Phone).HasMaxLength(50).IsRequired();
+        builder.Property(contact => contact.CreatedBy).HasMaxLength(256);
+        builder.Property(contact => contact.UpdatedBy).HasMaxLength(256);
+        builder.HasIndex(contact => new { contact.EmployeeId, contact.Position })
+            .HasDatabaseName("IX_EmergencyContacts_EmployeeId_Position");
     }
 }

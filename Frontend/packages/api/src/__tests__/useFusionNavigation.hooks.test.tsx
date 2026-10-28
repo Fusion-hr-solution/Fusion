@@ -51,7 +51,7 @@ function attention(overrides: Partial<FusionAttentionApi> = {}): FusionAttention
 
 function navigation(overrides: Partial<FusionNavigationApi> = {}): FusionNavigationApi {
   return {
-    getMyCard: vi.fn(async () => ({ displayName: "Mariam Gharbi", jobTitle: "VP, Product", orgUnitName: "Product A" })),
+    getMyCard: vi.fn(async () => ({ displayName: "Mariam Gharbi", jobTitle: "VP, Product", orgUnitName: "Product A", photoUrl: null })),
     getTenant: vi.fn(async () => ({ tenantId: "t-carthage", name: "Carthage Digital Group" })),
     ...overrides,
   };

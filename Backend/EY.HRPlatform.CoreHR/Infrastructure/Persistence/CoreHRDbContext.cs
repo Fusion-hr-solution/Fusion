@@ -38,6 +38,7 @@ public class CoreHRDbContext : DbContext
     private Guid CurrentTenantId => _tenantContext?.TenantIdOrDefault ?? Guid.Empty;
 
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmergencyContact> EmergencyContacts => Set<EmergencyContact>();
 
     // Canonical workforce model (Employee -> Employment -> WorkAssignment -> ManagerRelationship).
     public DbSet<Employment> Employments => Set<Employment>();
@@ -87,6 +88,9 @@ public class CoreHRDbContext : DbContext
         // When CurrentTenantId is Empty (design-time/no context), queries return no results.
         modelBuilder.Entity<Employee>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<EmergencyContact>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<Employment>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);

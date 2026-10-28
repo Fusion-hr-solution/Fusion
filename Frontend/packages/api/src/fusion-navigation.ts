@@ -201,6 +201,8 @@ export interface CoreMeCardDto {
   displayName: string;
   jobTitle: string | null;
   orgUnitName: string | null;
+  /** API-relative photo address with a cache version; null without a photo. */
+  photoUrl: string | null;
 }
 
 /** The caller's own tenant, from Identity: the sidebar's brand line and Settings › Company's facts. */

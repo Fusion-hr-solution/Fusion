@@ -29,7 +29,7 @@ import { ChangePanel } from "./change-panel";
 function person(): PeopleProfileDto {
   return {
     identity: { employeeKey: "HELA", employeeNumber: "CDG-015", displayName: "Hela Ben Amor", firstName: "Hela", lastName: "Ben Amor",
-      preferredName: null, workEmail: null, phone: null, employeeId: "hela-id" },
+      preferredName: null, workEmail: null, phone: null, employeeId: "hela-id", photoUrl: null },
     employment: { state: "Active", start: "2023-01-01", end: null, employmentType: null },
     work: { orgUnitId: "eng-a", jobTitle: "Cybersecurity Manager", organizationName: "Engineering A Platform", organizationPath: "", location: "Tunis",
       effectiveFrom: "2023-01-01", isHistorical: false },

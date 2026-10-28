@@ -18,7 +18,7 @@ function person(key: string, managerKey: string | null, division: string | null 
     employeeKey: key, displayName: key, initials: key.slice(0, 2).toUpperCase(), jobTitle: `${key} title`,
     unit: { id: `u-${key}`, name: `Unit ${key}`, divisionId: division, divisionName: division ? `Division ${division}` : null },
     workLocation: "Tunis", workEmail: `${key}@example.test`, startYear: 2022, startDate: null, isNew: false, managerKey,
-    dottedLineManagerKeys: [], directCount: 0, totalCount: 0, ...extra,
+    dottedLineManagerKeys: [], directCount: 0, totalCount: 0, photoUrl: null, ...extra,
   };
 }
 

@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.People;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
@@ -49,7 +50,8 @@ public sealed record OrgChartPersonDto(
     string? ManagerKey,
     IReadOnlyList<string> DottedLineManagerKeys,
     int DirectCount,
-    int TotalCount);
+    int TotalCount,
+    string? PhotoUrl = null);
 
 /// <param name="DivisionId">The unit's top-level ancestor under the organization root (the unit itself at that level).</param>
 public sealed record OrgChartUnitDto(Guid Id, string Name, Guid? DivisionId, string? DivisionName);
@@ -204,7 +206,7 @@ public sealed class OrgChartQueryHandler(
         return Result.Success(new OrgChartDto(request.AsOf, request.Scope, viewerKey, people, folded, openRoles, window));
     }
 
-    internal sealed record PersonRow(Guid Id, string StableEmployeeKey, string FirstName, string LastName, string? PreferredName, string? Email);
+    internal sealed record PersonRow(Guid Id, string StableEmployeeKey, string FirstName, string LastName, string? PreferredName, string? Email, string? PhotoKey);
 
     internal sealed record AssignmentRow(Guid EmployeeId, Guid OrgUnitId, string JobTitle, string? WorkLocation, DateTime EffectiveFrom);
 
@@ -241,7 +243,8 @@ public sealed class OrgChartQueryHandler(
             managerKey,
             dottedLineManagerKeys,
             directCount,
-            totalCount);
+            totalCount,
+            EmployeePhotos.UrlFor(employee.StableEmployeeKey, employee.PhotoKey));
     }
 
     internal static async Task<Dictionary<Guid, OrgChartUnitDto>> LoadUnitsAsync(CoreHRDbContext dbContext, DateOnly asOf, CancellationToken cancellationToken)
@@ -397,7 +400,7 @@ internal sealed class OrgChartSnapshot
 
         var employees = await dbContext.Employees.AsNoTracking()
             .Where(e => ids.Contains(e.Id))
-            .Select(e => new OrgChartQueryHandler.PersonRow(e.Id, e.StableEmployeeKey, e.FirstName, e.LastName, e.PreferredName, e.Email))
+            .Select(e => new OrgChartQueryHandler.PersonRow(e.Id, e.StableEmployeeKey, e.FirstName, e.LastName, e.PreferredName, e.Email, e.PhotoKey))
             .ToDictionaryAsync(e => e.Id, cancellationToken);
 
         var assignments = (await dbContext.WorkAssignments.AsNoTracking()
@@ -553,7 +556,7 @@ public sealed class OrgChartChangesQueryHandler(
         var employeeIds = spans.Select(e => e.EmployeeId).Concat(relationships.Select(r => r.ManagerEmployeeId)).Distinct().ToList();
         var employees = await dbContext.Employees.AsNoTracking()
             .Where(e => employeeIds.Contains(e.Id))
-            .Select(e => new OrgChartQueryHandler.PersonRow(e.Id, e.StableEmployeeKey, e.FirstName, e.LastName, e.PreferredName, e.Email))
+            .Select(e => new OrgChartQueryHandler.PersonRow(e.Id, e.StableEmployeeKey, e.FirstName, e.LastName, e.PreferredName, e.Email, e.PhotoKey))
             .ToDictionaryAsync(e => e.Id, cancellationToken);
         var keyOf = employees.ToDictionary(pair => pair.Key, pair => pair.Value.StableEmployeeKey);
 

@@ -45,6 +45,8 @@ export interface PeopleRowDto {
   work: PeopleWorkDto | null;
   primaryManager: PeopleManagerDto | null;
   completeness: "Complete" | "WorkDetailsUnavailable" | string;
+  /** API-relative photo address with a cache version; null without a photo. */
+  photoUrl: string | null;
 }
 
 export interface PeoplePageDto {
@@ -76,9 +78,76 @@ export interface PeopleProfileIdentityDto {
   lastName: string;
   preferredName: string | null;
   workEmail: string | null;
+  /** Null for a colleague: the mobile shows to the person, HR and their branch manager. */
   phone: string | null;
   /** The worker's id, which other modules (Performance) key their records by. */
   employeeId: string;
+  /** API-relative photo address with a cache version; null without a photo. */
+  photoUrl: string | null;
+}
+
+/** How much of the Personal tab the viewer may read: Directory = preferred name, Contact = + mobile, Full = all. */
+export type PersonalAccess = "Directory" | "Contact" | "Full";
+
+export interface PeopleHomeAddressDto {
+  street: string | null;
+  city: string | null;
+  postalCode: string | null;
+  country: string | null;
+}
+
+export interface PeopleEmergencyContactDto {
+  name: string;
+  relationship: string | null;
+  phone: string;
+}
+
+/** Fields above `access` come back null: tell "hidden" from "empty" by `access`, not by the values. */
+export interface PeoplePersonalDto {
+  employeeKey: string;
+  access: PersonalAccess;
+  canEdit: boolean;
+  firstName: string;
+  lastName: string;
+  preferredName: string | null;
+  mobile: string | null;
+  personalEmail: string | null;
+  homeAddress: PeopleHomeAddressDto | null;
+  /** yyyy-mm-dd */
+  dateOfBirth: string | null;
+  /** At most three. */
+  emergencyContacts: PeopleEmergencyContactDto[] | null;
+  version: number;
+}
+
+/** Replaces the whole Personal tab: send back what you read with your change applied. */
+export interface UpdatePersonalRequest {
+  preferredName: string | null;
+  mobile: string | null;
+  personalEmail: string | null;
+  homeAddress: PeopleHomeAddressDto | null;
+  dateOfBirth: string | null;
+  emergencyContacts: PeopleEmergencyContactDto[];
+}
+
+/** One Job information row: the job from `effectiveDate` until the next row. */
+export interface PeopleJobHistoryRowDto {
+  effectiveDate: string;
+  jobTitle: string;
+  orgUnitId: string;
+  unitName: string;
+  location: string | null;
+  manager: PeopleManagerDto | null;
+  isCurrent: boolean;
+}
+
+/** Newest first, up to today; scheduled changes are under Coming up. HR and the branch manager only. */
+export interface PeopleJobHistoryDto {
+  rows: PeopleJobHistoryRowDto[];
+}
+
+export interface EmployeePhotoDto {
+  photoUrl: string | null;
 }
 
 export interface PeopleProfileEmploymentDto {
@@ -417,6 +486,12 @@ export const corePeoplePaths = {
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/dotted-lines/end`,
   updateWorkEmail: (employeeKey: string) =>
     `/corehr/employees/people/${encodeURIComponent(employeeKey)}/work-email`,
+  personal: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/personal`,
+  jobHistory: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/job-history`,
+  photo: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/photo`,
   hire: () => "/corehr/employees/hire",
   addExisting: () => "/corehr/employees/add-existing",
 } as const;
@@ -438,6 +513,12 @@ export const corePeopleQueryKeys = {
     [...corePeopleQueryKeys.all(), "lineEffects", employeeId, managerId ?? "none"] as const,
   accessStatus: (employeeKey: string) =>
     [...corePeopleQueryKeys.profiles(), employeeKey, "access"] as const,
+  personal: (employeeKey: string) =>
+    [...corePeopleQueryKeys.profiles(), employeeKey, "personal"] as const,
+  jobHistory: (employeeKey: string) =>
+    [...corePeopleQueryKeys.profiles(), employeeKey, "job-history"] as const,
+  /** Keyed by the versioned address, so a new upload is a new entry and an old one never goes stale. */
+  photo: (photoUrl: string) => [...corePeopleQueryKeys.all(), "photo", photoUrl] as const,
   managerOptions: (effectiveDate: string, q: string, forEmployee?: string | null) =>
     [...corePeopleQueryKeys.all(), "managerOptions", effectiveDate, q, forEmployee ?? "any"] as const,
 } as const;
@@ -500,6 +581,26 @@ export function createCorePeopleApi(client: ApiClient) {
       client.put<void>(corePeoplePaths.updateWorkEmail(employeeKey), request, {
         headers: { "If-Match": `"${expectedVersion}"` },
       }),
+    personal: (employeeKey: string, signal?: AbortSignal) =>
+      client.get<PeoplePersonalDto>(corePeoplePaths.personal(employeeKey), { signal }),
+    /** Applies at once and lands in history; `expectedVersion` is the `version` you read. */
+    updatePersonal: (employeeKey: string, request: UpdatePersonalRequest, expectedVersion: number) =>
+      client.put<PeoplePersonalDto>(corePeoplePaths.personal(employeeKey), request, {
+        headers: { "If-Match": `"${expectedVersion}"` },
+      }),
+    jobHistory: (employeeKey: string, signal?: AbortSignal) =>
+      client.get<PeopleJobHistoryDto>(corePeoplePaths.jobHistory(employeeKey), { signal }),
+    /** Reads a `photoUrl` from any DTO; the API needs the bearer token, so an `<img src>` can't load it directly. */
+    photo: (photoUrl: string, signal?: AbortSignal) =>
+      client.get<Blob>(photoUrl, { responseType: "blob", signal }),
+    /** A JPEG, PNG or WebP up to 5 MB. */
+    uploadPhoto: (employeeKey: string, file: Blob, fileName = "photo.webp") => {
+      const form = new FormData();
+      form.append("file", file, fileName);
+      return client.post<EmployeePhotoDto>(corePeoplePaths.photo(employeeKey), form);
+    },
+    removePhoto: (employeeKey: string) =>
+      client.delete<EmployeePhotoDto>(corePeoplePaths.photo(employeeKey)),
     accessStatus: (employeeKey: string, signal?: AbortSignal) =>
       client.get<PeopleAccessStatusDto>(
         corePeoplePaths.accessStatus(employeeKey),

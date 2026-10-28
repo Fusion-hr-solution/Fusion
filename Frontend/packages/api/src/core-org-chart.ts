@@ -21,6 +21,8 @@ export interface OrgChartPersonDto {
   /** Whole-company counts, the same for every viewer. */
   directCount: number;
   totalCount: number;
+  /** API-relative photo address with a cache version (fetch it as a blob through the client); null without a photo. */
+  photoUrl: string | null;
 }
 
 export interface OrgChartUnitDto {

@@ -78,6 +78,7 @@ function row(overrides: Partial<PeopleRowDto> = {}): PeopleRowDto {
     employeeKey: "E-KEY-1",
     employeeNumber: "E000123",
     displayName: "Ada Lovelace",
+    photoUrl: null,
     firstName: "Ada",
     lastName: "Lovelace",
     workEmail: "ada@ey-hr.com",

@@ -23,6 +23,56 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.EmergencyContact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Relationship")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "Position")
+                        .HasDatabaseName("IX_EmergencyContacts_EmployeeId_Position");
+
+                    b.ToTable("EmergencyContacts", "corehr");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("Id")
@@ -35,6 +85,9 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.Property<string>("CreatedBy")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
 
                     b.Property<string>("Department")
                         .HasMaxLength(100)
@@ -54,14 +107,38 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("HomeCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("HomeCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("HomePostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("HomeStreet")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("PersonalEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PhotoKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("PreferredName")
                         .HasMaxLength(100)
@@ -2085,6 +2162,15 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.ToTable("ImportSemanticConsents", "corehr");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.EmergencyContact", b =>
+                {
+                    b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.Employee", null)
+                        .WithMany("EmergencyContacts")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.Employment", b =>
                 {
                     b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.Employee", null)
@@ -2289,6 +2375,11 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.Employee", b =>
+                {
+                    b.Navigation("EmergencyContacts");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnit", b =>

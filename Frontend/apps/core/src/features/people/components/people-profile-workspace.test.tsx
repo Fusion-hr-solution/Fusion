@@ -96,6 +96,7 @@ function profile(overrides: Partial<PeopleProfileDto> = {}): PeopleProfileDto {
       phone: "+216 00 000 000",
 
       employeeId: "employee-1",
+      photoUrl: null,
     },
     employment: {
       state: "Active",
@@ -281,6 +282,7 @@ describe("PeopleProfileWorkspace", () => {
             phone: null,
 
             employeeId: "employee-1",
+            photoUrl: null,
           },
         }),
       })
@@ -305,6 +307,7 @@ describe("PeopleProfileWorkspace", () => {
             phone: null,
 
             employeeId: "employee-1",
+            photoUrl: null,
           },
         }),
       })

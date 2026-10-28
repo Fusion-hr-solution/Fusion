@@ -14,7 +14,9 @@ public enum PeopleChangeKind
     Manager,
     EmploymentStarted,
     EmploymentEnded,
-    WorkEstablished
+    WorkEstablished,
+    /// <summary>The person or HR changed contact or personal details; the fields name the sections, never the values.</summary>
+    PersonalDetails
 }
 
 /// <summary>A single changed value expressed as before → after; either side may be absent.</summary>
@@ -101,8 +103,28 @@ public sealed class PeopleTimelineComposer(CoreHRDbContext dbContext)
 
         var upcoming = BuildUpcoming(employeeKey, today, assignments, relationships, orgNames, managerNames);
         var timeline = BuildTimeline(today, employments, assignments, relationships, orgNames, managerNames);
+        timeline.AddRange(await PersonalDetailEventsAsync(employeeId, cancellationToken));
+        timeline = timeline.OrderByDescending(e => e.EffectiveDate).ThenBy(e => e.Kind).ToList();
 
         return new PeopleTimelineDto(upcoming, timeline);
+    }
+
+    private async Task<IEnumerable<PeopleTimelineEventDto>> PersonalDetailEventsAsync(
+        Guid employeeId, CancellationToken cancellationToken)
+    {
+        var entries = await dbContext.WorkforceAuditEntries.AsNoTracking()
+            .Where(entry => entry.EntityType == "Employee" && entry.EntityId == employeeId
+                && entry.Action == WorkforceAuditAction.PersonalDetailsUpdated)
+            .OrderByDescending(entry => entry.OccurredAt)
+            .Take(50)
+            .Select(entry => new { entry.OccurredAt, entry.ChangeDetails })
+            .ToListAsync(cancellationToken);
+        return entries.Select(entry => new PeopleTimelineEventDto(
+            entry.OccurredAt, PeopleChangeKind.PersonalDetails, "Updated contact details", false,
+            (entry.ChangeDetails ?? string.Empty)
+                .Split(", ", StringSplitOptions.RemoveEmptyEntries)
+                .Select(section => new PeopleChangeFieldDto(section, null, null))
+                .ToList()));
     }
 
     private async Task<Dictionary<Guid, string>> ResolveOrgNamesAsync(

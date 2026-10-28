@@ -68,7 +68,9 @@ public sealed record PeopleRowDto(
     DateTime? EmploymentEnd,
     PeopleWorkDto? Work,
     PeopleManagerDto? PrimaryManager,
-    string Completeness);
+    string Completeness,
+    /// <summary>API-relative photo address with a cache version, or null without a photo.</summary>
+    string? PhotoUrl = null);
 
 public sealed record PeoplePageDto(
     IReadOnlyList<PeopleRowDto> Items,
