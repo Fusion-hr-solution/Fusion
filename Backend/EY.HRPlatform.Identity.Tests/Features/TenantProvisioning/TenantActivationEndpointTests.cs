@@ -23,6 +23,7 @@ namespace EY.HRPlatform.Identity.Tests.Features.TenantProvisioning;
 /// states are distinguishable, what is disclosed, and whether the invited address
 /// can be altered by editing a request.
 /// </summary>
+[Collection(CapturedBootstrapMailCollection.Name)]
 public sealed class TenantActivationEndpointTests : IAsyncLifetime
 {
     private const string InvitedEmail = "admin@atlas.example";

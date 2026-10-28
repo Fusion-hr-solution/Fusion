@@ -17,6 +17,7 @@ namespace EY.HRPlatform.Identity.Tests.Features.TenantProvisioning;
 /// send was attempted, and they prove that a failed send leaves the invitation
 /// Pending and recoverable rather than silently consumed.
 /// </summary>
+[Collection(CapturedBootstrapMailCollection.Name)]
 public sealed class BootstrapInvitationDeliveryTests : IAsyncLifetime
 {
     private static readonly Guid Actor = new("eeeeeeee-0000-0000-0000-00000000000e");
