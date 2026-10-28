@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using EY.HRPlatform.CoreHR.Controllers;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
@@ -258,6 +259,120 @@ public sealed class OrgChartTests
         Assert.Equal([(OrgChartChangeKinds.Join, world.Keys["Aicha"])], past.Select(c => (c.Kind, c.EmployeeKey)));
         Assert.Empty(await ChangesAsync(world, Today.AddDays(40), Today.AddDays(60)));
         Assert.Empty(await ChangesAsync(world, Today.AddDays(1), Today.AddDays(60), tenant: TenantB));
+    }
+
+    /// <summary>
+    /// B-135: joiner cards are built in one pass, not from one chart per join day. Many join days, some shared, joiners
+    /// who manage on day one, dotted lines, a manager gone before their report starts, a unit renamed mid-window, a
+    /// rehire and a renewal: every joiner card equals that person's card in the chart HR reads for that day.
+    /// </summary>
+    [Fact]
+    public async Task Joiner_cards_match_the_chart_on_each_join_day()
+    {
+        var db = Guid.NewGuid().ToString();
+        await using (var seed = TestDbContextFactory.CreateWithoutTenant(db))
+        {
+            var random = new Random(135);
+            var longAgo = TodayAt.AddYears(-3);
+            var root = OrgUnit.Create(TenantA, "U-root", "Carthage", "Department", null);
+            var team = OrgUnit.Create(TenantA, "U-team", "Product A", "Department", root.Id);
+            seed.OrgUnits.AddRange(root, team);
+            seed.OrgUnitEffectiveStates.Add(OrgUnitEffectiveState.Create(TenantA, root.Id, OrganizationalUnitTypeCatalog.DepartmentId,
+                null, "Carthage", OrgUnitLifecycleState.Active, DateOnly.FromDateTime(longAgo)));
+            seed.OrgUnitEffectiveStates.Add(OrgUnitEffectiveState.Create(TenantA, team.Id, OrganizationalUnitTypeCatalog.DepartmentId,
+                root.Id, "Product A", OrgUnitLifecycleState.Active, DateOnly.FromDateTime(longAgo), Today.AddDays(-50)));
+            seed.OrgUnitEffectiveStates.Add(OrgUnitEffectiveState.Create(TenantA, team.Id, OrganizationalUnitTypeCatalog.DepartmentId,
+                root.Id, "Product Studio", OrgUnitLifecycleState.Active, Today.AddDays(-50)));
+
+            var people = new List<(Guid Id, Guid Assignment, Employment Employment)>();
+            (Guid Id, Guid Assignment, Employment Employment) Hire(string first, DateTime start, Guid? employeeId = null)
+            {
+                var id = employeeId ?? Guid.NewGuid();
+                if (employeeId is null)
+                {
+                    var employee = Employee.Create(TenantA, first, "Test", $"{first.ToLowerInvariant()}@example.com", employeeNumber: $"E-{Guid.NewGuid():N}");
+                    seed.Employees.Add(employee);
+                    id = employee.Id;
+                }
+
+                var employment = Employment.Start(TenantA, id, start, "FullTime", WorkforceSourceType.Manual);
+                var assignment = WorkAssignment.Create(TenantA, employment.Id, id, (random.Next(2) == 0 ? root : team).Id, $"Role {first}", "Tunis", true, start, null, WorkforceSourceType.Manual);
+                seed.Employments.Add(employment);
+                seed.WorkAssignments.Add(assignment);
+                var person = (id, assignment.Id, employment);
+                people.Add(person);
+                return person;
+            }
+
+            ManagerRelationship Line((Guid Id, Guid Assignment, Employment _) subject, (Guid Id, Guid Assignment, Employment _) manager, DateTime from,
+                ReportingRelationshipType type = ReportingRelationshipType.PrimaryManager)
+            {
+                var line = ManagerRelationship.Create(TenantA, subject.Id, manager.Id, subject.Assignment, manager.Assignment, type, from, WorkforceSourceType.Manual);
+                seed.ManagerRelationships.Add(line);
+                return line;
+            }
+
+            var ceo = Hire("Ceo", longAgo);
+            var lines = new Dictionary<Guid, ManagerRelationship>();
+            foreach (var vp in new[] { "Vpa", "Vpb", "Vpc" }) lines[Hire(vp, longAgo).Id] = Line(people[^1], ceo, longAgo);
+
+            // Forty joiners over 100 days, every fifth sharing the day before; each reports to someone already there.
+            for (var i = 0; i < 40; i++)
+            {
+                var day = TodayAt.AddDays(-100 + (i % 5 == 0 && i > 0 ? (i - 1) * 3 : i * 3));
+                var manager = people[random.Next(people.Count)];
+                var joiner = Hire($"Joiner{i}", day);
+                lines[joiner.Id] = Line(joiner, manager, day);
+                if (i % 4 == 0) Line(joiner, people[random.Next(4)], day, ReportingRelationshipType.SecondaryManager);
+                if (i % 7 == 3)
+                {
+                    // Someone already there, not above the joiner, moves under them on their first day.
+                    var mover = people[1 + random.Next(people.Count - 2)];
+                    var above = new HashSet<Guid>();
+                    for (var up = joiner.Id; lines.TryGetValue(up, out var line) && above.Add(line.ManagerEmployeeId); up = line.ManagerEmployeeId) { }
+                    if (!above.Contains(mover.Id) && lines.TryGetValue(mover.Id, out var current) && current.EffectiveFrom < day)
+                    {
+                        current.End(day);
+                        lines[mover.Id] = Line(mover, joiner, day);
+                    }
+                }
+            }
+
+            // A manager whose last day comes before their report starts; a rehire after a gap; a renewal with none.
+            var leaving = Hire("Leaving", longAgo);
+            leaving.Employment.End(TodayAt.AddDays(-20));
+            Line(Hire("Orphan", TodayAt.AddDays(-10)), leaving, TodayAt.AddDays(-10));
+            var rehired = Hire("Rehired", longAgo);
+            rehired.Employment.End(TodayAt.AddDays(-60));
+            Line(Hire("Rehired", TodayAt.AddDays(-30), rehired.Id), ceo, TodayAt.AddDays(-30));
+            var renewed = Hire("Renewed", longAgo);
+            renewed.Employment.End(TodayAt.AddDays(-40));
+            Hire("Renewed", TodayAt.AddDays(-40), renewed.Id);
+            Line(Hire("Future", TodayAt.AddDays(15)), ceo, TodayAt.AddDays(15));
+            await seed.SaveChangesAsync();
+        }
+
+        var world = new World(db, [], [], Guid.Empty);
+        var changes = await ChangesAsync(world, Today.AddDays(-120), Today.AddDays(30));
+        var joins = changes.Where(c => c.Kind == OrgChartChangeKinds.Join).ToList();
+
+        Assert.Equal(40 + 3, joins.Count); // the joiners, the orphan, the rehire and the future joiner; not the renewal
+        Assert.True(joins.Select(c => c.Date).Distinct().Count() > 30);
+        Assert.Contains(joins, c => c.Person!.DirectCount > 0);
+        Assert.Contains(joins, c => c.Person!.DottedLineManagerKeys.Count > 0);
+        Assert.Contains(joins, c => c.Person!.DisplayName == "Orphan Test" && c.ManagerKey is null);
+        Assert.Contains(joins, c => c.Person!.DisplayName == "Rehired Test");
+        Assert.DoesNotContain(joins, c => c.Person!.DisplayName == "Renewed Test");
+        Assert.Contains(joins, c => c.Person!.Unit!.Name == "Product A");
+        Assert.Contains(joins, c => c.Person!.Unit!.Name == "Product Studio");
+
+        foreach (var join in joins)
+        {
+            var chart = await ReadAsync(world, OrgChartScopes.Tenant, null, hr: true, asOf: join.Date);
+            var expected = Assert.Single(chart.People, p => p.EmployeeKey == join.EmployeeKey);
+            Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(join.Person));
+            Assert.Equal(expected.ManagerKey, join.ManagerKey);
+        }
     }
 
     [Fact]
