@@ -78,7 +78,9 @@ function QuestionRow({
     <li className="flex min-h-12 items-center gap-3 px-5 py-2">
       <span className="min-w-0 flex-1 type-subsection-title text-foreground">{question.text}</span>
       <span className="w-36 shrink-0 type-meta text-muted-foreground">
-        {inUse ? t("inUseSince", { date: formatDate(question.firstUsedAt, { locale }) }) : t("notUsed")}
+        {question.roundCount
+          ? t("inRounds", { count: question.roundCount })
+          : inUse ? t("inUseSince", { date: formatDate(question.firstUsedAt, { locale }) }) : t("notUsed")}
       </span>
       {editable ? (
         <span className="flex shrink-0 items-center gap-0.5">

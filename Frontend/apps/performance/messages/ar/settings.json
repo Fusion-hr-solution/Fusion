@@ -26,7 +26,9 @@
     "current": "الحالية",
     "since": "منذ {date}",
     "consequence": "يُحفظ كنسخة {version}. تحتفظ التقييمات التي بدأت بالنسخة التي بدأت بها.",
-    "save": "حفظ النسخة {version}"
+    "save": "حفظ النسخة {version}",
+    "usedBy": "استُخدمت في {rounds}",
+    "notUsed": "لم تُستخدم بعد"
   },
   "competencies": {
     "didNotLoad": "تعذّر تحميل الكفاءات",
@@ -49,7 +51,8 @@
     "add": "إضافة كفاءة",
     "behaviourCount": "{count, plural, one {سلوك واحد} two {سلوكان} other {# سلوكيات}}",
     "empty": "لا كفاءات بعد.",
-    "archived": "المؤرشفة {count}"
+    "archived": "المؤرشفة {count}",
+    "usedIn": "مستخدمة في {cycles}"
   },
   "questions": {
     "didNotLoad": "تعذّر تحميل أسئلة التقييم",
@@ -77,7 +80,8 @@
     "delete": "حذف: {text}",
     "addQuestion": "إضافة سؤال",
     "add": "إضافة السؤال",
-    "archived": "المؤرشفة {count}"
+    "archived": "المؤرشفة {count}",
+    "inRounds": "{count, plural, zero {لم يُطرح في أي جولة} one {طُرح في جولة واحدة} two {طُرح في جولتين} few {طُرح في # جولات} many {طُرح في # جولة} other {طُرح في # جولة}}"
   },
   "reviews": {
     "includes": "ما يتضمنه التقييم",

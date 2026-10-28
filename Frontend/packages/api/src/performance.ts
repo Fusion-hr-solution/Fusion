@@ -106,9 +106,15 @@ export interface NineBoxBandsDto { lowTop: number; midTop: number; custom: boole
 export interface NineBoxBandsRequest { lowTop: number | null; midTop: number | null }
 
 export interface RatingScaleLevelDto { value: number; label: string; description: string | null }
-export interface RatingScaleDto { version: number; scaleVersion: number; levels: RatingScaleLevelDto[] }
+/** One saved version of the scale and the launched rounds ("FY2026 · Year-end review") that rated on it. */
+export interface RatingScaleVersionDto { number: number; createdAt: string; usedBy: string[] }
+export interface RatingScaleDto { version: number; scaleVersion: number; levels: RatingScaleLevelDto[]; versions: RatingScaleVersionDto[] }
 export interface UpdateRatingScaleRequest { expectedVersion: number; levels: RatingScaleLevelDto[] }
-export interface CompetencyDto { id: string; name: string; description: string; behaviors: string[]; state: "Active" | "Archived"; firstUsedAt: string | null; version: number }
+export interface CompetencyDto {
+  id: string; name: string; description: string; behaviors: string[]; state: "Active" | "Archived"; firstUsedAt: string | null; version: number;
+  /** The cycles whose launched review rounds rated it, oldest first. */
+  usedIn: string[];
+}
 export interface CreateCompetencyRequest { name: string; description: string; behaviors: string[] }
 export interface UpdateCompetencyRequest extends CreateCompetencyRequest { expectedVersion: number }
 export interface CompetencyVersionRequest { expectedVersion: number }

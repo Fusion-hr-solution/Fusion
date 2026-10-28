@@ -26,7 +26,9 @@
     "current": "Current",
     "since": "Since {date}",
     "consequence": "Saves as version {version}. Reviews already started keep the version they began with.",
-    "save": "Save version {version}"
+    "save": "Save version {version}",
+    "usedBy": "Used by {rounds}",
+    "notUsed": "Not used yet"
   },
   "competencies": {
     "didNotLoad": "Competencies didn't load",
@@ -49,7 +51,8 @@
     "add": "Add competency",
     "behaviourCount": "{count, plural, one {# behaviour} other {# behaviours}}",
     "empty": "No competencies yet.",
-    "archived": "Archived {count}"
+    "archived": "Archived {count}",
+    "usedIn": "Used in {cycles}"
   },
   "questions": {
     "didNotLoad": "Review questions didn't load",
@@ -77,7 +80,8 @@
     "delete": "Delete: {text}",
     "addQuestion": "Add a question",
     "add": "Add question",
-    "archived": "Archived {count}"
+    "archived": "Archived {count}",
+    "inRounds": "{count, plural, one {Asked in # round} other {Asked in # rounds}}"
   },
   "reviews": {
     "includes": "What a review includes",

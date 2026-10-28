@@ -61,6 +61,7 @@ export function RatingScaleSettings({ section }: { section: FusionSettingsSectio
   const saved = query.data?.levels;
   const version = query.data?.version ?? 0;
   const scaleVersion = query.data?.scaleVersion ?? 1;
+  const versions = query.data?.versions ?? [];
   const { mutateAsync } = save;
   const persist = useCallback(
     (levels: Levels) =>
@@ -130,22 +131,26 @@ export function RatingScaleSettings({ section }: { section: FusionSettingsSectio
             <ScalePreview levels={levels} />
           </SettingsBlock>
 
-          <SettingsBlock title={t("versions")}>
-            <div className="flex items-center gap-3 rounded-surface border border-border bg-card px-5 py-4">
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex items-center gap-2 type-subsection-title text-foreground">
-                  {t("version", { version: scaleVersion })}
-                  <StatusBadge tone="success" dot>
-                    {t("current")}
-                  </StatusBadge>
-                </span>
-                {section.lastChange || section.setUpAt ? (
-                  <span className="type-meta text-muted-foreground">
-                    {t("since", { date: formatDate(section.lastChange?.at ?? section.setUpAt, { year: "always", locale }) })}
+          <SettingsBlock title={t("versions")} meta={versions.length || undefined}>
+            <ul className="divide-y divide-border overflow-hidden rounded-surface border border-border bg-card">
+              {versions.map((item) => (
+                <li key={item.number} className="flex flex-col gap-0.5 px-5 py-4">
+                  <span className="flex items-center gap-2 type-subsection-title text-foreground">
+                    {t("version", { version: item.number })}
+                    {item.number === scaleVersion ? (
+                      <StatusBadge tone="success" dot>
+                        {t("current")}
+                      </StatusBadge>
+                    ) : null}
                   </span>
-                ) : null}
-              </span>
-            </div>
+                  <span className="type-meta text-muted-foreground">
+                    {t("since", { date: formatDate(item.createdAt, { year: "always", locale }) })}
+                    {" · "}
+                    {item.usedBy.length ? t("usedBy", { rounds: item.usedBy.join(", ") }) : t("notUsed")}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </SettingsBlock>
 
           {editable && saved ? (

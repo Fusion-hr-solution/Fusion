@@ -26,7 +26,9 @@
     "current": "Actuelle",
     "since": "Depuis le {date}",
     "consequence": "Enregistre la version {version}. Les évaluations déjà commencées gardent leur version de départ.",
-    "save": "Enregistrer la version {version}"
+    "save": "Enregistrer la version {version}",
+    "usedBy": "Utilisée par {rounds}",
+    "notUsed": "Pas encore utilisée"
   },
   "competencies": {
     "didNotLoad": "Impossible de charger les compétences",
@@ -49,7 +51,8 @@
     "add": "Ajouter une compétence",
     "behaviourCount": "{count, plural, one {# comportement} other {# comportements}}",
     "empty": "Aucune compétence pour l’instant.",
-    "archived": "Archivées {count}"
+    "archived": "Archivées {count}",
+    "usedIn": "Utilisée dans {cycles}"
   },
   "questions": {
     "didNotLoad": "Impossible de charger les questions d’évaluation",
@@ -77,7 +80,8 @@
     "delete": "Supprimer : {text}",
     "addQuestion": "Ajouter une question",
     "add": "Ajouter la question",
-    "archived": "Archivées {count}"
+    "archived": "Archivées {count}",
+    "inRounds": "{count, plural, one {Posée dans # campagne} other {Posée dans # campagnes}}"
   },
   "reviews": {
     "includes": "Ce que comprend une évaluation",

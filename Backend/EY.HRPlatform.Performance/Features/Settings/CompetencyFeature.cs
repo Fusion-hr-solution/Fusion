@@ -23,9 +23,29 @@ public sealed class ListCompetenciesHandler(PerformanceDbContext db) : IQueryHan
     {
         var items = await db.Competencies.AsNoTracking().Where(item => request.IncludeArchived || item.State == CompetencyState.Active)
             .OrderBy(item => item.State).ThenBy(item => item.Name).ToListAsync(cancellationToken);
-        return Result.Success<IReadOnlyList<CompetencyDto>>(items.Select(ToDto).ToArray());
+        var usedIn = await UsedInAsync(db, cancellationToken);
+        return Result.Success<IReadOnlyList<CompetencyDto>>(items.Select(item => ToDto(item) with
+        {
+            UsedIn = usedIn.TryGetValue(item.Id, out var cycles) ? cycles : [],
+        }).ToArray());
     }
     internal static CompetencyDto ToDto(Competency item) => new(item.Id, item.Name, item.Description, item.Behaviors, item.State.ToString(), item.FirstUsedAt, item.Version);
+
+    /// <summary>Per competency, the cycles whose launched rounds rated it. A round keeps its competencies as a JSON list.</summary>
+    internal static async Task<Dictionary<Guid, IReadOnlyList<string>>> UsedInAsync(PerformanceDbContext db, CancellationToken cancellationToken)
+    {
+        var rounds = await (from round in db.ReviewRounds.AsNoTracking()
+                            join cycle in db.Cycles.AsNoTracking() on round.CycleId equals cycle.Id
+                            where round.LaunchedAt != null
+                            orderby cycle.StartDate
+                            select new { round.CompetencyIdsJson, CycleName = cycle.Name })
+            .ToListAsync(cancellationToken);
+        return rounds
+            .SelectMany(round => (System.Text.Json.JsonSerializer.Deserialize<Guid[]>(round.CompetencyIdsJson) ?? [])
+                .Select(id => (Id: id, round.CycleName)))
+            .GroupBy(use => use.Id)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group.Select(use => use.CycleName).Distinct().ToArray());
+    }
 }
 
 public sealed class CreateCompetencyHandler(PerformanceDbContext db, ITenantContext tenant, IPerformanceAudit audit)

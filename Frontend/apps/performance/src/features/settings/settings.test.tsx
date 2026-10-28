@@ -22,6 +22,10 @@ const LEVELS = [
   { value: 4, label: "Strong", description: null },
   { value: 5, label: "Exceptional", description: null },
 ];
+const VERSIONS = [
+  { number: 2, createdAt: "2026-10-20T09:00:00Z", usedBy: [] },
+  { number: 1, createdAt: "2025-09-01T09:00:00Z", usedBy: ["FY2026 · Year-end review"] },
+];
 
 vi.mock("@repo/api/query", () => ({
   useSettingsConflictSaver: (_module: string, _ids: string[], conflict: boolean) => (conflict ? m.conflictSaver : null),
@@ -29,7 +33,7 @@ vi.mock("@repo/api/query", () => ({
 }));
 vi.mock("@/features/performance/api/use-performance", () => ({
   useSettings: () => ({ data: m.settings, error: null, refetch: vi.fn() }),
-  useRatingScale: () => ({ data: { version: 7, scaleVersion: 1, levels: LEVELS }, error: null, refetch: vi.fn() }),
+  useRatingScale: () => ({ data: { version: 7, scaleVersion: 2, levels: LEVELS, versions: VERSIONS }, error: null, refetch: vi.fn() }),
 }));
 vi.mock("@/features/performance/api/use-review-work", () => ({
   useReviewQuestions: () => ({ data: m.questions, error: null, isLoading: false, refetch: vi.fn() }),
@@ -170,11 +174,19 @@ describe("AI and data", () => {
 });
 
 describe("Rating scale", () => {
+  it("lists every version with the rounds that used it", () => {
+    render(<RatingScaleSettings section={section("rating-scale", "Rating scale", "manage")} />);
+    expect(screen.getByText("Version 2")).toBeTruthy();
+    expect(screen.getByText(/Not used yet/)).toBeTruthy();
+    expect(screen.getByText(/Used by FY2026 · Year-end review/)).toBeTruthy();
+    expect(screen.getAllByText("Current")).toHaveLength(1);
+  });
+
   it("saves descriptions as the next version", async () => {
     m.saveScale.mockResolvedValue(undefined);
     render(<RatingScaleSettings section={section("rating-scale", "Rating scale", "manage")} />);
     fireEvent.change(screen.getByLabelText("Level 4 description"), { target: { value: "Goes beyond the role" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save version 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save version 3" }));
     await waitFor(() =>
       expect(m.saveScale).toHaveBeenCalledWith(
         expect.objectContaining({ expectedVersion: 7, levels: expect.arrayContaining([expect.objectContaining({ value: 4, description: "Goes beyond the role" })]) })
@@ -186,13 +198,14 @@ describe("Rating scale", () => {
 describe("Review questions", () => {
   it("archives a used question and deletes an unused one", async () => {
     m.questions = [
-      { id: "q1", text: "What are you most proud of this year?", audience: "Person", sortOrder: 0, state: "Active", firstUsedAt: "2026-09-01T00:00:00Z", version: 2 },
-      { id: "q2", text: "How did they support the team?", audience: "Manager", sortOrder: 0, state: "Active", firstUsedAt: null, version: 1 },
+      { id: "q1", text: "What are you most proud of this year?", audience: "Person", sortOrder: 0, state: "Active", firstUsedAt: "2026-09-01T00:00:00Z", version: 2, roundCount: 2 },
+      { id: "q2", text: "How did they support the team?", audience: "Manager", sortOrder: 0, state: "Active", firstUsedAt: null, version: 1, roundCount: 0 },
     ];
     m.archive.mockResolvedValue(undefined);
     m.remove.mockResolvedValue(undefined);
     render(<ReviewQuestionsSettings section={section("review-questions", "Review questions", "manage")} />);
     expect(screen.queryByRole("button", { name: "Delete: What are you most proud of this year?" })).toBeNull();
+    expect(screen.getByText("Asked in 2 rounds")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Archive: What are you most proud of this year?" }));
     expect(m.archive).toHaveBeenCalledWith({ id: "q1", version: 2 });
     fireEvent.click(screen.getByRole("button", { name: "Delete: How did they support the team?" }));

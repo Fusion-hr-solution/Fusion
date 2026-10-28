@@ -67,7 +67,11 @@ public sealed record RatingScaleLevelDto(int Value, string Label, string? Descri
 public sealed record RatingScaleDto(int ScaleVersion, IReadOnlyList<RatingScaleLevelDto> Levels)
 {
     public uint Version { get; init; }
+    /// <summary>Every version, newest first, with the launched review rounds that rated on it.</summary>
+    public IReadOnlyList<RatingScaleVersionDto> Versions { get; init; } = [];
 }
+/// <summary>One version of the scale: when it was saved and the rounds ("FY2026 · Year-end review") that used it.</summary>
+public sealed record RatingScaleVersionDto(int Number, DateTime CreatedAt, IReadOnlyList<string> UsedBy);
 public sealed record UpdateRatingScaleRequest(IReadOnlyList<RatingScaleLevelDto>? Levels)
 {
     [System.Text.Json.Serialization.JsonRequired]
@@ -75,14 +79,22 @@ public sealed record UpdateRatingScaleRequest(IReadOnlyList<RatingScaleLevelDto>
 }
 
 public sealed record CompetencyDto(Guid Id, string Name, string Description, IReadOnlyList<string> Behaviors,
-    string State, DateTime? FirstUsedAt, uint Version);
+    string State, DateTime? FirstUsedAt, uint Version)
+{
+    /// <summary>The cycles whose launched review rounds rated this competency, oldest first.</summary>
+    public IReadOnlyList<string> UsedIn { get; init; } = [];
+}
 public sealed record CreateCompetencyRequest(string Name, string Description, IReadOnlyList<string>? Behaviors);
 public sealed record UpdateCompetencyRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion,
     string Name, string Description, IReadOnlyList<string>? Behaviors);
 public sealed record CompetencyVersionRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion);
 
 public sealed record ReviewQuestionDto(Guid Id, string Text, ReviewQuestionAudience Audience, int SortOrder,
-    ReviewQuestionState State, DateTime? FirstUsedAt, uint Version);
+    ReviewQuestionState State, DateTime? FirstUsedAt, uint Version)
+{
+    /// <summary>How many launched review rounds asked it.</summary>
+    public int RoundCount { get; init; }
+}
 public sealed record CreateReviewQuestionRequest(string Text, ReviewQuestionAudience Audience);
 public sealed record UpdateReviewQuestionRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion, string Text);
 public sealed record ReviewQuestionVersionRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion);

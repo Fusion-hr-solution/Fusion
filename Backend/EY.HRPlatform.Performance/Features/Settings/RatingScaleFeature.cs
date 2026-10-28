@@ -27,12 +27,12 @@ public sealed class GetRatingScaleHandler(PerformanceDbContext db, ITenantContex
             db.RatingScales.Add(scale);
             db.RatingScaleVersions.Add(initial);
             await db.SaveChangesAsync(cancellationToken);
-            return RatingScaleMapper.ToDto(scale, initial);
+            return await RatingScaleMapper.ToDtoAsync(db, scale, initial, cancellationToken);
         }
 
         var version = await db.RatingScaleVersions.SingleAsync(v => v.Id == scale.CurrentVersionId
             && v.RatingScaleId == scale.Id, cancellationToken);
-        return RatingScaleMapper.ToDto(scale, version);
+        return await RatingScaleMapper.ToDtoAsync(db, scale, version, cancellationToken);
     }
 }
 
@@ -57,7 +57,7 @@ public sealed class UpdateRatingScaleHandler(PerformanceDbContext db, ITenantCon
         audit.Record(tenant.TenantId, "RatingScale", scale.Id, null, PerformanceAuditActions.RatingScaleChanged,
             new { before = previous?.Levels, after = next.Levels, version = next.Number });
         await db.SaveChangesAsync(cancellationToken);
-        return RatingScaleMapper.ToDto(scale, next);
+        return await RatingScaleMapper.ToDtoAsync(db, scale, next, cancellationToken);
     }
 
     private static string? TryNormalize(IReadOnlyList<RatingScaleLevelDto>? input, out IReadOnlyList<RatingScaleLevel> levels)
@@ -94,4 +94,23 @@ public static class RatingScaleMapper
     public static RatingScaleDto ToDto(RatingScale scale, RatingScaleVersion version)
         => new(version.Number, version.Levels.Select(level => new RatingScaleLevelDto(level.Value, level.Label, level.Description)).ToArray())
         { Version = scale.Version };
+
+    /// <summary>The scale with its version history: a launched round records the version it rates on.</summary>
+    public static async Task<RatingScaleDto> ToDtoAsync(PerformanceDbContext db, RatingScale scale, RatingScaleVersion current,
+        CancellationToken cancellationToken)
+    {
+        var versions = await db.RatingScaleVersions.AsNoTracking().Where(v => v.RatingScaleId == scale.Id)
+            .OrderByDescending(v => v.Number).Select(v => new { v.Id, v.Number, v.CreatedAt }).ToListAsync(cancellationToken);
+        var rounds = await (from round in db.ReviewRounds.AsNoTracking()
+                            join cycle in db.Cycles.AsNoTracking() on round.CycleId equals cycle.Id
+                            where round.RatingScaleVersionId != null && round.LaunchedAt != null
+                            orderby round.LaunchedAt
+                            select new { VersionId = round.RatingScaleVersionId!.Value, CycleName = cycle.Name, RoundName = round.Name })
+            .ToListAsync(cancellationToken);
+        var usedBy = rounds.ToLookup(round => round.VersionId, round => $"{round.CycleName} · {round.RoundName}");
+        return ToDto(scale, current) with
+        {
+            Versions = versions.Select(v => new RatingScaleVersionDto(v.Number, v.CreatedAt, usedBy[v.Id].ToArray())).ToArray(),
+        };
+    }
 }

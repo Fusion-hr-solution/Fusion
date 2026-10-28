@@ -83,7 +83,11 @@ function CompetencyEditor({
         {item ? <ValueDot id={item.id} className="size-2.5" /> : null}
         <span className="flex-1 type-subsection-title text-foreground">{item?.name ?? t("new")}</span>
         {item && inUse ? (
-          <StatusBadge tone="neutral">{t("inUseSince", { date: formatDate(item.firstUsedAt, { year: "always", locale }) })}</StatusBadge>
+          <StatusBadge tone="neutral">
+            {item.usedIn.length
+              ? t("usedIn", { cycles: item.usedIn.join(", ") })
+              : t("inUseSince", { date: formatDate(item.firstUsedAt, { year: "always", locale }) })}
+          </StatusBadge>
         ) : null}
       </div>
       <div className="flex flex-col gap-1.5">
@@ -176,8 +180,9 @@ function CompetencyRow({ item, onOpen }: { item: CompetencyDto; onOpen?: () => v
         <span className="type-subsection-title text-foreground">{item.name}</span>
         <span className="type-meta text-muted-foreground">{item.description}</span>
       </span>
-      <span className="shrink-0 type-meta text-muted-foreground">
-        {t("behaviourCount", { count: item.behaviors.length })}
+      <span className="flex shrink-0 flex-col items-end gap-0.5 type-meta text-muted-foreground">
+        <span>{t("behaviourCount", { count: item.behaviors.length })}</span>
+        {item.usedIn.length ? <span>{t("usedIn", { cycles: item.usedIn.join(", ") })}</span> : null}
       </span>
       {onOpen ? <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" /> : null}
     </>

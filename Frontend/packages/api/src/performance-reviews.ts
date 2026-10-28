@@ -22,6 +22,8 @@ export interface ReviewQuestionDto {
   state: ReviewQuestionState;
   firstUsedAt: string | null;
   version: number;
+  /** How many launched review rounds asked it. */
+  roundCount: number;
 }
 
 // ── Rounds ───────────────────────────────────────────────────────────────────────

@@ -79,19 +79,20 @@ public sealed class ReviewWorld : IAsyncDisposable
 
     /// <summary>A Draft with every component on: two questions per audience from the seeded library.</summary>
     public async Task<JsonElement> CreateRoundAsync(string name = "Year-end review", bool peers = true, bool questions = true,
-        bool potential = true, bool calibration = false)
+        bool potential = true, bool calibration = false, Guid[]? competencyIds = null)
     {
         var round = await Data(await Admin.PostAsJsonAsync($"/api/performance/cycles/{Cycle.Id}/review-rounds",
             new { name, periodStart = Cycle.StartDate, periodEnd = Today }));
         var library = await Data(await Admin.GetAsync("/api/performance/settings/review-questions"));
         var picks = library.EnumerateArray().GroupBy(q => q.GetProperty("audience").GetString())
             .SelectMany(g => g.Take(2)).Select(q => q.GetProperty("id").GetGuid()).ToArray();
-        return await UpdateRoundAsync(round, peers: peers, questions: questions, potential: potential, calibration: calibration, questionIds: picks);
+        return await UpdateRoundAsync(round, peers: peers, questions: questions, potential: potential, calibration: calibration, questionIds: picks,
+            competencyIds: competencyIds);
     }
 
     public async Task<JsonElement> UpdateRoundAsync(JsonElement round, bool? peers = null, bool? questions = null, bool? potential = null,
         bool calibration = false, Guid[]? questionIds = null, bool self = true, DateOnly? selfDue = null, DateOnly? managerDue = null,
-        HttpStatusCode expect = HttpStatusCode.OK)
+        HttpStatusCode expect = HttpStatusCode.OK, Guid[]? competencyIds = null)
     {
         using var response = await Admin.PutAsJsonAsync($"/api/performance/review-rounds/{round.GetProperty("id").GetGuid()}", new
         {
@@ -104,7 +105,7 @@ public sealed class ReviewWorld : IAsyncDisposable
             calibrationEnabled = calibration,
             selfAssessmentDueDate = selfDue,
             managerAssessmentDueDate = managerDue,
-            competencyIds = Array.Empty<Guid>(),
+            competencyIds = competencyIds ?? [],
             peerInputEnabled = peers,
             questionsEnabled = questions,
             potentialEnabled = potential,

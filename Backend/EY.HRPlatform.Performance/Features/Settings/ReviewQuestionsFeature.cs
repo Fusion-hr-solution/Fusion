@@ -47,7 +47,19 @@ public sealed class ListReviewQuestionsHandler(PerformanceDbContext db, ITenantC
     : IQueryHandler<ListReviewQuestionsQuery, Result<IReadOnlyList<ReviewQuestionDto>>>
 {
     public async Task<Result<IReadOnlyList<ReviewQuestionDto>>> Handle(ListReviewQuestionsQuery request, CancellationToken token)
-        => Result.Success(ReviewQuestionLibrary.Project(await ReviewQuestionLibrary.LoadAsync(db, tenant.TenantId, token)));
+    {
+        var library = ReviewQuestionLibrary.Project(await ReviewQuestionLibrary.LoadAsync(db, tenant.TenantId, token));
+        // A round keeps the questions it asks; only a launched round has asked them.
+        var asked = (await (from question in db.ReviewRoundQuestions.AsNoTracking()
+                            join round in db.ReviewRounds.AsNoTracking() on question.ReviewRoundId equals round.Id
+                            where round.LaunchedAt != null
+                            select new { question.QuestionId, RoundId = round.Id })
+                .ToListAsync(token))
+            .GroupBy(row => row.QuestionId)
+            .ToDictionary(group => group.Key, group => group.Select(row => row.RoundId).Distinct().Count());
+        return Result.Success<IReadOnlyList<ReviewQuestionDto>>(library
+            .Select(item => item with { RoundCount = asked.GetValueOrDefault(item.Id) }).ToArray());
+    }
 }
 
 public sealed class CreateReviewQuestionHandler(PerformanceDbContext db, ITenantContext tenant, IPerformanceAudit audit)
