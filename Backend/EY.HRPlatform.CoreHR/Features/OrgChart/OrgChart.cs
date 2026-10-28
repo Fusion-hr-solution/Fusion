@@ -17,14 +17,18 @@ namespace EY.HRPlatform.CoreHR.Features.OrgChart;
 /// a DirectReports-scope viewer gets their own chain and branch, with every other branch folded into a count
 /// under the visible person it hangs from. Open roles hang under their manager when the manager is visible: open
 /// ones for everyone, on-hold ones for HR, and only from today on (they are a plan, not history).
+/// Up to <see cref="OrgChartQuery.WholeChartLimit"/> people the whole chart comes back at once; above that, or when
+/// a root is asked for, a window does (<see cref="Window"/>), and the branches below it fold into loadable counts.
 /// </summary>
+/// <param name="Window">Null when every person the viewer may see is in <see cref="People"/>.</param>
 public sealed record OrgChartDto(
     DateOnly AsOf,
     string Scope,
     string? ViewerKey,
     IReadOnlyList<OrgChartPersonDto> People,
     IReadOnlyList<OrgChartFoldDto> Folded,
-    IReadOnlyList<OrgChartOpenRoleDto> OpenRoles);
+    IReadOnlyList<OrgChartOpenRoleDto> OpenRoles,
+    OrgChartWindowDto? Window);
 
 /// <param name="StartYear">Year the current employment started; null when the hire date is hidden from the viewer.</param>
 /// <param name="StartDate">The full start date, for HR only (the Tenure lens); everyone else gets the year.</param>
@@ -50,8 +54,19 @@ public sealed record OrgChartPersonDto(
 /// <param name="DivisionId">The unit's top-level ancestor under the organization root (the unit itself at that level).</param>
 public sealed record OrgChartUnitDto(Guid Id, string Name, Guid? DivisionId, string? DivisionName);
 
-/// <summary>People the viewer may not see, counted under the visible person they report up to.</summary>
-public sealed record OrgChartFoldDto(string ParentKey, int Count);
+/// <summary>People left out of the response, counted under the person they report to.</summary>
+/// <param name="Loadable">The viewer may see them: the window rooted at the parent brings them. False for people
+/// outside a DirectReports viewer's slice.</param>
+public sealed record OrgChartFoldDto(string ParentKey, int Count, bool Loadable);
+
+/// <summary>What a windowed response leaves out, so the page can still speak for the whole chart.</summary>
+/// <param name="Depth">Levels below each window root.</param>
+/// <param name="Headcount">Everyone the viewer may see on the date, in the window or not.</param>
+/// <param name="Divisions">Every division among them, by name, so lens colours hold as branches load.</param>
+/// <param name="FirstStartDate">The earliest start among them, for HR only: Replay's first day.</param>
+public sealed record OrgChartWindowDto(int Depth, int Headcount, IReadOnlyList<OrgChartDivisionDto> Divisions, DateOnly? FirstStartDate);
+
+public sealed record OrgChartDivisionDto(Guid Id, string Name);
 
 public static class OrgChartScopes
 {
@@ -59,15 +74,41 @@ public static class OrgChartScopes
     public const string DirectReports = "DirectReports";
 }
 
+public static class OrgChartErrors
+{
+    public const string RootNotFoundCode = "OrgChart.RootNotFound";
+}
+
 /// <param name="ViewerEmployeeId">The caller's own employee id from the token, never a request value.</param>
 /// <param name="HrAudience">The viewer reads the whole workforce (HR): every field the tenant shows at all.</param>
+/// <param name="RootKey">A window rooted at this person: their chain to the top and their branch to <paramref name="Depth"/>
+/// levels. Null for the whole chart, or for the default window above the limit.</param>
 public sealed record OrgChartQuery(
     DateOnly AsOf,
     string Scope,
     Guid? ViewerEmployeeId,
-    bool HrAudience) : IQuery<Result<OrgChartDto>>;
+    bool HrAudience,
+    string? RootKey = null,
+    int Depth = OrgChartQuery.DefaultDepth) : IQuery<Result<OrgChartDto>>
+{
+    /// <summary>Up to this many people the whole chart comes back in one response (C-9).</summary>
+    public const int WholeChartLimit = 3000;
+    public const int DefaultDepth = 3;
+    public const int MaxDepth = 6;
+}
 
-// --- Handler --------------------------------------------------------------------------------------
+/// <summary>People on the chart whose name, or job title or unit as the viewer sees them, contains the text.</summary>
+public sealed record OrgChartSearchQuery(
+    DateOnly AsOf,
+    string Scope,
+    Guid? ViewerEmployeeId,
+    bool HrAudience,
+    string Text) : IQuery<Result<IReadOnlyList<OrgChartPersonDto>>>
+{
+    public const int Limit = 8;
+}
+
+// --- Handlers -------------------------------------------------------------------------------------
 
 public sealed class OrgChartQueryHandler(
     CoreHRDbContext dbContext,
@@ -77,107 +118,60 @@ public sealed class OrgChartQueryHandler(
 
     public async Task<Result<OrgChartDto>> Handle(OrgChartQuery request, CancellationToken cancellationToken)
     {
-        // Every read runs inside the tenant query filter.
-        var at = request.AsOf.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var chart = await OrgChartSnapshot.LoadAsync(dbContext, tenantSettings, request.AsOf, request.Scope, request.ViewerEmployeeId, request.HrAudience, cancellationToken);
+        var visible = chart.Visible;
 
-        var employments = await dbContext.Employments.AsNoTracking()
-            .Where(e => e.EffectiveFrom <= at && (e.EffectiveTo == null || at < e.EffectiveTo))
-            .Select(e => new { e.EmployeeId, e.EffectiveFrom })
-            .ToListAsync(cancellationToken);
-        var startByEmployee = employments.GroupBy(e => e.EmployeeId)
-            .ToDictionary(g => g.Key, g => g.Max(e => e.EffectiveFrom));
-        var ids = startByEmployee.Keys.ToList();
-
-        var employees = await dbContext.Employees.AsNoTracking()
-            .Where(e => ids.Contains(e.Id))
-            .Select(e => new PersonRow(e.Id, e.StableEmployeeKey, e.FirstName, e.LastName, e.PreferredName, e.Email))
-            .ToListAsync(cancellationToken);
-
-        var assignments = (await dbContext.WorkAssignments.AsNoTracking()
-                .Where(w => ids.Contains(w.EmployeeId) && w.IsPrimary
-                    && w.EffectiveFrom <= at && (w.EffectiveTo == null || at < w.EffectiveTo))
-                .Select(w => new AssignmentRow(w.EmployeeId, w.OrgUnitId, w.JobTitle, w.WorkLocation, w.EffectiveFrom))
-                .ToListAsync(cancellationToken))
-            .GroupBy(w => w.EmployeeId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(w => w.EffectiveFrom).First());
-
-        var relationships = await dbContext.ManagerRelationships.AsNoTracking()
-            .Where(r => ids.Contains(r.SubjectEmployeeId) && ids.Contains(r.ManagerEmployeeId)
-                && (r.Type == ReportingRelationshipType.PrimaryManager || r.Type == ReportingRelationshipType.SecondaryManager)
-                && r.EffectiveFrom <= at && (r.EffectiveTo == null || at < r.EffectiveTo))
-            .Select(r => new { r.SubjectEmployeeId, r.ManagerEmployeeId, r.Type, r.EffectiveFrom })
-            .ToListAsync(cancellationToken);
-        var managerOf = relationships.Where(r => r.Type == ReportingRelationshipType.PrimaryManager)
-            .GroupBy(r => r.SubjectEmployeeId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.EffectiveFrom).First().ManagerEmployeeId);
-        var dottedOf = relationships.Where(r => r.Type == ReportingRelationshipType.SecondaryManager)
-            .GroupBy(r => r.SubjectEmployeeId)
-            .ToDictionary(g => g.Key, g => g.Select(r => r.ManagerEmployeeId).Distinct().ToList());
-
-        var units = await LoadUnitsAsync(dbContext, request.AsOf, cancellationToken);
-
-        // Reporting tree over the whole tenant: counts are the same for every viewer.
-        var reports = managerOf.GroupBy(pair => pair.Value)
-            .ToDictionary(g => g.Key, g => g.Select(pair => pair.Key).ToList());
-        var totals = new Dictionary<Guid, int>();
-        int Total(Guid id, HashSet<Guid> path)
+        Guid? root = null;
+        if (request.RootKey is { } rootKey)
         {
-            if (totals.TryGetValue(id, out var known)) return known;
-            if (!path.Add(id)) return 0; // a cycle in bad data counts once, never loops
-            var sum = reports.TryGetValue(id, out var direct) ? direct.Sum(child => 1 + Total(child, path)) : 0;
-            path.Remove(id);
-            return totals[id] = sum;
+            if (!chart.IdOf.TryGetValue(rootKey, out var id) || !visible.Contains(id))
+                return Result.Failure<OrgChartDto>(new Error(OrgChartErrors.RootNotFoundCode, "Nobody on the chart has this key."));
+            root = id;
         }
 
-        // Who the viewer may see.
-        var visible = new HashSet<Guid>(ids);
-        HashSet<Guid> branch = [];
-        if (request.Scope == OrgChartScopes.DirectReports)
+        // The window: the whole chart up to the limit; otherwise a root's chain and branch (by default every top's
+        // branch and the viewer's team), so everyone in it has their whole chain in it too.
+        var windowed = root is not null || visible.Count > OrgChartQuery.WholeChartLimit;
+        var included = windowed ? new HashSet<Guid>() : visible;
+        if (windowed)
         {
-            visible.Clear();
-            if (request.ViewerEmployeeId is { } viewer && startByEmployee.ContainsKey(viewer))
+            void Chain(Guid id)
             {
-                var stack = new Stack<Guid>([viewer]);
-                while (stack.Count > 0)
-                {
-                    var id = stack.Pop();
-                    if (!branch.Add(id)) continue;
-                    foreach (var child in reports.GetValueOrDefault(id) ?? []) stack.Push(child);
-                }
+                for (var up = chart.ManagerOf.GetValueOrDefault(id); visible.Contains(up) && included.Add(up); up = chart.ManagerOf.GetValueOrDefault(up)) { }
+            }
+            void Branch(Guid id)
+            {
+                var level = new List<Guid> { id };
+                included.Add(id);
+                for (var depth = 0; depth < request.Depth && level.Count > 0; depth++)
+                    level = level.SelectMany(parent => chart.ReportsOf(parent)).Where(child => visible.Contains(child) && included.Add(child)).ToList();
+            }
 
-                visible.UnionWith(branch);
-                var seen = new HashSet<Guid> { viewer };
-                for (var up = managerOf.GetValueOrDefault(viewer); up != Guid.Empty && seen.Add(up); up = managerOf.GetValueOrDefault(up))
-                    visible.Add(up);
+            if (root is { } from)
+            {
+                Chain(from);
+                Branch(from);
+            }
+            else
+            {
+                foreach (var top in visible.Where(id => !visible.Contains(chart.ManagerOf.GetValueOrDefault(id))).ToList()) Branch(top);
+                if (request.ViewerEmployeeId is { } viewer && visible.Contains(viewer))
+                {
+                    var team = visible.Contains(chart.ManagerOf.GetValueOrDefault(viewer)) ? chart.ManagerOf[viewer] : viewer;
+                    Chain(team);
+                    Branch(team);
+                }
             }
         }
 
-        var settings = await tenantSettings.GetCurrentAsync(cancellationToken);
-        var keyOf = employees.ToDictionary(e => e.Id, e => e.StableEmployeeKey);
-        var people = new List<OrgChartPersonDto>(visible.Count);
-        foreach (var employee in employees.Where(e => visible.Contains(e.Id)))
-        {
-            // HR reads every shown field; a manager reads their own branch as a manager; everyone else as an employee.
-            var audience = request.HrAudience ? EmployeeReadAudience.HrAdmin
-                : branch.Contains(employee.Id) && employee.Id != request.ViewerEmployeeId ? EmployeeReadAudience.Manager
-                : EmployeeReadAudience.Employee;
-            var managerId = managerOf.GetValueOrDefault(employee.Id);
+        var people = included.Where(chart.HasCard).Select(chart.Card).OrderBy(p => p.DisplayName, StringComparer.Ordinal).ToList();
 
-            people.Add(Card(employee, assignments.GetValueOrDefault(employee.Id), units, startByEmployee[employee.Id], at,
-                managerId != Guid.Empty && visible.Contains(managerId) ? keyOf[managerId] : null,
-                (dottedOf.GetValueOrDefault(employee.Id) ?? []).Where(visible.Contains).Select(id => keyOf[id]).ToList(),
-                reports.GetValueOrDefault(employee.Id)?.Count ?? 0,
-                Total(employee.Id, []),
-                settings, audience));
-        }
-
-        var folded = request.Scope == OrgChartScopes.DirectReports
-            ? visible
-                .Select(id => (Id: id, Hidden: (reports.GetValueOrDefault(id) ?? []).Where(child => !visible.Contains(child)).ToList()))
-                .Where(item => item.Hidden.Count > 0)
-                .Select(item => new OrgChartFoldDto(keyOf[item.Id], item.Hidden.Sum(child => 1 + Total(child, []))))
-                .ToList()
-            : [];
+        // Whoever reports to someone in the response but isn't in it, counted under them.
+        var folded = included
+            .Select(id => (Id: id, Hidden: chart.ReportsOf(id).Where(child => !included.Contains(child)).ToList()))
+            .Where(item => item.Hidden.Count > 0)
+            .Select(item => new OrgChartFoldDto(chart.KeyOf[item.Id], item.Hidden.Sum(child => 1 + chart.Total(child)), item.Hidden.Any(visible.Contains)))
+            .ToList();
 
         List<OrgChartOpenRoleDto> openRoles = [];
         if (request.AsOf >= DateOnly.FromDateTime(DateTime.UtcNow))
@@ -187,20 +181,27 @@ public sealed class OrgChartQueryHandler(
                     && (role.Status == OpenRoleStatus.Open || request.HrAudience && role.Status == OpenRoleStatus.OnHold))
                 .OrderBy(role => role.CreatedAt)
                 .ToListAsync(cancellationToken);
-            openRoles = roles.Where(role => keyOf.ContainsKey(role.ManagerEmployeeId))
-                .Select(role => new OrgChartOpenRoleDto(role.Id, role.JobTitle, keyOf[role.ManagerEmployeeId],
-                    units.GetValueOrDefault(role.OrgUnitId), role.TargetStartDate, role.Status))
+            openRoles = roles.Where(role => chart.KeyOf.ContainsKey(role.ManagerEmployeeId))
+                .Select(role => new OrgChartOpenRoleDto(role.Id, role.JobTitle, chart.KeyOf[role.ManagerEmployeeId],
+                    chart.Units.GetValueOrDefault(role.OrgUnitId), role.TargetStartDate, role.Status))
                 .ToList();
         }
 
-        var viewerKey = request.ViewerEmployeeId is { } self && keyOf.TryGetValue(self, out var key) ? key : null;
-        return Result.Success(new OrgChartDto(
-            request.AsOf,
-            request.Scope,
-            viewerKey,
-            people.OrderBy(p => p.DisplayName, StringComparer.Ordinal).ToList(),
-            folded,
-            openRoles));
+        OrgChartWindowDto? window = null;
+        if (windowed)
+        {
+            var units = visible.Select(chart.UnitOf).OfType<OrgChartUnitDto>().ToList();
+            var divisions = units.Where(unit => unit.DivisionId is not null)
+                .DistinctBy(unit => unit.DivisionId)
+                .Select(unit => new OrgChartDivisionDto(unit.DivisionId!.Value, unit.DivisionName ?? ""))
+                .OrderBy(division => division.Name, StringComparer.Ordinal)
+                .ToList();
+            DateOnly? first = request.HrAudience && visible.Count > 0 ? DateOnly.FromDateTime(visible.Min(chart.StartOf)) : null;
+            window = new OrgChartWindowDto(request.Depth, visible.Count, divisions, first);
+        }
+
+        var viewerKey = request.ViewerEmployeeId is { } self && chart.KeyOf.TryGetValue(self, out var key) ? key : null;
+        return Result.Success(new OrgChartDto(request.AsOf, request.Scope, viewerKey, people, folded, openRoles, window));
     }
 
     internal sealed record PersonRow(Guid Id, string StableEmployeeKey, string FirstName, string LastName, string? PreferredName, string? Email);
@@ -300,6 +301,191 @@ public sealed class OrgChartQueryHandler(
             EmployeeReadAudience.Manager => config.Visible && config.VisibleToManager,
             _ => config.Visible && config.VisibleToEmployee,
         };
+    }
+}
+
+public sealed class OrgChartSearchQueryHandler(
+    CoreHRDbContext dbContext,
+    ITenantSettingsReadService tenantSettings) : IQueryHandler<OrgChartSearchQuery, Result<IReadOnlyList<OrgChartPersonDto>>>
+{
+    public async Task<Result<IReadOnlyList<OrgChartPersonDto>>> Handle(OrgChartSearchQuery request, CancellationToken cancellationToken)
+    {
+        var text = request.Text.Trim();
+        if (text.Length == 0) return Result.Success<IReadOnlyList<OrgChartPersonDto>>([]);
+
+        // Cards first, then the match: a field hidden from the viewer can't find anyone.
+        var chart = await OrgChartSnapshot.LoadAsync(dbContext, tenantSettings, request.AsOf, request.Scope, request.ViewerEmployeeId, request.HrAudience, cancellationToken);
+        return Result.Success<IReadOnlyList<OrgChartPersonDto>>(chart.Visible.Where(chart.HasCard).Select(chart.Card)
+            .Where(p => $"{p.DisplayName} {p.JobTitle} {p.Unit?.Name}".Contains(text, StringComparison.CurrentCultureIgnoreCase))
+            .OrderBy(p => p.DisplayName.StartsWith(text, StringComparison.CurrentCultureIgnoreCase) ? 0 : 1)
+            .ThenBy(p => p.DisplayName, StringComparer.CurrentCulture)
+            .Take(OrgChartSearchQuery.Limit)
+            .ToList());
+    }
+}
+
+/// <summary>
+/// The reporting tree on a date over the whole tenant (counts are the same for every viewer), with who the viewer
+/// may see and each person's card as they see it.
+/// </summary>
+internal sealed class OrgChartSnapshot
+{
+    private readonly Dictionary<Guid, OrgChartQueryHandler.PersonRow> employees;
+    private readonly Dictionary<Guid, DateTime> startByEmployee;
+    private readonly Dictionary<Guid, OrgChartQueryHandler.AssignmentRow> assignments;
+    private readonly Dictionary<Guid, List<Guid>> dottedOf;
+    private readonly Dictionary<Guid, List<Guid>> reports;
+    private readonly Dictionary<Guid, int> totals = [];
+    private readonly HashSet<Guid> branch;
+    private readonly TenantSettingsDto settings;
+    private readonly DateTime at;
+    private readonly Guid? viewer;
+    private readonly bool hr;
+
+    private OrgChartSnapshot(
+        Dictionary<Guid, OrgChartQueryHandler.PersonRow> employees,
+        Dictionary<Guid, DateTime> startByEmployee,
+        Dictionary<Guid, OrgChartQueryHandler.AssignmentRow> assignments,
+        Dictionary<Guid, Guid> managerOf,
+        Dictionary<Guid, List<Guid>> dottedOf,
+        Dictionary<Guid, OrgChartUnitDto> units,
+        HashSet<Guid> visible,
+        HashSet<Guid> branch,
+        TenantSettingsDto settings,
+        DateTime at,
+        Guid? viewer,
+        bool hr)
+    {
+        this.employees = employees;
+        this.startByEmployee = startByEmployee;
+        this.assignments = assignments;
+        this.dottedOf = dottedOf;
+        this.branch = branch;
+        this.settings = settings;
+        this.at = at;
+        this.viewer = viewer;
+        this.hr = hr;
+        ManagerOf = managerOf;
+        Units = units;
+        Visible = visible;
+        reports = managerOf.GroupBy(pair => pair.Value).ToDictionary(g => g.Key, g => g.Select(pair => pair.Key).ToList());
+        KeyOf = employees.ToDictionary(pair => pair.Key, pair => pair.Value.StableEmployeeKey);
+        IdOf = employees.Values.ToDictionary(e => e.StableEmployeeKey, e => e.Id, StringComparer.Ordinal);
+    }
+
+    public Dictionary<Guid, Guid> ManagerOf { get; }
+    public Dictionary<Guid, OrgChartUnitDto> Units { get; }
+    /// <summary>Who the viewer may see: everyone at Tenant scope; their chain and branch at DirectReports scope.</summary>
+    public HashSet<Guid> Visible { get; }
+    public Dictionary<Guid, string> KeyOf { get; }
+    public Dictionary<string, Guid> IdOf { get; }
+
+    public static async Task<OrgChartSnapshot> LoadAsync(
+        CoreHRDbContext dbContext, ITenantSettingsReadService tenantSettings, DateOnly asOf, string scope, Guid? viewer, bool hr,
+        CancellationToken cancellationToken)
+    {
+        // Every read runs inside the tenant query filter.
+        var at = asOf.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
+        var employments = await dbContext.Employments.AsNoTracking()
+            .Where(e => e.EffectiveFrom <= at && (e.EffectiveTo == null || at < e.EffectiveTo))
+            .Select(e => new { e.EmployeeId, e.EffectiveFrom })
+            .ToListAsync(cancellationToken);
+        var startByEmployee = employments.GroupBy(e => e.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.Max(e => e.EffectiveFrom));
+        var ids = startByEmployee.Keys.ToList();
+
+        var employees = await dbContext.Employees.AsNoTracking()
+            .Where(e => ids.Contains(e.Id))
+            .Select(e => new OrgChartQueryHandler.PersonRow(e.Id, e.StableEmployeeKey, e.FirstName, e.LastName, e.PreferredName, e.Email))
+            .ToDictionaryAsync(e => e.Id, cancellationToken);
+
+        var assignments = (await dbContext.WorkAssignments.AsNoTracking()
+                .Where(w => ids.Contains(w.EmployeeId) && w.IsPrimary
+                    && w.EffectiveFrom <= at && (w.EffectiveTo == null || at < w.EffectiveTo))
+                .Select(w => new OrgChartQueryHandler.AssignmentRow(w.EmployeeId, w.OrgUnitId, w.JobTitle, w.WorkLocation, w.EffectiveFrom))
+                .ToListAsync(cancellationToken))
+            .GroupBy(w => w.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(w => w.EffectiveFrom).First());
+
+        var relationships = await dbContext.ManagerRelationships.AsNoTracking()
+            .Where(r => ids.Contains(r.SubjectEmployeeId) && ids.Contains(r.ManagerEmployeeId)
+                && (r.Type == ReportingRelationshipType.PrimaryManager || r.Type == ReportingRelationshipType.SecondaryManager)
+                && r.EffectiveFrom <= at && (r.EffectiveTo == null || at < r.EffectiveTo))
+            .Select(r => new { r.SubjectEmployeeId, r.ManagerEmployeeId, r.Type, r.EffectiveFrom })
+            .ToListAsync(cancellationToken);
+        var managerOf = relationships.Where(r => r.Type == ReportingRelationshipType.PrimaryManager)
+            .GroupBy(r => r.SubjectEmployeeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.EffectiveFrom).First().ManagerEmployeeId);
+        var dottedOf = relationships.Where(r => r.Type == ReportingRelationshipType.SecondaryManager)
+            .GroupBy(r => r.SubjectEmployeeId)
+            .ToDictionary(g => g.Key, g => g.Select(r => r.ManagerEmployeeId).Distinct().ToList());
+
+        var units = await OrgChartQueryHandler.LoadUnitsAsync(dbContext, asOf, cancellationToken);
+        var settings = await tenantSettings.GetCurrentAsync(cancellationToken);
+        var reports = managerOf.GroupBy(pair => pair.Value).ToDictionary(g => g.Key, g => g.Select(pair => pair.Key).ToList());
+
+        // Who the viewer may see.
+        var visible = new HashSet<Guid>(ids);
+        HashSet<Guid> branch = [];
+        if (scope == OrgChartScopes.DirectReports)
+        {
+            visible.Clear();
+            if (viewer is { } self && startByEmployee.ContainsKey(self))
+            {
+                var stack = new Stack<Guid>([self]);
+                while (stack.Count > 0)
+                {
+                    var id = stack.Pop();
+                    if (!branch.Add(id)) continue;
+                    foreach (var child in reports.GetValueOrDefault(id) ?? []) stack.Push(child);
+                }
+
+                visible.UnionWith(branch);
+                var seen = new HashSet<Guid> { self };
+                for (var up = managerOf.GetValueOrDefault(self); up != Guid.Empty && seen.Add(up); up = managerOf.GetValueOrDefault(up))
+                    visible.Add(up);
+            }
+        }
+
+        return new OrgChartSnapshot(employees, startByEmployee, assignments, managerOf, dottedOf, units, visible, branch, settings, at, viewer, hr);
+    }
+
+    public IReadOnlyList<Guid> ReportsOf(Guid id) => reports.GetValueOrDefault(id) ?? [];
+
+    /// <summary>Everyone below someone, whole tenant.</summary>
+    public int Total(Guid id) => Total(id, []);
+
+    private int Total(Guid id, HashSet<Guid> path)
+    {
+        if (totals.TryGetValue(id, out var known)) return known;
+        if (!path.Add(id)) return 0; // a cycle in bad data counts once, never loops
+        var sum = ReportsOf(id).Sum(child => 1 + Total(child, path));
+        path.Remove(id);
+        return totals[id] = sum;
+    }
+
+    public DateTime StartOf(Guid id) => startByEmployee[id];
+
+    public OrgChartUnitDto? UnitOf(Guid id)
+        => assignments.TryGetValue(id, out var assignment) ? Units.GetValueOrDefault(assignment.OrgUnitId) : null;
+
+    public bool HasCard(Guid id) => employees.ContainsKey(id);
+
+    public OrgChartPersonDto Card(Guid id)
+    {
+        // HR reads every shown field; a manager reads their own branch as a manager; everyone else as an employee.
+        var audience = hr ? EmployeeReadAudience.HrAdmin
+            : branch.Contains(id) && id != viewer ? EmployeeReadAudience.Manager
+            : EmployeeReadAudience.Employee;
+        var managerId = ManagerOf.GetValueOrDefault(id);
+
+        return OrgChartQueryHandler.Card(employees[id], assignments.GetValueOrDefault(id), Units, startByEmployee[id], at,
+            managerId != Guid.Empty && Visible.Contains(managerId) ? KeyOf[managerId] : null,
+            (dottedOf.GetValueOrDefault(id) ?? []).Where(Visible.Contains).Select(manager => KeyOf[manager]).ToList(),
+            ReportsOf(id).Count,
+            Total(id),
+            settings, audience);
     }
 }
 

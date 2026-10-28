@@ -396,6 +396,162 @@ public sealed class OrgChartTests
         Assert.Equal(("QA Engineer", Today.AddDays(-30).Year, true), (Get(asHr, world, "Aicha").JobTitle, Get(asHr, world, "Aicha").StartYear, Get(asHr, world, "Aicha").IsNew));
     }
 
+    // ── Windows (B-132) ─────────────────────────────────────────────────────
+
+    private static async Task<Result<OrgChartDto>> WindowAsync(World world, string scope, Guid? viewer, string? root, int depth = OrgChartQuery.DefaultDepth,
+        bool hr = false, Guid? tenant = null)
+    {
+        var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenant ?? TenantA), world.Db);
+        var tenantSettings = new Mock<ITenantSettingsReadService>();
+        tenantSettings.Setup(s => s.GetCurrentAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new TenantSettingsDto());
+        return await new OrgChartQueryHandler(context, tenantSettings.Object).Handle(new OrgChartQuery(Today, scope, viewer, hr, root, depth), default);
+    }
+
+    [Fact]
+    public async Task Up_to_the_limit_the_whole_chart_comes_back_without_a_window()
+    {
+        var world = await SeedAsync();
+        Assert.Null((await ReadAsync(world, OrgChartScopes.Tenant, world.Ids["Aicha"])).Window);
+        Assert.Null((await ReadAsync(world, OrgChartScopes.DirectReports, world.Ids["Mariam"])).Window);
+    }
+
+    [Fact]
+    public async Task A_root_brings_its_chain_and_its_branch_to_a_depth_with_the_rest_folded_and_loadable()
+    {
+        var world = await SeedAsync();
+        var chart = (await WindowAsync(world, OrgChartScopes.Tenant, world.Ids["Aicha"], world.Keys["Amira"], depth: 1, hr: true)).Value;
+
+        Assert.Equal(["Amira", "Mariam", "Omar", "Sami"], chart.People.Select(p => p.DisplayName.Split(' ')[0]).Order());
+        Assert.Equal(
+            [(world.Keys["Mariam"], 1, true), (world.Keys["Omar"], 1, true), (world.Keys["Sami"], 2, true)],
+            chart.Folded.Select(f => (f.ParentKey, f.Count, f.Loadable)).OrderBy(f => f.ParentKey == world.Keys["Sami"]).ThenBy(f => f.ParentKey == world.Keys["Omar"]));
+        // Counts and the window speak for the whole chart.
+        Assert.Equal((2, 4), (Get(chart, world, "Amira").DirectCount, Get(chart, world, "Amira").TotalCount));
+        Assert.Equal((1, 8), (chart.Window!.Depth, chart.Window.Headcount));
+        Assert.Equal(["Product & Engineering"], chart.Window.Divisions.Select(d => d.Name));
+        Assert.Equal(Today.AddYears(-3), chart.Window.FirstStartDate);
+        Assert.Equal(world.Keys["Aicha"], chart.ViewerKey);
+
+        // Deep enough, nothing is left out; the first start date is HR's.
+        var whole = (await WindowAsync(world, OrgChartScopes.Tenant, null, world.Keys["Sami"])).Value;
+        Assert.Equal(8, whole.People.Count);
+        Assert.Empty(whole.Folded);
+        Assert.Null(whole.Window!.FirstStartDate);
+    }
+
+    [Fact]
+    public async Task A_root_outside_what_the_viewer_may_see_is_not_found()
+    {
+        var world = await SeedAsync();
+        Assert.Equal(OrgChartErrors.RootNotFoundCode, (await WindowAsync(world, OrgChartScopes.Tenant, null, "no-such-key")).Error.Code);
+        // Another tenant's person, and a branch outside a DirectReports viewer's slice.
+        var zed = (await ReadAsync(world, OrgChartScopes.Tenant, world.Outsider, tenant: TenantB)).People.Single().EmployeeKey;
+        Assert.True((await WindowAsync(world, OrgChartScopes.Tenant, null, zed)).IsFailure);
+        Assert.True((await WindowAsync(world, OrgChartScopes.DirectReports, world.Ids["Mariam"], world.Keys["Nour"])).IsFailure);
+    }
+
+    [Fact]
+    public async Task A_DirectReports_window_keeps_other_branches_as_counts_nobody_can_load()
+    {
+        var world = await SeedAsync();
+        var chart = (await WindowAsync(world, OrgChartScopes.DirectReports, world.Ids["Mariam"], world.Keys["Amira"])).Value;
+
+        Assert.Equal(["Aicha", "Amira", "Mariam", "Sami"], chart.People.Select(p => p.DisplayName.Split(' ')[0]).Order());
+        Assert.Equal(
+            [(world.Keys["Amira"], 2, false), (world.Keys["Sami"], 2, false)],
+            chart.Folded.Select(f => (f.ParentKey, f.Count, f.Loadable)).OrderBy(f => f.ParentKey == world.Keys["Sami"]));
+        Assert.Equal(4, chart.Window!.Headcount);
+    }
+
+    /// <summary>
+    /// Above 3,000 people: a CEO, five VPs, 25 directors, 125 managers, 625 leads and 2,220 engineers under them.
+    /// The first window holds every top to depth 3 and the viewer's team, everyone in it with their whole chain,
+    /// and the folded counts account for everyone else exactly once.
+    /// </summary>
+    [Fact]
+    public async Task Above_the_limit_the_first_response_is_a_window_that_accounts_for_everyone()
+    {
+        var db = Guid.NewGuid().ToString();
+        Guid viewer;
+        await using (var seed = TestDbContextFactory.CreateWithoutTenant(db))
+        {
+            var unit = OrgUnit.Create(TenantA, "U-big", "Atlas", "Department", null);
+            seed.OrgUnits.Add(unit);
+            seed.OrgUnitEffectiveStates.Add(OrgUnitEffectiveState.Create(TenantA, unit.Id, OrganizationalUnitTypeCatalog.DepartmentId,
+                null, "Atlas", OrgUnitLifecycleState.Active, Today.AddYears(-3)));
+            var start = TodayAt.AddYears(-2);
+            (Guid Id, Guid Assignment) Hire(int n, (Guid Id, Guid Assignment)? manager)
+            {
+                var employee = Employee.Create(TenantA, $"P{n:0000}", "Atlas", $"p{n}@example.com", employeeNumber: $"E-{n}");
+                var employment = Employment.Start(TenantA, employee.Id, start, "FullTime", WorkforceSourceType.Manual);
+                var assignment = WorkAssignment.Create(TenantA, employment.Id, employee.Id, unit.Id, "Engineer", "Tunis", true, start, null, WorkforceSourceType.Manual);
+                seed.AddRange(employee, employment, assignment);
+                if (manager is { } m)
+                    seed.ManagerRelationships.Add(ManagerRelationship.Create(TenantA, employee.Id, m.Id, assignment.Id, m.Assignment,
+                        ReportingRelationshipType.PrimaryManager, start, WorkforceSourceType.Manual));
+                return (employee.Id, assignment.Id);
+            }
+
+            var n = 0;
+            List<(Guid Id, Guid Assignment)> level = [Hire(n++, null)];
+            foreach (var span in new[] { 5, 5, 5, 5 })
+                level = level.SelectMany(manager => Enumerable.Range(0, span).Select(_ => Hire(n++, manager))).ToList();
+            var leads = level;
+            while (n < 3001) Hire(n, leads[n++ % leads.Count]);
+            viewer = Hire(n, leads[0]).Id; // 3,002 people; the viewer is an engineer under the first lead
+            await seed.SaveChangesAsync();
+        }
+
+        var world = new World(db, [], [], Guid.Empty);
+        var chart = (await WindowAsync(world, OrgChartScopes.Tenant, viewer, root: null)).Value;
+        var keys = chart.People.Select(p => p.EmployeeKey).ToHashSet();
+
+        Assert.Equal(3002, chart.Window!.Headcount);
+        Assert.InRange(chart.People.Count, 156 + 1, 200); // levels 0–3 and the first lead's team
+        Assert.Contains(chart.ViewerKey, keys);
+        Assert.All(chart.People, p => Assert.True(p.ManagerKey is null || keys.Contains(p.ManagerKey)));
+        Assert.All(chart.Folded, f => Assert.True(f.Loadable));
+        Assert.Equal(3002, chart.People.Count + chart.Folded.Sum(f => f.Count));
+
+        // Opening a manager at the edge brings their branch and keeps the chain.
+        var edge = chart.Folded.First(f => chart.People.Single(p => p.EmployeeKey == f.ParentKey).TotalCount > 5);
+        var branch = (await WindowAsync(world, OrgChartScopes.Tenant, viewer, edge.ParentKey)).Value;
+        var below = branch.People.Count(p => p.EmployeeKey != edge.ParentKey && !chart.People.Any(c => c.EmployeeKey == p.EmployeeKey));
+        Assert.Equal(edge.Count, below);
+    }
+
+    // ── Search (B-132) ──────────────────────────────────────────────────────
+
+    private static async Task<IReadOnlyList<string>> SearchAsync(World world, string text, string scope = OrgChartScopes.Tenant, Guid? viewer = null,
+        Guid? tenant = null, TenantSettingsDto? settings = null)
+    {
+        var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenant ?? TenantA), world.Db);
+        var tenantSettings = new Mock<ITenantSettingsReadService>();
+        tenantSettings.Setup(s => s.GetCurrentAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings ?? new TenantSettingsDto());
+        var result = await new OrgChartSearchQueryHandler(context, tenantSettings.Object)
+            .Handle(new OrgChartSearchQuery(Today, scope, viewer, false, text), default);
+        return result.Value.Select(p => p.DisplayName).ToList();
+    }
+
+    [Fact]
+    public async Task Search_finds_people_by_name_title_or_unit_among_those_the_viewer_may_see()
+    {
+        var world = await SeedAsync();
+        Assert.Equal(["Mariam Gharbi", "Mehdi Kacem", "Amira Khelifi", "Leila Baccouche", "Omar Mansour", "Sami Ben Youssef"], await SearchAsync(world, "m"));
+        Assert.Equal(["Mariam Gharbi", "Mehdi Kacem", "Omar Mansour"], await SearchAsync(world, " vp, "));
+        Assert.Equal(8, (await SearchAsync(world, "a")).Count);
+        Assert.Empty(await SearchAsync(world, "  "));
+
+        // A title hidden from employees finds nobody; nor does someone outside the viewer's slice or tenant.
+        var fields = TenantSettingsDto.DefaultEmployeeFieldConfig;
+        fields["jobTitle"] = new FieldConfig(Visible: true, Required: false, VisibleToEmployee: false, VisibleToManager: true);
+        Assert.Empty(await SearchAsync(world, "VP", viewer: world.Ids["Aicha"], settings: new TenantSettingsDto { EmployeeFieldConfig = fields }));
+        Assert.Empty(await SearchAsync(world, "Nour", OrgChartScopes.DirectReports, world.Ids["Mariam"]));
+        Assert.Equal(["Aicha Bouazizi"], await SearchAsync(world, "Aicha", OrgChartScopes.DirectReports, world.Ids["Mariam"]));
+        Assert.Empty(await SearchAsync(world, "Zed"));
+        Assert.Equal(["Zed Outsider"], await SearchAsync(world, "Zed", tenant: TenantB));
+    }
+
     // ── Controller: who may ask for what ────────────────────────────────────
 
     private static ClaimsPrincipal Caller(Guid? employeeId, params (string Key, string Scope)[] grants)
@@ -410,9 +566,11 @@ public sealed class OrgChartTests
     {
         var sender = new Mock<ISender>();
         sender.Setup(s => s.Send(It.IsAny<OrgChartQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((OrgChartQuery q, CancellationToken _) => Result.Success(new OrgChartDto(q.AsOf, q.Scope, null, [], [], [])));
+            .ReturnsAsync((OrgChartQuery q, CancellationToken _) => Result.Success(new OrgChartDto(q.AsOf, q.Scope, null, [], [], [], null)));
         sender.Setup(s => s.Send(It.IsAny<OrgChartChangesQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<IReadOnlyList<OrgChartChangeDto>>([]));
+        sender.Setup(s => s.Send(It.IsAny<OrgChartSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<IReadOnlyList<OrgChartPersonDto>>([]));
         return (new OrgChartController(sender.Object, new CoreAccessPolicyService())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = caller } },
@@ -427,7 +585,7 @@ public sealed class OrgChartTests
     public async Task Without_the_permission_the_chart_is_forbidden()
     {
         var (controller, sender) = Controller(Caller(Guid.NewGuid(), (CorePermissions.EmployeeView, PermissionScopes.Self)));
-        Assert.IsType<ForbidResult>(await controller.Get(null, default));
+        Assert.IsType<ForbidResult>(await controller.Get(null, null, null, default));
         sender.VerifyNoOtherCalls();
     }
 
@@ -435,12 +593,12 @@ public sealed class OrgChartTests
     public async Task Another_date_than_today_is_for_HR_only()
     {
         var (employee, employeeSender) = Controller(Caller(Guid.NewGuid(), Everyone));
-        Assert.IsType<ForbidResult>(await employee.Get(Today.AddDays(30), default));
-        Assert.IsType<OkObjectResult>(await employee.Get(Today, default));
+        Assert.IsType<ForbidResult>(await employee.Get(Today.AddDays(30), null, null, default));
+        Assert.IsType<OkObjectResult>(await employee.Get(Today, null, null, default));
         employeeSender.Verify(s => s.Send(It.IsAny<OrgChartQuery>(), It.IsAny<CancellationToken>()), Times.Once);
 
         var (hr, hrSender) = Controller(Caller(Guid.NewGuid(), Everyone, Hr));
-        var ok = Assert.IsType<OkObjectResult>(await hr.Get(Today.AddDays(-90), default));
+        var ok = Assert.IsType<OkObjectResult>(await hr.Get(Today.AddDays(-90), null, null, default));
         Assert.Equal(Today.AddDays(-90), Assert.IsType<ApiResponse<OrgChartDto>>(ok.Value).Data!.AsOf);
         hrSender.Verify(s => s.Send(It.Is<OrgChartQuery>(q => q.HrAudience), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -450,13 +608,13 @@ public sealed class OrgChartTests
     {
         var me = Guid.NewGuid();
         var (controller, sender) = Controller(Caller(me, Branch));
-        await controller.Get(null, default);
+        await controller.Get(null, null, null, default);
         sender.Verify(s => s.Send(
             It.Is<OrgChartQuery>(q => q.Scope == OrgChartScopes.DirectReports && q.ViewerEmployeeId == me && !q.HrAudience && q.AsOf == Today),
             It.IsAny<CancellationToken>()), Times.Once);
 
         var (wide, wideSender) = Controller(Caller(me, Branch, Everyone));
-        await wide.Get(null, default);
+        await wide.Get(null, null, null, default);
         wideSender.Verify(s => s.Send(It.Is<OrgChartQuery>(q => q.Scope == OrgChartScopes.Tenant), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -477,5 +635,39 @@ public sealed class OrgChartTests
         Assert.IsType<BadRequestObjectResult>(await hr.GetChanges(null, Today, default));
         Assert.IsType<OkObjectResult>(await hr.GetChanges(Today, Today.AddDays(731), default));
         hrSender.Verify(s => s.Send(It.Is<OrgChartChangesQuery>(q => q.From == Today && q.To == Today.AddDays(731)), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task A_window_takes_a_root_and_a_bounded_depth()
+    {
+        var (controller, sender) = Controller(Caller(Guid.NewGuid(), Everyone));
+        Assert.IsType<BadRequestObjectResult>(await controller.Get(null, "k-1", 0, default));
+        Assert.IsType<BadRequestObjectResult>(await controller.Get(null, "k-1", OrgChartQuery.MaxDepth + 1, default));
+        sender.VerifyNoOtherCalls();
+
+        Assert.IsType<OkObjectResult>(await controller.Get(null, "k-1", 2, default));
+        sender.Verify(s => s.Send(It.Is<OrgChartQuery>(q => q.RootKey == "k-1" && q.Depth == 2), It.IsAny<CancellationToken>()), Times.Once);
+        await controller.Get(null, " ", null, default);
+        sender.Verify(s => s.Send(It.Is<OrgChartQuery>(q => q.RootKey == null && q.Depth == OrgChartQuery.DefaultDepth), It.IsAny<CancellationToken>()), Times.Once);
+
+        sender.Setup(s => s.Send(It.IsAny<OrgChartQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Failure<OrgChartDto>(new Error(OrgChartErrors.RootNotFoundCode, "Nobody")));
+        Assert.IsType<NotFoundObjectResult>(await controller.Get(null, "someone-else", null, default));
+    }
+
+    [Fact]
+    public async Task Search_follows_the_chart_rules()
+    {
+        var (outsider, outsiderSender) = Controller(Caller(Guid.NewGuid(), (CorePermissions.EmployeeView, PermissionScopes.Self)));
+        Assert.IsType<ForbidResult>(await outsider.Search("a", null, default));
+        outsiderSender.VerifyNoOtherCalls();
+
+        var me = Guid.NewGuid();
+        var (manager, managerSender) = Controller(Caller(me, Branch));
+        Assert.IsType<ForbidResult>(await manager.Search("a", Today.AddDays(5), default));
+        Assert.IsType<OkObjectResult>(await manager.Search("a", null, default));
+        managerSender.Verify(s => s.Send(
+            It.Is<OrgChartSearchQuery>(q => q.Scope == OrgChartScopes.DirectReports && q.ViewerEmployeeId == me && q.Text == "a" && q.AsOf == Today),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 }

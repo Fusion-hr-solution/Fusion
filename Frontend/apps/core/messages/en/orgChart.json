@@ -9,7 +9,8 @@
   },
   "search": {
     "label": "Find a person or team",
-    "none": "No one matches"
+    "none": "No one matches",
+    "searching": "Searching…"
   },
   "lens": {
     "label": "Colour by",
@@ -55,7 +56,9 @@
     "join": "Joins {date}",
     "leave": "Leaves {date}",
     "move": "Moves {date}",
-    "open": " · <b>{count}</b> open"
+    "open": " · <b>{count}</b> open",
+    "moreLoad": "Show them",
+    "loadingTeam": "Loading the team"
   },
   "panel": {
     "close": "Close",
@@ -89,7 +92,8 @@
     "empty": "No one is on the chart yet.",
     "emptyAction": "Open People",
     "error": "The org chart didn't load.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "branchError": "That team didn't load. Try again."
   },
   "access": {
     "title": "Org chart access required",

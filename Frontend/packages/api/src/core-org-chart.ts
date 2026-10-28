@@ -31,10 +31,24 @@ export interface OrgChartUnitDto {
   divisionName: string | null;
 }
 
-/** People the viewer may not see, counted under the visible person they report up to. */
+/** People left out of the response, counted under the person they report to. */
 export interface OrgChartFoldDto {
   parentKey: string;
   count: number;
+  /** The viewer may see them: the window rooted at the parent brings them. False outside a DirectReports slice. */
+  loadable: boolean;
+}
+
+/** What a windowed chart leaves out, so the page still speaks for the whole chart. */
+export interface OrgChartWindowDto {
+  /** Levels below each window root. */
+  depth: number;
+  /** Everyone the viewer may see on the date, loaded or not. */
+  headcount: number;
+  /** Every division among them, by name. */
+  divisions: { id: string; name: string }[];
+  /** The earliest start among them (yyyy-mm-dd), for HR only: Replay's first day. */
+  firstStartDate: string | null;
 }
 
 export type OrgChartScope = "Tenant" | "DirectReports";
@@ -49,6 +63,8 @@ export interface OrgChartDto {
   folded: OrgChartFoldDto[];
   /** Open roles under visible managers, from today on: Open for everyone, On hold for HR. */
   openRoles: OrgChartOpenRoleDto[];
+  /** Above 3,000 people, or for a root, a window: its chains and branches, the rest folded. Null for the whole chart. */
+  window: OrgChartWindowDto | null;
 }
 
 /** Filled and Closed take a role off the chart. */
@@ -89,6 +105,7 @@ export interface OrgChartChangeDto {
 
 export const coreOrgChartPaths = {
   chart: () => "/corehr/org-chart",
+  search: () => "/corehr/org-chart/search",
   changes: () => "/corehr/org-chart/changes",
   openRoles: () => "/corehr/org-chart/open-roles",
   openRole: (id: string) => `/corehr/org-chart/open-roles/${encodeURIComponent(id)}`,
@@ -97,6 +114,8 @@ export const coreOrgChartPaths = {
 export const coreOrgChartQueryKeys = {
   all: () => ["core-org-chart"] as const,
   chart: (asOf: string | null) => [...coreOrgChartQueryKeys.all(), asOf ?? "today"] as const,
+  branch: (asOf: string | null, root: string) => [...coreOrgChartQueryKeys.all(), asOf ?? "today", "branch", root] as const,
+  search: (asOf: string | null, query: string) => [...coreOrgChartQueryKeys.all(), asOf ?? "today", "search", query] as const,
   changes: (from: string, to: string) => [...coreOrgChartQueryKeys.all(), "changes", from, to] as const,
 };
 
@@ -104,6 +123,12 @@ export function createCoreOrgChartApi(client: ApiClient) {
   return {
     chart: (asOf: string | null, signal?: AbortSignal) =>
       client.get<OrgChartDto>(coreOrgChartPaths.chart(), { params: asOf ? { asOf } : undefined, signal }),
+    /** A window rooted at someone: their chain to the top and their branch, deeper levels folded. */
+    branch: (asOf: string | null, root: string, signal?: AbortSignal) =>
+      client.get<OrgChartDto>(coreOrgChartPaths.chart(), { params: asOf ? { asOf, root } : { root }, signal }),
+    /** At most eight people whose name, or job title or unit as the viewer sees them, contains the text. */
+    search: (asOf: string | null, q: string, signal?: AbortSignal) =>
+      client.get<OrgChartPersonDto[]>(coreOrgChartPaths.search(), { params: asOf ? { asOf, q } : { q }, signal }),
     /** `GET /api/corehr/org-chart/changes`: HR only, both days included, two years at most. */
     changes: (from: string, to: string, signal?: AbortSignal) =>
       client.get<OrgChartChangeDto[]>(coreOrgChartPaths.changes(), { params: { from, to }, signal }),

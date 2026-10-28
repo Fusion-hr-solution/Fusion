@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OrgChartDto, OrgChartPersonDto, ReviewProgressPersonDto } from "@repo/api";
 import {
-  G, buildTree, chainOf, createLens, isLead, isMore, openRolesOf, parentOf, roleId, layoutChart, litLine, monthTicks, moreId, replaySteps, searchPeople, stepFrom, timeWindow,
+  G, buildTree, chainOf, createLens, isLead, isMore, mergeWindows, openRolesOf, parentOf, roleId, layoutChart, litLine, monthTicks, moreId, replaySteps, searchPeople, stepFrom, timeWindow,
   type LensWords,
 } from "./org-chart-model";
 
@@ -24,7 +24,7 @@ function person(key: string, managerKey: string | null, division: string | null 
 
 // Sami leads Amira (who leads Mariam → Aicha, Aymen) and Nour (no reports).
 const chart: OrgChartDto = {
-  asOf: "2026-10-27", scope: "Tenant", viewerKey: "Aicha", folded: [], openRoles: [],
+  asOf: "2026-10-27", scope: "Tenant", viewerKey: "Aicha", folded: [], openRoles: [], window: null,
   people: [
     person("Sami", null, null), person("Amira", "Sami"), person("Nour", "Sami", "d2"),
     person("Mariam", "Amira"), person("Aicha", "Mariam"), person("Aymen", "Mariam"),
@@ -74,11 +74,52 @@ describe("org chart model", () => {
   });
 
   it("counts people outside a manager's slice under the visible person they hang from", () => {
-    const sliced = buildTree({ ...chart, scope: "DirectReports", people: chart.people.filter((p) => p.employeeKey !== "Nour"), folded: [{ parentKey: "Sami", count: 1 }] });
+    const sliced = buildTree({ ...chart, scope: "DirectReports", people: chart.people.filter((p) => p.employeeKey !== "Nour"), folded: [{ parentKey: "Sami", count: 1, loadable: false }] });
     expect(sliced.kids.get("Sami")).toEqual(["Amira", moreId("Sami")]);
     const layout = layoutChart(sliced, { view: "company", focus: null, folded: new Set(), unfolded: new Set() });
     expect(layout.nodes.get(moreId("Sami"))?.kind).toBe("more");
     expect(isMore(moreId("Sami"))).toBe(true);
+  });
+
+  describe("a windowed chart (above 3,000 people)", () => {
+    const counts = { Sami: [2, 5], Amira: [1, 3], Mariam: [2, 2] } as Record<string, [number, number]>;
+    const full = chart.people.map((p) => ({ ...p, directCount: counts[p.employeeKey]?.[0] ?? 0, totalCount: counts[p.employeeKey]?.[1] ?? 0 }));
+    const pick = (...keys: string[]) => full.filter((p) => keys.includes(p.employeeKey));
+    const win = { depth: 1, headcount: 6, divisions: [{ id: "d1", name: "Division d1" }, { id: "d2", name: "Division d2" }], firstStartDate: null };
+    const base: OrgChartDto = { ...chart, people: pick("Sami", "Amira", "Nour"), folded: [{ parentKey: "Amira", count: 3, loadable: true }], window: win };
+
+    it("shows a leader whose team isn't loaded as folded, with nothing below", () => {
+      const windowed = buildTree(base);
+      expect(windowed.unopened).toEqual(new Set(["Amira"]));
+      expect(isLead(windowed, "Amira")).toBe(true);
+      expect(windowed.kids.get("Amira")).toBeUndefined();
+      const layout = layoutChart(windowed, { view: "company", focus: null, folded: new Set(), unfolded: new Set() });
+      expect(layout.folded.has("Amira")).toBe(true);
+      expect([...layout.nodes.keys()].sort()).toEqual(["Amira", "Nour", "Sami"]);
+    });
+
+    it("merges loaded branches and recounts each fold from the whole-company totals", () => {
+      const amira: OrgChartDto = { ...base, people: pick("Sami", "Amira", "Mariam"), folded: [{ parentKey: "Mariam", count: 2, loadable: true }] };
+      const once = mergeWindows(base, [amira]);
+      expect(once.people.map((p) => p.employeeKey).sort()).toEqual(["Amira", "Mariam", "Nour", "Sami"]);
+      expect(once.folded).toEqual([{ parentKey: "Mariam", count: 2, loadable: true }]);
+      expect(buildTree(once).unopened).toEqual(new Set(["Mariam"]));
+      const mariam: OrgChartDto = { ...base, people: pick("Sami", "Amira", "Mariam", "Aicha", "Aymen"), folded: [] };
+      expect(mergeWindows(base, [amira, mariam]).folded).toEqual([]);
+      expect(mergeWindows(base, [])).toBe(base);
+    });
+
+    it("offers the rest of a partly loaded team as a loadable count", () => {
+      const partly = buildTree({ ...base, people: pick("Sami", "Amira"), folded: [{ parentKey: "Sami", count: 1, loadable: true }, { parentKey: "Amira", count: 3, loadable: true }] });
+      expect(partly.kids.get("Sami")).toEqual(["Amira", moreId("Sami")]);
+      expect(partly.loadable.has("Sami")).toBe(true);
+      expect(partly.unopened.has("Sami")).toBe(false);
+    });
+
+    it("keeps division hues from the whole chart, not the loaded part", () => {
+      const onlyD2 = buildTree({ ...base, people: [person("Top", null, null), person("N", "Top", "d2")] });
+      expect(createLens(onlyD2, "division", words, "2026-10-27", undefined, win.divisions)("N")?.color).toBe("var(--identity-2)");
+    });
   });
 
   it("colours divisions with identity hues, the top in amber, and only labels locations", () => {

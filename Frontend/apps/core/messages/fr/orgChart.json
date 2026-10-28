@@ -9,7 +9,8 @@
   },
   "search": {
     "label": "Trouver une personne ou une équipe",
-    "none": "Personne ne correspond"
+    "none": "Personne ne correspond",
+    "searching": "Recherche…"
   },
   "lens": {
     "label": "Couleur par",
@@ -55,7 +56,9 @@
     "join": "Arrive le {date}",
     "leave": "Part le {date}",
     "move": "Change le {date}",
-    "open": " · <b>{count}</b> {count, plural, one {ouvert} other {ouverts}}"
+    "open": " · <b>{count}</b> {count, plural, one {ouvert} other {ouverts}}",
+    "moreLoad": "Les afficher",
+    "loadingTeam": "Chargement de l'équipe"
   },
   "panel": {
     "close": "Fermer",
@@ -89,7 +92,8 @@
     "empty": "Personne n'est encore dans l'organigramme.",
     "emptyAction": "Ouvrir Collaborateurs",
     "error": "L'organigramme ne s'est pas chargé.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "branchError": "Cette équipe ne s'est pas chargée. Réessayez."
   },
   "access": {
     "title": "Accès à l'organigramme requis",

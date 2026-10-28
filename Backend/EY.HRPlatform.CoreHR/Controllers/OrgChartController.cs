@@ -19,24 +19,50 @@ public sealed class OrgChartController(
     /// <summary>
     /// The people org chart as of a date (today by default), shaped for the caller: Tenant scope sees everyone,
     /// DirectReports scope sees its own chain and branch with the rest folded into counts. Another date than today
-    /// is for HR only, since future moves and exits are confidential.
+    /// is for HR only, since future moves and exits are confidential. Above 3,000 people, or with a root, a window
+    /// comes back: the root's chain to the top and its branch to a depth, the rest folded into loadable counts.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<OrgChartDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> Get([FromQuery] DateOnly? asOf, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(
+        [FromQuery] DateOnly? asOf, [FromQuery] string? root, [FromQuery] int? depth, CancellationToken cancellationToken)
+    {
+        if (Chart(asOf) is not { } chart) return Forbid();
+        if (depth is < 1 or > OrgChartQuery.MaxDepth)
+            return BadRequest(ApiResponse.Failure($"Give a depth from 1 to {OrgChartQuery.MaxDepth}."));
+
+        var result = await sender.Send(
+            new OrgChartQuery(chart.AsOf, chart.Scope, User.GetEmployeeId(), chart.Hr, string.IsNullOrWhiteSpace(root) ? null : root,
+                depth ?? OrgChartQuery.DefaultDepth),
+            cancellationToken);
+        return result.IsFailure ? NotFound(ApiResponse.Failure(result.Error.Message)) : Ok(ApiResponse<OrgChartDto>.Success(result.Value));
+    }
+
+    /// <summary>People on the chart whose name, or job title or unit as the caller sees them, contains the text: at most eight.</summary>
+    [HttpGet("search")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<OrgChartPersonDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Search([FromQuery] string? q, [FromQuery] DateOnly? asOf, CancellationToken cancellationToken)
+    {
+        if (Chart(asOf) is not { } chart) return Forbid();
+
+        var result = await sender.Send(new OrgChartSearchQuery(chart.AsOf, chart.Scope, User.GetEmployeeId(), chart.Hr, q ?? ""), cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<OrgChartPersonDto>>.Success(result.Value));
+    }
+
+    /// <summary>The caller's chart scope and date, or null when they may not read the chart on that date.</summary>
+    private (DateOnly AsOf, string Scope, bool Hr)? Chart(DateOnly? asOf)
     {
         var scope = accessPolicy.GetOrgChartScope(User);
-        if (scope is null) return Forbid();
+        if (scope is null) return null;
 
         var hr = accessPolicy.CanViewTenantEmployees(User);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        if (asOf is { } date && date != today && !hr) return Forbid();
-
-        var result = await sender.Send(
-            new OrgChartQuery(asOf ?? today, scope == PermissionScopes.Tenant ? OrgChartScopes.Tenant : OrgChartScopes.DirectReports, User.GetEmployeeId(), hr),
-            cancellationToken);
-        return Ok(ApiResponse<OrgChartDto>.Success(result.Value));
+        if (asOf is { } date && date != today && !hr) return null;
+        return (asOf ?? today, scope == PermissionScopes.Tenant ? OrgChartScopes.Tenant : OrgChartScopes.DirectReports, hr);
     }
 
     /// <summary>

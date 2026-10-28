@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { coreOrgChartQueryKeys, createCoreOrgChartApi, createPlatformApiClient, createReviewsApi, reviewQueryKeys, type OpenRoleRequest } from "@repo/api";
+import { useQueries, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import { coreOrgChartQueryKeys, createCoreOrgChartApi, createPlatformApiClient, createReviewsApi, reviewQueryKeys, type OpenRoleRequest, type OrgChartDto } from "@repo/api";
 import { keepPreviousData, useApiMutation, useApiQuery } from "@repo/api/query";
 import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
 
@@ -21,6 +21,40 @@ export function useOrgChart(asOf: string | null = null) {
     coreOrgChartQueryKeys.chart(asOf),
     useCallback((signal) => api.chart(asOf, signal), [api, asOf]),
     { enabled: !isLoading && isAuthenticated && canAccessCoreOrgChart(user), placeholderData: keepPreviousData }
+  );
+}
+
+export type BranchStatus = "loading" | "ready" | "failed";
+
+const combineBranches = (results: UseQueryResult<OrgChartDto>[]) => ({
+  windows: results.flatMap((result) => (result.data ? [result.data] : [])),
+  status: results.map((result): BranchStatus => (result.data ? "ready" : result.isError ? "failed" : "loading")),
+});
+
+/**
+ * The branches opened on a windowed chart (above 3,000 people): the window rooted at each, for the chart's date.
+ * They refresh with the chart, so a change saved elsewhere reaches loaded branches too.
+ */
+export function useOrgChartBranches(asOf: string | null, roots: string[]) {
+  const api = useOrgChartApi();
+  return useQueries({
+    queries: roots.map((root) => ({
+      queryKey: coreOrgChartQueryKeys.branch(asOf, root),
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.branch(asOf, root, signal),
+      staleTime: 60_000,
+      retry: false,
+    })),
+    combine: combineBranches,
+  });
+}
+
+/** People on the chart matching the text, from Core HR: a windowed chart doesn't hold everyone to search. */
+export function useOrgChartSearch(asOf: string | null, query: string, enabled: boolean) {
+  const api = useOrgChartApi();
+  return useApiQuery(
+    coreOrgChartQueryKeys.search(asOf, query),
+    useCallback((signal) => api.search(asOf, query, signal), [api, asOf, query]),
+    { enabled: enabled && query.length > 0, placeholderData: keepPreviousData }
   );
 }
 

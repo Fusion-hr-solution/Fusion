@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Briefcase, Building2, ChevronDown, ChevronUp, Crosshair, Mail, MapPin, MoreHorizontal, Users } from "lucide-react";
 import type { OrgChartPersonDto } from "@repo/api";
-import { cn } from "@repo/ds";
+import { Spinner, cn } from "@repo/ds";
 import { useFormat } from "@repo/ds/lib/use-format";
 import { isPlaceholder, openRolesOf, type LensKey, type LensValue, type OrgTree } from "../model/org-chart-model";
 
@@ -13,6 +13,8 @@ export interface CardContext {
   lensKey: LensKey;
   lensOf: (id: string) => LensValue | null;
   folded: Set<string>;
+  /** Leaders whose team is loading (a windowed chart). */
+  loading: Set<string>;
   onCopyEmail: (person: OrgChartPersonDto) => void;
   onCentre: (id: string) => void;
   onToggleFold: (id: string) => void;
@@ -21,8 +23,14 @@ export interface CardContext {
 /** Card chips and meta show unit and place, unless a lens other than division colours the chart. */
 const showsPlace = (lens: LensKey) => lens === "division" || lens === "none";
 
-export function OrgAvatar({ id, size, ctx }: { id: string; size: "xxl" | "xl" | "md" | "sm" | "xs"; ctx: CardContext }) {
-  const person = ctx.tree.people.get(id);
+/** `person` stands in for someone not loaded on a windowed chart (a search hit). */
+export function OrgAvatar({ id, size, ctx, person: shown }: {
+  id: string;
+  size: "xxl" | "xl" | "md" | "sm" | "xs";
+  ctx: CardContext;
+  person?: OrgChartPersonDto;
+}) {
+  const person = ctx.tree.people.get(id) ?? shown;
   const lens = ctx.lensOf(id);
   return (
     <span
@@ -90,6 +98,7 @@ export function LeadCard({ id, ctx }: { id: string; ctx: CardContext }) {
   // Five faces, or four and a count, so the strip never runs into the team figures.
   const shown = faces.length > 5 ? 4 : 5;
   const isFolded = ctx.folded.has(id);
+  const unopened = ctx.tree.unopened.has(id);
   const top = person.managerKey === null;
   const strong = (chunks: ReactNode) => <b>{chunks}</b>;
   return (
@@ -121,11 +130,12 @@ export function LeadCard({ id, ctx }: { id: string; ctx: CardContext }) {
           {open ? t.rich("open", { count: open, b: strong }) : null}
         </span>
       </div>
-      {kids.length ? (
+      {kids.length || unopened ? (
         <button type="button" className="oc-fold" aria-expanded={!isFolded} aria-label={isFolded ? t("showTeam") : t("foldTeam")}
           title={isFolded ? t("showTeam") : t("foldTeam")}
           onClick={(event) => { event.stopPropagation(); ctx.onToggleFold(id); }}>
-          {isFolded ? <><ChevronDown />{kids.length}</> : <ChevronUp />}
+          {ctx.loading.has(id) ? <Spinner className="size-3" aria-label={t("loadingTeam")} />
+            : isFolded ? <><ChevronDown />{unopened ? person.directCount + open : kids.length}</> : <ChevronUp />}
         </button>
       ) : null}
     </>
@@ -204,16 +214,18 @@ export function RoleCard({ id, ctx }: { id: string; ctx: CardContext }) {
   );
 }
 
-/** People outside the viewer's slice of the chart, as a count. */
+/** People outside the viewer's slice of the chart, as a count; on a windowed chart, the rest of a team to load. */
 export function MoreCard({ id, ctx }: { id: string; ctx: CardContext }) {
   const t = useTranslations("orgChart.card");
-  const count = ctx.tree.folds.get(id.slice("more:".length)) ?? 0;
+  const parent = id.slice("more:".length);
+  const count = ctx.tree.folds.get(parent) ?? 0;
+  const loadable = ctx.tree.loadable.has(parent);
   return (
     <>
-      <span className="oc-well rounded-control"><Users /></span>
+      <span className="oc-well rounded-control">{ctx.loading.has(parent) ? <Spinner className="size-5" aria-label={t("loadingTeam")} /> : <Users />}</span>
       <span className="oc-t">
         <b>{t("more", { count })}</b>
-        <span>{t("moreDetail")}</span>
+        <span>{loadable ? t("moreLoad") : t("moreDetail")}</span>
       </span>
     </>
   );

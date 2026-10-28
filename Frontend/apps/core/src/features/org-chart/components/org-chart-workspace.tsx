@@ -36,7 +36,7 @@ import {
 import { PageHeader, PagePermissionNotice } from "@repo/ds/shell";
 import { useFormat } from "@repo/ds/lib/use-format";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
-import { useOrgChart, useOrgChartChanges, usePrefetchOrgChart, useReviewProgress } from "../api/use-org-chart";
+import { useOrgChart, useOrgChartBranches, useOrgChartChanges, useOrgChartSearch, usePrefetchOrgChart, useReviewProgress } from "../api/use-org-chart";
 import {
   HR_LENSES,
   MAX_ZOOM,
@@ -60,6 +60,7 @@ import {
   isoDay,
   layoutChart,
   litLine,
+  mergeWindows,
   monthTicks,
   parentOf,
   replaySteps,
@@ -92,6 +93,9 @@ const DRAFT_ROLE = "draft";
 const SETTLE_MS = 470;
 /** Replay holds each quarter long enough for the cards to settle. */
 const REPLAY_STEP_MS = 650;
+/** A windowed chart asks Core HR once typing pauses. */
+const SEARCH_PAUSE_MS = 200;
+const NO_ROOTS: string[] = [];
 
 type FitRequest = { mode: "fit" | "top" } | { mode: "centre"; id: string; s: number } | null;
 
@@ -197,6 +201,26 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   const changes = useOrgChartChanges(addDays(date, 1), range.hi, showsChanges);
   const upcoming = showsChanges ? changes.data : undefined;
 
+  // ── Above 3,000 people the chart is a window; branches load as people open them, for the chart's date ──
+  const windowed = data.window !== null;
+  const [opened, setOpened] = useState<{ asOf: string | null; roots: string[] }>({ asOf, roots: [] });
+  const roots = windowed && opened.asOf === asOf ? opened.roots : NO_ROOTS;
+  const branches = useOrgChartBranches(asOf, roots);
+  const loadBranch = useCallback((key: string) => {
+    setOpened((current) => {
+      const list = current.asOf === asOf ? current.roots : [];
+      return list.includes(key) ? current : { asOf, roots: [...list, key] };
+    });
+  }, [asOf]);
+  const loading = useMemo(() => new Set(roots.filter((_, index) => branches.status[index] === "loading")), [roots, branches.status]);
+  const failed = useMemo(() => roots.filter((_, index) => branches.status[index] === "failed"), [roots, branches.status]);
+  useEffect(() => {
+    if (!failed.length) return;
+    toast.error(t("states.branchError"));
+    setOpened((current) => ({ ...current, roots: current.roots.filter((root) => !failed.includes(root)) }));
+  }, [failed, t]);
+  const merged = useMemo(() => mergeWindows(data, branches.windows), [data, branches.windows]);
+
   // ── A change in the panel: the chart itself previews where the person (and their team) will sit ──
   const rights = useChangeRights();
   const records = useUpcomingChanges(rights.seeComing && hr);
@@ -205,7 +229,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   const [roleEdit, setRoleEdit] = useState<OpenRoleEdit | null>(null);
   const [roleDraft, setRoleDraft] = useState<OpenRoleDraft | null>(null);
   const withRoleDraft = useMemo(() => {
-    if (!roleEdit || !roleDraft) return data;
+    if (!roleEdit || !roleDraft) return merged;
     const id = roleEdit.editing?.id ?? DRAFT_ROLE;
     const shown = roleDraft.status === "Open" || roleDraft.status === "OnHold";
     const card: OrgChartOpenRoleDto = {
@@ -216,9 +240,9 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
       targetStartDate: roleDraft.targetStartDate,
       status: roleDraft.status,
     };
-    const others = data.openRoles.filter((role) => role.id !== id);
-    return { ...data, openRoles: shown ? [...others, card] : others };
-  }, [data, roleEdit, roleDraft, t]);
+    const others = merged.openRoles.filter((role) => role.id !== id);
+    return { ...merged, openRoles: shown ? [...others, card] : others };
+  }, [merged, roleEdit, roleDraft, t]);
   const previewed = useMemo(() => {
     const data = withRoleDraft;
     if (!change || !draft) return data;
@@ -259,7 +283,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
     span: [t("lens.span0"), t("lens.span1"), t("lens.span2")],
     review: [t("lens.review0"), t("lens.review1"), t("lens.review2"), t("lens.review3"), t("lens.review4"), t("lens.review5")],
   }), [t]);
-  const lensOf = useMemo(() => createLens(tree, lensKey, lensWords, data.asOf, reviewByKey), [tree, lensKey, lensWords, data.asOf, reviewByKey]);
+  const lensOf = useMemo(() => createLens(tree, lensKey, lensWords, data.asOf, reviewByKey, data.window?.divisions),
+    [tree, lensKey, lensWords, data.asOf, reviewByKey, data.window]);
   const litIds = useMemo(() => litLine(tree, lit), [tree, lit]);
 
   // ── Camera: transform applied straight to the world element, not through React ──
@@ -438,8 +463,14 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
     setLit(view === "company" ? (isRole(id) ? parentOf(tree, id) : id) : null);
     setAnimate(false);
   };
+  const [arriving, setArriving] = useState<string | null>(null);
   const goTo = (id: string) => {
     setQuery("");
+    if (!tree.people.has(id)) {
+      loadBranch(id);
+      setArriving(id);
+      return;
+    }
     if (view === "focus") {
       centreOn(id);
       return;
@@ -453,7 +484,35 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
     });
     relayout({ mode: "centre", id, s: 0.9 });
   };
+  // The latest goTo, for when the branch arrives (Next's bundled React has no useEffectEvent yet).
+  const goToLatest = useRef(goTo);
+  useEffect(() => { goToLatest.current = goTo; });
+  useEffect(() => {
+    if (!arriving || !tree.people.has(arriving)) return;
+    setArriving(null);
+    goToLatest.current(arriving);
+  }, [arriving, tree]);
+  // A link to someone outside the first window loads them.
+  const missing = requested && windowed && !tree.people.has(requested) ? requested : null;
+  useEffect(() => {
+    if (!missing) return;
+    loadBranch(missing);
+    setArriving(missing);
+  }, [missing, loadBranch]);
+  // Around someone shows their whole team.
+  const aroundRoot = view === "focus" ? layout.root : null;
+  useEffect(() => {
+    if (aroundRoot && tree.loadable.has(aroundRoot)) loadBranch(aroundRoot);
+  }, [aroundRoot, tree, loadBranch]);
+
   const toggleFold = (id: string) => {
+    if (tree.unopened.has(id)) {
+      loadBranch(id);
+      if (view === "focus") setUnfolded((current) => new Set(current).add(id));
+      else setFolded((current) => { const next = new Set(current); next.delete(id); return next; });
+      relayout(null);
+      return;
+    }
     const flip = (current: Set<string>) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -490,12 +549,13 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
       return;
     }
     const starts = data.people.map((p) => p.startDate).filter((d): d is string => Boolean(d)).sort();
+    const first = data.window?.firstStartDate ?? starts[0] ?? today;
     const run = ++replayRun.current;
     setReplaying(true);
     setView("company");
     setSelected(null);
     setLit(null);
-    for (const step of replaySteps(starts[0] ?? today, today)) {
+    for (const step of replaySteps(first, today)) {
       await prefetch(step).catch(() => undefined);
       if (replayRun.current !== run) return;
       onAsOf(step === today ? null : step);
@@ -516,7 +576,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   };
 
   const ctx: CardContext = {
-    tree, lensKey, lensOf, folded: layout.folded,
+    tree, lensKey, lensOf, folded: layout.folded, loading,
     onCopyEmail: copyEmail, onCentre: centreOn, onToggleFold: toggleFold,
   };
 
@@ -526,6 +586,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
       event.preventDefault();
       if (kind === "chain") centreOn(id);
       else if (!isMore(id)) select(id);
+      else if (tree.loadable.has(parentOf(tree, id)!)) loadBranch(parentOf(tree, id)!);
       return;
     }
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown" && event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -546,7 +607,15 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   // ── Search ──
   const [query, setQuery] = useState("");
   const [hit, setHit] = useState(0);
-  const hits = useMemo(() => searchPeople(tree, query), [tree, query]);
+  const [term, setTerm] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(() => setTerm(query.trim()), SEARCH_PAUSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const found = useOrgChartSearch(asOf, term, windowed);
+  const searching = windowed && (term !== query.trim() || found.isFetching);
+  const local = useMemo(() => searchPeople(tree, query), [tree, query]);
+  const hits = windowed ? (term ? (found.data ?? []) : []) : local;
   function onSearchKey(event: KeyboardEvent<HTMLInputElement>) {
     if ((event.key === "ArrowDown" || event.key === "ArrowUp") && hits.length) {
       event.preventDefault();
@@ -575,7 +644,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
       : a.key === "lead" ? -1 : b.key === "lead" ? 1 : a.label.localeCompare(b.label));
   }, [layout, lensOf, lensKey]);
 
-  const divisions = useMemo(() => new Set(data.people.map((p) => p.unit?.divisionId).filter(Boolean)).size, [data]);
+  const divisions = useMemo(() => data.window?.divisions.length ?? new Set(data.people.map((p) => p.unit?.divisionId).filter(Boolean)).size, [data]);
+  const headcount = data.window?.headcount ?? data.people.length;
   const openCount = data.openRoles.filter((role) => role.status === "Open").length;
   /** HR who manage people add and edit open roles, on today's chart or later. */
   const managesRoles = rights.people && date >= today && !replaying;
@@ -612,7 +682,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
   return (
     <Frame
       title={t("title")}
-      description={t("meta", { people: data.people.length, divisions, open: openCount })}
+      description={t("meta", { people: headcount, divisions, open: openCount })}
       actions={
         <ToggleGroup
           type="single"
@@ -657,7 +727,7 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
                   onClick={() => goTo(person.employeeKey)}
                   className={cn("flex w-full items-center gap-2.5 rounded-inset px-2 py-1.5 text-start outline-none", index === hit && "bg-inlay")}
                 >
-                  <OrgAvatar id={person.employeeKey} size="sm" ctx={ctx} />
+                  <OrgAvatar id={person.employeeKey} size="sm" ctx={ctx} person={person} />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold">{person.displayName}</span>
                     <span className="block truncate text-xs text-muted-foreground">
@@ -665,7 +735,9 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
                     </span>
                   </span>
                 </button>
-              )) : <p className="px-2.5 py-2 text-sm text-muted-foreground">{t("search.none")}</p>}
+              )) : searching ? (
+                <p className="flex items-center gap-2 px-2.5 py-2 text-sm text-muted-foreground"><Spinner className="size-3.5" />{t("search.searching")}</p>
+              ) : <p className="px-2.5 py-2 text-sm text-muted-foreground">{t("search.none")}</p>}
             </div>
           ) : null}
         </div>
@@ -688,8 +760,8 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
             today={today}
             lo={range.lo}
             hi={range.hi}
-            people={data.people.length}
-            coming={tree.flags.size}
+            people={headcount}
+            coming={new Set((upcoming ?? []).map((item) => item.employeeKey)).size}
             replaying={replaying}
             onDate={changeDate}
             onReplay={() => void replay()}
@@ -726,22 +798,24 @@ function OrgChart({ data, asOf, onAsOf }: { data: OrgChartDto; asOf: string | nu
             const isChain = node.kind === "chain";
             const label = isMore(id) ? undefined : isRole(id) ? tree.roles.get(id)?.jobTitle : tree.people.get(id)?.displayName;
             const ghost = tree.ghosts.has(id);
+            const loadsMore = isMore(id) && tree.loadable.has(parentOf(tree, id)!);
             return (
               <div
                 key={id}
                 data-oc-id={id}
                 data-oc-drag={movable && !isChain && !isPlaceholder(id) && !ghost ? "" : undefined}
-                role={isMore(id) ? undefined : "button"}
-                tabIndex={isMore(id) ? -1 : 0}
+                role={isMore(id) && !loadsMore ? undefined : "button"}
+                tabIndex={isMore(id) && !loadsMore ? -1 : 0}
                 aria-label={label}
                 aria-pressed={isMore(id) || isChain ? undefined : selected === id}
                 onKeyDown={(event) => onNodeKey(event, id, node.kind)}
-                onClick={() => (isChain ? centreOn(id) : isMore(id) ? undefined : select(id))}
+                onClick={() => (isChain ? centreOn(id) : loadsMore ? loadBranch(parentOf(tree, id)!) : isMore(id) ? undefined : select(id))}
                 className={cn(
                   "oc-node bg-card",
                   node.kind === "lead" ? cn("oc-lead rounded-surface", node.top && "oc-top") : "oc-pc rounded-surface",
                   isChain && "oc-chain",
                   node.kind === "more" && "oc-more",
+                  loadsMore && "oc-more-load",
                   node.kind === "role" && "oc-role",
                   roleEdit && id === roleId(roleEdit.editing?.id ?? DRAFT_ROLE) && "oc-draft",
                   id === tree.viewerKey && !isChain && "oc-you",

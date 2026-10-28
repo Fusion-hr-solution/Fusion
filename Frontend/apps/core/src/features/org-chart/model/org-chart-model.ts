@@ -40,6 +40,10 @@ export interface OrgTree {
   kids: Map<string, string[]>;
   /** Hidden people counted under a visible person. */
   folds: Map<string, number>;
+  /** People whose folded count the viewer may load (a windowed chart). */
+  loadable: Set<string>;
+  /** Leaders none of whose team is loaded yet: they show folded, and opening them loads the team. */
+  unopened: Set<string>;
   roots: string[];
   viewerKey: string | null;
 }
@@ -47,6 +51,35 @@ export interface OrgTree {
 const byName = (a: OrgChartPersonDto, b: OrgChartPersonDto) => a.displayName.localeCompare(b.displayName);
 
 const FLAG_KIND = { Join: "join", Leave: "leave", Move: "move" } as const;
+
+/**
+ * A windowed chart with the branches loaded since: everyone once, and each fold recounted from the whole-company
+ * totals, so a count shrinks as its people load. Every window carries its chains, so everyone keeps theirs.
+ */
+export function mergeWindows(base: OrgChartDto, branches: OrgChartDto[]): OrgChartDto {
+  if (!branches.length) return base;
+  const people = new Map(base.people.map((person) => [person.employeeKey, person]));
+  for (const branch of branches) {
+    for (const person of branch.people) if (!people.has(person.employeeKey)) people.set(person.employeeKey, person);
+  }
+  const parents = new Set<string>();
+  const loadable = new Set<string>();
+  for (const part of [base, ...branches]) {
+    for (const fold of part.folded) {
+      parents.add(fold.parentKey);
+      if (fold.loadable) loadable.add(fold.parentKey);
+    }
+  }
+  const loadedBelow = new Map<string, number>();
+  for (const person of people.values()) {
+    if (person.managerKey) loadedBelow.set(person.managerKey, (loadedBelow.get(person.managerKey) ?? 0) + 1 + person.totalCount);
+  }
+  const folded = [...parents]
+    .filter((key) => people.has(key))
+    .map((key) => ({ parentKey: key, count: people.get(key)!.totalCount - (loadedBelow.get(key) ?? 0), loadable: loadable.has(key) }))
+    .filter((fold) => fold.count > 0);
+  return { ...base, people: [...people.values()], folded };
+}
 
 /**
  * The reporting tree as of the chart's date. With `upcoming` (HR's changes after that date), joiners whose manager is
@@ -82,16 +115,29 @@ export function buildTree(chart: OrgChartDto, upcoming: OrgChartChangeDto[] = []
     kids.set(role.managerKey, [...(kids.get(role.managerKey) ?? []), roleId(role.id)]);
   }
   const folds = new Map<string, number>();
+  const loadable = new Set<string>();
+  const unopened = new Set<string>();
   for (const fold of chart.folded) {
     if (!people.has(fold.parentKey)) continue;
     folds.set(fold.parentKey, fold.count);
+    if (fold.loadable) {
+      loadable.add(fold.parentKey);
+      if (!(kids.get(fold.parentKey) ?? []).some((kid) => !isRole(kid))) {
+        unopened.add(fold.parentKey);
+        continue;
+      }
+    }
     kids.set(fold.parentKey, [...(kids.get(fold.parentKey) ?? []), moreId(fold.parentKey)]);
   }
   roots.sort((a, b) => b.totalCount - a.totalCount || byName(a, b));
-  return { people, ghosts, flags, roles, kids, folds, roots: roots.map((person) => person.employeeKey), viewerKey: chart.viewerKey };
+  return {
+    people, ghosts, flags, roles, kids, folds, loadable, unopened,
+    roots: roots.map((person) => person.employeeKey), viewerKey: chart.viewerKey,
+  };
 }
 
-export const isLead = (tree: OrgTree, id: string) => !isPlaceholder(id) && (tree.kids.get(id)?.length ?? 0) > 0;
+export const isLead = (tree: OrgTree, id: string) =>
+  !isPlaceholder(id) && ((tree.kids.get(id)?.length ?? 0) > 0 || tree.unopened.has(id));
 
 /** A leader's open roles, in their line. */
 export const openRolesOf = (tree: OrgTree, id: string) => (tree.kids.get(id) ?? []).filter(isRole);
@@ -163,9 +209,12 @@ export const yearsBetween = (from: string, to: string) => (Date.parse(to) - Date
 /** Ordered lenses list their legend in scale order, categories by name. */
 export const isOrderedLens = (lens: LensKey) => lens === "tenure" || lens === "span" || lens === "review";
 
-/** Review progress comes from Performance, keyed by employee; people it doesn't return stay neutral. */
+/**
+ * Review progress comes from Performance, keyed by employee; people it doesn't return stay neutral. A windowed chart
+ * passes every division, so hues don't shift as branches load.
+ */
 export function createLens(tree: OrgTree, lens: LensKey, words: LensWords, asOf: string,
-  review?: ReadonlyMap<string, ReviewProgressPersonDto>): (id: string) => LensValue | null {
+  review?: ReadonlyMap<string, ReviewProgressPersonDto>, allDivisions?: { id: string; name: string }[]): (id: string) => LensValue | null {
   if (lens === "none") return () => null;
   if (lens === "review") {
     return (id) => {
@@ -198,9 +247,11 @@ export function createLens(tree: OrgTree, lens: LensKey, words: LensWords, asOf:
       return place ? { key: place, label: place, color: null } : null;
     };
   }
-  const divisions = new Map<string, string>();
-  for (const person of tree.people.values()) {
-    if (person.unit?.divisionId) divisions.set(person.unit.divisionId, person.unit.divisionName ?? "");
+  const divisions = new Map<string, string>(allDivisions?.map((division) => [division.id, division.name]));
+  if (!allDivisions) {
+    for (const person of tree.people.values()) {
+      if (person.unit?.divisionId) divisions.set(person.unit.divisionId, person.unit.divisionName ?? "");
+    }
   }
   const ordered = [...divisions].sort((a, b) => a[1].localeCompare(b[1]));
   const colored = ordered.length <= MAX_HUES;
@@ -250,7 +301,7 @@ export function layoutChart(tree: OrgTree, state: LayoutState): Layout {
     folded = new Set((tree.kids.get(root) ?? []).filter((kid) => lead(kid) && !state.unfolded.has(kid)));
   }
 
-  const children = (id: string) => (folded.has(id) ? [] : (tree.kids.get(id) ?? []));
+  const children = (id: string) => (folded.has(id) || tree.unopened.has(id) ? [] : (tree.kids.get(id) ?? []));
   const dims = (id: string): [number, number] => (isTop(id) ? [G.RW, G.RH] : [G.LW, G.LH]);
   const widths = new Map<string, number>();
   function measure(id: string): number {
@@ -317,7 +368,7 @@ export function layoutChart(tree: OrgTree, state: LayoutState): Layout {
       edges.push({ from: id, to: chain[i + 1] ?? root!, type: "down", sx: cx, sy: i * G.CHAIN + 54 });
     });
   }
-  return { nodes, edges, folded, root };
+  return { nodes, edges, folded: tree.unopened.size ? new Set([...folded, ...tree.unopened]) : folded, root };
 }
 
 // ── Geometry ────────────────────────────────────────────────────────────

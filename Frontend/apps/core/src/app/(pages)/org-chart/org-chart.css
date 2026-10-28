@@ -95,6 +95,8 @@
 .oc-t .oc-m .oc-dl { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
 .oc-pc.oc-chain { border-radius: 9999px; }
 .oc-pc.oc-more { border-style: dashed; border-color: var(--oc-line-strong); cursor: default; }
+.oc-pc.oc-more-load { cursor: pointer; }
+.oc-pc.oc-more-load:hover { border-color: var(--foreground); }
 .oc-well { display: grid; place-items: center; width: 46px; height: 46px; flex: none; background: var(--inlay); color: var(--muted-foreground); }
 .oc-well svg { width: 20px; height: 20px; }
 /* An open role: dashed, a briefcase well in the amber tint (the canvas's hire card) */
