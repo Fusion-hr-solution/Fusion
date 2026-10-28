@@ -33,57 +33,21 @@
     "InvitationPending": "Invitation pending",
     "NoAccess": "No Fusion access"
   },
-  "hero": {
-    "workEmail": "Work email",
-    "workerId": "Worker ID",
-    "location": "Location",
-    "manager": "Manager"
-  },
   "assignment": {
-    "title": "Current assignment",
-    "unavailable": "Work details unavailable",
-    "displayTitle": "Display title",
-    "notAssigned": "Not assigned",
-    "organization": "Organization",
-    "manager": "Manager",
-    "noManager": "No manager",
-    "since": "Effective since",
-    "status": "Worker status"
-  },
-  "reporting": {
-    "title": "Organization & reporting",
-    "manager": "Manager",
-    "noManager": "No manager assigned",
-    "directReports": "Direct reports · {count}",
-    "directReportsOf": "Direct reports · {shown} of {total}",
-    "more": "+{count} more",
-    "showInChart": "Show in org chart"
-  },
-  "employment": {
-    "title": "Employment",
-    "period": "Employment period",
-    "type": "Worker type"
+    "unavailable": "Work details unavailable"
   },
   "fusionAccess": {
     "title": "Fusion access",
     "unavailable": "Status unavailable",
     "retry": "Retry",
-    "status": "Account status",
-    "linked": "Linked account",
-    "profile": "Access profile",
-    "lastSignIn": "Last sign-in"
+    "status": "Account status"
   },
   "contact": {
-    "title": "Work contact",
-    "workEmail": "Work email",
-    "notSet": "Not set",
-    "emailRequired": "Required before Fusion access can be set up.",
-    "phone": "Work phone",
-    "location": "Location"
+    "emailRequired": "Required before Fusion access can be set up."
   },
   "history": {
-    "title": "History",
-    "empty": "No employment history yet."
+    "empty": "No employment history yet.",
+    "personalDetails": "Updated contact details"
   },
   "record": {
     "noAccess": "You don’t have access to this profile",
@@ -121,7 +85,6 @@
     "save": "Save work email"
   },
   "self": {
-    "eyebrow": "Profile",
     "title": "Profile",
     "noLink": "No linked employee record.",
     "noLinkTitle": "No linked employee profile",
@@ -131,16 +94,116 @@
     "unavailable": "Profile unavailable.",
     "unableTitle": "Unable to load profile",
     "unableDescription": "Your employee profile is not available right now.",
-    "edit": "Edit details",
-    "viewAll": "View all {count} reports",
-    "updated": "Profile details updated.",
-    "failed": "Your changes could not be saved.",
-    "dialogTitle": "Edit personal details",
+    "viewAll": "View all {count} reports"
+  },
+  "tabs": {
+    "label": "Profile sections",
+    "job": "Job",
+    "personal": "Personal",
+    "performance": "Performance",
+    "access": "Access"
+  },
+  "band": {
+    "unitIn": "{unit}, in {parent}",
+    "changePhoto": "Change photo"
+  },
+  "rail": {
+    "label": "About {name}",
+    "hireDate": "Hire date",
+    "employeeNumber": "Employee number",
+    "contract": "Contract",
+    "manager": "Manager",
+    "noManager": "No manager",
+    "directReports": "Direct reports",
+    "teammates": "Teammates",
+    "more": "+{count} more",
+    "orgChart": "Show on the org chart",
+    "viewAll": "View all {count}"
+  },
+  "colleague": {
+    "reportingLine": "Reporting line"
+  },
+  "job": {
+    "employment": "Employment",
+    "started": "Started",
+    "withCompany": "With the company",
+    "inJob": "In this job",
+    "inUnit": "In {unit}",
+    "information": "Job information",
+    "records": "{count, plural, one {# record} other {# records}}",
+    "record": "record",
+    "recordPlural": "records",
+    "effective": "Effective",
+    "jobTitle": "Job title",
+    "unit": "Unit",
+    "location": "Location",
+    "reportsTo": "Reports to",
+    "current": "Current",
+    "noManager": "No manager",
+    "historyFailed": "Job information could not be loaded.",
+    "retry": "Retry",
+    "dottedLines": "Dotted lines",
+    "comingUp": "Coming up",
+    "nothingScheduled": "Nothing scheduled",
+    "schedule": "Schedule a change",
+    "history": "History"
+  },
+  "personal": {
+    "name": "Name",
+    "legalName": "Legal name",
     "preferredName": "Preferred name",
-    "preferredNameHint": "Used as your display name across Fusion.",
+    "dateOfBirth": "Date of birth",
+    "contact": "Contact",
+    "mobile": "Mobile",
+    "personalEmail": "Personal email",
+    "workEmail": "Work email",
+    "address": "Home address",
+    "street": "Street",
+    "city": "City",
+    "postalCode": "Postal code",
+    "country": "Country",
+    "emergency": "Emergency contacts",
+    "contactName": "Name",
+    "relationship": "Relationship",
     "phone": "Phone",
+    "addContact": "Add a contact",
+    "removeContact": "Remove {name}",
+    "contactNumber": "Contact {number}",
+    "private": "Only {name} and HR",
+    "privateSelf": "You and HR",
+    "edit": "Edit",
+    "editSection": "Edit {section}",
+    "save": "Save",
+    "saving": "Saving…",
     "cancel": "Cancel",
-    "saving": "Saving",
-    "save": "Save changes"
+    "add": "Add",
+    "notSet": "Not set",
+    "noAddress": "No address",
+    "noContacts": "No emergency contacts",
+    "saved": "Saved.",
+    "failed": "Your changes could not be saved.",
+    "conflict": "These details changed while you were editing. They are reloaded: make your change again.",
+    "lockedByCompany": "Your company manages this field.",
+    "loadFailed": "Personal details could not be loaded.",
+    "retry": "Retry"
+  },
+  "photo": {
+    "titleSelf": "Your photo",
+    "title": "Photo of {name}",
+    "choose": "Choose a photo",
+    "chooseAnother": "Choose another",
+    "hint": "JPG, PNG or WebP, up to 5 MB",
+    "zoom": "Zoom",
+    "position": "Drag or use the arrow keys to position the photo",
+    "remove": "Remove photo",
+    "cancel": "Cancel",
+    "save": "Save photo",
+    "saving": "Saving…",
+    "saved": "Photo saved.",
+    "removed": "Photo removed.",
+    "failed": "The photo could not be saved.",
+    "wrongType": "Choose a JPG, PNG or WebP image.",
+    "tooLarge": "Choose an image up to 5 MB.",
+    "unreadable": "This image could not be read. Choose another."
   }
 }

@@ -88,6 +88,8 @@ export interface FusionSidebarRecord {
 
 export interface FusionSidebarPerson {
   name?: string | null;
+  /** Their photo, ready to display; initials without one. */
+  photo?: string | null;
   /** Job title, else the account type in plain words. */
   detail?: string | null;
   /** The job title is still resolving. */

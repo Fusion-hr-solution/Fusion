@@ -2,8 +2,11 @@
 
 import { useCallback, useMemo } from "react";
 import {
+  coreOrgChartQueryKeys,
   corePeopleQueryKeys,
   createCorePeopleApi,
+  fusionNavigationQueryKeys,
+  type UpdatePersonalRequest,
   createPlatformApiClient,
   type AddExistingEmployeeRequest,
   type HireEmployeeRequest,
@@ -17,6 +20,7 @@ import {
   canAccessEmployeeProfile,
   canAccessEmployeeRoster,
 } from "@/lib/employee-roster-access";
+import { employeeRosterQueryKeys } from "./employee-query-keys";
 
 function usePeopleApi() {
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -140,5 +144,66 @@ export function usePeopleEstablishmentMutations() {
       (request: AddExistingEmployeeRequest) => api.addExisting(request),
       { onSuccess: refreshCommittedPeople }
     ),
+  };
+}
+
+/** The Personal tab, shaped by the server for this viewer. */
+export function usePeoplePersonal(employeeKey: string, enabled = true) {
+  const api = usePeopleApi();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  return useApiQuery(
+    corePeopleQueryKeys.personal(employeeKey),
+    useCallback((signal) => api.personal(employeeKey, signal), [api, employeeKey]),
+    { enabled: !isLoading && isAuthenticated && canAccessEmployeeProfile(user) && Boolean(employeeKey) && enabled }
+  );
+}
+
+/** Saves the whole Personal tab; the preferred name and mobile also show on the profile and in lists. */
+export function useUpdatePeoplePersonal(employeeKey: string) {
+  const api = usePeopleApi();
+  const queryClient = useQueryClient();
+  return useApiMutation(
+    ({ request, expectedVersion }: { request: UpdatePersonalRequest; expectedVersion: number }) =>
+      api.updatePersonal(employeeKey, request, expectedVersion),
+    {
+      onSuccess: (saved) => {
+        queryClient.setQueryData(corePeopleQueryKeys.personal(employeeKey), saved);
+        void queryClient.invalidateQueries({ queryKey: corePeopleQueryKeys.profiles() });
+        void queryClient.invalidateQueries({ queryKey: corePeopleQueryKeys.timeline(employeeKey) });
+        void queryClient.invalidateQueries({ queryKey: corePeopleQueryKeys.lists() });
+        void queryClient.invalidateQueries({ queryKey: employeeRosterQueryKeys.all() });
+      },
+    }
+  );
+}
+
+/** Job information rows: HR and the branch manager only (the server answers 403 to anyone else). */
+export function usePeopleJobHistory(employeeKey: string, enabled = true) {
+  const api = usePeopleApi();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  return useApiQuery(
+    corePeopleQueryKeys.jobHistory(employeeKey),
+    useCallback((signal) => api.jobHistory(employeeKey, signal), [api, employeeKey]),
+    { enabled: !isLoading && isAuthenticated && canAccessEmployeeProfile(user) && Boolean(employeeKey) && enabled }
+  );
+}
+
+/** Sets or removes a photo; every place that shows the person picks up the new address. */
+export function usePhotoMutations(employeeKey: string) {
+  const api = usePeopleApi();
+  const queryClient = useQueryClient();
+  const refresh = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: corePeopleQueryKeys.profiles() });
+    void queryClient.invalidateQueries({ queryKey: corePeopleQueryKeys.lists() });
+    void queryClient.invalidateQueries({ queryKey: coreOrgChartQueryKeys.all() });
+    void queryClient.invalidateQueries({ queryKey: employeeRosterQueryKeys.all() });
+    void queryClient.invalidateQueries({ queryKey: [...fusionNavigationQueryKeys.all(), "my-card"] });
+  }, [queryClient]);
+  return {
+    upload: useApiMutation(
+      (photo: Blob) => api.uploadPhoto(employeeKey, photo, photo.type === "image/webp" ? "photo.webp" : "photo.png"),
+      { onSuccess: refresh }
+    ),
+    remove: useApiMutation(() => api.removePhoto(employeeKey), { onSuccess: refresh }),
   };
 }

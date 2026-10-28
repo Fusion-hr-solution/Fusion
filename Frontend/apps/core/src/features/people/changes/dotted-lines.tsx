@@ -62,8 +62,15 @@ export function DottedLines({ person, canEdit }: { person: PeopleProfileDto; can
         </li>
       ))}
       {canEdit ? (
-        <li className={cn("grid grid-cols-[26px_minmax(0,1fr)] items-center gap-3 pt-2", lines.length > 0 && "border-t")}>
-          <span />
+        <li
+          className={cn(
+            "grid items-center gap-3",
+            lines.length > 0
+              ? "grid-cols-[26px_minmax(0,1fr)] border-t pt-2"
+              : "min-h-14 grid-cols-[minmax(0,1fr)_auto] rounded-surface border border-dashed px-5 py-2"
+          )}
+        >
+          {lines.length > 0 ? <span /> : <span className="type-body text-muted-foreground">{t("none")}</span>}
           <Popover open={adding} onOpenChange={setAdding}>
             <PopoverTrigger asChild>
               <Button type="button" variant="ghost" size="sm" className="justify-self-start px-0 text-muted-foreground hover:bg-transparent hover:text-foreground">

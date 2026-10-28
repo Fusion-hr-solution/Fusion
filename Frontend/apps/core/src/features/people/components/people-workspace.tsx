@@ -233,6 +233,7 @@ function PersonMobileRow({ person }: { person: PeopleRowDto }) {
       <div className="flex items-start justify-between gap-3">
         <EmployeeIdentity
           name={person.displayName}
+          photoUrl={person.photoUrl}
           employeeNumber={person.employeeNumber}
           href={`/people/${person.employeeKey}`}
         />
@@ -344,6 +345,7 @@ function PeopleTable({ people, emptyState, changes }: { people: PeopleRowDto[]; 
                   <div className="flex min-w-0 items-center gap-2">
                     <EmployeeIdentity
                       name={person.displayName}
+                      photoUrl={person.photoUrl}
                       employeeNumber={person.employeeNumber}
                       href={`/people/${person.employeeKey}`}
                     />

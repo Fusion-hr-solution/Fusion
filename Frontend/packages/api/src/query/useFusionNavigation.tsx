@@ -19,6 +19,7 @@ import {
 import { createPlatformApiClient } from "../platform";
 import { useFusionViewer, useRecentRecords } from "../react/fusion-viewer";
 import { useFusionWork } from "./useFusionAttention";
+import { usePhoto } from "./usePhoto";
 
 const IDENTITY_STALE_MS = 10 * 60_000;
 
@@ -112,6 +113,8 @@ export interface FusionNavigationState {
   recent: FusionRecentRecord[];
   person: {
     name: string | null;
+    /** Their photo, ready to display; null without one or while it loads. */
+    photo: string | null;
     /** Job title from Core HR, else the account type in plain words. */
     detail: string | null;
     /** The title is still resolving; show a placeholder rather than the fallback. */
@@ -138,6 +141,7 @@ export function useFusionNavigation(
   );
   const work = useFusionWork(attention, { enabled: Boolean(viewer?.tenantId), api: options.attentionApi });
   const card = useMyCard({ api: options.api });
+  const photo = usePhoto(card.data?.photoUrl);
   const tenant = useTenantName({ api: options.api });
   const recent = useRecentRecords(current);
 
@@ -159,6 +163,7 @@ export function useFusionNavigation(
     recent,
     person: {
       name: viewer?.fullName ?? null,
+      photo,
       detail: cardTitle ?? viewer?.accountLabel ?? null,
       detailPending: isLoading || (cardExpected && card.isPending),
     },

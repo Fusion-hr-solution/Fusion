@@ -51,7 +51,6 @@ import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
   useEmployeeReportingLines,
   useEmployeeRoster,
-  useUpdateMyProfile,
   useWorkforceReadinessSummary,
 } from "./use-employees";
 
@@ -335,30 +334,3 @@ describe("useWorkforceReadinessSummary", () => {
   });
 });
 
-describe("useUpdateMyProfile", () => {
-  it("sends preferred-name updates to the dedicated self-profile endpoint", async () => {
-    mockPut.mockResolvedValue(undefined);
-
-    const { result } = renderHook(() => useUpdateMyProfile(), {
-      wrapper: createWrapper(),
-    });
-
-    await result.current.mutateAsync({
-      employeeId: "emp-1",
-      expectedVersion: 12,
-      preferredName: "Sally",
-    });
-
-    expect(mockPut).toHaveBeenCalledWith(
-      "/corehr/employees/emp-1/self-profile",
-      {
-        preferredName: "Sally",
-      },
-      {
-        headers: {
-          "If-Match": '"12"',
-        },
-      }
-    );
-  });
-});

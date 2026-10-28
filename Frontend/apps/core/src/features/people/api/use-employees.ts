@@ -4,7 +4,6 @@ import { useCallback, useMemo } from "react";
 import { createPlatformApiClient } from "@repo/api";
 import {
   keepPreviousData,
-  useApiMutation,
   useApiQuery,
   type UseApiQueryResult,
 } from "@repo/api/query";
@@ -37,13 +36,6 @@ function useCanAccessProfile(): boolean {
 }
 
 const EMPLOYEE_ROSTER_PATH = "/corehr/employees";
-
-interface UpdateMyProfileInput {
-  employeeId: string;
-  expectedVersion: number;
-  preferredName?: string | null;
-  phone?: string | null;
-}
 
 export function useEmployeeRoster(
   params: EmployeeRosterQueryParams
@@ -199,29 +191,6 @@ export function useEmployeeReportingLines(
     queryFn,
     {
       enabled: isAuthenticated && canAccess && !!employeeKey,
-    }
-  );
-}
-
-export function useUpdateMyProfile() {
-  const client = useMemo(() => createPlatformApiClient(), []);
-
-  return useApiMutation<void, UpdateMyProfileInput>(
-    ({ employeeId, expectedVersion, preferredName, phone }) =>
-      client.put<void>(
-        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/self-profile`,
-        {
-          preferredName,
-          phone,
-        },
-        {
-          headers: {
-            "If-Match": `"${expectedVersion}"`,
-          },
-        }
-      ),
-    {
-      invalidateQueries: [{ queryKey: employeeRosterQueryKeys.all() }],
     }
   );
 }

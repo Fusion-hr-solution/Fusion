@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { cn } from "@repo/ds";
+import { PersonAvatar, cn, personInitials, type PersonAvatarSize } from "@repo/ds";
+import { usePhoto } from "@repo/api/query";
 import { StatusBadge, type StatusTone } from "@repo/ds/shell";
 import type { PeopleEmploymentState } from "@repo/api";
 import { dateFormatter } from "@repo/ds/lib/dates";
@@ -24,54 +25,40 @@ const STATE_TONE: Record<PeopleEmploymentState, StatusTone> = {
   Incomplete: "warning",
 };
 
-type MonogramSize = "sm" | "md" | "lg" | "xl";
-
-const MONOGRAM_SIZE: Record<MonogramSize, string> = {
-  sm: "size-8 text-[0.6875rem]",
-  md: "size-9 text-xs",
-  lg: "size-11 text-sm",
-  xl: "size-16 text-xl",
-};
+type MonogramSize = Extract<PersonAvatarSize, "xs" | "sm" | "md" | "lg" | "xl">;
 
 /** Two-letter monogram derived from the display name — deterministic, never random. */
-export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "—";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts.at(-1)![0]!).toUpperCase();
-}
+export const initials = personInitials;
 
 /**
- * Restrained monogram tile. A squared, `lg`-radius tile rather than a circular
- * SaaS avatar — structured, quiet, and identical in tone for everyone (no
- * per-person color). Gives a person visible human presence without decoration.
+ * A person's mark: their photo when they have one, their initials otherwise. The same circle for everyone
+ * (no per-person colour), loaded through the API client from the versioned `photoUrl`.
  */
 export function Monogram({
   name,
+  photoUrl,
   size = "md",
   accent = false,
   className,
 }: {
   name: string;
+  photoUrl?: string | null;
   size?: MonogramSize;
   accent?: boolean;
   className?: string;
 }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "grid shrink-0 place-items-center rounded-control font-semibold tracking-tight tabular-nums",
-        accent
-          ? "bg-primary/12 text-foreground ring-1 ring-inset ring-primary/25"
-          : "bg-muted text-muted-foreground",
-        MONOGRAM_SIZE[size],
-        className
-      )}
-    >
-      {initials(name)}
-    </span>
+  const marked = cn(accent && "bg-primary/12 text-foreground ring-1 ring-inset ring-primary/25", className);
+  // Only a person with a photo touches the photo cache.
+  return photoUrl ? (
+    <PhotoMonogram name={name} photoUrl={photoUrl} size={size} className={marked} />
+  ) : (
+    <PersonAvatar name={name} size={size} className={marked} />
   );
+}
+
+function PhotoMonogram({ name, photoUrl, size, className }: { name: string; photoUrl: string; size: MonogramSize; className?: string }) {
+  const photo = usePhoto(photoUrl);
+  return <PersonAvatar name={name} photo={photo} size={size} className={className} />;
 }
 
 /**
@@ -82,6 +69,7 @@ export function Monogram({
  */
 export function EmployeeIdentity({
   name,
+  photoUrl,
   employeeNumber,
   href,
   secondary,
@@ -91,6 +79,7 @@ export function EmployeeIdentity({
   className,
 }: {
   name: string;
+  photoUrl?: string | null;
   employeeNumber?: string | null;
   href?: string;
   secondary?: ReactNode;
@@ -115,7 +104,7 @@ export function EmployeeIdentity({
 
   return (
     <div className={cn("flex min-w-0 items-center gap-3", className)}>
-      <Monogram name={name} size={size} accent={accent} />
+      <Monogram name={name} photoUrl={photoUrl} size={size} accent={accent} />
       <div className="min-w-0">
         <div className="truncate leading-tight">{nameNode}</div>
         {employeeNumber ? (

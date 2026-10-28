@@ -1,51 +1,12 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { createPerformanceApi, createPlatformApiClient, performanceQueryKeys } from "@repo/api";
 import { useApiQuery, useReactToPraise } from "@repo/api/query";
-import { cn } from "@repo/ds";
 import { PersonPerformanceSummary, type PraiseReactionIcons, type RenderSummaryLink } from "@repo/performance-ui";
 import { HeartHandshake, Lightbulb, PartyPopper, ThumbsUp } from "lucide-react";
 
 const BASE_PATH = "/core";
-
-/**
- * Profile | Performance: sibling views of one person record, each at its own address. Tabs are links,
- * so each view can be opened, shared and reloaded directly.
- */
-export function RecordViewSwitcher({
-  profileHref,
-  performanceHref,
-  current,
-}: {
-  profileHref: string;
-  performanceHref: string;
-  current: "profile" | "performance";
-}) {
-  const t = useTranslations("people.views");
-  const views = [
-    { key: "profile", label: t("profile"), href: profileHref },
-    { key: "performance", label: t("performance"), href: performanceHref },
-  ] as const;
-  return (
-    <nav aria-label={t("label")} className="inline-flex gap-1 rounded-control bg-card p-1">
-      {views.map((view) => (
-        <Link
-          key={view.key}
-          href={view.href}
-          aria-current={view.key === current ? "page" : undefined}
-          className={cn(
-            "rounded-nested px-3 py-1.5 type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            view.key === current ? "bg-inlay text-foreground" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {view.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
 
 /** Core HR paths route inside the app; Performance paths are another app and need a full navigation. */
 export const renderCoreLink: RenderSummaryLink = ({ href, className, children }) =>

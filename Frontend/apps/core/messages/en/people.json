@@ -89,11 +89,6 @@
     "noManagerOnDate": "No manager is available on this date",
     "noManagerMatch": "No manager matches your search"
   },
-  "views": {
-    "label": "Record views",
-    "profile": "Profile",
-    "performance": "Performance"
-  },
   "establish": {
     "failed": "The employee could not be added.",
     "back": "People",

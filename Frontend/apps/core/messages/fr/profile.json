@@ -33,57 +33,21 @@
     "InvitationPending": "Invitation en attente",
     "NoAccess": "Aucun accès à Fusion"
   },
-  "hero": {
-    "workEmail": "Adresse e-mail professionnelle",
-    "workerId": "Matricule",
-    "location": "Lieu",
-    "manager": "Manager"
-  },
   "assignment": {
-    "title": "Poste actuel",
-    "unavailable": "Poste non renseigné",
-    "displayTitle": "Intitulé de poste",
-    "notAssigned": "Non affecté",
-    "organization": "Unité",
-    "manager": "Manager",
-    "noManager": "Aucun manager",
-    "since": "En vigueur depuis",
-    "status": "Statut"
-  },
-  "reporting": {
-    "title": "Organisation et rattachement",
-    "manager": "Manager",
-    "noManager": "Aucun manager affecté",
-    "directReports": "Collaborateurs directs · {count}",
-    "directReportsOf": "Collaborateurs directs · {shown} sur {total}",
-    "more": "+{count} autres",
-    "showInChart": "Voir dans l'organigramme"
-  },
-  "employment": {
-    "title": "Contrat",
-    "period": "Période d’emploi",
-    "type": "Type de contrat"
+    "unavailable": "Poste non renseigné"
   },
   "fusionAccess": {
     "title": "Accès à Fusion",
     "unavailable": "Statut indisponible",
     "retry": "Réessayer",
-    "status": "Statut du compte",
-    "linked": "Compte associé",
-    "profile": "Profil d’accès",
-    "lastSignIn": "Dernière connexion"
+    "status": "Statut du compte"
   },
   "contact": {
-    "title": "Coordonnées professionnelles",
-    "workEmail": "Adresse e-mail professionnelle",
-    "notSet": "Non renseigné",
-    "emailRequired": "Nécessaire avant de configurer l’accès à Fusion.",
-    "phone": "Téléphone professionnel",
-    "location": "Lieu"
+    "emailRequired": "Nécessaire avant de configurer l’accès à Fusion."
   },
   "history": {
-    "title": "Historique",
-    "empty": "Aucun historique d’emploi pour l’instant."
+    "empty": "Aucun historique d’emploi pour l’instant.",
+    "personalDetails": "Coordonnées mises à jour"
   },
   "record": {
     "noAccess": "Vous n’avez pas accès à ce profil",
@@ -121,7 +85,6 @@
     "save": "Enregistrer l’adresse"
   },
   "self": {
-    "eyebrow": "Profil",
     "title": "Profil",
     "noLink": "Aucun dossier collaborateur associé.",
     "noLinkTitle": "Aucun profil collaborateur associé",
@@ -131,16 +94,116 @@
     "unavailable": "Profil indisponible.",
     "unableTitle": "Impossible de charger le profil",
     "unableDescription": "Votre profil collaborateur n’est pas disponible pour l’instant.",
-    "edit": "Modifier mes informations",
-    "viewAll": "Voir les {count} collaborateurs directs",
-    "updated": "Informations mises à jour.",
-    "failed": "Vos modifications n’ont pas pu être enregistrées.",
-    "dialogTitle": "Modifier mes informations personnelles",
+    "viewAll": "Voir les {count} collaborateurs directs"
+  },
+  "tabs": {
+    "label": "Sections du profil",
+    "job": "Poste",
+    "personal": "Personnel",
+    "performance": "Performance",
+    "access": "Accès"
+  },
+  "band": {
+    "unitIn": "{unit}, dans {parent}",
+    "changePhoto": "Changer la photo"
+  },
+  "rail": {
+    "label": "À propos de {name}",
+    "hireDate": "Date d’embauche",
+    "employeeNumber": "Matricule",
+    "contract": "Contrat",
+    "manager": "Responsable",
+    "noManager": "Aucun responsable",
+    "directReports": "Collaborateurs directs",
+    "teammates": "Coéquipiers",
+    "more": "+{count} de plus",
+    "orgChart": "Voir dans l’organigramme",
+    "viewAll": "Voir les {count}"
+  },
+  "colleague": {
+    "reportingLine": "Ligne hiérarchique"
+  },
+  "job": {
+    "employment": "Emploi",
+    "started": "Arrivée",
+    "withCompany": "Dans l’entreprise",
+    "inJob": "À ce poste",
+    "inUnit": "Dans {unit}",
+    "information": "Historique du poste",
+    "records": "{count, plural, one {# ligne} other {# lignes}}",
+    "record": "ligne",
+    "recordPlural": "lignes",
+    "effective": "Date d’effet",
+    "jobTitle": "Intitulé du poste",
+    "unit": "Unité",
+    "location": "Lieu",
+    "reportsTo": "Responsable",
+    "current": "Actuel",
+    "noManager": "Aucun responsable",
+    "historyFailed": "L’historique du poste n’a pas pu être chargé.",
+    "retry": "Réessayer",
+    "dottedLines": "Liens fonctionnels",
+    "comingUp": "À venir",
+    "nothingScheduled": "Rien de prévu",
+    "schedule": "Planifier un changement",
+    "history": "Historique"
+  },
+  "personal": {
+    "name": "Nom",
+    "legalName": "Nom légal",
     "preferredName": "Nom d’usage",
-    "preferredNameHint": "Affiché comme votre nom dans Fusion.",
+    "dateOfBirth": "Date de naissance",
+    "contact": "Coordonnées",
+    "mobile": "Mobile",
+    "personalEmail": "E-mail personnel",
+    "workEmail": "E-mail professionnel",
+    "address": "Adresse personnelle",
+    "street": "Rue",
+    "city": "Ville",
+    "postalCode": "Code postal",
+    "country": "Pays",
+    "emergency": "Contacts d’urgence",
+    "contactName": "Nom",
+    "relationship": "Lien",
     "phone": "Téléphone",
+    "addContact": "Ajouter un contact",
+    "removeContact": "Retirer {name}",
+    "contactNumber": "Contact {number}",
+    "private": "Seuls {name} et les RH",
+    "privateSelf": "Vous et les RH",
+    "edit": "Modifier",
+    "editSection": "Modifier : {section}",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
     "cancel": "Annuler",
-    "saving": "Enregistrement",
-    "save": "Enregistrer les modifications"
+    "add": "Ajouter",
+    "notSet": "Non renseigné",
+    "noAddress": "Aucune adresse",
+    "noContacts": "Aucun contact d’urgence",
+    "saved": "Enregistré.",
+    "failed": "Vos modifications n’ont pas pu être enregistrées.",
+    "conflict": "Ces informations ont changé pendant votre modification. Elles sont rechargées : refaites votre modification.",
+    "lockedByCompany": "Votre entreprise gère ce champ.",
+    "loadFailed": "Les informations personnelles n’ont pas pu être chargées.",
+    "retry": "Réessayer"
+  },
+  "photo": {
+    "titleSelf": "Votre photo",
+    "title": "Photo de {name}",
+    "choose": "Choisir une photo",
+    "chooseAnother": "En choisir une autre",
+    "hint": "JPG, PNG ou WebP, 5 Mo maximum",
+    "zoom": "Zoom",
+    "position": "Faites glisser ou utilisez les flèches pour cadrer la photo",
+    "remove": "Retirer la photo",
+    "cancel": "Annuler",
+    "save": "Enregistrer la photo",
+    "saving": "Enregistrement…",
+    "saved": "Photo enregistrée.",
+    "removed": "Photo retirée.",
+    "failed": "La photo n’a pas pu être enregistrée.",
+    "wrongType": "Choisissez une image JPG, PNG ou WebP.",
+    "tooLarge": "Choisissez une image de 5 Mo maximum.",
+    "unreadable": "Cette image n’a pas pu être lue. Choisissez-en une autre."
   }
 }

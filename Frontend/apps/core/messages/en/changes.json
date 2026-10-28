@@ -146,7 +146,8 @@
     "endOn": "Ends {date}",
     "failed": "The dotted line could not be saved.",
     "ended": "Dotted line ended",
-    "added": "Dotted line added"
+    "added": "Dotted line added",
+    "none": "No dotted-line managers"
   },
   "refused": {
     "inBranch": "{target} reports to {name}",

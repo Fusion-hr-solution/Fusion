@@ -169,7 +169,9 @@ export type PeopleChangeKind =
   | "Manager"
   | "EmploymentStarted"
   | "EmploymentEnded"
-  | "WorkEstablished";
+  | "WorkEstablished"
+  /** The person or HR changed the Personal tab: `fields` name the sections, never the values. */
+  | "PersonalDetails";
 
 export interface PeopleChangeFieldDto {
   label: string;

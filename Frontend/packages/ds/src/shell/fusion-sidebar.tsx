@@ -39,6 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import { PersonAvatar } from "../components/ui/person-avatar";
 import { Skeleton } from "../components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { FUSION_MODULE_ICONS } from "./modules";
@@ -102,12 +103,6 @@ export function sectionPaths(basePath: string, sections: readonly ShellNavSectio
 /** Absolute navigation path of a module-relative item, the key section counts use. */
 function absolutePath(basePath: string, href: string): string {
   return href === "/" ? basePath || "/" : `${basePath}${href}`;
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const letters = parts.length > 1 ? `${parts[0]![0]}${parts[parts.length - 1]![0]}` : (parts[0] ?? "").slice(0, 2);
-  return letters.toUpperCase() || "?";
 }
 
 /** A count of waiting work: a number when expanded, a dot on the rail, nothing at zero. */
@@ -496,6 +491,7 @@ function RecentLink({ href, basePath, children }: { href: string; basePath: stri
 function PersonPanel({
   collapsed,
   name,
+  photo,
   detail,
   detailPending = false,
   pending = false,
@@ -541,9 +537,7 @@ function PersonPanel({
           collapsed && "justify-center",
         )}
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-inlay text-[11px] font-semibold text-foreground/85 ring-1 ring-border">
-          {initials(name)}
-        </span>
+        <PersonAvatar name={name} photo={photo} size="sm" className="bg-inlay text-foreground/85 ring-1 ring-border" />
         {!collapsed ? (
           <>
             <span className="flex min-w-0 flex-1 flex-col">

@@ -89,11 +89,6 @@
     "noManagerOnDate": "لا مدير متاح في هذا التاريخ",
     "noManagerMatch": "لا مدير يطابق بحثك"
   },
-  "views": {
-    "label": "عروض السجل",
-    "profile": "الملف",
-    "performance": "الأداء"
-  },
   "establish": {
     "failed": "تعذّرت إضافة الموظف.",
     "back": "الموظفون",

@@ -89,11 +89,6 @@
     "noManagerOnDate": "Aucun manager disponible à cette date",
     "noManagerMatch": "Aucun manager ne correspond à votre recherche"
   },
-  "views": {
-    "label": "Vues du dossier",
-    "profile": "Profil",
-    "performance": "Performance"
-  },
   "establish": {
     "failed": "Le collaborateur n’a pas pu être ajouté.",
     "back": "Collaborateurs",

@@ -6,8 +6,12 @@ import type {
   EmployeeDetailsDto,
   EmployeeReportingLinesDto,
 } from "@/features/people/api/employee-roster.types";
+import type { PeopleTimelineEventDto } from "@repo/api";
+import { ProfileTimeline } from "./job-tab";
 import { WorkerProfile } from "./worker-profile";
-import { fromSelfDetails } from "./worker-profile-view";
+import { fromSelfDetails, tenure } from "./worker-profile-view";
+
+vi.mock("@repo/api/query", () => ({ usePhoto: () => null }));
 
 vi.mock("next/link", () => ({
   default: ({
@@ -116,51 +120,81 @@ const reportingLines: EmployeeReportingLinesDto = {
   downlineCount: 1,
 };
 
-describe("WorkerProfile (self projection)", () => {
-  it("anchors the worker record, manager, and team from the self view", () => {
-    const view = fromSelfDetails(details, reportingLines, {});
-    render(<WorkerProfile view={view} eyebrow="Profile" />);
+describe("WorkerProfile", () => {
+  const tabs = [
+    { key: "job" as const, label: "Job", href: "/profile" },
+    { key: "personal" as const, label: "Personal", href: "/profile?tab=personal" },
+  ];
 
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Amina Mestiri" })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Current assignment")).toBeInTheDocument();
-    expect(screen.getByText("Employment")).toBeInTheDocument();
-    expect(screen.getAllByText("Alexandre Idrissi").length).toBeGreaterThan(0);
-    expect(screen.getByText("Direct reports · 1")).toBeInTheDocument();
-    expect(screen.getByText("Sami Trabelsi")).toBeInTheDocument();
-    // manager and reports deep-link into the shared people profile route
-    expect(
-      screen.getAllByRole("link", { name: /Alexandre Idrissi/ })[0]
-    ).toHaveAttribute("href", "/people/AST-1000");
-    expect(screen.getByRole("link", { name: /Sami Trabelsi/ })).toHaveAttribute(
-      "href",
-      "/people/AST-1002"
+  it("shows the band, the tabs and a rail with the manager, team and hire date", () => {
+    const view = fromSelfDetails(details, reportingLines, {});
+    render(<WorkerProfile view={view} tabs={tabs} currentTab="personal" />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Amina Mestiri" })).toBeInTheDocument();
+    expect(screen.getByText("Customer Success Manager")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Personal" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Job" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByText("Hire date")).toBeInTheDocument();
+    expect(screen.getByText("1 February 2023")).toBeInTheDocument();
+    expect(screen.getByText("Full-time")).toBeInTheDocument();
+    // manager and reports deep-link into the people profile route
+    expect(screen.getByRole("link", { name: /Alexandre Idrissi/ })).toHaveAttribute("href", "/people/AST-1000");
+    expect(screen.getByRole("link", { name: /Sami Trabelsi/ })).toHaveAttribute("href", "/people/AST-1002");
+  });
+
+  it("gives a colleague outside the branch the reporting line in place of tabs", () => {
+    const view = fromSelfDetails(details, reportingLines, {});
+    render(<WorkerProfile view={view} />);
+
+    expect(screen.queryByRole("navigation", { name: "Profile sections" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reporting line" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Alexandre Idrissi/ })).toBeInTheDocument();
+  });
+
+  it("shows teammates for someone without reports", () => {
+    const view = fromSelfDetails(details, undefined, {});
+    render(
+      <WorkerProfile
+        view={view}
+        tabs={tabs}
+        currentTab="job"
+        teammates={[{ name: "Leila Baccouche", href: "/people/AST-1003" }]}
+      />
     );
+    expect(screen.getByText("Teammates")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Leila Baccouche/ })).toHaveAttribute("href", "/people/AST-1003");
   });
+});
 
-  it("hides the Fusion access and History cards until self-context loads", () => {
-    const view = fromSelfDetails(details, reportingLines, {});
-    render(<WorkerProfile view={view} eyebrow="Profile" />);
-
-    expect(screen.queryByText("Fusion access")).not.toBeInTheDocument();
-    expect(screen.queryByText("History")).not.toBeInTheDocument();
+describe("ProfileTimeline", () => {
+  it("names the sections of a contact details update, never values", () => {
+    render(
+      <ProfileTimeline
+        events={[
+          {
+            kind: "PersonalDetails",
+            employeeKey: "AST-1001",
+            effectiveDate: "2026-10-28",
+            title: "Updated contact details",
+            fields: [
+              { label: "Mobile", from: null, to: null },
+              { label: "Home address", from: null, to: null },
+            ],
+            isFuture: false,
+          } as PeopleTimelineEventDto,
+        ]}
+      />
+    );
+    expect(screen.getByText("Updated contact details")).toBeInTheDocument();
+    expect(screen.getByText("Mobile, Home address")).toBeInTheDocument();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
+});
 
-  it("renders the rich self access facts once context is present", () => {
-    const view = fromSelfDetails(details, reportingLines, {
-      access: {
-        state: "Active",
-        label: "Active",
-        linkedEmail: "amina@asteria.example",
-        accessProfiles: ["Employee"],
-        lastSignInAt: "2026-09-10T08:00:00Z",
-      },
-    });
-    render(<WorkerProfile view={view} eyebrow="Profile" accessState="ready" />);
-
-    expect(screen.getByText("Fusion access")).toBeInTheDocument();
-    expect(screen.getByText("Last sign-in")).toBeInTheDocument();
-    expect(screen.getByText("Access profile")).toBeInTheDocument();
+describe("tenure", () => {
+  it("counts whole years, months and days", () => {
+    expect(tenure("2020-06-06", new Date(2026, 9, 28))).toEqual({ years: 6, months: 4, days: 22 });
+    expect(tenure("2026-10-30", new Date(2026, 9, 28))).toBeNull();
+    expect(tenure(null)).toBeNull();
   });
 });

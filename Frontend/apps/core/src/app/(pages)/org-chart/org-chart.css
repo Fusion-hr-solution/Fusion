@@ -41,6 +41,10 @@
   box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--h) 70%, transparent);
 }
 .oc-av.oc-neutral { color: var(--foreground); }
+/* A photo fills the circle; the lens ring stays drawn over it. */
+.oc-av.oc-photo { position: relative; }
+.oc-av.oc-photo > img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.oc-av.oc-photo::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--h) 70%, transparent); }
 .oc-av.oc-xxl { width: 84px; height: 84px; font-size: 24px; }
 .oc-av.oc-xl { width: 68px; height: 68px; font-size: 20px; }
 .oc-av.oc-md { width: 46px; height: 46px; font-size: 14px; }

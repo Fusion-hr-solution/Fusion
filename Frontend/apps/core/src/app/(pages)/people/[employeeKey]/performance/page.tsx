@@ -1,10 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { use } from "react";
-import PeopleProfileWorkspace from "@/features/people/components/people-profile-workspace";
-
-/** A person's Core HR record, Performance view (D-32). */
-export default function PeoplePerformancePage({ params }: { params: Promise<{ employeeKey: string }> }) {
-  const { employeeKey } = use(params);
-  return <PeopleProfileWorkspace employeeKey={employeeKey} view="performance" />;
+/** Performance is a tab of the record now; old links open it there. */
+export default async function OldPerformancePage({ params }: { params: Promise<{ employeeKey: string }> }) {
+  const { employeeKey } = await params;
+  redirect(`/people/${encodeURIComponent(employeeKey)}?tab=performance`);
 }

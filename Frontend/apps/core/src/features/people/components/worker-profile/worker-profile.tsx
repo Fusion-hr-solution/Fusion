@@ -1,696 +1,379 @@
 "use client";
 
-import { useSay } from "@repo/ds/lib/say";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ReactNode, Ref } from "react";
-import { Button, Skeleton, cn } from "@repo/ds";
+import { PersonAvatar, cn } from "@repo/ds";
 import { PageContainer, StatusBadge } from "@repo/ds/shell";
-import {
-  ArrowRight,
-  BriefcaseBusiness,
-  CalendarDays,
-  Clock,
-  FileText,
-  IdCard,
-  Lock,
-  type LucideIcon,
-  Mail,
-  MapPin,
-  Phone,
-  Users,
-  Workflow,
-} from "lucide-react";
-import type {
-  PeopleChangeFieldDto,
-  PeopleTimelineEventDto,
-} from "@repo/api";
-import { Monogram, OrgPath, useWorkforceDate } from "../workforce-ui";
+import { useFormat } from "@repo/ds/lib/use-format";
+import { usePhoto } from "@repo/api/query";
+import { Mail, MapPin, Phone, Workflow } from "lucide-react";
+import { useSay } from "@repo/ds/lib/say";
+import { Monogram, useWorkforceDate } from "../workforce-ui";
 import {
   formatEmploymentType,
+  tenure,
+  type WorkerProfileReport,
   type WorkerProfileView,
 } from "./worker-profile-view";
 
+export type ProfileTab = "job" | "personal" | "performance" | "access";
+
+export interface ProfileTabLink {
+  key: ProfileTab;
+  label: string;
+  href: string;
+}
+
 export interface WorkerProfileProps {
   view: WorkerProfileView;
-  /** Small overline above the name — self renders "Profile"; omitted for other workers. */
-  eyebrow?: string;
-  /** Back navigation rendered above the hero (other-worker returns to People). */
+  /** Back navigation above the band (a person's record returns to People). */
   backLink?: ReactNode;
-  /** Right-aligned hero chrome: self "Edit", or as-of control + management actions. */
+  /** Top-right of the band: as-of date and the record's actions. */
   headerActions?: ReactNode;
-  /** Chip shown beside the name after an establishment reveal (other-worker). */
+  /** Chip beside the name after an establishment reveal. */
   nameBadge?: ReactNode;
-  /** H1 ref, for focus management after navigation (other-worker establishment). */
+  /** H1 ref, for focus management after navigation. */
   headingRef?: Ref<HTMLHeadingElement>;
-  /** Footer under the direct-reports list (self links to the team; other shows "+N more"). */
+  /** Sits on the photo's edge: change the photo (the person or HR). */
+  photoAction?: ReactNode;
+  /** The viewer's tabs; none for a colleague outside their branch, who gets the header, rail and reporting line. */
+  tabs?: ProfileTabLink[];
+  currentTab?: ProfileTab;
+  /** Others on the same manager, for someone without reports. */
+  teammates?: WorkerProfileReport[];
+  /** Opens the team in full when the rail shows only part of it. */
   reportsFooter?: ReactNode;
   /** The org chart opened around this person; omitted when the viewer can't see the chart. */
   orgChartHref?: string;
-  /** Fetch state for the Fusion access section (other-worker loads it separately). */
-  accessState?: "loading" | "error" | "ready";
-  onRetryAccess?: () => void;
-  /** History is fetched separately; show its skeleton while it resolves. */
-  timelineLoading?: boolean;
-  /** CTA for the access section — manage / set up / add work email. */
-  accessAction?: ReactNode;
-  /** Trigger to add or edit the canonical work email (other-worker, when permitted). */
+  /** Next to the work email in the rail (HR adds or edits it). */
   workEmailAction?: ReactNode;
-  /** Coming changes, shown inside the hero where the facts they change are (other-worker, Today view). */
-  comingUp?: ReactNode;
-  /** Under the manager on the reporting line: the dotted lines (other-worker). */
-  reportingExtra?: ReactNode;
-  /** Sibling-view switcher (Profile | Performance) rendered under the record header. */
-  viewSwitcher?: ReactNode;
-  /** Another view's body under the same header; when given, the profile sections are not rendered. */
+  /** The current tab's body. */
   children?: ReactNode;
 }
 
+const RAIL_PEOPLE = 5;
+
+/** One person's record: a band with the photo, name and tabs, a rail that stays on every tab, and the tab's body. */
 export function WorkerProfile({
   view,
-  eyebrow,
   backLink,
   headerActions,
   nameBadge,
   headingRef,
+  photoAction,
+  tabs,
+  currentTab,
+  teammates,
   reportsFooter,
   orgChartHref,
-  accessState,
-  onRetryAccess,
-  timelineLoading = false,
-  accessAction,
   workEmailAction,
-  comingUp,
-  reportingExtra,
-  viewSwitcher,
   children,
 }: WorkerProfileProps) {
-  const {
-    manager,
-    directReports,
-    directReportCount,
-    timeline,
-    access,
-  } = view;
   const t = useTranslations("profile");
-  const workforceDate = useWorkforceDate();
-  const say = useSay("profile");
-  const visibleReports = directReports.slice(0, 5);
-  const showAccess =
-    accessState === "loading" || accessState === "error" || Boolean(access);
-  const showTimeline = timelineLoading || timeline.length > 0;
+  const photo = usePhoto(view.photoUrl);
+  const parent = parentUnit(view.orgUnitPath);
 
   return (
-    <PageContainer width="wide" className="max-w-6xl space-y-6 pb-16">
-      {backLink}
+    <PageContainer width="wide" className="max-w-6xl pb-16">
+      {backLink ? <div className="mb-4">{backLink}</div> : null}
 
-      {eyebrow ? (
-        <p className="type-eyebrow text-muted-foreground">{eyebrow}</p>
-      ) : null}
-
-      {/* Hero — identity, work context, and the facts a worker reaches for first */}
-      <section className="relative overflow-hidden rounded-surface border bg-card p-6 sm:p-7">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-e-0 top-0 h-44 w-80 overflow-hidden"
-        >
-          <div className="absolute -inset-e-28 -top-32 size-72 rounded-full border border-primary/25" />
-          <div className="absolute -inset-e-20 -top-28 size-56 rounded-full bg-primary/10 blur-3xl" />
+      <section aria-labelledby="profile-name" className="relative rounded-surface bg-section px-6 pt-6 sm:px-8 sm:pt-7">
+        <div className="relative mb-4 w-fit sm:absolute sm:start-8 sm:-bottom-16 sm:mb-0">
+          <PersonAvatar
+            name={view.displayName}
+            photo={photo}
+            size="profile"
+            className="size-24 border-[6px] border-background bg-inlay text-3xl text-foreground/85 sm:size-[9.5rem] sm:text-[2.75rem]"
+          />
+          {photoAction ? <div className="absolute end-1 bottom-1 sm:end-2 sm:bottom-2">{photoAction}</div> : null}
         </div>
 
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-x-6">
-          <div className="flex min-w-0 items-start gap-5 sm:flex-1">
-            <Monogram
-              name={view.displayName}
-              size="xl"
-              accent
-              className="size-16 text-xl"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <h1
-                  ref={headingRef}
-                  tabIndex={-1}
-                  className="min-w-0 max-w-full truncate font-[family-name:var(--font-editorial)] text-3xl font-medium leading-[1.15] tracking-[-0.015em] text-foreground outline-none sm:text-4xl"
-                >
-                  {view.displayName}
-                </h1>
-                <StatusBadge tone={view.status.tone} dot>
-                  {view.status.label}
-                </StatusBadge>
-                {nameBadge}
-              </div>
-              {view.jobTitle ? (
-                <p className="mt-1.5 type-body text-foreground">
-                  {view.jobTitle}
-                </p>
-              ) : null}
-              {view.orgUnitName ? (
-                <p className="mt-1 inline-flex items-center gap-1.5 type-meta text-muted-foreground">
-                  <BriefcaseBusiness className="size-3.5" aria-hidden />
-                  {view.orgUnitName}
-                </p>
-              ) : null}
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 sm:ms-[11.5rem]">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <h1 id="profile-name" ref={headingRef} tabIndex={-1} className="type-page-title min-w-0 max-w-full truncate outline-none">
+                {view.displayName}
+              </h1>
+              <StatusBadge tone={view.status.tone} dot>
+                {view.status.label}
+              </StatusBadge>
+              {nameBadge}
             </div>
+            {view.jobTitle ? (
+              <p className="mt-1.5 type-body text-foreground">{view.jobTitle}</p>
+            ) : view.workUnavailable ? (
+              <p className="mt-1.5 type-body text-muted-foreground">{t("assignment.unavailable")}</p>
+            ) : null}
+            {view.orgUnitName ? (
+              <p className="mt-0.5 type-body-secondary text-muted-foreground">
+                {parent ? t("band.unitIn", { unit: view.orgUnitName, parent }) : view.orgUnitName}
+              </p>
+            ) : null}
           </div>
-          {headerActions ? (
-            <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-              {headerActions}
-            </div>
-          ) : null}
+          {headerActions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{headerActions}</div> : null}
         </div>
 
-        <dl className="relative mt-6 grid gap-x-6 gap-y-6 border-t pt-5 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.9fr_0.9fr_1.1fr] lg:gap-x-0 lg:divide-x">
-          {view.workEmail ? (
-            <HeroFact icon={Mail} label={t("hero.workEmail")} value={view.workEmail} />
-          ) : null}
-          {view.employeeNumber ? (
-            <HeroFact
-              icon={IdCard}
-              label={t("hero.workerId")}
-              value={view.employeeNumber}
-              code
-            />
-          ) : null}
-          {view.workLocation ? (
-            <HeroFact
-              icon={MapPin}
-              label={t("hero.location")}
-              value={view.workLocation}
-            />
-          ) : null}
-          {manager ? (
-            <HeroFact icon={Users} label={t("hero.manager")}>
+        {tabs?.length ? (
+          <nav aria-label={t("tabs.label")} className="-mb-px mt-5 flex gap-1 overflow-x-auto sm:ms-[11.5rem]">
+            {tabs.map((tab) => (
               <Link
-                href={manager.href}
-                className="group flex min-w-0 items-center gap-2 underline-offset-4"
+                key={tab.key}
+                href={tab.href}
+                scroll={false}
+                aria-current={tab.key === currentTab ? "page" : undefined}
+                className={cn(
+                  "border-b-2 px-3.5 pt-2.5 pb-3 type-label whitespace-nowrap outline-none transition-colors focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-ring",
+                  tab.key === currentTab
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
               >
-                <Monogram name={manager.name} size="sm" />
-                <span className="truncate type-body text-foreground group-hover:underline">
-                  {manager.name}
-                </span>
+                {tab.label}
               </Link>
-            </HeroFact>
-          ) : null}
-        </dl>
-        {comingUp ? <div className="relative mt-[18px] grid gap-2.5">{comingUp}</div> : null}
+            ))}
+          </nav>
+        ) : (
+          <div className="h-6 sm:h-8" />
+        )}
       </section>
 
-      {viewSwitcher}
-
-      {children ?? (
-        <>
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-            {/* Left column */}
-            <div className="space-y-6">
-              <ProfileCard icon={BriefcaseBusiness} title={t("assignment.title")}>
-                {view.workUnavailable ? (
-                  <p className="type-body text-muted-foreground">
-                    {t("assignment.unavailable")}
-                  </p>
-                ) : (
-                  <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                    <CardFact
-                      label={t("assignment.displayTitle")}
-                      value={view.jobTitle || t("assignment.notAssigned")}
-                      quiet={!view.jobTitle}
-                    />
-                    <CardFact label={t("assignment.organization")}>
-                      {view.orgUnitPath ? (
-                        <OrgPath
-                          name={view.orgUnitName}
-                          path={view.orgUnitPath}
-                          unitClassName="type-body text-foreground"
-                        />
-                      ) : (
-                        <span
-                          className={cn(
-                            "truncate",
-                            view.orgUnitName
-                              ? "type-body text-foreground"
-                              : "type-body text-muted-foreground"
-                          )}
-                        >
-                          {view.orgUnitName || t("assignment.notAssigned")}
-                        </span>
-                      )}
-                    </CardFact>
-                    <CardFact label={t("assignment.manager")}>
-                      {manager ? (
-                        <Link
-                          href={manager.href}
-                          className="truncate type-body text-foreground underline-offset-4 hover:underline"
-                        >
-                          {manager.name}
-                        </Link>
-                      ) : (
-                        <span className="type-body text-muted-foreground">
-                          {t("assignment.noManager")}
-                        </span>
-                      )}
-                    </CardFact>
-                    <CardFact
-                      label={t("assignment.since")}
-                      value={
-                        workforceDate(view.assignmentEffectiveFrom, {
-                          month: "long",
-                        }) || "—"
-                      }
-                      quiet={!view.assignmentEffectiveFrom}
-                    />
-                    <CardFact label={t("assignment.status")}>
-                      <StatusBadge tone={view.status.tone} dot>
-                        {view.status.label}
-                      </StatusBadge>
-                    </CardFact>
-                  </dl>
-                )}
-              </ProfileCard>
-
-              <ProfileCard icon={Users} title={t("reporting.title")}>
-                <div>
-                  <p className="type-eyebrow text-muted-foreground">{t("reporting.manager")}</p>
-                  {manager ? (
-                    <Link
-                      href={manager.href}
-                      className="group mt-2.5 flex items-center gap-3"
-                    >
-                      <Monogram name={manager.name} size="md" />
-                      <div className="min-w-0">
-                        <p className="truncate type-label font-semibold text-foreground group-hover:underline">
-                          {manager.name}
-                        </p>
-                        {manager.email ? (
-                          <p className="truncate type-meta text-muted-foreground">
-                            {manager.email}
-                          </p>
-                        ) : manager.employeeNumber ? (
-                          <p className="truncate type-code text-xs text-muted-foreground">
-                            {manager.employeeNumber}
-                          </p>
-                        ) : null}
-                      </div>
-                    </Link>
-                  ) : (
-                    <p className="mt-2 type-body text-muted-foreground">
-                      {t("reporting.noManager")}
-                    </p>
-                  )}
-                  {reportingExtra}
-                </div>
-
-                {directReportCount > 0 ? (
-                  <div className="mt-5 border-t pt-5">
-                    <p className="type-eyebrow text-muted-foreground">
-                      {directReportCount > visibleReports.length
-                        ? t("reporting.directReportsOf", { shown: visibleReports.length, total: directReportCount })
-                        : t("reporting.directReports", { count: directReportCount })}
-                    </p>
-                    <ul className="mt-3 space-y-3.5">
-                      {visibleReports.map((report) => (
-                        <li key={report.href}>
-                          <Link
-                            href={report.href}
-                            className="group flex items-center gap-3"
-                          >
-                            <Monogram name={report.name} size="sm" />
-                            <div className="min-w-0">
-                              <p className="truncate type-label font-medium text-foreground group-hover:underline">
-                                {report.name}
-                              </p>
-                              {report.jobTitle ? (
-                                <p className="truncate type-meta text-muted-foreground">
-                                  {report.jobTitle}
-                                </p>
-                              ) : null}
-                            </div>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                    {reportsFooter ??
-                      (directReportCount > visibleReports.length ? (
-                        <p className="mt-3 type-meta text-muted-foreground">
-                          {t("reporting.more", { count: directReportCount - visibleReports.length })}
-                        </p>
-                      ) : null)}
-                  </div>
-                ) : null}
-
-                {orgChartHref ? (
-                  <Link
-                    href={orgChartHref}
-                    className="mt-5 inline-flex items-center gap-2 border-t pt-4 type-label text-muted-foreground hover:text-foreground hover:underline"
-                  >
-                    <Workflow className="size-4" /> {t("reporting.showInChart")}
-                  </Link>
-                ) : null}
-              </ProfileCard>
-            </div>
-
-            {/* Right column */}
-            <div className="space-y-6">
-              <ProfileCard icon={FileText} title={t("employment.title")}>
-                <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                  <CardFact
-                    icon={CalendarDays}
-                    label={t("employment.period")}
-                    value={view.employmentLine || "—"}
-                    quiet={!view.employmentLine}
-                  />
-                  <CardFact
-                    label={t("employment.type")}
-                    value={formatEmploymentType(view.employmentType, { say })}
-                    quiet={!view.employmentType}
-                  />
-                </dl>
-              </ProfileCard>
-
-              {showAccess ? (
-                <ProfileCard icon={Lock} title={t("fusionAccess.title")}>
-                  {accessState === "loading" ? (
-                    <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                      <Skeleton className="h-9 w-full" />
-                      <Skeleton className="h-9 w-full" />
-                      <Skeleton className="h-9 w-full" />
-                      <Skeleton className="h-9 w-full" />
-                    </div>
-                  ) : accessState === "error" ? (
-                    <div>
-                      <p className="type-body font-medium text-foreground">
-                        {t("fusionAccess.unavailable")}
-                      </p>
-                      {onRetryAccess ? (
-                        <Button
-                          variant="link"
-                          className="mt-1 h-auto p-0 type-meta"
-                          onClick={onRetryAccess}
-                        >
-                          {t("fusionAccess.retry")}
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : access ? (
-                    isRichAccess(access) ? (
-                      <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                        <CardFact label={t("fusionAccess.status")}>
-                          <StatusBadge tone={access.tone} dot>
-                            {access.label}
-                          </StatusBadge>
-                        </CardFact>
-                        <CardFact
-                          label={t("fusionAccess.linked")}
-                          value={access.linkedEmail || "—"}
-                          quiet={!access.linkedEmail}
-                        />
-                        <CardFact
-                          label={t("fusionAccess.profile")}
-                          value={
-                            access.accessProfiles &&
-                            access.accessProfiles.length > 0
-                              ? access.accessProfiles.join(", ")
-                              : "—"
-                          }
-                          quiet={
-                            !access.accessProfiles ||
-                            access.accessProfiles.length === 0
-                          }
-                        />
-                        <CardFact
-                          label={t("fusionAccess.lastSignIn")}
-                          value={
-                            workforceDate(access.lastSignInAt, {
-                              month: "short",
-                            }) || "—"
-                          }
-                          quiet={!access.lastSignInAt}
-                        />
-                      </dl>
-                    ) : (
-                      <div>
-                        <p className="type-body font-medium text-foreground">
-                          {access.label}
-                        </p>
-                        {access.detail ? (
-                          <p className="truncate type-meta text-muted-foreground">
-                            {access.detail}
-                          </p>
-                        ) : null}
-                        {accessAction ? (
-                          <div className="mt-1.5">{accessAction}</div>
-                        ) : null}
-                      </div>
-                    )
-                  ) : null}
-                </ProfileCard>
-              ) : null}
-
-              <ProfileCard icon={Mail} title={t("contact.title")}>
-                <dl className="grid gap-x-5 gap-y-5 sm:grid-cols-[1.9fr_1fr_1fr]">
-                  <div className="min-w-0">
-                    <CardFact
-                      icon={Mail}
-                      label={t("contact.workEmail")}
-                      value={view.workEmail || t("contact.notSet")}
-                      quiet={!view.workEmail}
-                    />
-                    {!view.workEmail ? (
-                      <p className="mt-1 type-meta text-muted-foreground">
-                        {t("contact.emailRequired")}
-                      </p>
-                    ) : null}
-                    {workEmailAction ? (
-                      <div className="mt-1.5">{workEmailAction}</div>
-                    ) : null}
-                  </div>
-                  <CardFact
-                    icon={Phone}
-                    label={t("contact.phone")}
-                    value={view.phone || t("contact.notSet")}
-                    quiet={!view.phone}
-                  />
-                  <CardFact
-                    icon={MapPin}
-                    label={t("contact.location")}
-                    value={view.workLocation || t("contact.notSet")}
-                    quiet={!view.workLocation}
-                  />
-                </dl>
-              </ProfileCard>
-
-              {showTimeline ? (
-                <ProfileCard icon={Clock} title={t("history.title")}>
-                  {timelineLoading && timeline.length === 0 ? (
-                    <div className="space-y-3">
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-10 w-2/3" />
-                    </div>
-                  ) : (
-                    <ProfileTimeline events={timeline} />
-                  )}
-                </ProfileCard>
-              ) : null}
-            </div>
-          </div>
-        </>
-      )}
+      <div className="mt-6 flex flex-col gap-10 lg:flex-row lg:items-start">
+        <ProfileRail
+          view={view}
+          showPeople={Boolean(tabs?.length)}
+          teammates={teammates}
+          reportsFooter={reportsFooter}
+          orgChartHref={orgChartHref}
+          workEmailAction={workEmailAction}
+        />
+        <div className="min-w-0 flex-1">
+          {children ?? (tabs?.length ? null : <ReportingLine view={view} />)}
+        </div>
+      </div>
     </PageContainer>
   );
 }
 
-function isRichAccess(access: WorkerProfileView["access"]): boolean {
-  if (!access) return false;
-  return (
-    access.linkedEmail != null ||
-    access.lastSignInAt != null ||
-    (access.accessProfiles?.length ?? 0) > 0
-  );
+/** "Product & Engineering" from "Group / Product & Engineering / Product". */
+function parentUnit(path: string | null): string | null {
+  const parts = path?.split("/").map((part) => part.trim()).filter(Boolean) ?? [];
+  return parts.length >= 2 ? parts[parts.length - 2]! : null;
 }
 
-function ProfileCard({
-  icon: Icon,
-  title,
-  action,
-  children,
-}: {
-  icon: LucideIcon;
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-surface border bg-card">
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-4">
-        <div className="flex items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-control bg-primary-tint text-primary-ink ring-1 ring-inset ring-primary-ring">
-            <Icon className="size-[1.05rem]" aria-hidden />
-          </span>
-          <h2 className="type-panel-title text-foreground">{title}</h2>
-        </div>
-        {action}
-      </header>
-      <div className="px-6 py-5">{children}</div>
-    </section>
-  );
+/** "6 years, 4 months" (long) or "6y 4m" (narrow), in the viewer's language; days only in the first month. */
+export function useTenure() {
+  const format = useFormat();
+  const locale = useLocale();
+  return (from: string | null | undefined, style: "long" | "narrow" = "long"): string | null => {
+    const span = tenure(from);
+    if (!span) return null;
+    const unit = (value: number, name: "year" | "month" | "day") =>
+      format.number(value, { style: "unit", unit: name, unitDisplay: style });
+    const parts = [
+      span.years > 0 ? unit(span.years, "year") : null,
+      span.months > 0 ? unit(span.months, "month") : null,
+    ].filter((part): part is string => Boolean(part));
+    if (parts.length === 0) return unit(Math.max(span.days, 1), "day");
+    return new Intl.ListFormat(locale, { type: "unit", style }).format(parts);
+  };
 }
 
-function HeroFact({
-  icon: Icon,
-  label,
-  value,
-  code = false,
-  children,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value?: string;
-  code?: boolean;
-  children?: ReactNode;
-}) {
+function RailGroup({ label, aside, children }: { label?: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 lg:px-6 lg:first:ps-0 lg:last:pe-0">
-      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground/80">
-        <Icon className="size-4" aria-hidden />
-      </span>
-      <div className="min-w-0">
-        <dt className="type-eyebrow text-muted-foreground">{label}</dt>
-        <dd className="mt-0.5 min-w-0">
-          {children ?? (
-            <span
-              className={cn(
-                "block truncate",
-                code
-                  ? "type-code text-sm text-foreground"
-                  : "type-body text-foreground"
-              )}
-            >
-              {value}
-            </span>
-          )}
-        </dd>
-      </div>
-    </div>
-  );
-}
-
-function CardFact({
-  icon: Icon,
-  label,
-  value,
-  quiet = false,
-  code = false,
-  children,
-}: {
-  icon?: LucideIcon;
-  label: string;
-  value?: string;
-  quiet?: boolean;
-  code?: boolean;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="min-w-0">
-      <dt className="type-meta text-muted-foreground">{label}</dt>
-      <dd className="mt-1 flex min-w-0 items-center gap-2">
-        {Icon ? (
-          <Icon
-            className="size-4 shrink-0 text-muted-foreground/70"
-            aria-hidden
-          />
-        ) : null}
-        {children ?? (
-          <span
-            className={cn(
-              "truncate",
-              quiet
-                ? "type-body text-muted-foreground"
-                : code
-                  ? "type-code text-sm text-foreground"
-                  : "type-body text-foreground"
-            )}
-          >
-            {value}
-          </span>
-        )}
-      </dd>
-    </div>
-  );
-}
-
-/** from → to for a single changed field; a single value renders alone. */
-function ChangeField({ field }: { field: PeopleChangeFieldDto }) {
-  return (
-    <p className="type-meta">
-      <span className="text-muted-foreground">{field.label} </span>
-      {field.from ? (
-        <>
-          <span className="text-muted-foreground line-through decoration-muted-foreground/40">
-            {field.from}
-          </span>
-          <ArrowRight
-            aria-hidden
-            className="mx-1.5 inline size-3.5 -translate-y-px text-muted-foreground"
-          />
-        </>
+    <div className="border-t py-4 first:border-t-0 first:pt-0">
+      {label ? (
+        <p className="mb-2 flex items-baseline justify-between gap-3 type-label text-muted-foreground">
+          {label}
+          {aside}
+        </p>
       ) : null}
-      <span className="font-medium text-foreground">{field.to ?? "—"}</span>
-    </p>
+      {children}
+    </div>
   );
 }
 
-function ProfileTimeline({ events }: { events: PeopleTimelineEventDto[] }) {
-  const t = useTranslations("profile.history");
-  const workforceDate = useWorkforceDate();
-  if (events.length === 0) {
-    return (
-      <p className="type-body text-muted-foreground">
-        {t("empty")}
-      </p>
-    );
-  }
-  // Oldest first: the timeline reads as a life-of-record story top to bottom.
-  const ordered = [...events].sort((a, b) =>
-    a.effectiveDate.localeCompare(b.effectiveDate)
-  );
-  const last = ordered.length - 1;
+function RailLine({ icon: Icon, children }: { icon: typeof Mail; children: ReactNode }) {
   return (
-    <ol>
-      {ordered.map((event, index) => (
-        <li
-          key={`${event.kind}-${event.effectiveDate}-${index}`}
-          className="flex gap-4"
-        >
-          <span
-            className={cn(
-              "w-[5.5rem] shrink-0 pt-0.5 text-end type-meta tabular-nums",
-              event.isFuture ? "text-primary-ink" : "text-muted-foreground"
-            )}
-          >
-            {workforceDate(event.effectiveDate)}
-          </span>
-          <div className="flex flex-col items-center" aria-hidden>
-            <span
-              className={cn(
-                "mt-1 size-2.5 shrink-0 rounded-full ring-4",
-                event.isFuture
-                  ? "bg-primary ring-primary/15"
-                  : "bg-muted-foreground/35 ring-transparent"
-              )}
-            />
-            {index < last ? <span className="w-px flex-1 bg-border" /> : null}
-          </div>
-          <div className={cn("min-w-0", index < last && "pb-6")}>
-            <p className="type-label text-foreground">{event.title}</p>
-            {event.fields.length > 0 ? (
-              <div className="mt-1 space-y-0.5">
-                {event.fields.map((field) => (
-                  <ChangeField key={field.label} field={field} />
-                ))}
+    <div className="flex min-w-0 items-center gap-2.5 py-1">
+      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      {children}
+    </div>
+  );
+}
+
+function PersonLink({ name, href, detail, size = "sm" }: { name: string; href: string; detail?: string | null; size?: "sm" | "xs" }) {
+  return (
+    <Link href={href} className="group flex min-w-0 items-center gap-2.5 py-1 outline-none focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-ring">
+      <Monogram name={name} size={size} />
+      <span className="min-w-0">
+        <span className="block truncate type-label text-foreground group-hover:underline">{name}</span>
+        {detail ? <span className="block truncate type-meta text-muted-foreground">{detail}</span> : null}
+      </span>
+    </Link>
+  );
+}
+
+function ProfileRail({
+  view,
+  showPeople,
+  teammates,
+  reportsFooter,
+  orgChartHref,
+  workEmailAction,
+}: {
+  view: WorkerProfileView;
+  showPeople: boolean;
+  teammates?: WorkerProfileReport[];
+  reportsFooter?: ReactNode;
+  orgChartHref?: string;
+  workEmailAction?: ReactNode;
+}) {
+  const t = useTranslations("profile.rail");
+  const say = useSay("profile");
+  const workforceDate = useWorkforceDate();
+  const tenureOf = useTenure();
+  const reports = view.directReports.slice(0, RAIL_PEOPLE);
+  const mates = view.directReportCount === 0 ? (teammates ?? []) : [];
+  const since = tenureOf(view.employmentStart);
+  const hasContact = Boolean(view.workEmail || view.phone || view.workLocation || workEmailAction);
+
+  return (
+    <aside aria-label={t("label", { name: view.displayName })} className="w-full shrink-0 lg:sticky lg:top-6 lg:w-64 lg:pt-12">
+      {hasContact ? (
+        <RailGroup>
+          {view.workEmail ? (
+            <RailLine icon={Mail}>
+              <a href={`mailto:${view.workEmail}`} className="truncate type-body text-foreground underline-offset-4 hover:underline">
+                {view.workEmail}
+              </a>
+            </RailLine>
+          ) : null}
+          {workEmailAction ? <div className="ps-6.5">{workEmailAction}</div> : null}
+          {view.phone ? (
+            <RailLine icon={Phone}>
+              <span className="truncate type-body text-foreground">{view.phone}</span>
+            </RailLine>
+          ) : null}
+          {view.workLocation ? (
+            <RailLine icon={MapPin}>
+              <span className="truncate type-body text-foreground">{view.workLocation}</span>
+            </RailLine>
+          ) : null}
+        </RailGroup>
+      ) : null}
+
+      {view.employmentStart ? (
+        <RailGroup label={t("hireDate")}>
+          <p className="type-body text-foreground">{workforceDate(view.employmentStart, { month: "long" })}</p>
+          {since ? <p className="type-meta text-muted-foreground">{since}</p> : null}
+        </RailGroup>
+      ) : null}
+
+      {view.employeeNumber || view.employmentType ? (
+        <RailGroup>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+            {view.employeeNumber ? (
+              <div className="min-w-0">
+                <dt className="type-label text-muted-foreground">{t("employeeNumber")}</dt>
+                <dd className="mt-0.5 truncate type-code text-foreground">{view.employeeNumber}</dd>
               </div>
             ) : null}
-          </div>
+            {view.employmentType ? (
+              <div className="min-w-0">
+                <dt className="type-label text-muted-foreground">{t("contract")}</dt>
+                <dd className="mt-0.5 truncate type-body text-foreground">{formatEmploymentType(view.employmentType, { say })}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </RailGroup>
+      ) : null}
+
+      {showPeople ? (
+        <>
+          <RailGroup label={t("manager")}>
+            {view.manager ? (
+              <PersonLink name={view.manager.name} href={view.manager.href} detail={view.manager.employeeNumber} />
+            ) : (
+              <p className="type-body text-muted-foreground">{t("noManager")}</p>
+            )}
+          </RailGroup>
+
+          {view.directReportCount > 0 ? (
+            <RailGroup label={t("directReports")} aside={<span className="type-meta tabular-nums">{view.directReportCount}</span>}>
+              {reports.map((report) => (
+                <PersonLink key={report.href} name={report.name} href={report.href} size="xs" />
+              ))}
+              {reportsFooter ??
+                (view.directReportCount > reports.length ? (
+                  <p className="mt-1 type-meta text-muted-foreground">{t("more", { count: view.directReportCount - reports.length })}</p>
+                ) : null)}
+            </RailGroup>
+          ) : mates.length > 0 ? (
+            <RailGroup label={t("teammates")} aside={<span className="type-meta tabular-nums">{mates.length}</span>}>
+              <ul className="flex flex-wrap" aria-label={mates.map((mate) => mate.name).join(", ")}>
+                {mates.slice(0, 8).map((mate) => (
+                  <li key={mate.href} className="-ms-2 first:ms-0">
+                    <Link href={mate.href} title={mate.name} className="block rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <Monogram name={mate.name} size="sm" className="border-2 border-background" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </RailGroup>
+          ) : null}
+        </>
+      ) : null}
+
+      {orgChartHref ? (
+        <RailGroup>
+          <Link href={orgChartHref} className="inline-flex items-center gap-2 type-label text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+            <Workflow className="size-4" aria-hidden /> {t("orgChart")}
+          </Link>
+        </RailGroup>
+      ) : null}
+    </aside>
+  );
+}
+
+/** What a colleague outside the viewer's branch gets in place of tabs: who they report to, and who reports to them. */
+function ReportingLine({ view }: { view: WorkerProfileView }) {
+  const t = useTranslations("profile");
+  const reports = view.directReports.slice(0, RAIL_PEOPLE);
+  return (
+    <section aria-labelledby="profile-reporting" className="lg:pt-12">
+      <h2 id="profile-reporting" className="mb-3 type-section-title">{t("colleague.reportingLine")}</h2>
+      <ol className="divide-y overflow-hidden rounded-surface border bg-card">
+        <li className="px-5 py-3">
+          <p className="type-label text-muted-foreground">{t("rail.manager")}</p>
+          {view.manager ? (
+            <PersonLink name={view.manager.name} href={view.manager.href} />
+          ) : (
+            <p className="py-1 type-body text-muted-foreground">{t("rail.noManager")}</p>
+          )}
         </li>
-      ))}
-    </ol>
+        <li className="flex items-center gap-2.5 px-5 py-3">
+          <Monogram name={view.displayName} photoUrl={view.photoUrl} size="sm" accent />
+          <span className="min-w-0">
+            <span className="block truncate type-label text-foreground">{view.displayName}</span>
+            {view.jobTitle ? <span className="block truncate type-meta text-muted-foreground">{view.jobTitle}</span> : null}
+          </span>
+        </li>
+        {view.directReportCount > 0 ? (
+          <li className="px-5 py-3">
+            <p className="flex justify-between type-label text-muted-foreground">
+              {t("rail.directReports")}
+              <span className="type-meta tabular-nums">{view.directReportCount}</span>
+            </p>
+            {reports.map((report) => (
+              <PersonLink key={report.href} name={report.name} href={report.href} detail={report.jobTitle} />
+            ))}
+            {view.directReportCount > reports.length ? (
+              <p className="mt-1 type-meta text-muted-foreground">{t("rail.more", { count: view.directReportCount - reports.length })}</p>
+            ) : null}
+          </li>
+        ) : null}
+      </ol>
+    </section>
   );
 }

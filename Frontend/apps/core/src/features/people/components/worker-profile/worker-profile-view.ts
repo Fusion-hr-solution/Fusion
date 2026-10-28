@@ -27,6 +27,7 @@ import type {
  */
 export interface WorkerProfileManager {
   name: string;
+  employeeKey: string;
   /** Root-relative profile href (basePath `/core` is applied by Next). */
   href: string;
   email?: string | null;
@@ -51,7 +52,10 @@ export interface WorkerProfileAccess {
 }
 
 export interface WorkerProfileView {
+  employeeKey: string;
   displayName: string;
+  /** API-relative, versioned; null without a photo. */
+  photoUrl: string | null;
   employeeNumber: string | null;
   status: { label: string; tone: StatusTone };
 
@@ -145,7 +149,7 @@ const PEOPLE_STATE_TONE: Record<string, StatusTone> = {
 export function fromSelfDetails(
   details: EmployeeDetailsDto,
   reportingLines: EmployeeReportingLinesDto | undefined,
-  context: { timeline?: PeopleTimelineDto; access?: MyFusionAccessDto | null },
+  context: { timeline?: PeopleTimelineDto; access?: MyFusionAccessDto | null; photoUrl?: string | null },
   words: ProfileWords = ENGLISH
 ): WorkerProfileView {
   const { say, locale } = words;
@@ -168,7 +172,9 @@ export function fromSelfDetails(
     : null;
 
   return {
+    employeeKey: details.stableEmployeeKey,
     displayName: details.displayName,
+    photoUrl: context.photoUrl ?? null,
     employeeNumber: details.employeeNumber ?? null,
     status: active
       ? { label: say("status.Active"), tone: "success" }
@@ -191,6 +197,7 @@ export function fromSelfDetails(
     manager: manager
       ? {
           name: manager.managerFullName,
+          employeeKey: manager.managerStableEmployeeKey,
           // The People profile route resolves by stable employee key, not the uuid.
           href: `/people/${manager.managerStableEmployeeKey}`,
           email: manager.managerEmail,
@@ -237,7 +244,9 @@ export function fromPeopleProfile(
   const { say } = words;
 
   return {
+    employeeKey: identity.employeeKey,
     displayName: identity.displayName,
+    photoUrl: identity.photoUrl,
     employeeNumber: identity.employeeNumber,
     status: {
       label: employment.state in PEOPLE_STATE_TONE ? say(`status.${employment.state}`) : employment.state,
@@ -261,6 +270,7 @@ export function fromPeopleProfile(
     manager: primaryManager
       ? {
           name: primaryManager.displayName,
+          employeeKey: primaryManager.employeeKey,
           href: `/people/${primaryManager.employeeKey}`,
           employeeNumber: primaryManager.employeeNumber,
         }
@@ -285,4 +295,23 @@ export function fromPeopleProfile(
     isAsOf: profile.isAsOf,
     viewedDate: profile.viewedDate,
   };
+}
+
+/** Whole years, months and days from `from` (yyyy-mm-dd…) to `to`; null for a future or missing date. */
+export function tenure(from: string | null | undefined, to: Date = new Date()): { years: number; months: number; days: number } | null {
+  if (!from) return null;
+  const [y, m, d] = from.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  let years = to.getFullYear() - y;
+  let months = to.getMonth() + 1 - m;
+  let days = to.getDate() - d;
+  if (days < 0) {
+    months -= 1;
+    days += new Date(to.getFullYear(), to.getMonth(), 0).getDate();
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  return years < 0 ? null : { years, months, days };
 }

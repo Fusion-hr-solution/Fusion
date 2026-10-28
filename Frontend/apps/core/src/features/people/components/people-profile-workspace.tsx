@@ -4,7 +4,6 @@ import { useSay } from "@repo/ds/lib/say";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import {
-  notFound,
   usePathname,
   useRouter,
   useSearchParams,
@@ -30,7 +29,7 @@ import {
   Input,
   Label,
 } from "@repo/ds";
-import { PageContainer } from "@repo/ds/shell";
+import { PageContainer, PageListSkeleton } from "@repo/ds/shell";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import {
@@ -47,6 +46,7 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   CalendarDays,
+  Camera,
   Check,
   ChevronRight,
   MoreHorizontal,
@@ -59,15 +59,22 @@ import {
 } from "lucide-react";
 import {
   usePeopleAccessStatus,
+  usePeopleJobHistory,
+  usePeoplePersonal,
   usePeopleProfile,
   usePeopleTimeline,
   useUpdatePeopleWorkEmail,
 } from "../api/use-people";
 import { useWorkforceDate } from "./workforce-ui";
 import { WorkerProfile } from "./worker-profile/worker-profile";
-import { PerformanceRecordView, RecordViewSwitcher } from "./record-views";
+import { PerformanceRecordView } from "./record-views";
 import { WorkerProfileSkeleton } from "./worker-profile/worker-profile-skeleton";
 import { fromPeopleProfile } from "./worker-profile/worker-profile-view";
+import { AccessTab } from "./worker-profile/access-tab";
+import { JobTab } from "./worker-profile/job-tab";
+import { PersonalTab } from "./worker-profile/personal-tab";
+import { PhotoDialog } from "./worker-profile/photo-dialog";
+import { useProfileTabs } from "./worker-profile/profile-tabs";
 import { useRecentRecord } from "@repo/api/react";
 import { useChangeSheet } from "../changes/change-sheet";
 import { ComingUpCard } from "../changes/coming-up";
@@ -78,14 +85,7 @@ function isoDay(value: string): string {
   return value.length >= 10 ? value.slice(0, 10) : value;
 }
 
-export default function PeopleProfileWorkspace({
-  employeeKey,
-  view: recordView = "profile",
-}: {
-  employeeKey: string;
-  /** Which sibling view of the record to show under the shared header. */
-  view?: "profile" | "performance";
-}) {
+export default function PeopleProfileWorkspace({ employeeKey }: { employeeKey: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -93,6 +93,7 @@ export default function PeopleProfileWorkspace({
 
   const { user, isLoading: authLoading } = useAuth();
   const t = useTranslations("profile.record");
+  const tPhoto = useTranslations("profile.band");
   const say = useSay("profile");
   const locale = useLocale();
   const workforceDate = useWorkforceDate();
@@ -100,25 +101,34 @@ export default function PeopleProfileWorkspace({
   const rights = useChangeRights();
   const changeSheet = useChangeSheet(employeeKey);
   const tc = useTranslations("changes.menu");
-  // The Performance view exists only where the viewer can enter Performance (hide, don't deny).
+  // Performance exists only where the viewer can enter it (hide, don't deny).
   const showPerformance = canEnterPerformance(user);
-  if (recordView === "performance" && !authLoading && !showPerformance)
-    notFound();
-  // History and Fusion-access mirror the backend's manager/HR gates; a plain
-  // colleague never fetches them, so nothing flashes a skeleton it can't fill.
+  // Managers and HR may see more than the directory; the Personal read says how much for this person.
   const canExplore = canAccessCoreTeam(user);
   const canSeeAccess = canAccessCorePeople(user);
+  const mayExplore = canExplore || canSeeAccess || canManage;
 
   const profile = usePeopleProfile(employeeKey, asOfParam);
-  const timeline = usePeopleTimeline(
-    employeeKey,
-    Boolean(profile.data) && canExplore
-  );
-  const access = usePeopleAccessStatus(
-    employeeKey,
-    Boolean(profile.data) && !asOfParam && canSeeAccess
-  );
+  const isSelf = Boolean(user?.employeeId) && user?.employeeId === profile.data?.identity.employeeId;
+  const personal = usePeoplePersonal(employeeKey, Boolean(profile.data) && (mayExplore || isSelf));
+  // A colleague outside the viewer's branch: header, rail and reporting line only.
+  const directoryOnly = personal.data ? personal.data.access === "Directory" : !(mayExplore || isSelf);
+  const tabsKnown = Boolean(personal.data) || personal.error != null || !(mayExplore || isSelf);
+  const explores = tabsKnown && !directoryOnly;
+
+  const { tab, tabs } = useProfileTabs({
+    personal: true,
+    performance: showPerformance,
+    access: canSeeAccess,
+  });
+  const timeline = usePeopleTimeline(employeeKey, Boolean(profile.data) && explores && tab === "job");
+  const jobHistory = usePeopleJobHistory(employeeKey, Boolean(profile.data) && explores && tab === "job");
+  const access = usePeopleAccessStatus(employeeKey, Boolean(profile.data) && canSeeAccess && tab === "access");
+  const managerKey = profile.data?.primaryManager?.employeeKey ?? "";
+  const team = usePeopleProfile(explores && profile.data?.directReportCount === 0 ? managerKey : "", null);
+
   const [workEmailEditorOpen, setWorkEmailEditorOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const workEmailActionHandled = useRef(false);
   const requestedAction = searchParams.get("action");
   const returnTo =
@@ -173,7 +183,7 @@ export default function PeopleProfileWorkspace({
     );
   }, [canManage, pathname, profile.data, requestedAction, searchParams]);
 
-  if (profile.isLoading) return <WorkerProfileSkeleton showBackLink />;
+  if (profile.isLoading || authLoading) return <WorkerProfileSkeleton showBackLink />;
 
   if (profile.error || !profile.data) {
     const kind = profile.error ? classifyApiError(profile.error) : "validation";
@@ -203,11 +213,10 @@ export default function PeopleProfileWorkspace({
 
   const employee = profile.data;
   const isAsOf = employee.isAsOf;
-  const accessEnabled = !isAsOf && canSeeAccess;
   const view = fromPeopleProfile(
     employee,
     timeline.data?.timeline,
-    accessEnabled ? (access.data ?? null) : null,
+    canSeeAccess ? (access.data ?? null) : null,
     { say, locale }
   );
 
@@ -216,43 +225,82 @@ export default function PeopleProfileWorkspace({
   const showActions = rights.lines && !isAsOf && (!isFormer || canManage);
   const orgChartHref = canAccessCoreOrgChart(user) ? `/org-chart?focus=${encodeURIComponent(employeeKey)}` : undefined;
   const goAsOf = (date: string) => router.push(`${pathname}?asOf=${date}`);
-  const returnToToday = () => router.push(pathname);
+  const returnToToday = () => router.push(tab === "job" ? pathname : `${pathname}?tab=${tab}`);
 
-  // A colleague who is not permitted the Fusion-access read (403) simply doesn't see
-  // the section — only a genuinely transient failure surfaces a retry.
-  const accessForbidden =
-    Boolean(access.error) && classifyApiError(access.error) === "auth";
-  const accessState =
-    !accessEnabled || accessForbidden
-      ? undefined
-      : access.isLoading
-        ? ("loading" as const)
-        : access.error
-          ? ("error" as const)
-          : ("ready" as const);
-  const hasHeaderActions = isAsOf || canExplore || showActions;
-
+  const accessState = access.isLoading ? ("loading" as const) : access.error ? ("error" as const) : ("ready" as const);
   const canManageWorkEmail = canManage && !isAsOf;
   const accessAction =
-    accessEnabled && access.data && canViewWorkforceAccess(user) ? (
-      view.workEmail ? (
-        <Link
-          href="/workforce-access"
-          className="inline-block type-meta text-primary-ink underline-offset-4 hover:underline"
-        >
-          {access.data.state === "NoAccess" ? t("setUpAccess") : t("reviewAccess")}
-        </Link>
-      ) : canManage ? (
-        <Button
-          variant="link"
-          className="h-auto p-0 type-meta text-primary-ink"
-          onClick={() => setWorkEmailEditorOpen(true)}
-        >
-          {t("addWorkEmail")}
-          <ChevronRight className="ms-1 size-3.5" aria-hidden />
-        </Button>
-      ) : undefined
+    access.data && view.workEmail && canViewWorkforceAccess(user) ? (
+      <Link
+        href="/workforce-access"
+        className="inline-block type-meta text-primary-ink underline-offset-4 hover:underline"
+      >
+        {access.data.state === "NoAccess" ? t("setUpAccess") : t("reviewAccess")}
+      </Link>
     ) : undefined;
+  const workEmailAction = canManageWorkEmail ? (
+    <Button
+      variant="link"
+      className="h-auto p-0 type-meta text-primary-ink"
+      onClick={() => setWorkEmailEditorOpen(true)}
+    >
+      {view.workEmail ? t("editWorkEmail") : t("addWorkEmail")}
+      <ChevronRight className="ms-1 size-3.5 rtl:rotate-180" aria-hidden />
+    </Button>
+  ) : undefined;
+
+  const jobHistoryForbidden = Boolean(jobHistory.error) && classifyApiError(jobHistory.error) === "auth";
+  const timelineForbidden = Boolean(timeline.error) && classifyApiError(timeline.error) === "auth";
+  const teammates = (team.data?.directReports ?? [])
+    .filter((mate) => mate.employeeKey !== employeeKey)
+    .map((mate) => ({ name: mate.displayName, href: `/people/${mate.employeeKey}`, jobTitle: mate.jobTitle }));
+  const canChangePhoto = !isAsOf && (canManage || (isSelf && personal.data?.canEdit === true));
+  const hasDottedLines = employee.dottedLineManagers.length > 0 || (rights.lines && !isFormer);
+
+  const body = !tabsKnown ? (
+    <PageListSkeleton rows={4} />
+  ) : directoryOnly ? undefined : tab === "personal" ? (
+    <PersonalTab
+      employeeKey={employeeKey}
+      displayName={view.displayName}
+      workEmail={view.workEmail}
+      isSelf={isSelf}
+    />
+  ) : tab === "performance" ? (
+    <PerformanceRecordView employeeId={employee.identity.employeeId} />
+  ) : tab === "access" ? (
+    <AccessTab
+      view={view}
+      state={accessState}
+      onRetry={() => void access.refetch()}
+      accessAction={accessAction}
+      workEmailAction={workEmailAction}
+    />
+  ) : (
+    <JobTab
+      view={view}
+      jobHistory={
+        jobHistoryForbidden
+          ? undefined
+          : {
+              rows: jobHistory.data?.rows,
+              isLoading: jobHistory.isLoading,
+              failed: Boolean(jobHistory.error),
+              retry: () => void jobHistory.refetch(),
+            }
+      }
+      timeline={timelineForbidden ? undefined : { events: view.timeline, isLoading: timeline.isLoading }}
+      dottedLines={!isAsOf && hasDottedLines ? <DottedLines person={employee} canEdit={rights.lines && !isFormer} /> : undefined}
+      comingUp={
+        !isAsOf && (employee.comingUp.length > 0 || showActions)
+          ? employee.comingUp.map((change) => (
+              <ComingUpCard key={change.id} change={change} canChange={change.details.isReportingOnly ? rights.lines : rights.people} onEdit={changeSheet.edit} />
+            ))
+          : undefined
+      }
+      onSchedule={showActions && !isFormer ? () => changeSheet.start(employeeKey, "job") : undefined}
+    />
+  );
 
   return (
     <>
@@ -267,27 +315,37 @@ export default function PeopleProfileWorkspace({
         view={view}
         headingRef={headingRef}
         orgChartHref={orgChartHref}
+        tabs={explores ? tabs : undefined}
+        currentTab={tab}
+        teammates={teammates}
         backLink={
           <Link
             href="/people"
             className="inline-flex items-center gap-2 type-body text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <ArrowLeft className="size-4" /> {t("back")}
+            <ArrowLeft className="size-4 rtl:rotate-180" /> {t("back")}
           </Link>
         }
         nameBadge={
           showResult && established ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success-subtle px-2.5 py-1 type-meta font-medium text-foreground motion-safe:animate-in motion-safe:fade-in">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success-subtle px-2.5 py-1 type-meta font-medium text-foreground animate-in fade-in">
               <Check className="size-3.5 text-success" aria-hidden />
               {established === "hire" ? t("hired") : t("added")}
             </span>
           ) : undefined
         }
+        photoAction={
+          canChangePhoto ? (
+            <Button size="icon" variant="outline" className="size-9 rounded-full bg-popover shadow-raised" aria-label={tPhoto("changePhoto")} onClick={() => setPhotoOpen(true)}>
+              <Camera className="size-4" aria-hidden />
+            </Button>
+          ) : undefined
+        }
         headerActions={
-          hasHeaderActions ? (
+          isAsOf || (explores && canExplore) || showActions ? (
             <>
               {isAsOf ? (
-                <div className="inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-primary/[0.06] py-1.5 ps-3.5 pe-1.5 motion-safe:animate-in motion-safe:fade-in">
+                <div className="inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-primary/[0.06] py-1.5 ps-3.5 pe-1.5 animate-in fade-in">
                   <span className="type-label">
                     {t("asOf", { date: workforceDate(employee.viewedDate, { month: "long" }) })}
                   </span>
@@ -300,7 +358,7 @@ export default function PeopleProfileWorkspace({
                     <RotateCcw className="size-3.5" /> {t("today")}
                   </Button>
                 </div>
-              ) : canExplore ? (
+              ) : explores && canExplore ? (
                 <AsOfControl
                   today={isoDay(employee.viewedDate)}
                   onPick={goAsOf}
@@ -344,41 +402,20 @@ export default function PeopleProfileWorkspace({
             </>
           ) : undefined
         }
-        comingUp={!isAsOf && employee.comingUp.length ? employee.comingUp.map((change) => (
-          <ComingUpCard key={change.id} change={change} canChange={change.details.isReportingOnly ? rights.lines : rights.people} onEdit={changeSheet.edit} />
-        )) : undefined}
-        reportingExtra={!isAsOf ? <DottedLines person={employee} canEdit={rights.lines && !isFormer} /> : undefined}
-        viewSwitcher={
-          showPerformance ? (
-            <RecordViewSwitcher
-              profileHref={`/people/${employeeKey}`}
-              performanceHref={`/people/${employeeKey}/performance`}
-              current={recordView}
-            />
-          ) : undefined
-        }
-        accessState={accessState}
-        onRetryAccess={() => void access.refetch()}
-        timelineLoading={timeline.isLoading}
-        accessAction={accessAction}
-        workEmailAction={
-          canManageWorkEmail ? (
-            <Button
-              variant="link"
-              className="h-auto p-0 type-meta text-primary-ink"
-              onClick={() => setWorkEmailEditorOpen(true)}
-            >
-              {view.workEmail ? t("editWorkEmail") : t("addWorkEmail")}
-              <ChevronRight className="ms-1 size-3.5" aria-hidden />
-            </Button>
-          ) : undefined
-        }
       >
-        {recordView === "performance" && showPerformance ? (
-          <PerformanceRecordView employeeId={employee.identity.employeeId} />
-        ) : undefined}
+        {body}
       </WorkerProfile>
       {changeSheet.element}
+      {canChangePhoto ? (
+        <PhotoDialog
+          open={photoOpen}
+          onOpenChange={setPhotoOpen}
+          employeeKey={employeeKey}
+          displayName={view.displayName}
+          photoUrl={view.photoUrl}
+          isSelf={isSelf}
+        />
+      ) : null}
       <WorkEmailEditorDialog
         open={workEmailEditorOpen}
         onOpenChange={setWorkEmailEditorOpen}

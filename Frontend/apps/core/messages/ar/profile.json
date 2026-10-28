@@ -33,57 +33,21 @@
     "InvitationPending": "الدعوة معلّقة",
     "NoAccess": "لا وصول إلى Fusion"
   },
-  "hero": {
-    "workEmail": "البريد المهني",
-    "workerId": "معرّف الموظف",
-    "location": "الموقع",
-    "manager": "المدير"
-  },
   "assignment": {
-    "title": "الإسناد الحالي",
-    "unavailable": "تفاصيل العمل غير متاحة",
-    "displayTitle": "المسمى المعروض",
-    "notAssigned": "غير مسند",
-    "organization": "الهيكل التنظيمي",
-    "manager": "المدير",
-    "noManager": "لا مدير",
-    "since": "ساري منذ",
-    "status": "حالة الموظف"
-  },
-  "reporting": {
-    "title": "الهيكل التنظيمي والتبعية",
-    "manager": "المدير",
-    "noManager": "لا مدير مسند",
-    "directReports": "المرؤوسون المباشرون · {count}",
-    "directReportsOf": "المرؤوسون المباشرون · {shown} من {total}",
-    "more": "+{count} آخرون",
-    "showInChart": "عرض في الهيكل التنظيمي"
-  },
-  "employment": {
-    "title": "التوظيف",
-    "period": "فترة التوظيف",
-    "type": "نوع الموظف"
+    "unavailable": "تفاصيل العمل غير متاحة"
   },
   "fusionAccess": {
     "title": "الوصول إلى Fusion",
     "unavailable": "الحالة غير متاحة",
     "retry": "إعادة المحاولة",
-    "status": "حالة الحساب",
-    "linked": "الحساب المرتبط",
-    "profile": "ملف الوصول",
-    "lastSignIn": "آخر تسجيل دخول"
+    "status": "حالة الحساب"
   },
   "contact": {
-    "title": "معلومات الاتصال المهنية",
-    "workEmail": "البريد المهني",
-    "notSet": "غير محدد",
-    "emailRequired": "مطلوب قبل إعداد الوصول إلى Fusion.",
-    "phone": "الهاتف المهني",
-    "location": "الموقع"
+    "emailRequired": "مطلوب قبل إعداد الوصول إلى Fusion."
   },
   "history": {
-    "title": "السجل",
-    "empty": "لا سجل توظيف بعد."
+    "empty": "لا سجل توظيف بعد.",
+    "personalDetails": "تحديث بيانات التواصل"
   },
   "record": {
     "noAccess": "ليس لديك وصول إلى هذا الملف",
@@ -121,7 +85,6 @@
     "save": "حفظ البريد المهني"
   },
   "self": {
-    "eyebrow": "الملف الشخصي",
     "title": "الملف الشخصي",
     "noLink": "لا سجل موظف مرتبط.",
     "noLinkTitle": "لا ملف موظف مرتبط",
@@ -131,16 +94,116 @@
     "unavailable": "الملف غير متاح.",
     "unableTitle": "تعذّر تحميل الملف",
     "unableDescription": "ملف الموظف الخاص بك غير متاح الآن.",
-    "edit": "تعديل التفاصيل",
-    "viewAll": "عرض كل المرؤوسين ({count})",
-    "updated": "حُدّثت تفاصيل الملف.",
-    "failed": "تعذّر حفظ تغييراتك.",
-    "dialogTitle": "تعديل التفاصيل الشخصية",
-    "preferredName": "الاسم المفضّل",
-    "preferredNameHint": "يُستخدم كاسم العرض في Fusion.",
+    "viewAll": "عرض كل المرؤوسين ({count})"
+  },
+  "tabs": {
+    "label": "أقسام الملف",
+    "job": "الوظيفة",
+    "personal": "شخصي",
+    "performance": "الأداء",
+    "access": "الوصول"
+  },
+  "band": {
+    "unitIn": "{unit}، ضمن {parent}",
+    "changePhoto": "تغيير الصورة"
+  },
+  "rail": {
+    "label": "حول {name}",
+    "hireDate": "تاريخ التوظيف",
+    "employeeNumber": "الرقم الوظيفي",
+    "contract": "العقد",
+    "manager": "المدير",
+    "noManager": "بدون مدير",
+    "directReports": "المرؤوسون المباشرون",
+    "teammates": "زملاء الفريق",
+    "more": "+{count} آخرون",
+    "orgChart": "عرض في الهيكل التنظيمي",
+    "viewAll": "عرض الكل ({count})"
+  },
+  "colleague": {
+    "reportingLine": "التسلسل الإداري"
+  },
+  "job": {
+    "employment": "التوظيف",
+    "started": "تاريخ البدء",
+    "withCompany": "في الشركة",
+    "inJob": "في هذه الوظيفة",
+    "inUnit": "في {unit}",
+    "information": "سجل الوظيفة",
+    "records": "{count, plural, zero {لا سجلات} one {سجل واحد} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}}",
+    "record": "سجل",
+    "recordPlural": "سجلات",
+    "effective": "تاريخ السريان",
+    "jobTitle": "المسمى الوظيفي",
+    "unit": "الوحدة",
+    "location": "الموقع",
+    "reportsTo": "المدير",
+    "current": "الحالي",
+    "noManager": "بدون مدير",
+    "historyFailed": "تعذّر تحميل سجل الوظيفة.",
+    "retry": "إعادة المحاولة",
+    "dottedLines": "خطوط التبعية الثانوية",
+    "comingUp": "قادم",
+    "nothingScheduled": "لا شيء مجدول",
+    "schedule": "جدولة تغيير",
+    "history": "السجل"
+  },
+  "personal": {
+    "name": "الاسم",
+    "legalName": "الاسم القانوني",
+    "preferredName": "الاسم المفضل",
+    "dateOfBirth": "تاريخ الميلاد",
+    "contact": "التواصل",
+    "mobile": "الجوال",
+    "personalEmail": "البريد الشخصي",
+    "workEmail": "بريد العمل",
+    "address": "عنوان السكن",
+    "street": "الشارع",
+    "city": "المدينة",
+    "postalCode": "الرمز البريدي",
+    "country": "البلد",
+    "emergency": "جهات اتصال الطوارئ",
+    "contactName": "الاسم",
+    "relationship": "صلة القرابة",
     "phone": "الهاتف",
+    "addContact": "إضافة جهة اتصال",
+    "removeContact": "إزالة {name}",
+    "contactNumber": "جهة الاتصال {number}",
+    "private": "{name} والموارد البشرية فقط",
+    "privateSelf": "أنت والموارد البشرية",
+    "edit": "تعديل",
+    "editSection": "تعديل {section}",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ…",
     "cancel": "إلغاء",
-    "saving": "جارٍ الحفظ",
-    "save": "حفظ التغييرات"
+    "add": "إضافة",
+    "notSet": "غير محدد",
+    "noAddress": "لا عنوان",
+    "noContacts": "لا جهات اتصال للطوارئ",
+    "saved": "تم الحفظ.",
+    "failed": "تعذّر حفظ تغييراتك.",
+    "conflict": "تغيّرت هذه البيانات أثناء التعديل. أُعيد تحميلها: أعد إجراء التغيير.",
+    "lockedByCompany": "تدير شركتك هذا الحقل.",
+    "loadFailed": "تعذّر تحميل البيانات الشخصية.",
+    "retry": "إعادة المحاولة"
+  },
+  "photo": {
+    "titleSelf": "صورتك",
+    "title": "صورة {name}",
+    "choose": "اختيار صورة",
+    "chooseAnother": "اختيار صورة أخرى",
+    "hint": "JPG أو PNG أو WebP، حتى 5 ميغابايت",
+    "zoom": "تكبير",
+    "position": "اسحب أو استخدم مفاتيح الأسهم لضبط موضع الصورة",
+    "remove": "إزالة الصورة",
+    "cancel": "إلغاء",
+    "save": "حفظ الصورة",
+    "saving": "جارٍ الحفظ…",
+    "saved": "تم حفظ الصورة.",
+    "removed": "تمت إزالة الصورة.",
+    "failed": "تعذّر حفظ الصورة.",
+    "wrongType": "اختر صورة JPG أو PNG أو WebP.",
+    "tooLarge": "اختر صورة لا يتجاوز حجمها 5 ميغابايت.",
+    "unreadable": "تعذّرت قراءة هذه الصورة. اختر صورة أخرى."
   }
 }

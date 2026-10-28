@@ -91,7 +91,7 @@ export function EmployeeProfilePageSkeleton() {
 }
 
 export function MyProfilePageSkeleton() {
-  return <WorkerProfileSkeleton showEyebrow />;
+  return <WorkerProfileSkeleton />;
 }
 
 export function TeamPageSkeleton() {

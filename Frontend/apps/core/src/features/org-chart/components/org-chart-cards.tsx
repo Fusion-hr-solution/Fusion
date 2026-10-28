@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Briefcase, Building2, ChevronDown, ChevronUp, Crosshair, Mail, MapPin, MoreHorizontal, Users } from "lucide-react";
 import type { OrgChartPersonDto } from "@repo/api";
+import { usePhoto } from "@repo/api/query";
 import { Spinner, cn } from "@repo/ds";
 import { useFormat } from "@repo/ds/lib/use-format";
 import { isPlaceholder, openRolesOf, type LensKey, type LensValue, type OrgTree } from "../model/org-chart-model";
@@ -35,12 +36,20 @@ export function OrgAvatar({ id, size, ctx, person: shown }: {
   return (
     <span
       aria-hidden
-      className={cn("oc-av", `oc-${size}`, !lens?.color && "oc-neutral", id === ctx.tree.viewerKey && "oc-you")}
+      className={cn("oc-av", `oc-${size}`, !lens?.color && "oc-neutral", id === ctx.tree.viewerKey && "oc-you", person?.photoUrl && "oc-photo")}
       style={lens?.color ? ({ "--h": lens.color } as CSSProperties) : undefined}
     >
-      {person?.initials}
+      {person?.photoUrl ? <OrgPhoto photoUrl={person.photoUrl} initials={person.initials} /> : person?.initials}
     </span>
   );
+}
+
+/** Initials until the photo has loaded; only people with a photo touch the photo cache. */
+function OrgPhoto({ photoUrl, initials }: { photoUrl: string; initials: string }) {
+  const photo = usePhoto(photoUrl);
+  // An object URL from the API client: nothing for next/image to optimise.
+  // eslint-disable-next-line @next/next/no-img-element
+  return photo ? <img src={photo} alt="" draggable={false} /> : <>{initials}</>;
 }
 
 /** You, then what HR sees coming (Joins, Moves, Leaves with the date), then New. */

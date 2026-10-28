@@ -146,7 +146,8 @@
     "endOn": "Se termine le {date}",
     "failed": "Le lien en pointillé n'a pas pu être enregistré.",
     "ended": "Lien en pointillé terminé",
-    "added": "Lien en pointillé ajouté"
+    "added": "Lien en pointillé ajouté",
+    "none": "Aucun lien fonctionnel"
   },
   "refused": {
     "inBranch": "{target} est rattaché·e à {name}",

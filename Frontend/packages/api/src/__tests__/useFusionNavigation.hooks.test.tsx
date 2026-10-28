@@ -102,7 +102,7 @@ describe("useFusionNavigation", () => {
     const { result } = renderHook(() => useFusionNavigation(null, [], { api, attentionApi: attention() }), {
       wrapper: wrapper({ viewer: admin, isLoading: false }),
     });
-    expect(result.current.person).toEqual({ name: "Sami Admin", detail: "Tenant Administrator", detailPending: false });
+    expect(result.current.person).toEqual({ name: "Sami Admin", photo: null, detail: "Tenant Administrator", detailPending: false });
     expect(api.getMyCard).not.toHaveBeenCalled();
   });
 
