@@ -6,7 +6,9 @@
   "files": [
     "base.js",
     "next.js",
-    "design-roles.js"
+    "design-roles.js",
+    "design-roles-type.js",
+    "design-roles-guards.js"
   ],
   "scripts": {
     "test": "node --test"

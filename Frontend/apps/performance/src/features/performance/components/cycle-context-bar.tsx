@@ -42,7 +42,7 @@ export function CycleContextBar({
   const showPlanningDeadline = cycle.state === "Active" && phase !== "Review" && cycle.planningDeadline >= todayIso();
 
   return (
-    <div className={cn("flex min-w-0 items-center gap-x-2.5 text-sm", className)}>
+    <div className={cn("flex min-w-0 items-center gap-x-2.5 type-body", className)}>
       <span className="truncate font-medium text-foreground">{cycle.name}</span>
       <StatusBadge tone={STATE_TONE[cycle.state]} dot className="hidden shrink-0 sm:inline-flex">
         {cycle.state === "Active" && phase ? t(`phase.${phase}`) : t(`state.${cycle.state}`)}

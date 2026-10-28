@@ -53,8 +53,8 @@ export function PlanRail({
         <PlanProgressCard plan={plan} emptyDescription={lens === "owner" ? t("planProgressBeginsOnceYou") : undefined} />
       ) : (
         <SidebarSection label={t("planProgress")}>
-          <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="text-base leading-none" aria-hidden>—</span> {t("startsOnceThePlanIs")}
+          <p className="mt-3 flex items-center gap-2 type-body text-muted-foreground">
+            <span className="leading-none" aria-hidden>—</span> {t("startsOnceThePlanIs")}
           </p>
         </SidebarSection>
       )}
@@ -145,7 +145,7 @@ function StatusBody({
       {lens === "owner" && plan?.state === "Draft" ? <PlanSubmissionChecks readiness={plan.readiness} bare /> : null}
 
       {submitted && lens === "owner" ? (
-        <p className="flex items-start gap-2.5 border-t border-border pt-4 text-sm font-medium text-foreground">
+        <p className="flex items-start gap-2.5 border-t border-border pt-4 type-label text-foreground">
           <Lock className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden /> {t("readOnlyWhileInReview")}
         </p>
       ) : null}
@@ -184,9 +184,9 @@ function ReturnNote({
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <Avatar className="size-8">
-          <AvatarFallback className="text-[0.6875rem]">{initials(reviewer)}</AvatarFallback>
+          <AvatarFallback className="type-meta">{initials(reviewer)}</AvatarFallback>
         </Avatar>
-        <p className="min-w-0 truncate text-xs text-muted-foreground">
+        <p className="min-w-0 truncate type-meta text-muted-foreground">
           <span className="font-medium text-foreground/85">{lens === "reviewer" ? t("you") : reviewer}</span>
           <span aria-hidden> · </span>
           <time dateTime={decision.decidedAt} className="tabular-nums">{format.dateTime(decision.decidedAt)}</time>
@@ -201,7 +201,7 @@ function ReturnNote({
       {total > 0 ? (
         <p
           className={cn(
-            "flex items-center gap-2 rounded-control-sm px-2.5 py-1.5 text-xs font-medium ring-1 ring-inset",
+            "flex items-center gap-2 rounded-control-sm px-2.5 py-1.5 type-meta-strong ring-1 ring-inset",
             addressed === total ? "bg-info/10 text-info ring-info/25" : "bg-primary-tint text-primary-ink ring-primary-ring"
           )}
         >
@@ -210,7 +210,7 @@ function ReturnNote({
           {lens === "reviewer" && subjectFirstName ? " " + t("by", { subjectFirstName }) : ""}
         </p>
       ) : revisedAt ? (
-        <p className="flex items-center gap-2 rounded-control-sm bg-info/10 px-2.5 py-1.5 text-xs font-medium text-info ring-1 ring-inset ring-info/25">
+        <p className="flex items-center gap-2 rounded-control-sm bg-info/10 px-2.5 py-1.5 type-meta-strong text-info ring-1 ring-inset ring-info/25">
           <Check className="size-3.5 shrink-0" aria-hidden />
           {t("revised")} <time dateTime={revisedAt} className="tabular-nums">{format.dateTime(revisedAt)}</time>
         </p>
@@ -226,13 +226,13 @@ function ResubmissionOutcome({ requests, who }: { requests: PlanChangeRequestDto
   const addressed = requests.filter((r) => r.state !== "Open").length;
   return (
     <div className="space-y-3 border-t border-border pt-4">
-      <p className="text-sm font-medium text-foreground">
+      <p className="type-label text-foreground">
         {t("addressedOfChange", { who, addressed, length: requests.length })}{requests.length === 1 ? "" : t("s")}
       </p>
       {removed.length > 0 ? (
         <ul className="space-y-2.5">
           {removed.map((request) => (
-            <li key={request.id} className="text-xs">
+            <li key={request.id} className="type-meta">
               <p className="font-medium text-foreground">{request.objectiveTitle}</p>
               <p className="mt-0.5 text-muted-foreground">{t("objectiveRemoved", { text: request.text })}</p>
             </li>
@@ -269,7 +269,7 @@ function Step({ step, last }: { step: StatusStep; last: boolean }) {
         <div className="flex items-baseline gap-2">
           <p
             className={cn(
-              "text-sm leading-tight",
+              "type-body leading-tight",
               step.tone === "current"
                 ? "font-semibold text-foreground"
                 : step.tone === "returned"
@@ -281,9 +281,9 @@ function Step({ step, last }: { step: StatusStep; last: boolean }) {
           >
             {step.label}
           </p>
-          {step.inlineDetail ? <span className="text-xs text-muted-foreground">{step.inlineDetail}</span> : null}
+          {step.inlineDetail ? <span className="type-meta text-muted-foreground">{step.inlineDetail}</span> : null}
         </div>
-        {step.detail ? <p className="mt-0.5 text-xs text-muted-foreground">{step.detail}</p> : null}
+        {step.detail ? <p className="mt-0.5 type-meta text-muted-foreground">{step.detail}</p> : null}
       </div>
     </li>
   );
@@ -343,7 +343,7 @@ function ClampedText({ text }: { text: string }) {
       <div
         ref={ref}
         className={cn(
-          "space-y-2.5 text-sm leading-relaxed text-foreground/85",
+          "space-y-2.5 type-body leading-relaxed text-foreground/85",
           !expanded && "max-h-[7.25rem] overflow-hidden",
           clipped && "[mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
         )}
@@ -357,7 +357,7 @@ function ClampedText({ text }: { text: string }) {
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="mt-0.5 inline-flex items-center gap-1 rounded-detail text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-0.5 inline-flex items-center gap-1 rounded-detail type-label text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {expanded ? t("showLess") : t("readMore")}
           <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} aria-hidden />

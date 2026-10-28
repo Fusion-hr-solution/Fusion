@@ -91,7 +91,7 @@ export function FeedbackWorkspace() {
             <TabsTrigger key={t.value} value={t.value} className="gap-1.5 px-3">
               {tr(`tabs.${t.value}`)}
               {t.value === "requests" && toAnswer > 0 ? (
-                <span className="type-meta font-semibold tabular-nums text-primary-ink" aria-label={tr("toAnswer", { toAnswer })}>{toAnswer}</span>
+                <span className="type-meta-strong tabular-nums text-primary-ink" aria-label={tr("toAnswer", { toAnswer })}>{toAnswer}</span>
               ) : null}
             </TabsTrigger>
           ))}

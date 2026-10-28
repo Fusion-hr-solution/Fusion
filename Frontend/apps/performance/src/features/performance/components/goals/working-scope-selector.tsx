@@ -150,7 +150,7 @@ export function WorkingScopeSelector({
               onClick={() => select(null)}
             />
             {loading ? (
-              <p className="px-2.5 py-3 text-sm text-muted-foreground">
+              <p className="px-2.5 py-3 type-body text-muted-foreground">
                 {t("loadingOrganization")}
               </p>
             ) : visibleRoots.length > 0 ? (
@@ -163,7 +163,7 @@ export function WorkingScopeSelector({
                 />
               ))
             ) : (
-              <p className="px-2.5 py-3 text-sm text-muted-foreground">
+              <p className="px-2.5 py-3 type-body text-muted-foreground">
                 {t("noOrganizationalUnitsMatch")}
               </p>
             )}
@@ -225,7 +225,7 @@ function ScopeOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-inset py-2 pe-2 text-start text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex w-full items-center gap-2 rounded-inset py-2 pe-2 text-start type-body transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active && "bg-primary/[0.10] text-foreground"
       )}
       style={{ paddingInlineStart: `${0.625 + depth * 1.25}rem` }}

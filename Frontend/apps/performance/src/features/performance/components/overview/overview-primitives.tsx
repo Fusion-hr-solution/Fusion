@@ -199,7 +199,7 @@ export function StepsStrip({ steps }: { steps: { label: string; detail?: string 
           ) : null}
           <span
             className={cn(
-              "relative grid size-6 place-items-center rounded-detail text-[11px] font-bold ring-1 ring-inset",
+              "relative grid size-6 place-items-center rounded-detail type-mark ring-1 ring-inset",
               step.state === "done" && "bg-success text-background ring-success",
               step.state === "current" && "bg-primary/15 text-primary ring-primary",
               step.state === "upcoming" && "bg-inlay text-muted-foreground ring-border",

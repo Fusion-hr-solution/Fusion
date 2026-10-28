@@ -76,7 +76,7 @@ export function DevelopmentSection({ cycleId, employeeId }: { cycleId: string; e
             {plan.carryOver ? <CarryOverOffer plan={plan} cycleId={cycleId} employeeId={employeeId} /> : null}
             {plan.goals.length === 0 && plan.carryOver ? null : plan.goals.length === 0 ? (
               <div className="flex flex-col items-center rounded-surface border border-dashed border-border px-6 py-8 text-center">
-                <p className="text-sm font-medium text-foreground">{t("noDevelopmentGoalsYet")}</p>
+                <p className="type-label text-foreground">{t("noDevelopmentGoalsYet")}</p>
                 {plan.canEdit ? (
                   <Button size="sm" className="mt-4" onClick={() => setComposer({})}>
                     <Plus className="size-4" data-icon="inline-start" /> {t("addAGoal")}
@@ -137,8 +137,8 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
       <div className="flex items-start gap-4">
         <StatusMark status={goal.status} />
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold leading-snug tracking-tight text-foreground">{goal.title}</p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <p className="type-panel-title text-foreground">{goal.title}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 type-meta text-muted-foreground">
             {goal.competencyName ? (
               <span className="rounded-full bg-primary-tint px-2 py-0.5 font-medium text-primary-ink ring-1 ring-inset ring-primary-ring">
                 {goal.competencyName}
@@ -183,14 +183,14 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
             </DropdownMenu>
           </div>
         ) : (
-          <span className="shrink-0 text-xs font-medium text-muted-foreground">{words.developmentStatus(goal.status)}</span>
+          <span className="shrink-0 type-meta-strong text-muted-foreground">{words.developmentStatus(goal.status)}</span>
         )}
       </div>
 
       {goal.actions.length > 0 ? (
         <ul className="mt-4 space-y-1.5 border-t border-border/60 pt-4 ps-10">
           {goal.actions.map((action, index) => (
-            <li key={index} className="flex gap-2.5 text-sm text-foreground/85">
+            <li key={index} className="flex gap-2.5 type-body text-foreground/85">
               <span className="mt-2 size-1 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />
               {action}
             </li>
@@ -294,7 +294,7 @@ function CarryOverOffer({ plan, cycleId, employeeId }: { plan: DevelopmentPlanDt
               const full = !on && chosen.length >= plan.room;
               return (
                 <li key={goal.id}>
-                  <label className={cn("flex items-center gap-3 rounded-control border px-3 py-2.5 text-sm", on ? "border-primary" : "border-border", full && "opacity-50")}>
+                  <label className={cn("flex items-center gap-3 rounded-control border px-3 py-2.5 type-body", on ? "border-primary" : "border-border", full && "opacity-50")}>
                     <input
                       type="checkbox"
                       className="size-4 accent-primary"
@@ -304,7 +304,7 @@ function CarryOverOffer({ plan, cycleId, employeeId }: { plan: DevelopmentPlanDt
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium text-foreground">{goal.title}</span>
-                      <span className="block text-xs text-muted-foreground">{words.developmentStatus(goal.status)}</span>
+                      <span className="block type-meta text-muted-foreground">{words.developmentStatus(goal.status)}</span>
                     </span>
                   </label>
                 </li>
@@ -398,7 +398,7 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
             </div>
           </div>
           <fieldset className="space-y-1.5">
-            <legend className="text-sm font-medium text-foreground">{t("status")}</legend>
+            <legend className="type-label text-foreground">{t("status")}</legend>
             <div role="radiogroup" aria-label={t("status")} className="grid grid-cols-3 gap-2">
               {STATUSES.map((value) => (
                 <button
@@ -408,7 +408,7 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
                   aria-checked={status === value}
                   onClick={() => setStatus(value)}
                   className={cn(
-                    "rounded-control border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "rounded-control border px-3 py-2 type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     status === value ? "border-primary bg-primary-tint text-primary-ink" : "border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -418,7 +418,7 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
             </div>
           </fieldset>
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-foreground">{t("actions")} <span className="font-normal text-muted-foreground">{t("optional")}</span></legend>
+            <legend className="type-label text-foreground">{t("actions")} <span className="font-normal text-muted-foreground">{t("optional")}</span></legend>
             {actions.map((action, index) => (
               <div key={index} className="flex items-center gap-2">
                 <Input

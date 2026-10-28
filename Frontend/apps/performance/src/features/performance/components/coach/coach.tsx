@@ -63,7 +63,7 @@ export function CoachSuggestion({
       />
       <div className="min-w-0 flex-1">
         <p className="type-meta text-primary-ink">{t("suggested", { label })}</p>
-        <div className="mt-0.5 text-sm text-foreground">{children}</div>
+        <div className="mt-0.5 type-body text-foreground">{children}</div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <Button
@@ -127,7 +127,7 @@ export function CoachField({
         )}
       >
         <Sparkles className="size-3.5 shrink-0 text-primary-ink" aria-hidden />
-        <div className="min-w-0 flex-1 text-sm text-foreground">
+        <div className="min-w-0 flex-1 type-body text-foreground">
           {suggestion}
         </div>
         <Button
@@ -158,7 +158,7 @@ export function CoachNothing() {
   const t = useTranslations("coach.CoachNothing");
   return (
     <p
-      className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"
+      className="mt-2 flex items-center gap-1.5 type-meta text-muted-foreground"
       role="status"
     >
       <Sparkles className="size-3.5" aria-hidden />
@@ -171,7 +171,7 @@ export function CoachNothing() {
 export function AiSuggestedTag() {
   const t = useTranslations("coach.AiSuggestedTag");
   return (
-    <span className="ms-1.5 inline-flex items-center gap-1 text-xs font-normal text-primary-ink">
+    <span className="ms-1.5 inline-flex items-center gap-1 type-meta text-primary-ink">
       <Sparkles className="size-3" aria-hidden />
       {t("aiSuggested")}
     </span>

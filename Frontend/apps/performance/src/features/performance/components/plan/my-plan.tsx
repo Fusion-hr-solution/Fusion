@@ -107,7 +107,7 @@ export function MyPlan({
     return (
       <>
         {heading()}
-        <p className="max-w-md text-sm text-muted-foreground">
+        <p className="max-w-md type-body text-muted-foreground">
           {t("youAreNotPartOf")}
         </p>
       </>
@@ -339,7 +339,7 @@ function ObjectiveLedger({
     >
 
       {plan.objectives.length === 0 ? (
-        <div className="rounded-surface border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-surface border border-dashed border-border px-5 py-10 text-center type-body text-muted-foreground">
           {t("noObjectivesYetAddThe")}
         </div>
       ) : (
@@ -410,7 +410,7 @@ function SubmitPlanAction({
   const reviewer = reviewerName ?? t("yourReviewer");
   return (
     <>
-      <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex">
+      <span className="hidden items-center gap-1.5 type-meta text-muted-foreground sm:inline-flex">
         <Check className="size-3.5 text-success" aria-hidden />
         {t("saved", { lastSavedAt: format.dateTime(lastSavedAt) })}
       </span>
@@ -467,10 +467,10 @@ function PlanNotStarted({
     <PlanSection label={t("objectives")}>
       <div className="flex flex-col items-center rounded-surface border border-border bg-card px-6 py-12 text-center">
         <PlanIllustration />
-        <h2 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="mt-6 type-section-title text-foreground">
           {t("createYourPlan", { cycleName })}
         </h2>
-        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-md type-body leading-relaxed text-muted-foreground">
           {t("defineYourObjectivesAndAlign")}
         </p>
 
@@ -480,7 +480,7 @@ function PlanNotStarted({
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-inlay text-muted-foreground">
                 <Icon className="size-4" aria-hidden />
               </span>
-              <p className="text-sm font-semibold text-foreground">{t(`pillars.${title}`)}</p>
+              <p className="type-subsection-title text-foreground">{t(`pillars.${title}`)}</p>
             </li>
           ))}
         </ul>

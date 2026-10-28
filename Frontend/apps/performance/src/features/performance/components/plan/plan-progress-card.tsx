@@ -40,9 +40,9 @@ export function PlanProgressCard({
             centerClassName="text-muted-foreground"
             height={160}
           />
-          <p className="mt-4 text-base font-semibold tracking-tight text-foreground">{t("noProgressReportedYet")}</p>
+          <p className="mt-4 type-panel-title text-foreground">{t("noProgressReportedYet")}</p>
           {emptyDescription ? (
-            <p className="mt-1 max-w-[16rem] text-xs leading-relaxed text-muted-foreground">{emptyDescription}</p>
+            <p className="mt-1 max-w-[16rem] type-meta leading-relaxed text-muted-foreground">{emptyDescription}</p>
           ) : null}
           <StatusMixLine plan={plan} />
         </div>
@@ -54,7 +54,7 @@ export function PlanProgressCard({
     <SidebarSection label={t("planProgress")}>
       <div className="mt-4 flex flex-col items-center text-center">
         <ObjectiveProgressRing plan={plan} complete={complete} />
-        <p className="mt-3 text-xs text-muted-foreground">{t("weightedAcrossObjectives", { length: plan.objectives.length })}</p>
+        <p className="mt-3 type-meta text-muted-foreground">{t("weightedAcrossObjectives", { length: plan.objectives.length })}</p>
         <StatusMixLine plan={plan} />
       </div>
 
@@ -68,7 +68,7 @@ function StatusMixLine({ plan }: { plan: EmployeePlanDto }) {
   const mix = statusMix(plan.objectives.map((o) => o.status));
   if (mix.notReported === plan.objectives.length) return null;
   return (
-    <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+    <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 type-meta text-muted-foreground">
       {mix.onTrack > 0 ? <MixItem dot="bg-success" label={t("onTrack", { onTrack: mix.onTrack })} /> : null}
       {mix.atRisk > 0 ? <MixItem dot="bg-warning" label={t("atRisk", { atRisk: mix.atRisk })} /> : null}
       {mix.offTrack > 0 ? <MixItem dot="bg-destructive" label={t("offTrack", { offTrack: mix.offTrack })} /> : null}
@@ -138,10 +138,10 @@ function ObjectiveProgressRing({ plan, complete }: { plan: EmployeePlanDto; comp
         })}
       </svg>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className={cn("text-2xl font-semibold leading-none tabular-nums", complete ? "text-success" : "text-foreground")}>
+        <span className={cn("type-metric", complete ? "text-success" : "text-foreground")}>
           {progressPct(plan.planProgress)}%
         </span>
-        <span className="mt-1.5 text-xs text-muted-foreground">{t("overallProgress")}</span>
+        <span className="mt-1.5 type-meta text-muted-foreground">{t("overallProgress")}</span>
       </div>
     </div>
   );

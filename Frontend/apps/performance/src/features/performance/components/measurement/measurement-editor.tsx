@@ -110,7 +110,7 @@ export function MeasurementEditor({
       </div>
 
       {method === "ManualPercentage" ? (
-        <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
+        <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 type-body text-info">
           <Info className="size-4 shrink-0" aria-hidden />
           {t("youllUpdateProgressAsA")}
         </div>
@@ -182,10 +182,10 @@ function MethodTile({
         {active ? <span className="size-2 rounded-full bg-primary" /> : null}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">
+        <span className="block type-subsection-title text-foreground">
           {title}
         </span>
-        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+        <span className="mt-0.5 block type-meta leading-snug text-muted-foreground">
           {detail}
         </span>
       </span>
@@ -274,7 +274,7 @@ function NumericTargetEditor({
           </div>
         </div>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="type-body text-destructive">{error}</p> : null}
     </div>
   );
 }
@@ -370,7 +370,7 @@ function DirectionOption({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex h-8 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex h-8 items-center justify-center gap-1.5 rounded-control px-2 type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? "bg-primary-tint text-primary-ink"
           : "text-muted-foreground hover:text-foreground"

@@ -243,7 +243,7 @@ export function OrgScopePicker({
             <span className="ms-3 min-w-0 flex-1 sm:ms-0">
               <span
                 className={cn(
-                  "block truncate type-body font-semibold",
+                  "block truncate type-subsection-title",
                   covered ? "text-foreground" : "text-foreground/90"
                 )}
               >
@@ -334,7 +334,7 @@ export function OrgScopePicker({
             {hiddenSelections.map((selection) => (
               <li
                 key={selection.orgUnitId}
-                className="flex items-center gap-1 rounded-control bg-primary-tint py-0.5 ps-2 pe-0.5 type-meta font-medium text-primary-ink"
+                className="flex items-center gap-1 rounded-control bg-primary-tint py-0.5 ps-2 pe-0.5 type-meta-strong text-primary-ink"
               >
                 {names.get(selection.orgUnitId)}
                 <button

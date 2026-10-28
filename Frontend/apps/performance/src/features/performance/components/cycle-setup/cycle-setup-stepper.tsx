@@ -37,7 +37,7 @@ export function CycleSetupStepper({
         const node = (
           <span
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold tabular-nums transition-all",
+              "flex size-9 shrink-0 items-center justify-center rounded-full border type-subsection-title tabular-nums transition-all",
               view.complete
                 ? "border-transparent bg-primary text-primary-foreground"
                 : isCurrent

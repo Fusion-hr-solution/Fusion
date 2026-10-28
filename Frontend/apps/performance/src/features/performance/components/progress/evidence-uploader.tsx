@@ -70,14 +70,14 @@ export function EvidenceUploader({
       {items.length > 0 ? (
         <ul className="space-y-1.5">
           {items.map((item, index) => (
-            <li key={index} className="flex items-center gap-2 rounded-control border px-3 py-2 text-sm">
+            <li key={index} className="flex items-center gap-2 rounded-control border px-3 py-2 type-body">
               {item.kind === "File" ? <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
               {item.kind === "Link" ? <Link2 className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
               {item.kind === "Reference" ? <Type className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
               <span className="min-w-0 flex-1 truncate">
                 {item.kind === "File" ? item.fileName : item.kind === "Link" ? item.label || item.url : item.referenceText}
                 {item.kind === "File" && item.sizeBytes ? (
-                  <span className="ms-1.5 text-xs text-muted-foreground">{humanSize(item.sizeBytes)}</span>
+                  <span className="ms-1.5 type-meta text-muted-foreground">{humanSize(item.sizeBytes)}</span>
                 ) : null}
               </span>
               <Button

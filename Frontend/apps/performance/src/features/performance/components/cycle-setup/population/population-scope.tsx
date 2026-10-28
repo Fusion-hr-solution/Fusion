@@ -63,7 +63,7 @@ export function PopulationScope({
     <section className="rounded-surface border border-border bg-card p-5 lg:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary-tint text-primary-ink type-meta font-semibold tabular-nums">
+          <span className="flex size-7 items-center justify-center rounded-full bg-primary-tint text-primary-ink type-meta-strong tabular-nums">
             1
           </span>
           <div>
@@ -157,7 +157,7 @@ export function PopulationScope({
                   className="flex items-center gap-2.5 rounded-surface border border-border bg-card px-3 py-2"
                 >
                   <Avatar className="size-8 shrink-0">
-                    <AvatarFallback className="text-[10px]">
+                    <AvatarFallback className="type-mark">
                       {initials(candidate.displayName)}
                     </AvatarFallback>
                   </Avatar>
@@ -244,9 +244,9 @@ function ScopeTile({
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="type-body font-semibold text-foreground">{title}</span>
+          <span className="type-subsection-title text-foreground">{title}</span>
           {recommended ? (
-            <span className="rounded-control bg-primary-tint px-2 py-0.5 type-meta font-medium text-primary-ink">
+            <span className="rounded-control bg-primary-tint px-2 py-0.5 type-meta-strong text-primary-ink">
               {t("recommended")}
             </span>
           ) : null}

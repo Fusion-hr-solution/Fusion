@@ -201,7 +201,7 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
   return (
     <PageContainer width="default">
       <Link href={withCycle(roundHref(roundId), cycleId)}
-        className="mb-3 inline-flex items-center gap-1.5 rounded-detail text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        className="mb-3 inline-flex items-center gap-1.5 rounded-detail type-body text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <ArrowLeft className="size-4" aria-hidden />{round.data?.name ?? t("reviewRound")}
       </Link>
       <h1 className="type-display text-foreground">{t("openCalibration")}</h1>
@@ -228,7 +228,7 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
       <section aria-labelledby="facilitators-title" className="mt-6 rounded-surface bg-card p-5">
         <h2 id="facilitators-title" className="type-label text-foreground">{t("facilitators")}</h2>
         {candidates.isLoading ? <Skeleton className="mt-3 h-20" />
-          : candidates.error ? <p className="mt-3 text-sm text-destructive" role="alert">{candidates.error.message}</p>
+          : candidates.error ? <p className="mt-3 type-body text-destructive" role="alert">{candidates.error.message}</p>
           : (
             <ul className="mt-2 divide-y divide-border">
               {(candidates.data ?? []).map((candidate) => (
@@ -249,7 +249,7 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
           )}
       </section>
       {mutations.open.error || mutations.setFacilitators.error ? (
-        <p className="mt-4 text-sm text-destructive" role="alert">{(mutations.open.error ?? mutations.setFacilitators.error)?.message}</p>
+        <p className="mt-4 type-body text-destructive" role="alert">{(mutations.open.error ?? mutations.setFacilitators.error)?.message}</p>
       ) : null}
       <div className="mt-6 flex justify-end">
         <AsyncButton pending={mutations.open.isLoading || mutations.setFacilitators.isLoading} onClick={open}>{t("openTheSession")}</AsyncButton>
@@ -274,7 +274,7 @@ function FacilitatorDialog({ session, roundId, mutations, onClose }: {
       <DialogContent>
         <DialogHeader><DialogTitle>{t("facilitators")}</DialogTitle></DialogHeader>
         {candidates.isLoading ? <Skeleton className="h-24" />
-          : candidates.error ? <p className="text-sm text-destructive" role="alert">{candidates.error.message}</p>
+          : candidates.error ? <p className="type-body text-destructive" role="alert">{candidates.error.message}</p>
           : (
             <ul className="max-h-80 divide-y divide-border overflow-y-auto">
               {(candidates.data ?? []).map((candidate) => (
@@ -287,7 +287,7 @@ function FacilitatorDialog({ session, roundId, mutations, onClose }: {
               ))}
             </ul>
           )}
-        {mutations.setFacilitators.error ? <p className="text-sm text-destructive" role="alert">{mutations.setFacilitators.error.message}</p> : null}
+        {mutations.setFacilitators.error ? <p className="type-body text-destructive" role="alert">{mutations.setFacilitators.error.message}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={mutations.setFacilitators.isLoading}>{t("cancel")}</Button>
           <AsyncButton pending={mutations.setFacilitators.isLoading} disabled={chosen.size === 0}

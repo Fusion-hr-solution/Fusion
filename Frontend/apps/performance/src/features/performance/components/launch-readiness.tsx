@@ -37,7 +37,7 @@ export function LaunchReadiness({
     <div className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="type-section-title text-foreground">{t("launchReadiness")}</h2>
-        <p className="text-sm text-muted-foreground tabular-nums">
+        <p className="type-body text-muted-foreground tabular-nums">
           {t("ofReady", { completeCount, length: areas.length })}
         </p>
       </div>
@@ -70,12 +70,12 @@ export function LaunchReadiness({
                   {area.complete ? <Check className="size-3" /> : null}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-foreground">
+                  <span className="block type-label text-foreground">
                     {area.label}
                   </span>
                   <span
                     className={cn(
-                      "block text-sm",
+                      "block type-body",
                       area.complete ? "text-muted-foreground" : "text-destructive"
                     )}
                   >
@@ -83,7 +83,7 @@ export function LaunchReadiness({
                   </span>
                 </span>
                 {interactive ? (
-                  <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-ink">
+                  <span className="inline-flex shrink-0 items-center gap-1 type-label text-primary-ink">
                     {t("setUp")}
                     <ArrowRight className="size-3.5" aria-hidden />
                   </span>

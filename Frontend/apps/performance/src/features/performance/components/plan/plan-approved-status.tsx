@@ -64,12 +64,12 @@ export function PlanApprovedStatus({
           <p className="flex flex-wrap items-baseline gap-x-2 font-semibold tracking-tight text-foreground">
             {t("approvedLocked")}
             {approvedOn && plan.approvedAt ? (
-              <time dateTime={plan.approvedAt} className="text-xs font-normal tabular-nums text-muted-foreground">
+              <time dateTime={plan.approvedAt} className="type-meta tabular-nums text-muted-foreground">
                 {approvedOn}
               </time>
             ) : null}
           </p>
-          {detail ? <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{detail}</p> : null}
+          {detail ? <p className="mt-0.5 type-body leading-snug text-muted-foreground">{detail}</p> : null}
         </div>
       </div>
   );

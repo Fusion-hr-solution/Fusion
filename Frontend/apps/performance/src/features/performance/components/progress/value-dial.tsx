@@ -70,21 +70,21 @@ export function ValueDial({
           </label>
           <p
             className={cn(
-              "mt-1.5 text-2xl font-semibold leading-none tabular-nums transition-colors",
+              "mt-1.5 type-metric transition-colors",
               touched ? "text-foreground" : "text-muted-foreground"
             )}
             aria-hidden
           >
             {format(shown)}
           </p>
-          {reported == null ? <p className="mt-2 text-xs text-muted-foreground">{t("notReportedYet")}</p> : null}
+          {reported == null ? <p className="mt-2 type-meta text-muted-foreground">{t("notReportedYet")}</p> : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {touched ? (
             <button
               type="button"
               onClick={() => onChange(null)}
-              className="me-1 inline-flex items-center gap-1 rounded-detail text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="me-1 inline-flex items-center gap-1 rounded-detail type-meta-strong text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <RotateCcw className="size-3.5" aria-hidden />
               {t("reset")}
@@ -106,7 +106,7 @@ export function ValueDial({
         {reportedPos != null && reported != null ? (
           <>
             <span
-              className="absolute -top-8 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-popover px-2 py-0.5 text-[0.6875rem] tabular-nums text-muted-foreground shadow-raised dark:bg-card"
+              className="absolute -top-8 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-popover px-2 py-0.5 type-meta tabular-nums text-muted-foreground shadow-raised dark:bg-card"
               style={{
                 left: at(reportedPos),
                 transform: wasEdge < 0.2 ? "translateX(-0.75rem)" : wasEdge > 0.8 ? "translateX(calc(-100% + 0.75rem))" : "translateX(-50%)",
@@ -178,7 +178,7 @@ export function ValueDial({
         {/* The handle carries the progress the value produces; it stops at the rail ends rather than spill. */}
         <span
           className={cn(
-            "pointer-events-none absolute top-1/2 z-0 flex h-7 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 bg-background text-xs font-semibold tabular-nums shadow-raised transition-[left,box-shadow,color] duration-75",
+            "pointer-events-none absolute top-1/2 z-0 flex h-7 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 bg-background type-meta-strong tabular-nums shadow-raised transition-[left,box-shadow,color] duration-75",
             "peer-hover:ring-4 peer-hover:ring-[color-mix(in_oklab,var(--type-accent,var(--primary))_20%,transparent)]",
             "peer-focus-visible:ring-4 peer-focus-visible:ring-ring/50",
             past || complete ? "border-success text-success" : "border-[var(--type-accent,var(--primary))]",
@@ -192,7 +192,7 @@ export function ValueDial({
       </div>
 
       {/* Scale captions: start at the baseline, the target under its mark. */}
-      <div className="relative mt-1.5 h-8 text-xs tabular-nums">
+      <div className="relative mt-1.5 h-8 type-meta tabular-nums">
         <Caption left={at(domain.baselinePos)} edge={domain.baselinePos / domain.max} value={format(domain.valueAt(domain.baselinePos))} label={startLabel} />
         {domain.targetPos != null && targetLabel ? (
           <Caption left={at(domain.targetPos)} edge={domain.targetPos / domain.max} value={format(domain.valueAt(domain.targetPos))} label={targetLabel} />

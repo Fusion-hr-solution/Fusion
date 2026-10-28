@@ -80,7 +80,7 @@ const hiddenHandle =
 function StatusMark({ status }: { status: ObjectiveStatus | null }) {
   const map = useSay("goals.map");
   return (
-    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+    <span className="flex min-w-0 items-center gap-1.5 type-meta text-muted-foreground">
       <span
         aria-hidden
         className={cn("size-2 shrink-0 rounded-full", STATUS_DOT[tone(status)])}
@@ -98,7 +98,7 @@ function NodeStatus({ status }: { status: ObjectiveStatus | null }) {
   return status ? (
     <ObjectiveStatusBadge status={status} className="shrink-0" />
   ) : (
-    <span className="shrink-0 text-xs text-muted-foreground">
+    <span className="shrink-0 type-meta text-muted-foreground">
       {statusLabel(null, map)}
     </span>
   );
@@ -166,10 +166,10 @@ const DirectionNode = memo(function DirectionNode({
           </span>
           <NodeStatus status={node.status} />
         </span>
-        <span className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+        <span className="line-clamp-2 type-subsection-title leading-snug text-foreground">
           {node.title}
         </span>
-        <span className="mt-auto flex items-center gap-2.5 pb-2.5 text-xs tabular-nums text-muted-foreground">
+        <span className="mt-auto flex items-center gap-2.5 pb-2.5 type-meta tabular-nums text-muted-foreground">
           {node.hasProgress ? (
             <span
               aria-hidden
@@ -200,7 +200,7 @@ const DirectionNode = memo(function DirectionNode({
             event.stopPropagation();
             data.onTogglePersonal(node.id);
           }}
-          className="mx-2 mb-2 flex items-center gap-2 rounded-control-sm border-t border-border/70 px-1.5 pt-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="mx-2 mb-2 flex items-center gap-2 rounded-control-sm border-t border-border/70 px-1.5 pt-1.5 type-meta text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Users className="size-3.5" aria-hidden />
           <span className="tabular-nums">{t("personal", { total: counts.total })}</span>
@@ -235,7 +235,7 @@ const DirectionNode = memo(function DirectionNode({
           ) : (
             <>
               <ChevronRight className="size-3.5" />
-              <span className="text-[11px] font-semibold tabular-nums">
+              <span className="type-mark tabular-nums">
                 {data.hiddenCount}
               </span>
             </>
@@ -271,13 +271,13 @@ const PersonalNode = memo(function PersonalNode({
         onClick={() => data.onOpen(node.id)}
         className="flex h-full w-full flex-col justify-between rounded-control px-3 py-2 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
+        <span className="line-clamp-2 type-meta-strong leading-snug text-foreground">
           {node.title}
         </span>
         <span className="flex items-center justify-between gap-2">
           <span
             className={cn(
-              "truncate text-xs",
+              "truncate type-meta",
               node.isOwn
                 ? "font-medium text-primary-ink"
                 : "text-muted-foreground"
@@ -297,7 +297,7 @@ const HiddenNode = memo(function HiddenNode({
 }: NodeProps<Node<HiddenData, "hidden">>) {
   const t = useTranslations("goals.HiddenNode");
   return (
-    <div className="flex h-[44px] w-[228px] items-center justify-center rounded-control border border-dashed border-border px-3 text-xs text-muted-foreground">
+    <div className="flex h-[44px] w-[228px] items-center justify-center rounded-control border border-dashed border-border px-3 type-meta text-muted-foreground">
       <Handle type="target" position={Position.Top} className={hiddenHandle} />
       {t("notVisibleToYou", { count: data.count })}
     </div>

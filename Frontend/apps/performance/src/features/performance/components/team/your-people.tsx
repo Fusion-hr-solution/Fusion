@@ -123,7 +123,7 @@ const TEXT: Record<Tone, string> = {
 /** A state word with its dot, and its date or detail beside it in the quiet tone. */
 function StateLine({ tone, label, detail }: { tone: Tone; label: ReactNode; detail?: ReactNode }) {
   return (
-    <span className="inline-flex min-w-0 items-center gap-2 text-sm">
+    <span className="inline-flex min-w-0 items-center gap-2 type-body">
       <span className={cn("size-2 shrink-0 rounded-full", DOT[tone])} aria-hidden />
       <span className="min-w-0 truncate">
         <span className={TEXT[tone]}>{label}</span>
@@ -147,7 +147,7 @@ function personColumn(showOrgUnit: boolean, say: Say) {
         <DataTableCellStack
           leading={
             <Avatar className="size-8">
-              <AvatarFallback className="text-xs">{initials(m.employeeName)}</AvatarFallback>
+              <AvatarFallback className="type-meta">{initials(m.employeeName)}</AvatarFallback>
             </Avatar>
           }
           primary={
@@ -200,7 +200,7 @@ function ObjectivesCell({ member }: { member: TeamRosterMemberDto }) {
       ? member.objectiveProgress.reduce((sum, o) => sum + o.weight, 0)
       : (member.allocatedWeight ?? 0);
   return (
-    <span className="whitespace-nowrap text-sm tabular-nums text-foreground">
+    <span className="whitespace-nowrap type-body tabular-nums text-foreground">
       {t("weights", { objectives: planning.objectives, weight: Math.round(weight) })}
     </span>
   );
@@ -211,7 +211,7 @@ function AlignedCell({ member }: { member: TeamRosterMemberDto }) {
   const planning = member.facts?.planning;
   if (!planning || planning.objectives === 0) return <DataTableCellEmpty />;
   return (
-    <span className="text-sm tabular-nums text-foreground">
+    <span className="type-body tabular-nums text-foreground">
       {t("of", { alignedToTeam: planning.alignedToTeam, objectives: planning.objectives })}
     </span>
   );
@@ -224,7 +224,7 @@ function ActivityCell({ member }: { member: TeamRosterMemberDto }) {
   if (!activity) return <DataTableCellEmpty />;
   return (
     <span
-      className="block min-w-0 truncate text-sm text-foreground"
+      className="block min-w-0 truncate type-body text-foreground"
       title={`${activity.label} · ${format.dateTime(activity.at)}${activity.objectiveTitle ? ` · ${activity.objectiveTitle}` : ""}`}
     >
       {activity.label}{" "}
@@ -291,12 +291,12 @@ function AttentionCell({ member }: { member: TeamRosterMemberDto }) {
   const line = attentionLine(execution.attention, execution.status.noStatus, words, format.locale);
   return (
     <div className="min-w-0 py-2">
-      <p className={cn("flex items-start gap-2 text-sm", TEXT[line.tone])}>
+      <p className={cn("flex items-start gap-2 type-body", TEXT[line.tone])}>
         <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", DOT[line.tone])} aria-hidden />
         <span className="min-w-0">{line.title}</span>
       </p>
       {/* The owner's reason, clamped to two lines: the full text is on the objective. */}
-      {line.detail ? <p className="mt-0.5 line-clamp-2 ps-4 text-xs text-muted-foreground" title={line.detail}>{line.detail}</p> : null}
+      {line.detail ? <p className="mt-0.5 line-clamp-2 ps-4 type-meta text-muted-foreground" title={line.detail}>{line.detail}</p> : null}
     </div>
   );
 }
@@ -309,7 +309,7 @@ function PlanProgressCell({ member }: { member: TeamRosterMemberDto }) {
       <span className="relative h-1.5 min-w-12 flex-1 overflow-hidden rounded-full bg-inlay">
         {member.hasProgress ? <span className="absolute inset-y-0 inset-s-0 rounded-full bg-primary" style={{ width: `${value}%` }} /> : null}
       </span>
-      <span className={cn("w-9 shrink-0 text-end text-sm font-medium tabular-nums", member.hasProgress ? "text-foreground" : "text-muted-foreground")}>
+      <span className={cn("w-9 shrink-0 text-end type-label tabular-nums", member.hasProgress ? "text-foreground" : "text-muted-foreground")}>
         {Math.round(value)}%
       </span>
     </span>
@@ -323,7 +323,7 @@ function LastUpdateCell({ member }: { member: TeamRosterMemberDto }) {
   return (
     <time
       dateTime={execution.lastUpdateAt}
-      className={cn("text-sm tabular-nums", execution.attention?.kind === "noUpdate" ? "text-warning" : "text-foreground")}
+      className={cn("type-body tabular-nums", execution.attention?.kind === "noUpdate" ? "text-warning" : "text-foreground")}
     >
       {ago(execution.lastUpdateAt, undefined, model)}
     </time>
@@ -336,7 +336,7 @@ function UpdateRequestCell({ member, onRequestUpdate }: { member: TeamRosterMemb
   const request = member.updateRequest;
   if (request?.state === "Open") {
     return (
-      <span className="text-sm text-foreground">
+      <span className="type-body text-foreground">
         {t("n1Open")} <span className="text-muted-foreground">{t("asked", { requestedAt: day(request.requestedAt, format.locale) })}</span>
       </span>
     );
@@ -370,11 +370,11 @@ function PeersCell({ review }: { review: ReviewFacts | null | undefined }) {
   if (peers.waitingForYou) return <StateLine tone="attention" label={t("proposedWaitingForYou", { proposed: peers.proposed })} />;
   if (peers.asked > 0)
     return (
-      <span className="text-sm tabular-nums text-foreground">
+      <span className="type-body tabular-nums text-foreground">
         {t("ofAnswered", { answered: peers.answered, asked: peers.asked })}
       </span>
     );
-  return <span className="text-sm text-muted-foreground">{t("notChosenYet")}</span>;
+  return <span className="type-body text-muted-foreground">{t("notChosenYet")}</span>;
 }
 
 function YourReviewCell({ member }: { member: TeamRosterMemberDto }) {
@@ -390,8 +390,8 @@ function YourReviewCell({ member }: { member: TeamRosterMemberDto }) {
 
 function LevelCell({ level, label }: { level: number; label: string }) {
   return (
-    <span className="inline-flex items-center gap-2.5 text-sm text-foreground">
-      <span className="grid size-6 place-items-center rounded-detail bg-inlay text-xs font-semibold tabular-nums ring-1 ring-inset ring-border">
+    <span className="inline-flex items-center gap-2.5 type-body text-foreground">
+      <span className="grid size-6 place-items-center rounded-detail bg-inlay type-meta-strong tabular-nums ring-1 ring-inset ring-border">
         {level}
       </span>
       {label}
@@ -513,11 +513,11 @@ function phaseColumns(
             if (!closed) return <DataTableCellEmpty />;
             if (closed.yourLevel != null && closed.yourLevel !== closed.level)
               return (
-                <span className="text-sm tabular-nums text-foreground">
+                <span className="type-body tabular-nums text-foreground">
                   {closed.yourLevel} → {closed.level} <span className="text-muted-foreground">{say("inCalibration")}</span>
                 </span>
               );
-            return <span className="text-sm tabular-nums text-foreground">{closed.level}</span>;
+            return <span className="type-body tabular-nums text-foreground">{closed.level}</span>;
           },
           meta: { width: "13%", hideBelow: "md", skeleton: SKELETON },
         }),
@@ -542,9 +542,9 @@ function phaseColumns(
             const closed = row.original.facts?.closed;
             if (!closed) return <DataTableCellEmpty />;
             return closed.openGrowthGoals > 0 ? (
-              <span className="text-sm text-foreground">{say("openGoals", { count: closed.openGrowthGoals })}</span>
+              <span className="type-body text-foreground">{say("openGoals", { count: closed.openGrowthGoals })}</span>
             ) : (
-              <span className="text-sm text-muted-foreground">{say("noneOpen")}</span>
+              <span className="type-body text-muted-foreground">{say("noneOpen")}</span>
             );
           },
           meta: { hideBelow: "lg", skeleton: SKELETON },
@@ -706,7 +706,7 @@ function EmptyRoster() {
   return (
     <>
       <Users className="mx-auto size-8 text-muted-foreground/50" aria-hidden />
-      <p className="mt-3 text-sm font-medium text-foreground">{t("noOneReportsToYou")}</p>
+      <p className="mt-3 type-label text-foreground">{t("noOneReportsToYou")}</p>
     </>
   );
 }

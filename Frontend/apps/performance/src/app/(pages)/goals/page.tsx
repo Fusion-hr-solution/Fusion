@@ -249,7 +249,7 @@ function GoalsWorkspace() {
       <ToggleGroupItem
         value="map"
         aria-label={t("mapView")}
-        className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
+        className="gap-1.5 px-3 type-body text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
       >
         <MapView className="size-4" />
         {t("map")}
@@ -257,7 +257,7 @@ function GoalsWorkspace() {
       <ToggleGroupItem
         value="list"
         aria-label={t("listView")}
-        className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
+        className="gap-1.5 px-3 type-body text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
       >
         <ListView className="size-4" />
         {t("list")}
@@ -310,7 +310,7 @@ function GoalsWorkspace() {
           ) : !hasDirection ? (
             <div className="grid h-full place-items-center rounded-surface border border-dashed border-border bg-section px-6 text-center">
               <div className="space-y-3">
-                <p className="text-sm font-medium text-foreground">{t("noPublishedDirectionForThis")}</p>
+                <p className="type-label text-foreground">{t("noPublishedDirectionForThis")}</p>
                 {canList ? (
                   <Button size="sm" variant="outline" onClick={() => replaceContext({ view: "list" })}>
                     {t("openTheList")}

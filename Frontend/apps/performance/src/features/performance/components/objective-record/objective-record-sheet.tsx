@@ -203,7 +203,7 @@ function RecordUnavailable({ title, onRetry }: { title: string; onRetry?: () => 
   const t = useTranslations("objective.RecordUnavailable");
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <SheetTitle className="text-base">{title}</SheetTitle>
+      <SheetTitle className="type-panel-title">{title}</SheetTitle>
       <SheetDescription className="sr-only">{title}</SheetDescription>
       {onRetry ? (
         <Button variant="outline" size="sm" onClick={onRetry}>

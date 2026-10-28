@@ -249,12 +249,12 @@ function MilestoneForm({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="type-meta text-muted-foreground">{t("milestones")}</p>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              <span className="text-2xl font-semibold tabular-nums text-foreground">{completedCount}</span> {t("ofComplete", { total })}
+            <p className="mt-1.5 type-body text-muted-foreground">
+              <span className="type-metric text-foreground">{completedCount}</span> {t("ofComplete", { total })}
             </p>
           </div>
           {changes.length > 0 ? (
-            <span className="text-xs tabular-nums text-muted-foreground">{t("wasOf", { wasCompleted, total })}</span>
+            <span className="type-meta tabular-nums text-muted-foreground">{t("wasOf", { wasCompleted, total })}</span>
           ) : null}
         </div>
         <ul className="mt-3 space-y-0.5">
@@ -276,12 +276,12 @@ function MilestoneForm({
                 >
                   {on ? <Check className="size-3.5" aria-hidden /> : null}
                 </button>
-                <span className={cn("min-w-0 flex-1 text-sm text-foreground", change && "font-medium")}>{m.title}</span>
+                <span className={cn("min-w-0 flex-1 type-body text-foreground", change && "font-medium")}>{m.title}</span>
                 <MilestoneDue milestone={m} />
                 {change ? (
-                  <span className={cn("shrink-0 text-xs font-semibold", change === "New" ? "text-primary-ink" : "text-warning")}>{change === "New" ? t("new") : t("reopened")}</span>
+                  <span className={cn("shrink-0 type-meta-strong", change === "New" ? "text-primary-ink" : "text-warning")}>{change === "New" ? t("new") : t("reopened")}</span>
                 ) : (
-                  <span className="w-9 shrink-0 text-end text-xs font-medium tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
+                  <span className="w-9 shrink-0 text-end type-meta-strong tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
                 )}
               </li>
             );
@@ -311,7 +311,7 @@ function StatusPicker({ value, onChange, disabled }: { value: ObjectiveStatus | 
   const t = useTranslations("progress.StatusPicker");
   return (
     <fieldset>
-      <legend className="text-sm font-semibold text-foreground">{t("howItsGoing")}</legend>
+      <legend className="type-subsection-title text-foreground">{t("howItsGoing")}</legend>
       <div role="radiogroup" aria-label={t("howItsGoing")} className="mt-2.5 grid grid-cols-3 gap-2.5">
         {STATUS_OPTIONS.map((option) => {
           const on = value === option.value;
@@ -324,12 +324,12 @@ function StatusPicker({ value, onChange, disabled }: { value: ObjectiveStatus | 
               disabled={disabled}
               onClick={() => onChange(option.value)}
               className={cn(
-                "flex flex-col items-start gap-3 rounded-control border px-3 py-3 text-start text-sm font-semibold text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "flex flex-col items-start gap-3 rounded-control border px-3 py-3 text-start type-subsection-title text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 on ? cn("ring-2", option.selected) : "border-border hover:border-foreground/30"
               )}
             >
               <span className={cn("flex size-7 items-center justify-center rounded-control-sm", option.mark)} aria-hidden>
-                {option.value === "OnTrack" ? <Check className="size-3.5" /> : option.value === "AtRisk" ? <span className="text-sm font-bold leading-none">!</span> : <X className="size-3.5" />}
+                {option.value === "OnTrack" ? <Check className="size-3.5" /> : option.value === "AtRisk" ? <span className="type-subsection-title leading-none">!</span> : <X className="size-3.5" />}
               </span>
               {t(option.value)}
             </button>
@@ -419,10 +419,11 @@ function NumberField({
         onChange={(e) => onChange(clamp(e.target.value))}
         placeholder={placeholder}
         autoFocus
+        // eslint-disable-next-line no-restricted-syntax -- a text input stays at 1rem (DESIGN.md §3); no role sets that size
         className="min-w-0 flex-1 bg-transparent px-3.5 text-base tabular-nums text-foreground outline-none placeholder:text-muted-foreground/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       {suffix ? (
-        <span className="flex items-center pe-1 text-sm font-medium text-muted-foreground">{suffix}</span>
+        <span className="flex items-center pe-1 type-label text-muted-foreground">{suffix}</span>
       ) : null}
       <div className="flex w-9 shrink-0 flex-col border-s border-input">
         <button
@@ -468,15 +469,15 @@ export function DerivedCard({
     <div className="rounded-surface border border-border bg-popover p-4 dark:bg-card">
       {label ? <p className="type-meta text-muted-foreground">{label}</p> : null}
       <div className={cn("flex items-center gap-3", label && "mt-2")}>
-        <span className={cn("text-2xl font-semibold tabular-nums leading-none", complete ? "text-success" : "text-foreground")}>
+        <span className={cn("type-metric", complete ? "text-success" : "text-foreground")}>
           {Math.round(derived)}%
         </span>
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
           <span className={cn("block h-full rounded-full", complete ? "bg-success" : "bg-[var(--type-accent,var(--primary))]")} style={{ width: `${clamped}%` }} />
         </div>
-        {from != null ? <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{t("from", { from: Math.round(from) })}</span> : null}
+        {from != null ? <span className="shrink-0 type-meta text-muted-foreground tabular-nums">{t("from", { from: Math.round(from) })}</span> : null}
       </div>
-      {subtitle ? <p className="mt-2 text-xs text-muted-foreground">{subtitle}</p> : null}
+      {subtitle ? <p className="mt-2 type-meta text-muted-foreground">{subtitle}</p> : null}
     </div>
   );
 }
@@ -512,11 +513,11 @@ function NoteField({
           placeholder={risky ? undefined : t("eGKeyActivitiesCompleted")}
           className="resize-none pb-6"
         />
-        <span className="pointer-events-none absolute bottom-2 inset-e-3 text-[0.6875rem] tabular-nums text-muted-foreground/70">
+        <span className="pointer-events-none absolute bottom-2 inset-e-3 type-meta tabular-nums text-muted-foreground/70">
           {value.length}/{NOTE_MAX}
         </span>
       </div>
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="type-meta text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

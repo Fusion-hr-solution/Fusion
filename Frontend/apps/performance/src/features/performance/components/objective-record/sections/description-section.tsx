@@ -7,7 +7,7 @@ export function DescriptionSection({ record }: { record: ObjectiveRecord }) {
   if (!record.description) return null;
   return (
     <RecordSection label={t("description")}>
-      <p className={`${RECORD_SURFACE} text-sm leading-relaxed text-foreground`}>{record.description}</p>
+      <p className={`${RECORD_SURFACE} type-body leading-relaxed text-foreground`}>{record.description}</p>
     </RecordSection>
   );
 }

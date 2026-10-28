@@ -38,7 +38,7 @@ export function Segmented<T extends string>({
         <ToggleGroupItem
           key={option.value}
           value={option.value}
-          className="px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
+          className="px-3 type-body text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
         >
           {option.label}
         </ToggleGroupItem>

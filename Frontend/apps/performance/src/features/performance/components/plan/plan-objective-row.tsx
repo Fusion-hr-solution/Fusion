@@ -135,7 +135,7 @@ export function PlanObjectiveRow({
               {objective.title}
             </p>
           )}
-          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 type-meta text-muted-foreground">
             {objective.isAligned ? (
               <>
                 <Target className="size-4 shrink-0 text-primary-ink" aria-hidden />
@@ -214,7 +214,7 @@ export function PlanObjectiveRow({
       {/* Metadata line: measurement, its target, duration — separated cells, only ones that carry meaning.
           The inspect affordance closes the row on the reading/authoring states. */}
       <div className="mt-4 flex items-end gap-3 ps-14">
-        <dl className="flex min-w-0 flex-1 flex-col gap-3 text-sm sm:flex-row sm:gap-0 sm:divide-x sm:divide-border">
+        <dl className="flex min-w-0 flex-1 flex-col gap-3 type-body sm:flex-row sm:gap-0 sm:divide-x sm:divide-border">
           <MetaCell icon={Measurement} label={t("measurement")}>
             {measurement ? words(`method.${measurement.method}`) : "—"}
           </MetaCell>
@@ -252,7 +252,7 @@ export function PlanObjectiveRow({
           <p className="type-meta text-muted-foreground/70">{t("weight")}</p>
           <p
             className={cn(
-              "mt-1 text-lg font-semibold tabular-nums leading-none",
+              "mt-1 type-section-title tabular-nums leading-none",
               weight <= 0
                 ? "text-muted-foreground/50"
                 : objective.isAligned
@@ -432,8 +432,8 @@ function ExecutionState({
       )}
       {has ? (
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-sm font-semibold">{value}</span>
-          {updated ? <span className="text-xs text-muted-foreground">{t("updated2", { updated })}</span> : null}
+          <span className="type-subsection-title">{value}</span>
+          {updated ? <span className="type-meta text-muted-foreground">{t("updated2", { updated })}</span> : null}
         </div>
       ) : null}
     </div>
@@ -501,7 +501,7 @@ function CycleWindow({
   return (
     <span className="flex items-center gap-2 tabular-nums" title={label}>
       <span className="sr-only">{label}</span>
-      <span className="text-xs text-muted-foreground" aria-hidden>
+      <span className="type-meta text-muted-foreground" aria-hidden>
         {format.date(start.slice(0, 10))}
       </span>
       <span className="relative h-1.5 w-20 shrink-0 rounded-full bg-muted-foreground/10" aria-hidden>
@@ -523,7 +523,7 @@ function CycleWindow({
           />
         ) : null}
       </span>
-      <span className="text-xs text-muted-foreground" aria-hidden>
+      <span className="type-meta text-muted-foreground" aria-hidden>
         {format.date(end.slice(0, 10))}
       </span>
     </span>

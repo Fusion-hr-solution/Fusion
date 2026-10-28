@@ -100,7 +100,7 @@ function Fact({
       <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
       <div className="min-w-0">
         <dt className="type-meta text-muted-foreground">{label}</dt>
-        <dd className="mt-0.5 type-body font-semibold text-foreground">{children}</dd>
+        <dd className="mt-0.5 type-subsection-title text-foreground">{children}</dd>
       </div>
     </div>
   );
@@ -158,7 +158,7 @@ function Stat({
     <div className="flex min-w-0 items-center gap-3 px-4 py-3 sm:px-5">
       {icon}
       <div className="min-w-0">
-        <div className="type-body font-semibold tabular-nums text-foreground">{value}</div>
+        <div className="type-subsection-title tabular-nums text-foreground">{value}</div>
         <div className="type-meta text-muted-foreground">{label}</div>
       </div>
     </div>
@@ -199,7 +199,7 @@ export function PopulationBlock({
         <Fact icon={Network} label={t("scope")}>
           {byScope ? t("selectedOrganizationUnits") : t("allActiveEmployees")}
           {byScope ? (
-            <span className="mt-0.5 block truncate type-meta font-normal text-muted-foreground" title={units ?? undefined}>
+            <span className="mt-0.5 block truncate type-meta text-muted-foreground" title={units ?? undefined}>
               {units ??
                 `${sel.orgUnitSelections.length} ${t("unitWord", { count: sel.orgUnitSelections.length })}`}
               {includeDescendants ? " " + t("includingSubUnits") : null}
@@ -237,7 +237,7 @@ export function PopulationBlock({
           )}
           <div className="min-w-0">
             <div className="type-meta text-muted-foreground">{t("reviewerCoverage")}</div>
-            <div className="type-body font-semibold text-foreground">
+            <div className="type-subsection-title text-foreground">
               {fullCoverage ? (
                 t("everyParticipantHasAReviewer")
               ) : (

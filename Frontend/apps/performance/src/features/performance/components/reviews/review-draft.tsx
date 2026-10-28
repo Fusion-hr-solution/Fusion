@@ -165,7 +165,7 @@ function SourceChip({ source, subject }: { source: ReviewDraftSourceDto; subject
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" className={cn("ms-1.5 inline-flex max-w-[16rem] items-center gap-1 rounded-full px-2 py-0.5 align-middle type-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        <button type="button" className={cn("ms-1.5 inline-flex max-w-[16rem] items-center gap-1 rounded-full px-2 py-0.5 align-middle type-meta-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           source.subjectVisible ? "bg-card text-muted-foreground hover:text-foreground" : "border border-dashed border-warning text-warning")}
           aria-label={source.subjectVisible ? source.label : t("notVisible", { label: source.label, subject })}>
           {source.subjectVisible ? <Icon className="size-3 shrink-0" aria-hidden /> : <Lock className="size-3 shrink-0" aria-hidden />}

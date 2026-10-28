@@ -81,7 +81,7 @@ function CompetencyEditor({
     <div className="flex flex-col gap-4 bg-inlay px-5 py-5">
       <div className="flex items-center gap-3">
         {item ? <ValueDot id={item.id} className="size-2.5" /> : null}
-        <span className="flex-1 type-label font-semibold text-foreground">{item?.name ?? t("new")}</span>
+        <span className="flex-1 type-subsection-title text-foreground">{item?.name ?? t("new")}</span>
         {item && inUse ? (
           <StatusBadge tone="neutral">{t("inUseSince", { date: formatDate(item.firstUsedAt, { year: "always", locale }) })}</StatusBadge>
         ) : null}
@@ -100,7 +100,7 @@ function CompetencyEditor({
         />
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 type-label font-semibold text-foreground">{t("behaviours")}</legend>
+        <legend className="mb-1.5 type-subsection-title text-foreground">{t("behaviours")}</legend>
         {draft.behaviors.map((behavior, index) => (
           <div key={index} className="flex items-center gap-2">
             <Input
@@ -124,7 +124,7 @@ function CompetencyEditor({
         <button
           type="button"
           onClick={() => setBehaviors([...draft.behaviors, ""])}
-          className="inline-flex w-fit items-center gap-2 rounded-control px-1 py-1 text-sm font-semibold text-foreground hover:underline"
+          className="inline-flex w-fit items-center gap-2 rounded-control px-1 py-1 type-subsection-title text-foreground hover:underline"
         >
           <Plus aria-hidden className="size-4" />
           {t("addBehaviour")}
@@ -173,7 +173,7 @@ function CompetencyRow({ item, onOpen }: { item: CompetencyDto; onOpen?: () => v
     <>
       <ValueDot id={item.id} className="mt-1.5 size-2.5" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="type-label font-semibold text-foreground">{item.name}</span>
+        <span className="type-subsection-title text-foreground">{item.name}</span>
         <span className="type-meta text-muted-foreground">{item.description}</span>
       </span>
       <span className="shrink-0 type-meta text-muted-foreground">
@@ -258,7 +258,7 @@ export function CompetenciesSettings({ section }: { section: FusionSettingsSecti
             type="button"
             aria-expanded={showArchived}
             onClick={() => setShowArchived((value) => !value)}
-            className="inline-flex w-fit items-center gap-2 type-meta font-semibold text-muted-foreground hover:text-foreground"
+            className="inline-flex w-fit items-center gap-2 type-meta-strong text-muted-foreground hover:text-foreground"
           >
             <Archive aria-hidden className="size-3.5" />
             {t("archived", { count: archived.length })}

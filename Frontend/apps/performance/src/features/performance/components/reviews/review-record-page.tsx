@@ -119,7 +119,7 @@ function YearChips({ record }: { record: PerformanceReviewDto }) {
     <ul className="flex flex-wrap justify-end gap-2" aria-label={t("sYear", { subjectDisplayName: first(record.subjectDisplayName) })}>
       {chips.map((chip) => (
         <li key={chip.text}>
-          <Link href={`/people/${record.subjectEmployeeId}`} className="inline-flex items-center gap-1.5 rounded-control bg-inlay px-2.5 py-1 type-meta font-medium text-foreground hover:bg-card">
+          <Link href={`/people/${record.subjectEmployeeId}`} className="inline-flex items-center gap-1.5 rounded-control bg-inlay px-2.5 py-1 type-meta-strong text-foreground hover:bg-card">
             {chip.icon}{chip.text}
           </Link>
         </li>

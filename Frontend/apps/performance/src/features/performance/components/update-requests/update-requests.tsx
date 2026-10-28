@@ -58,12 +58,12 @@ export function RequestUpdateDialog({ cycleId, planId, personName, objective, on
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
-            <span className="pointer-events-none absolute bottom-2 inset-e-3 text-[0.6875rem] tabular-nums text-muted-foreground/70">
+            <span className="pointer-events-none absolute bottom-2 inset-e-3 type-meta tabular-nums text-muted-foreground/70">
               {note.length}/{NOTE_MAX}
             </span>
           </div>
         </div>
-        {request.error ? <p className="text-sm text-destructive" role="alert">{request.error.message}</p> : null}
+        {request.error ? <p className="type-body text-destructive" role="alert">{request.error.message}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={request.isLoading}>{t("cancel")}</Button>
           <AsyncButton
@@ -104,7 +104,7 @@ export function RequestUpdateAction({ cycleId, planId, personName, objective, si
 
   if (open) {
     return (
-      <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-2 type-meta text-muted-foreground">
         <span>
           {t("updateRequested")} <time dateTime={open.requestedAt}>{format.date(open.requestedAt.slice(0, 10))}</time>
         </span>
@@ -147,15 +147,15 @@ export function RequestBand({ request, onRecord }: { request: UpdateRequestDto; 
   return (
     <div className="flex items-start gap-3 rounded-surface border border-primary-ring bg-primary-tint px-4 py-3.5">
       <Avatar className="size-8 shrink-0">
-        <AvatarFallback className="text-[0.6875rem]">{initials(request.requestedByName)}</AvatarFallback>
+        <AvatarFallback className="type-meta">{initials(request.requestedByName)}</AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-foreground">
+        <p className="type-body text-foreground">
           <span className="font-semibold">{t("askedForAnUpdate", { requestedByName: request.requestedByName })}</span>
           <span className="text-muted-foreground"> · <time dateTime={request.requestedAt}>{format.date(request.requestedAt.slice(0, 10))}</time></span>
         </p>
-        {request.note ? <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground/85">{request.note}</p> : null}
-        <p className="mt-1 text-xs text-muted-foreground">{t("recordingProgressAnswersIt")}</p>
+        {request.note ? <p className="mt-1 whitespace-pre-wrap break-words type-body text-foreground/85">{request.note}</p> : null}
+        <p className="mt-1 type-meta text-muted-foreground">{t("recordingProgressAnswersIt")}</p>
       </div>
       {onRecord ? (
         <Button size="sm" className="shrink-0" onClick={onRecord}>
@@ -171,7 +171,7 @@ export function ObjectiveRequestMarker({ request }: { request: UpdateRequestDto 
   const format = useFormat();
   const t = useTranslations("conversations.ObjectiveRequestMarker");
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-tint px-2 py-0.5 text-xs font-medium text-primary-ink ring-1 ring-inset ring-primary-ring">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-tint px-2 py-0.5 type-meta-strong text-primary-ink ring-1 ring-inset ring-primary-ring">
       <span className="size-1.5 rounded-full bg-primary" aria-hidden />
       {t("asked", { value: (request.requestedByName.split(/\s+/)[0]) ?? "", formatDate: format.date(request.requestedAt.slice(0, 10)) })}
     </span>

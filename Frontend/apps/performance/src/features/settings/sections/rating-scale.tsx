@@ -22,7 +22,7 @@ function ScalePreview({ levels }: { levels: Levels }) {
   return (
     <div className="flex flex-col gap-3 rounded-surface border border-border bg-card p-5">
       <span className="flex flex-col gap-0.5">
-        <span className="type-label font-semibold text-foreground">{t("previewTitle")}</span>
+        <span className="type-subsection-title text-foreground">{t("previewTitle")}</span>
         <span className="type-meta text-muted-foreground">{t("previewDetail")}</span>
       </span>
       <ol className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(levels.length, 1)}, minmax(0, 1fr))` }}>
@@ -38,7 +38,7 @@ function ScalePreview({ levels }: { levels: Levels }) {
             <span className={cn("type-meta tabular-nums", level.value === middle ? "text-primary-ink" : "text-muted-foreground")}>
               {level.value}
             </span>
-            <span className="text-sm font-semibold text-foreground">{level.label || t("unnamed")}</span>
+            <span className="type-subsection-title text-foreground">{level.label || t("unnamed")}</span>
           </li>
         ))}
       </ol>
@@ -96,7 +96,7 @@ export function RatingScaleSettings({ section }: { section: FusionSettingsSectio
             <ol className="divide-y divide-border overflow-hidden rounded-surface border border-border bg-card">
               {levels.map((level) => (
                 <li key={level.value} className="flex items-center gap-3 px-5 py-3">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-control border border-border bg-inlay text-sm font-semibold tabular-nums">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-control border border-border bg-inlay type-subsection-title tabular-nums">
                     {level.value}
                   </span>
                   {editable ? (
@@ -117,7 +117,7 @@ export function RatingScaleSettings({ section }: { section: FusionSettingsSectio
                     </>
                   ) : (
                     <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="type-label font-semibold text-foreground">{level.label}</span>
+                      <span className="type-subsection-title text-foreground">{level.label}</span>
                       {level.description ? <span className="type-meta text-muted-foreground">{level.description}</span> : null}
                     </span>
                   )}
@@ -133,7 +133,7 @@ export function RatingScaleSettings({ section }: { section: FusionSettingsSectio
           <SettingsBlock title={t("versions")}>
             <div className="flex items-center gap-3 rounded-surface border border-border bg-card px-5 py-4">
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex items-center gap-2 type-label font-semibold text-foreground">
+                <span className="flex items-center gap-2 type-subsection-title text-foreground">
                   {t("version", { version: scaleVersion })}
                   <StatusBadge tone="success" dot>
                     {t("current")}

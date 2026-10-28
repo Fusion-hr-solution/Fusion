@@ -28,7 +28,7 @@ export function PlanStateBadge({ plan }: { plan: EmployeePlanDto }) {
 export function NotStartedBadge() {
   const t = useTranslations("plan.NotStartedBadge");
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 type-meta-strong text-muted-foreground">
       <span className="size-1.5 rounded-full bg-muted-foreground/50" aria-hidden />
       {t("notStarted")}
     </span>

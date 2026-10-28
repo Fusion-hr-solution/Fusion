@@ -287,7 +287,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
             </div>
 
             {datesInvalid ? (
-              <p className="mt-3 text-sm text-destructive">{t("theEndDateMustBe")}</p>
+              <p className="mt-3 type-body text-destructive">{t("theEndDateMustBe")}</p>
             ) : null}
           </div>
         </section>

@@ -51,7 +51,7 @@ export default function NewReviewRoundPage() {
     <PageContainer width="wide">
       <PageHeader className="mb-4" title={t("startAReviewRound")} eyebrow={cycle.name} back={{ href: withCycle("/reviews", cycle.id), label: t("reviews") }} />
       <form onSubmit={submit} className="max-w-3xl">
-        <p className="max-w-2xl text-sm text-muted-foreground">{t("aRoundOpensAReview")}</p>
+        <p className="max-w-2xl type-body text-muted-foreground">{t("aRoundOpensAReview")}</p>
         <div className="mt-7 grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="round-name">{t("roundName")}</Label>

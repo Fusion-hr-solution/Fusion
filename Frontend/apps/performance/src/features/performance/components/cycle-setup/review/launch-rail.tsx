@@ -108,7 +108,7 @@ export function LaunchReadinessPanel({
         </div>
         <span
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-control border px-2.5 py-1 text-xs font-semibold",
+            "inline-flex shrink-0 items-center gap-1.5 rounded-control border px-2.5 py-1 type-meta-strong",
             ready
               ? "border-success/35 bg-success/10 text-success"
               : "border-warning/40 bg-warning/10 text-warning"
@@ -140,7 +140,7 @@ export function LaunchReadinessPanel({
               )}
             </span>
             <span className="min-w-0 pt-0.5">
-              <span className="block type-body font-medium text-foreground">{check.label}</span>
+              <span className="block type-label text-foreground">{check.label}</span>
               {check.detail?.map((line) => (
                 <span
                   key={line}
@@ -197,7 +197,7 @@ export function LaunchConsequences() {
               <item.icon className="size-[1.125rem]" aria-hidden />
             </span>
             <span className="min-w-0 pt-0.5">
-              <span className="block type-body font-semibold text-foreground">{t(`${item.key}.label`)}</span>
+              <span className="block type-subsection-title text-foreground">{t(`${item.key}.label`)}</span>
               <span className="mt-0.5 block type-meta text-muted-foreground">{t(`${item.key}.detail`)}</span>
             </span>
           </li>

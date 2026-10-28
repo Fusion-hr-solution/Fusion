@@ -51,7 +51,7 @@ export function CycleSetupHero() {
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-amber-400/12 text-amber-400 ring-1 ring-inset ring-amber-400/20">
                   <v.icon className="size-4" aria-hidden />
                 </span>
-                <span className="whitespace-nowrap text-sm font-medium text-zinc-200">{t(`values.${v.label}`)}</span>
+                <span className="whitespace-nowrap type-label text-zinc-200">{t(`values.${v.label}`)}</span>
               </li>
             ))}
           </ul>

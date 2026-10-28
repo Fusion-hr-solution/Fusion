@@ -149,7 +149,7 @@ export function TeamDirection({
         <h2 className="type-section-title text-foreground">
           {t("upstreamDirection")}
         </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 type-body text-muted-foreground">
           {workspace.error?.message || t("teamObjectivesCouldNotBe")}
         </p>
         {/* A validation or access answer won't change on retry; only transient failures offer one. */}
@@ -307,10 +307,10 @@ function StrategicDirection({
             <p className="type-meta text-primary-ink">{t("nextTeamObjective")}</p>
           </div>
           <div className="mt-2.5">
-            <h3 className="text-lg font-semibold tracking-tight text-foreground">
+            <h3 className="type-section-title tracking-tight text-foreground">
               {t("createATeamObjective")}
             </h3>
-            <p className="mt-1 max-w-xl text-sm leading-5 text-muted-foreground">
+            <p className="mt-1 max-w-xl type-body leading-5 text-muted-foreground">
               {t("chooseWhatItSupportsBefore")}
             </p>
           </div>
@@ -334,11 +334,11 @@ function StrategicDirection({
               {t("createTeamObjective")}
             </Button>
             {noEligibleOwners ? (
-              <p className="mt-2 text-xs text-destructive">
+              <p className="mt-2 type-meta text-destructive">
                 {t("noActiveTeamMemberCan")}
               </p>
             ) : cycle.state === "Closed" ? (
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 type-meta text-muted-foreground">
                 {t("thisCycleIsClosed")}
               </p>
             ) : null}
@@ -364,8 +364,8 @@ function DirectionFact({
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="truncate text-sm font-semibold text-foreground">
+        <p className="type-meta text-muted-foreground">{label}</p>
+        <p className="truncate type-subsection-title text-foreground">
           {value}
         </p>
       </div>
@@ -411,12 +411,12 @@ function DirectionCard({
         onClick={() => onInspect(node.id)}
         className="mt-3 rounded-detail text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground hover:underline">
+        <h3 className="type-section-title leading-snug tracking-tight text-foreground hover:underline">
           {node.title}
         </h3>
       </button>
       {description ? (
-        <p className="mt-1 line-clamp-2 max-w-2xl text-sm leading-5 text-muted-foreground">
+        <p className="mt-1 line-clamp-2 max-w-2xl type-body leading-5 text-muted-foreground">
           {description}
         </p>
       ) : null}
@@ -441,7 +441,7 @@ function DirectionCard({
 
       <div className="mt-4 flex items-end gap-5 border-t border-border/60 pt-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">
+          <p className="type-meta text-muted-foreground">
             {t("progressTowardTarget")}
           </p>
           <div className="relative mt-2 h-1.5 rounded-full bg-muted">
@@ -456,8 +456,8 @@ function DirectionCard({
             />
           </div>
         </div>
-        <p className="shrink-0 text-xs text-muted-foreground">
-          <span className="text-sm font-semibold tabular-nums text-foreground">
+        <p className="shrink-0 type-meta text-muted-foreground">
+          <span className="type-subsection-title tabular-nums text-foreground">
             {progress}%
           </span>{t("ofTarget")}
         </p>
@@ -486,7 +486,7 @@ function EligibleRow({
       <span className="flex size-8 shrink-0 items-center justify-center rounded-control border border-border bg-inlay text-muted-foreground">
         <Layers className="size-4" aria-hidden />
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+      <span className="min-w-0 flex-1 truncate type-subsection-title text-foreground">
         {t("eligibleObjective", { count })}{count === 1 ? "" : t("s")}{" "}
         <span className="font-normal text-muted-foreground">· {hint}</span>
       </span>
@@ -512,10 +512,10 @@ function StandaloneCard({
           <Waypoints className="size-5" aria-hidden />
         </span>
         <div className="min-w-0">
-          <h3 className="text-lg font-semibold tracking-tight text-foreground">
+          <h3 className="type-section-title tracking-tight text-foreground">
             {t("noUpstreamObjectiveSelected")}
           </h3>
-          <p className="mt-1 max-w-md text-sm leading-5 text-muted-foreground">
+          <p className="mt-1 max-w-md type-body leading-5 text-muted-foreground">
             {t("theNextTeamObjectiveWill")}
           </p>
         </div>
@@ -523,10 +523,10 @@ function StandaloneCard({
       <div className="mt-4 flex items-start gap-3 rounded-surface border border-border bg-inlay px-4 py-3">
         <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">
+          <p className="type-subsection-title text-foreground">
             {t("standaloneObjectivesStayInMy")}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="type-meta text-muted-foreground">
             {t("theyAppearInOrganizationGoals")}
           </p>
         </div>
@@ -573,7 +573,7 @@ function DirectionChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-10 items-center gap-2.5 whitespace-nowrap rounded-control border border-border bg-inlay px-4 text-sm font-medium text-foreground transition-colors hover:border-primary/45 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-4 [&_svg]:text-primary"
+      className="inline-flex h-10 items-center gap-2.5 whitespace-nowrap rounded-control border border-border bg-inlay px-4 type-label text-foreground transition-colors hover:border-primary/45 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-4 [&_svg]:text-primary"
     >
       {icon}
       {children}
@@ -604,12 +604,12 @@ function EmptyDirectionCard({
       />
       <div className="relative flex flex-1 flex-col">
         <div className="flex min-w-0 flex-1 flex-col">
-          <h3 className="text-xl font-semibold tracking-tight text-foreground">
+          <h3 className="type-section-title text-foreground">
             {hasTargets
               ? t("noDirectionSelected")
               : t("noPublishedDirectionYet")}
           </h3>
-          <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
+          <p className="mt-3 max-w-xs type-body leading-6 text-muted-foreground">
             {hasTargets
               ? t("chooseOneOfTheEligible")
               : t("nothingAboveYourTeamIs")}
@@ -822,7 +822,7 @@ function TeamObjectives({
         <TeamObjectivesEmpty canCreate={canCreate} onCreate={onCreate} />
       ) : visible.length === 0 ? (
         <div className="mt-4 rounded-surface border border-dashed border-border px-6 py-8 text-center">
-          <p className="text-sm font-medium text-foreground">
+          <p className="type-label text-foreground">
             {t("noObjectivesMatchTheseFilters")}
           </p>
           <Button
@@ -884,10 +884,10 @@ function TeamObjectivesEmpty({
           aria-hidden
         />
       </div>
-      <h3 className="relative mt-6 text-2xl font-semibold tracking-tight text-foreground">
+      <h3 className="relative mt-6 type-section-title text-foreground">
         {t("noTeamObjectivesYet")}
       </h3>
-      <p className="relative mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+      <p className="relative mx-auto mt-2 max-w-md type-body text-muted-foreground">
         {t("createAnObjectiveToDefine")}
       </p>
       <Button
@@ -979,7 +979,7 @@ function TeamObjectiveRow({
             <button
               type="button"
               onClick={() => onInspect(node.id)}
-              className="min-w-0 truncate text-start text-base font-semibold tracking-tight text-foreground hover:underline"
+              className="min-w-0 truncate text-start type-panel-title text-foreground hover:underline"
             >
               {node.title}
             </button>
@@ -991,7 +991,7 @@ function TeamObjectiveRow({
           <div className="mt-1.5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
             <div className="min-w-0">
               {item.description ? (
-                <p className="line-clamp-2 max-w-xl text-sm text-muted-foreground">
+                <p className="line-clamp-2 max-w-xl type-body text-muted-foreground">
                   {item.description}
                 </p>
               ) : null}
@@ -1106,7 +1106,7 @@ function TeamObjectiveRow({
               </div>
             </div>
           </div>
-          <div className="mt-3 flex min-w-0 items-center gap-2 text-sm">
+          <div className="mt-3 flex min-w-0 items-center gap-2 type-body">
             {item.parent ? (
               <>
                 <Link2 className="size-4 shrink-0 text-primary-ink" aria-hidden />
@@ -1138,8 +1138,8 @@ function TeamObjectiveRow({
 function RowFact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0 px-4 lg:border-s lg:border-border lg:first:border-s-0">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="mt-1.5 flex min-h-8 min-w-0 items-center text-sm font-medium text-foreground">
+      <p className="type-meta text-muted-foreground">{label}</p>
+      <div className="mt-1.5 flex min-h-8 min-w-0 items-center type-label text-foreground">
         {children}
       </div>
     </div>
@@ -1150,7 +1150,7 @@ function RowFact({ label, children }: { label: string; children: ReactNode }) {
 function OwnerAvatar({ name }: { id: string; name: string | null }) {
   return (
     <Avatar className="size-8 bg-primary-tint text-primary-ink ring-2 ring-primary-ring ring-offset-2 ring-offset-card">
-      <AvatarFallback className="bg-transparent text-xs font-semibold text-inherit">
+      <AvatarFallback className="bg-transparent type-meta-strong text-inherit">
         {initials(name)}
       </AvatarFallback>
     </Avatar>

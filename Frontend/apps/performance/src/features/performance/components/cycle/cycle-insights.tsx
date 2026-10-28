@@ -118,7 +118,7 @@ type Open = (metric: InsightsMetric, context: string, extra?: Partial<Drill>) =>
 function Tile({ label, value, of, detail, onOpen }: { label: string; value: ReactNode; of?: ReactNode; detail?: ReactNode; onOpen?: () => void }) {
   const body = (
     <>
-      <span className="font-display text-4xl font-semibold leading-none text-foreground">{value}</span>
+      <span className="type-metric text-foreground">{value}</span>
       {of ? <span className="ms-1.5 type-body-secondary text-muted-foreground">{of}</span> : null}
     </>
   );
@@ -203,8 +203,8 @@ function StatusBar({ status }: { status: StatusMixDto }) {
   );
 }
 
-const TH = "h-10 px-4 text-start text-xs font-medium whitespace-nowrap text-muted-foreground";
-const TD = "h-12 px-4 align-middle text-sm";
+const TH = "h-10 px-4 text-start type-meta-strong whitespace-nowrap text-muted-foreground";
+const TD = "h-12 px-4 align-middle type-body";
 
 function Frame({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
@@ -440,7 +440,7 @@ function ByManager({ data, open }: { data: InsightsDto; open: Open }) {
                   <PersonInitials name={m.name} size="sm" />
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-foreground">{m.name}</span>
-                    {m.unitName ? <span className="block truncate type-meta font-normal text-muted-foreground">{m.unitName}</span> : null}
+                    {m.unitName ? <span className="block truncate type-meta text-muted-foreground">{m.unitName}</span> : null}
                   </span>
                 </span>
               </th>
@@ -526,13 +526,13 @@ function PeopleDrawer({ cycleId, cycleName, drill, onClose }: { cycleId: string;
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
           {people.error ? (
-            <p role="alert" className="px-3 py-4 text-sm text-destructive">{people.error.message}</p>
+            <p role="alert" className="px-3 py-4 type-body text-destructive">{people.error.message}</p>
           ) : !data ? (
             <div className="space-y-2 p-3" role="status" aria-label={t("loadingPeople")}>
               {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-12" />)}
             </div>
           ) : data.items.length === 0 ? (
-            <p className="px-3 py-6 text-sm text-muted-foreground">{t("noOne")}</p>
+            <p className="px-3 py-6 type-body text-muted-foreground">{t("noOne")}</p>
           ) : (
             <ul className="divide-y divide-border">
               {data.items.map((p) => {

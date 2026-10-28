@@ -78,7 +78,7 @@ export function ProgressSection({
             <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground/60">
               <Minus className="size-5" aria-hidden />
             </span>
-            <p className="text-sm font-medium text-foreground">{t("noProgressReportedYet")}</p>
+            <p className="type-label text-foreground">{t("noProgressReportedYet")}</p>
           </div>
         )}
       </RecordSection>
@@ -92,7 +92,7 @@ export function ProgressSection({
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground/60">
                 <TrendingUp className="size-5" aria-hidden />
               </span>
-              <p className="text-sm font-medium text-foreground">{t("noUpdatesRecordedYet")}</p>
+              <p className="type-label text-foreground">{t("noUpdatesRecordedYet")}</p>
             </div>
           ) : (
             <div className={`${RECORD_SURFACE} [&>ol]:mt-0`}>

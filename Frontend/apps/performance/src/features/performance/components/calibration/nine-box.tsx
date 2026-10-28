@@ -79,7 +79,7 @@ export function NineBoxView({ view, scale, readOnly, onOpen, onMove }: {
         {ROWS.map((potential) => (
           <div key={potential} className="contents">
             <div className="flex items-center justify-center">
-              <span className="-rotate-90 whitespace-nowrap type-meta font-medium text-muted-foreground">{potential}</span>
+              <span className="-rotate-90 whitespace-nowrap type-meta-strong text-muted-foreground">{potential}</span>
             </div>
             {[0, 1, 2].map((band) => {
               const cell = cellOf(band, potential);
@@ -107,10 +107,10 @@ export function NineBoxView({ view, scale, readOnly, onOpen, onMove }: {
                           onKeyDown={(event) => {
                             if (!readOnly && (event.key === "m" || event.key === "M")) { event.preventDefault(); setPicked({ person, from: cell }); }
                           }}
-                          className={cn("inline-flex items-center gap-2 rounded-full bg-inlay py-1 ps-1 pe-3 type-meta font-semibold text-foreground transition-colors hover:bg-section focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          className={cn("inline-flex items-center gap-2 rounded-full bg-inlay py-1 ps-1 pe-3 type-meta-strong text-foreground transition-colors hover:bg-section focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             person.moved && "ring-1 ring-primary", picked?.person.reviewId === person.reviewId && "opacity-50",
                             !readOnly && "cursor-grab active:cursor-grabbing")}>
-                          <span className="flex size-6 items-center justify-center rounded-full bg-card text-[0.6rem]">{initials(person.name)}</span>
+                          <span className="flex size-6 items-center justify-center rounded-full bg-card type-mark">{initials(person.name)}</span>
                           {person.name}
                         </button>
                       </li>
@@ -185,7 +185,7 @@ function DropForm({ drop, bands, onClose, onConfirm }: {
         <label className="flex items-center gap-2.5 type-body text-foreground">
           <Checkbox checked={discussed} onCheckedChange={(value) => setDiscussed(value === true)} />{t("discussed")}
         </label>
-        {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+        {error ? <p className="type-body text-destructive" role="alert">{error}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={pending}>{t("cancel")}</Button>
           <AsyncButton pending={pending} disabled={!reason.trim()}

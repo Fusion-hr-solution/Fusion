@@ -32,7 +32,7 @@ function subtitle(person: DirectoryPersonDto): string | null {
 function PersonMark({ name }: { name: string }) {
   return (
     <Avatar className="size-6">
-      <AvatarFallback className="text-[0.6rem] font-medium">{initials(name)}</AvatarFallback>
+      <AvatarFallback className="type-mark">{initials(name)}</AvatarFallback>
     </Avatar>
   );
 }

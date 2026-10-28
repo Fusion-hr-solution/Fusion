@@ -32,7 +32,7 @@ export function SubjectChip({ subject, link = false, className }: { subject: Fee
       <span className="truncate">{subject.label}</span>
     </>
   );
-  const shape = cn("inline-flex h-6 max-w-full items-center gap-1.5 rounded-control-sm bg-inlay px-2 type-meta font-medium text-foreground", className);
+  const shape = cn("inline-flex h-6 max-w-full items-center gap-1.5 rounded-control-sm bg-inlay px-2 type-meta-strong text-foreground", className);
   return link && subject.href ? (
     <Link href={inApp(subject.href)} className={cn(shape, "hover:underline")}>{chip}</Link>
   ) : (

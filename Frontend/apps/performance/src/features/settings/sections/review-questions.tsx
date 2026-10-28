@@ -76,7 +76,7 @@ function QuestionRow({
 
   return (
     <li className="flex min-h-12 items-center gap-3 px-5 py-2">
-      <span className="min-w-0 flex-1 type-label font-semibold text-foreground">{question.text}</span>
+      <span className="min-w-0 flex-1 type-subsection-title text-foreground">{question.text}</span>
       <span className="w-36 shrink-0 type-meta text-muted-foreground">
         {inUse ? t("inUseSince", { date: formatDate(question.firstUsedAt, { locale }) }) : t("notUsed")}
       </span>
@@ -117,7 +117,7 @@ function AddQuestion({ audience, commands, onSaved, onError }: { audience: Revie
     return (
       <li>
         <button type="button" onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-2 px-5 py-2.5 text-start text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
+          className="flex w-full items-center gap-2 px-5 py-2.5 text-start type-subsection-title text-muted-foreground transition-colors hover:text-foreground">
           <Plus aria-hidden className="size-4" />
           {t("addQuestion")}
         </button>
@@ -195,7 +195,7 @@ export function ReviewQuestionsSettings({ section }: { section: FusionSettingsSe
           const list = active(audience);
           return (
             <section key={audience} aria-label={t(`audiences.${audience}`)}>
-              <h2 className="border-y border-border bg-inlay px-5 py-2 type-meta font-semibold text-foreground first:border-t-0">
+              <h2 className="border-y border-border bg-inlay px-5 py-2 type-meta-strong text-foreground first:border-t-0">
                 {t(`audiences.${audience}`)}
               </h2>
               <ul className="divide-y divide-border">
@@ -212,7 +212,7 @@ export function ReviewQuestionsSettings({ section }: { section: FusionSettingsSe
       {archived.length > 0 ? (
         <div className="flex flex-col gap-2">
           <button type="button" aria-expanded={showArchived} onClick={() => setShowArchived((value) => !value)}
-            className="inline-flex w-fit items-center gap-2 type-meta font-semibold text-muted-foreground hover:text-foreground">
+            className="inline-flex w-fit items-center gap-2 type-meta-strong text-muted-foreground hover:text-foreground">
             <Archive aria-hidden className="size-3.5" />
             {t("archived", { count: archived.length })}
             <ChevronRight aria-hidden className={cn("size-3.5 transition-transform", showArchived && "rotate-90")} />
@@ -220,7 +220,7 @@ export function ReviewQuestionsSettings({ section }: { section: FusionSettingsSe
           {showArchived ? (
             <ul className="divide-y divide-border overflow-hidden rounded-surface border border-dashed border-border">
               {archived.map((question) => (
-                <li key={question.id} className="flex items-center gap-3 px-5 py-3 text-sm text-muted-foreground">
+                <li key={question.id} className="flex items-center gap-3 px-5 py-3 type-body text-muted-foreground">
                   <span className="flex-1">{question.text}</span>
                   <span className="type-meta">{t(`audiences.${question.audience}`)}</span>
                 </li>

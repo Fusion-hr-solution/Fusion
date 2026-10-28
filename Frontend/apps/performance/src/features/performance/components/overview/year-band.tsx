@@ -95,7 +95,7 @@ export function YearBand({ year, cycleName }: { year: OverviewYearDto; cycleName
         ))}
         {showToday ? (
           <span className="absolute top-0 h-10 w-0.5 rounded-full bg-foreground" style={{ left: `${today * 100}%` }} aria-hidden>
-            <span className={cn("absolute top-[-2px] whitespace-nowrap type-meta font-semibold text-foreground", today > 0.9 ? "inset-e-2" : "inset-s-2")}>
+            <span className={cn("absolute top-[-2px] whitespace-nowrap type-meta-strong text-foreground", today > 0.9 ? "inset-e-2" : "inset-s-2")}>
               {tr("today")}
             </span>
           </span>

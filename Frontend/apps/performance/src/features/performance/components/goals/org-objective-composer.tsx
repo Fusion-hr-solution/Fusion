@@ -633,13 +633,13 @@ export function OrgObjectiveComposer({
                     <span className="text-destructive">*</span>
                   </Label>
                   {orgUnit ? (
-                    <div className="flex h-8 items-center gap-2 rounded-control border border-border dark:bg-input/30 px-2.5 text-sm">
+                    <div className="flex h-8 items-center gap-2 rounded-control border border-border dark:bg-input/30 px-2.5 type-body">
                       <span className="truncate font-medium">
                         {orgUnit?.name ?? node?.orgUnitName ?? tr("owningUnit")}
                       </span>
                     </div>
                   ) : (
-                    <div className="flex h-8 items-center rounded-control border border-dashed border-border px-2.5 text-sm text-muted-foreground">
+                    <div className="flex h-8 items-center rounded-control border border-dashed border-border px-2.5 type-body text-muted-foreground">
                       {tr("chooseTheOwningTeamAbove")}
                     </div>
                   )}
@@ -665,7 +665,7 @@ export function OrgObjectiveComposer({
                     }
                   />
                   {!workspace.isLoading && orgUnit && owners.length === 0 ? (
-                    <p className="text-xs text-destructive">
+                    <p className="type-meta text-destructive">
                       {tr("thisTeamHasNoEligible")}
                     </p>
                   ) : null}
@@ -752,7 +752,7 @@ export function OrgObjectiveComposer({
                   maxDate={endDate}
                 />
               ) : (
-                <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
+                <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 type-body text-info">
                   <Info className="size-4 shrink-0" aria-hidden />
                   {tr("progressRollsUpFromThe")}
                 </div>
@@ -836,7 +836,7 @@ function AlignmentEditor({
         >
           {t("alignment")}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 type-body text-muted-foreground">
           {t("chooseTheOrganizationalDirectionThis")}
         </p>
       </div>
@@ -863,10 +863,10 @@ function AlignmentEditor({
             className="mt-0.5"
           />
           <span>
-            <span className="block text-sm font-medium text-foreground">
+            <span className="block type-label text-foreground">
               {t("alignToOrganizationalDirection")}
             </span>
-            <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+            <span className="mt-0.5 block type-meta leading-snug text-muted-foreground">
               {t("connectThisObjectiveToA")}
             </span>
           </span>
@@ -886,10 +886,10 @@ function AlignmentEditor({
             className="mt-0.5"
           />
           <span>
-            <span className="block text-sm font-medium text-foreground">
+            <span className="block type-label text-foreground">
               {t("standaloneTeamObjective")}
             </span>
-            <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+            <span className="mt-0.5 block type-meta leading-snug text-muted-foreground">
               {t("keepThisObjectiveWithinMy")}
             </span>
           </span>
@@ -928,11 +928,11 @@ function AlignmentEditor({
       ) : null}
 
       {error ? (
-        <p className="mt-3 text-sm text-destructive">
+        <p className="mt-3 type-body text-destructive">
           {t("teamOptionsCouldNotBe")}
         </p>
       ) : !loading && targets.length === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="mt-3 type-body text-muted-foreground">
           {t("noPublishedUpstreamObjectivesAre")}
         </p>
       ) : null}
@@ -1003,7 +1003,7 @@ export function AlignmentTargetPicker({
         <span className="block truncate font-medium text-foreground">
           {target.title}
         </span>
-        <span className="block truncate text-xs text-muted-foreground">
+        <span className="block truncate type-meta text-muted-foreground">
           {target.accountablePersonName ?? t("noOwner")} {t("to", { startDate: format.date(target.startDate), endDate: format.date(target.endDate) })}
         </span>
       </span>
@@ -1045,7 +1045,7 @@ export function AlignmentTargetPicker({
             <span className="block truncate font-medium text-foreground">
               {selected.title}
             </span>
-            <span className="block truncate text-xs text-muted-foreground">
+            <span className="block truncate type-meta text-muted-foreground">
               {selected.ownershipScope === "Company"
                 ? t("company")
                 : (selected.orgUnitName ?? t("organizational"))}
@@ -1090,7 +1090,7 @@ export function AlignmentTargetPicker({
                   <span className="block font-medium text-foreground">
                     {t("noAlignment")}
                   </span>
-                  <span className="block text-xs text-muted-foreground">
+                  <span className="block type-meta text-muted-foreground">
                     {t("createATeamObjectiveWithout")}
                   </span>
                 </span>
@@ -1129,7 +1129,7 @@ function OwnerPicker({
     description: t("activeTeamMemberAtCycle"),
     media: (
       <Avatar className="size-6">
-        <AvatarFallback className="text-[0.625rem]">
+        <AvatarFallback className="type-mark">
           {initials(owner.name)}
         </AvatarFallback>
       </Avatar>
@@ -1144,7 +1144,7 @@ function OwnerPicker({
               title: value.name,
               media: (
                 <Avatar className="size-6">
-                  <AvatarFallback className="text-[0.625rem]">
+                  <AvatarFallback className="type-mark">
                     {initials(value.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -1217,10 +1217,10 @@ function SourceCard({
         <Icon className="size-5" aria-hidden />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-foreground">
+        <span className="block type-label text-foreground">
           {title}
         </span>
-        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+        <span className="mt-0.5 block type-meta leading-snug text-muted-foreground">
           {detail}
         </span>
       </span>

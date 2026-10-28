@@ -321,7 +321,7 @@ function FrozenConfiguration({ round }: { round: ReviewRoundDto }) {
   ];
   return (
     <ul className="flex flex-wrap gap-2" aria-label={t("frozenConfiguration")}>
-      {chips.map((chip) => <li key={chip} className="rounded-control bg-card px-2.5 py-1 type-meta font-medium text-foreground">{chip}</li>)}
+      {chips.map((chip) => <li key={chip} className="rounded-control bg-card px-2.5 py-1 type-meta-strong text-foreground">{chip}</li>)}
     </ul>
   );
 }

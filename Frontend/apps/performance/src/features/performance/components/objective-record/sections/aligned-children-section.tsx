@@ -38,13 +38,13 @@ export function AlignedChildrenSection({
                   className="group flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-(--type-tint) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">{child.title}</span>
-                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    <span className="block truncate type-label text-foreground">{child.title}</span>
+                    <span className="mt-0.5 block truncate type-meta text-muted-foreground">
                       {directionScopeLabel(child, model)} · {child.accountablePersonName ?? t("unassigned")}
                     </span>
                   </span>
                   {child.state === "Published" ? (
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    <span className="shrink-0 type-meta tabular-nums text-muted-foreground">
                       {child.hasProgress ? `${pct(Math.round(child.derivedProgress))}%` : "—"}
                     </span>
                   ) : (
@@ -70,11 +70,11 @@ export function AlignedChildrenSection({
                     className="group flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-(--type-tint) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">{child.title}</span>
-                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">{child.ownerName ?? t("unassigned")}</span>
+                      <span className="block truncate type-label text-foreground">{child.title}</span>
+                      <span className="mt-0.5 block truncate type-meta text-muted-foreground">{child.ownerName ?? t("unassigned")}</span>
                     </span>
                     {child.planState === "Approved" ? (
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      <span className="shrink-0 type-meta tabular-nums text-muted-foreground">
                         {child.progress == null ? "—" : `${pct(Math.round(child.progress))}%`}
                       </span>
                     ) : null}

@@ -35,14 +35,14 @@ export function SessionTitle({ session, header, action, onFacilitators }: {
   return (
     <div className="mb-6">
       <Link href={withCycle(roundHref(session.reviewRoundId), session.cycleId)}
-        className="mb-3 inline-flex items-center gap-1.5 rounded-detail text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        className="mb-3 inline-flex items-center gap-1.5 rounded-detail type-body text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <ArrowLeft className="size-4" aria-hidden />{session.reviewRoundName}
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="type-display text-foreground">{t("calibration")}</h1>
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 type-meta font-semibold",
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 type-meta-strong",
               finalized ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning")}>
               {finalized ? <Check className="size-3.5" aria-hidden /> : <span className="size-1.5 rounded-full bg-current" aria-hidden />}
               {finalized ? t("finalized") : t("open")}

@@ -401,13 +401,13 @@ export function PlanGoalComposer({
                 onChange={setDateOverride}
                 min={cycle.startDate}
                 max={cycle.endDate}
-                className="h-8 px-2.5 text-sm shadow-2xs"
+                className="h-8 px-2.5 type-body shadow-2xs"
               />
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-surface border border-border px-3.5 py-2">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-lg font-semibold tabular-nums leading-none text-primary-ink">
+              <span className="type-section-title tabular-nums leading-none text-primary-ink">
                 {pct(existing)}%
               </span>
               <span className="type-meta text-muted-foreground">
@@ -424,7 +424,7 @@ export function PlanGoalComposer({
                 style={{ width: `${existing}%` }}
               />
             </div>
-            <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+            <span className="whitespace-nowrap type-meta tabular-nums text-muted-foreground">
               {tr("left", { remaining: pct(remaining) })}
             </span>
           </div>
@@ -464,7 +464,7 @@ export function PlanGoalComposer({
 
               {mode === "aligned" ? (
                 targets.length === 0 ? (
-                  <p className="rounded-surface border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+                  <p className="rounded-surface border border-dashed border-border px-3 py-4 type-body text-muted-foreground">
                     {tr("noPublishedOrganizationalObjectivesTo")}
                   </p>
                 ) : (
@@ -536,7 +536,7 @@ export function PlanGoalComposer({
                 />
               ) : null}
               {aiFilled.parent ? (
-                <p className="text-xs">
+                <p className="type-meta">
                   <AiSuggestedTag />
                 </p>
               ) : null}
@@ -561,7 +561,7 @@ export function PlanGoalComposer({
                     {tr("title")} <span className="text-destructive">*</span>
                     {aiFilled.title ? <AiSuggestedTag /> : null}
                   </Label>
-                  <span className="text-xs tabular-nums text-muted-foreground">
+                  <span className="type-meta tabular-nums text-muted-foreground">
                     {title.length}/{TITLE_MAX}
                   </span>
                 </div>
@@ -602,7 +602,7 @@ export function PlanGoalComposer({
                       {tr("optional")}
                     </span>
                   </Label>
-                  <span className="text-xs tabular-nums text-muted-foreground">
+                  <span className="type-meta tabular-nums text-muted-foreground">
                     {description.length}/{DESCRIPTION_MAX}
                   </span>
                 </div>
@@ -687,7 +687,7 @@ export function PlanGoalComposer({
                       placeholder="0"
                       aria-label={tr("planWeightPercent")}
                     />
-                    <span className="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    <span className="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 type-body text-muted-foreground">
                       %
                     </span>
                   </div>
@@ -725,7 +725,7 @@ export function PlanGoalComposer({
                       style={{ width: `${clamp(weightNum, 0, remaining)}%` }}
                     />
                   </div>
-                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 type-meta">
                     <span className="text-muted-foreground">
                       <span className="font-medium tabular-nums text-foreground">
                         {pct(existing)}%
@@ -838,10 +838,10 @@ function ChoiceTile({
         ) : null}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">
+        <span className="block type-subsection-title text-foreground">
           {title}
         </span>
-        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+        <span className="mt-0.5 block type-meta leading-snug text-muted-foreground">
           {detail}
         </span>
       </span>
@@ -871,7 +871,7 @@ function TargetSummary({ target }: { target: AlignmentTargetDto }) {
       <span className="type-meta text-muted-foreground">{scope}</span>
       <span className="font-semibold text-foreground">{target.title}</span>
       {lineage ? (
-        <span className="text-xs text-muted-foreground">{lineage}</span>
+        <span className="type-meta text-muted-foreground">{lineage}</span>
       ) : null}
     </span>
   );
@@ -888,7 +888,7 @@ function TargetOption({ target }: { target: AlignmentTargetDto }) {
       <span className="flex flex-col gap-0.5">
         <span className="font-medium text-foreground">{target.title}</span>
         {context ? (
-          <span className="text-xs text-muted-foreground">{context}</span>
+          <span className="type-meta text-muted-foreground">{context}</span>
         ) : null}
       </span>
     </SelectItem>

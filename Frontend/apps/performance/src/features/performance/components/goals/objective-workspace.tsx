@@ -446,12 +446,12 @@ function SubjectCard({
             onClick={() => actions.onInspect(node.id)}
             className="mt-1 block rounded-detail text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <h3 className="text-xl font-semibold leading-snug tracking-tight text-foreground hover:underline">
+            <h3 className="type-section-title text-foreground hover:underline">
               {node.title}
             </h3>
           </button>
           {description ? (
-            <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-2 max-w-prose type-body leading-relaxed text-muted-foreground">
               {description}
             </p>
           ) : null}
@@ -583,7 +583,7 @@ function DirectionStrip({
             onClick={() => onInspect(node.id)}
             className="block rounded-detail text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <span className="text-base font-semibold tracking-tight text-foreground hover:underline">
+            <span className="type-panel-title text-foreground hover:underline">
               {node.title}
             </span>
           </button>
@@ -773,7 +773,7 @@ function ObjectiveRow({
               <span
                 className={cn(
                   "font-semibold tracking-tight text-foreground hover:underline",
-                  nested ? "text-[13px]" : "text-sm"
+                  nested ? "type-body" : "type-body"
                 )}
               >
                 {node.title}
@@ -784,11 +784,11 @@ function ObjectiveRow({
             </StatusBadge>
           </div>
           {description ? (
-            <p className="mt-1 line-clamp-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-1 line-clamp-2 max-w-2xl type-meta leading-relaxed text-muted-foreground">
               {description}
             </p>
           ) : null}
-          <div className={cn("flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground", nested ? "mt-1" : "mt-1.5")}>
+          <div className={cn("flex flex-wrap items-center gap-x-2.5 gap-y-0.5 type-meta text-muted-foreground", nested ? "mt-1" : "mt-1.5")}>
             <span className="inline-flex min-w-0 items-center gap-1">
               <Building2
                 className="size-3.5 shrink-0 text-muted-foreground/70"
@@ -818,12 +818,12 @@ function ObjectiveRow({
         {node.accountablePersonName ? (
           <div className="hidden shrink-0 items-center gap-2 pt-0.5 2xl:flex">
             <Avatar className="size-7">
-              <AvatarFallback className="text-[10px]">
+              <AvatarFallback className="type-mark">
                 {initials(node.accountablePersonName)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 leading-tight">
-              <p className="max-w-[9rem] truncate text-xs font-medium text-foreground">
+              <p className="max-w-[9rem] truncate type-meta-strong text-foreground">
                 {node.accountablePersonName}
               </p>
               <p className="type-meta text-muted-foreground/70">{t("accountable")}</p>
@@ -837,7 +837,7 @@ function ObjectiveRow({
               type="button"
               onClick={() => tree.onToggle(node.id)}
               aria-expanded={open}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-2 py-1 type-meta-strong text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="tabular-nums">{node.childCount}</span>
               <span>{t("child")} {node.childCount === 1 ? t("objective") : t("objectives")}</span>
@@ -923,7 +923,7 @@ function AddAligned({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-sm font-medium text-primary-ink transition-colors hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 type-label text-primary-ink transition-colors hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <Plus className="size-4" aria-hidden /> {t("addAlignedObjective")}
     </button>
@@ -961,20 +961,20 @@ function GroupHeader({
       ) : null}
       <div className="min-w-0">
         {prominent ? (
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          <h2 className="type-section-title tracking-tight text-foreground">
             {label}
           </h2>
         ) : (
           <p className="type-meta text-muted-foreground">{label}</p>
         )}
         {description ? (
-          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-0.5 type-body text-muted-foreground">{description}</p>
         ) : null}
       </div>
       <button
         type="button"
         onClick={onToggle}
-        className="inline-flex items-center gap-1.5 rounded-control px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-center gap-1.5 rounded-control px-1.5 py-0.5 type-meta-strong text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-expanded={open}
       >
         <span className="tabular-nums text-foreground/80">{count}</span>
@@ -992,7 +992,7 @@ function GroupHeader({
 function EmptyChildren({ isCompany }: { isCompany: boolean }) {
   const t = useTranslations("goals.EmptyChildren");
   return (
-    <div className="flex items-center gap-2.5 rounded-surface border border-dashed border-border px-4 py-3.5 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2.5 rounded-surface border border-dashed border-border px-4 py-3.5 type-body text-muted-foreground">
       <ScopeMark className="size-5 shrink-0 text-muted-foreground/50" muted />
       {isCompany
         ? t("noAlignedChildObjectivesYet")
@@ -1021,18 +1021,18 @@ function ContextHeader({
     <section className="flex items-center gap-4 rounded-surface border border-border bg-section p-4 sm:px-5">
       <span
         aria-hidden
-        className="flex size-11 shrink-0 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-sm font-semibold text-primary-ink"
+        className="flex size-11 shrink-0 items-center justify-center rounded-control border border-primary-ring bg-primary-tint type-subsection-title text-primary-ink"
       >
         {initials(title)}
       </span>
       <div className="min-w-0 flex-1">
         <p className="type-meta text-muted-foreground">{eyebrow}</p>
         <div className="mt-1 flex items-center gap-2.5">
-          <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+          <h2 className="truncate type-section-title text-foreground">
             {title}
           </h2>
           {memberCount != null ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-0.5 type-meta-strong text-muted-foreground">
               <span className="tabular-nums">{memberCount}</span> {t("directlyAssigned")}
             </span>
           ) : null}
@@ -1062,7 +1062,7 @@ function LineageChips({ ancestors }: { ancestors: GoalNodeDto[] }) {
   const lib = useSay("goals.lib");
   const ordered = [...ancestors].reverse();
   return (
-    <div className="mb-3 inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 rounded-control border border-border/70 bg-inlay px-2.5 py-1.5 text-xs text-muted-foreground">
+    <div className="mb-3 inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 rounded-control border border-border/70 bg-inlay px-2.5 py-1.5 type-meta text-muted-foreground">
       <ScopeMark
         className="me-0.5 size-3.5 shrink-0 text-muted-foreground/60"
         muted
@@ -1114,7 +1114,7 @@ function FocusTrail({
   const trail = [...block.ancestors, block.node];
   return (
     <nav
-      className="flex flex-wrap items-center gap-1 text-sm"
+      className="flex flex-wrap items-center gap-1 type-body"
       aria-label={t("directionPath")}
     >
       <button
@@ -1200,10 +1200,10 @@ function EmptyUnitContext({
 
       <div className="rounded-surface border border-dashed border-border px-6 py-8 text-center">
         <ScopeMark className="mx-auto size-12 text-foreground/70" />
-        <p className="mt-3 text-base font-semibold tracking-tight text-foreground">
+        <p className="mt-3 type-panel-title text-foreground">
           {t("noObjectiveForYet", { name: unit.name })}
         </p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+        <p className="mx-auto mt-1 max-w-md type-body text-muted-foreground">
           {t("defineAnObjectiveAlignedTo")}
           <span className="font-medium text-foreground">
             “{directParent.title}”
@@ -1247,7 +1247,7 @@ function DirectionSelector({
             onClick={() => onSelect(direction.id)}
             aria-pressed={active}
             className={cn(
-              "max-w-[16rem] truncate rounded-control border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "max-w-[16rem] truncate rounded-control border px-2.5 py-1 type-meta-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               active
                 ? "border-primary bg-primary/[0.08] text-foreground"
                 : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
@@ -1282,10 +1282,10 @@ function NoPublishedDirection({
 
             <div className="min-w-0">
               <p className="type-meta text-muted-foreground">{t("companyDirection")}</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              <h2 className="mt-2 type-section-title text-foreground">
                 {t("establishCompanyDirection")}
               </h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+              <p className="mt-3 max-w-xl type-body text-muted-foreground">
                 {t("defineTheStrategicObjectiveThat")}
               </p>
               {canCreateCompany ? (
@@ -1326,7 +1326,7 @@ function NoPublishedDirection({
 
         <div>
           <h2 className="type-section-title text-foreground">{t("organizationalAlignment")}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 type-body text-muted-foreground">
             {t("organizationalObjectivesWillAppearHere")}
           </p>
         </div>
@@ -1336,10 +1336,10 @@ function NoPublishedDirection({
             <div className="mx-auto grid size-16 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-raised">
               <Network className="size-6" aria-hidden />
             </div>
-            <p className="mt-5 text-base font-semibold tracking-tight text-foreground">
+            <p className="mt-5 type-panel-title text-foreground">
               {t("alignedObjectivesWillAppearHere")}
             </p>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            <p className="mx-auto mt-2 max-w-md type-body leading-6 text-muted-foreground">
               {t("onceYouCreateTheCompany")}
             </p>
           </div>
@@ -1365,7 +1365,7 @@ function DirectionValue({
       </span>
       <div className="min-w-0 pt-0.5">
         <p className="type-subsection-title text-foreground">{title}</p>
-        <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>
+        <p className="mt-1 type-body leading-5 text-muted-foreground">{description}</p>
       </div>
     </div>
   );
@@ -1425,11 +1425,11 @@ function PersonLine({
     <span
       className={cn(
         "inline-flex items-center gap-2 font-medium text-foreground",
-        compact ? "text-xs" : "text-sm"
+        compact ? "type-meta" : "type-body"
       )}
     >
       <Avatar className={compact ? "size-4" : "size-6"}>
-        <AvatarFallback className={compact ? "text-[8px]" : "text-[10px]"}>
+        <AvatarFallback className={compact ? "type-mark" : "type-mark"}>
           {initials(name)}
         </AvatarFallback>
       </Avatar>
@@ -1445,7 +1445,7 @@ function MeasurementFact({ node }: { node: GoalNodeDto }) {
   const Icon = node.progressSource === "Calculated" ? Layers : Gauge;
   return (
     <Fact label={t("measurement")}>
-      <span className="flex items-center gap-1.5 text-sm font-medium tabular-nums text-foreground">
+      <span className="flex items-center gap-1.5 type-label tabular-nums text-foreground">
         <Icon className="size-4 text-muted-foreground" aria-hidden />
         {summary}
       </span>
@@ -1490,7 +1490,7 @@ function ProgressFact({
           />
         ) : null}
       </div>
-      <span className="min-w-9 shrink-0 text-end text-xs font-semibold tabular-nums text-foreground">
+      <span className="min-w-9 shrink-0 text-end type-meta-strong tabular-nums text-foreground">
         {value === null ? emptyLabel : `${value}%`}
       </span>
     </div>

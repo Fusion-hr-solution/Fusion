@@ -32,7 +32,7 @@ export function MilestoneRail({ milestones }: { milestones: MilestoneStateDto[] 
                 <span className={cn("h-px flex-1", index === 0 ? "bg-transparent" : milestone.reached || isCurrent ? "bg-primary/40" : "bg-border")} />
                 <span
                   className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full border text-[0.65rem] font-semibold transition-colors",
+                    "flex size-6 shrink-0 items-center justify-center rounded-full border type-mark transition-colors",
                     milestone.reached
                       ? "border-primary bg-primary text-primary-foreground"
                       : isCurrent
@@ -46,7 +46,7 @@ export function MilestoneRail({ milestones }: { milestones: MilestoneStateDto[] 
               </div>
               <span
                 className={cn(
-                  "sr-only px-1 text-[0.7rem] leading-tight @lg:not-sr-only",
+                  "sr-only px-1 type-meta leading-tight @lg:not-sr-only",
                   milestone.reached ? "text-foreground" : isCurrent ? "font-medium text-foreground" : "text-muted-foreground"
                 )}
               >

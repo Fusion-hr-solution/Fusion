@@ -126,7 +126,7 @@ export function DueChip({ date, late = false, label }: { date: string | null | u
   const format = useFormat();
   if (!date) return null;
   return (
-    <span className={cn("inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control-sm px-2 py-0.5 type-meta font-medium tabular-nums",
+    <span className={cn("inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control-sm px-2 py-0.5 type-meta-strong tabular-nums",
       late ? "bg-destructive/15 text-destructive" : "bg-warning-subtle text-warning")}>
       <Clock className="size-3.5" aria-hidden />
       {label ?? dayLabel(date, format.locale)}
@@ -157,7 +157,7 @@ export function SegmentRating({
       {levels.map((level) => {
         const selected = value === level.value;
         const other = theirs === level.value;
-        const common = cn("flex size-7 items-center justify-center rounded-nested type-meta font-medium tabular-nums transition-colors",
+        const common = cn("flex size-7 items-center justify-center rounded-nested type-meta-strong tabular-nums transition-colors",
           selected ? "bg-primary text-primary-foreground" : other ? "text-info ring-1 ring-info ring-inset" : "text-muted-foreground");
         return onChange ? (
           <button key={level.value} type="button" role="radio" aria-checked={selected} aria-label={`${level.value} ${level.label}`}
@@ -226,7 +226,7 @@ export function ProgressRing({ value, size = 48, tone }: { value: number | null;
             strokeDasharray={`${(share / 100) * c} ${c}`} className={tone === "warning" ? "stroke-warning" : "stroke-success"} />
         ) : null}
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center type-meta font-semibold tabular-nums text-foreground">
+      <span className="absolute inset-0 flex items-center justify-center type-meta-strong tabular-nums text-foreground">
         {value === null ? "–" : `${Math.round(share)}%`}
       </span>
     </div>

@@ -44,7 +44,7 @@ export function MilestoneDue({ milestone, className }: { milestone: DatedMilesto
     <time
       dateTime={milestone.dueDate}
       className={cn(
-        "shrink-0 text-xs tabular-nums",
+        "shrink-0 type-meta tabular-nums",
         overdue ? "font-medium text-destructive" : "text-muted-foreground",
         className
       )}

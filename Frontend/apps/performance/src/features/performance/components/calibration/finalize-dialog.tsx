@@ -38,7 +38,7 @@ export function FinalizeDialog({ session, roundId, open, mutations, onClose, onO
         </DialogHeader>
         {!data ? (
           <div className="space-y-3" role="status" aria-label={t("loading")}>
-            {preview.error ? <p className="text-sm text-destructive" role="alert">{preview.error.message}</p> : <Skeleton className="h-24 rounded-surface" />}
+            {preview.error ? <p className="type-body text-destructive" role="alert">{preview.error.message}</p> : <Skeleton className="h-24 rounded-surface" />}
           </div>
         ) : (
           <div className="space-y-5">
@@ -68,7 +68,7 @@ export function FinalizeDialog({ session, roundId, open, mutations, onClose, onO
               <Next icon={Users}>{t("theManagersSeeTheirPeoples", { reviewers: data.reviewers, changed })}</Next>
               <Next icon={Eye}>{t("employeesSeeNothingUntilYou")}</Next>
             </div>
-            {mutations.finalize.error ? <p className="text-sm text-destructive" role="alert">{mutations.finalize.error.message}</p> : null}
+            {mutations.finalize.error ? <p className="type-body text-destructive" role="alert">{mutations.finalize.error.message}</p> : null}
           </div>
         )}
         <DialogFooter>

@@ -186,12 +186,12 @@ export function MilestoneEditor({
           <Plus className="size-3.5" data-icon="inline-start" /> {t("addMilestone")}
         </Button>
         <div className="flex items-center gap-2.5">
-          <span className="text-xs text-muted-foreground">
+          <span className="type-meta text-muted-foreground">
             {ready ? readyLabel : over ? t("over", { value: weightSum - 100 }) : t("toAllocate", { remaining })}
           </span>
           <span
             className={cn(
-              "min-w-[3.25rem] rounded-control px-2 py-0.5 text-center text-sm font-semibold tabular-nums transition-colors",
+              "min-w-[3.25rem] rounded-control px-2 py-0.5 text-center type-subsection-title tabular-nums transition-colors",
               ready
                 ? "bg-success-subtle text-success"
                 : over

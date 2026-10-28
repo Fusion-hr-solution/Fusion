@@ -3,6 +3,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { Linter } = require("eslint");
 const designRoles = require("./design-roles");
+const designRolesType = require("./design-roles-type");
 
 function warnings(code) {
   const linter = new Linter();
@@ -86,4 +87,22 @@ test("the shared formatters' own locale constant and locale detection do not war
   ]) {
     assert.deepEqual(warnings(code), [], code);
   }
+});
+
+test("raw text sizes and weights stacked on a role or size warn under typeRoles", () => {
+  const strict = (code) => {
+    const linter = new Linter();
+    return linter
+      .verify(code, { ...designRolesType, parserOptions: { ecmaVersion: "latest", sourceType: "module", ecmaFeatures: { jsx: true } } })
+      .map((message) => message.message);
+  };
+  for (const className of ["text-sm", "flex text-xs", "md:text-base", "text-[11px] tabular-nums", "type-meta font-semibold", "text-sm font-medium", "`gap-2 ${a} text-lg`"]) {
+    const code = className.startsWith("`") ? `const a = ${className};` : `const a = "${className}";`;
+    assert.ok(strict(code).some((m) => m.includes("type role")), className);
+  }
+  for (const className of ["type-body", "type-meta-strong text-muted-foreground", "font-semibold", "text-muted-foreground text-start", "text-[var(--x)]", "type-label"]) {
+    assert.deepEqual(strict(`const a = "${className}";`).filter((m) => m.includes("type role")), [], className);
+  }
+  // The default config doesn't carry the guard yet.
+  assert.deepEqual(warnings(`const a = "text-sm";`), []);
 });

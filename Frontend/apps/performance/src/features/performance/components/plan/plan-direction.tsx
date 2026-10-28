@@ -47,7 +47,7 @@ export function PlanDirectionSection({
   if (levels.length === 0) {
     return (
       <SidebarSection label={tr("direction")}>
-        <p className="mt-3 text-sm text-muted-foreground">{tr("noDirectionLinkedYet")}</p>
+        <p className="mt-3 type-body text-muted-foreground">{tr("noDirectionLinkedYet")}</p>
       </SidebarSection>
     );
   }
@@ -73,10 +73,10 @@ export function PlanDirectionSection({
                 {leading ? <ScopeMark className="size-5" /> : <Landmark className="size-4" aria-hidden />}
               </span>
               <div className="min-w-0 flex-1 pt-0.5">
-                <p className={leading ? "text-sm font-semibold leading-snug text-foreground" : "text-sm leading-snug text-foreground/85"}>
+                <p className={leading ? "type-subsection-title leading-snug text-foreground" : "type-body leading-snug text-foreground/85"}>
                   {level.title}
                 </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{level.scope}</p>
+                <p className="mt-0.5 type-meta text-muted-foreground">{level.scope}</p>
               </div>
               {objectiveId ? (
                 <button
@@ -119,7 +119,7 @@ export function PlanReviewerSection({
   if (!reviewerName) {
     return (
       <SidebarSection label={t("reviewer")}>
-        <p className="mt-3 text-sm text-muted-foreground">{t("noReviewerAssigned")}</p>
+        <p className="mt-3 type-body text-muted-foreground">{t("noReviewerAssigned")}</p>
       </SidebarSection>
     );
   }
@@ -133,14 +133,14 @@ export function PlanReviewerSection({
     <SidebarSection label={t("reviewer")}>
       <div className="mt-4 flex items-center gap-3">
         <Avatar className="size-10">
-          <AvatarFallback className="text-xs">{initials(reviewerName)}</AvatarFallback>
+          <AvatarFallback className="type-meta">{initials(reviewerName)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{reviewerName}</p>
+          <p className="truncate type-subsection-title text-foreground">{reviewerName}</p>
           {email ? (
             <a
               href={`mailto:${email}`}
-              className="block truncate rounded-detail text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="block truncate rounded-detail type-meta text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {email}
             </a>
@@ -149,7 +149,7 @@ export function PlanReviewerSection({
       </div>
 
       {lastDecision ? (
-        <dl className="mt-4 flex items-baseline justify-between gap-3 text-sm">
+        <dl className="mt-4 flex items-baseline justify-between gap-3 type-body">
           <dt className="text-muted-foreground">{t(DECISION_LABEL[lastDecision.kind]!)}</dt>
           <dd className="shrink-0 tabular-nums text-foreground/85">{format.date(lastDecision.decidedAt.slice(0, 10))}</dd>
         </dl>

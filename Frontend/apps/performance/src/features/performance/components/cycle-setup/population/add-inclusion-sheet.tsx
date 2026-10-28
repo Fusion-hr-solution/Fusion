@@ -160,7 +160,7 @@ export function AddInclusionSheet({
           <div className="border-t border-border px-6 py-3">
             <div className="flex items-center justify-between">
               <p className="type-label text-foreground">{t("selectedEmployees")}</p>
-              <span className="flex size-5 items-center justify-center rounded-full bg-primary-tint type-meta font-semibold tabular-nums text-primary-ink">
+              <span className="flex size-5 items-center justify-center rounded-full bg-primary-tint type-meta-strong tabular-nums text-primary-ink">
                 {tray.length}
               </span>
             </div>
@@ -240,7 +240,7 @@ function ResultRow({
   const body = (
     <>
       <Avatar className="size-9 shrink-0">
-        <AvatarFallback className="text-[11px]">
+        <AvatarFallback className="type-meta">
           {initials(person.displayName)}
         </AvatarFallback>
       </Avatar>
@@ -293,12 +293,12 @@ function ResultRow({
       >
         {body}
         {selected ? (
-          <span className="flex shrink-0 items-center gap-1 rounded-control bg-primary px-2 py-1 type-meta font-medium text-primary-foreground">
+          <span className="flex shrink-0 items-center gap-1 rounded-control bg-primary px-2 py-1 type-meta-strong text-primary-foreground">
             <Check className="size-3.5" aria-hidden />
             {t("selected")}
           </span>
         ) : (
-          <span className="flex shrink-0 items-center gap-1 rounded-control border border-border px-2 py-1 type-meta font-medium text-foreground">
+          <span className="flex shrink-0 items-center gap-1 rounded-control border border-border px-2 py-1 type-meta-strong text-foreground">
             <Plus className="size-3.5" aria-hidden />
             {t("add")}
           </span>

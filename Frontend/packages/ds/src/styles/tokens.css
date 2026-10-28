@@ -399,6 +399,17 @@
     line-height: 1.4;
     font-weight: 400;
 }
+@utility type-meta-strong {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    font-weight: 600;
+}
+@utility type-mark {
+    font-size: 0.625rem;
+    line-height: 1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
 @utility type-eyebrow {
     font-size: 0.6875rem;
     line-height: 1.3;

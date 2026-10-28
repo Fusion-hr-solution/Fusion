@@ -153,10 +153,10 @@ function Label({
       style={{ left, transform: alignEnd ? "translateX(-100%)" : "translateX(0.5rem)" }}
       className={cn("absolute whitespace-nowrap leading-tight", alignEnd ? "text-end" : "text-start", className)}
     >
-      <div className={cn("text-[0.8125rem] font-semibold leading-(--tl-lh) tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
+      <div className={cn("type-subsection-title leading-(--tl-lh) tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
         {date ? format.date(date) : "—"}
       </div>
-      <div className="mt-(--tl-lg) text-xs leading-(--tl-lh) text-muted-foreground">{label}</div>
+      <div className="mt-(--tl-lg) type-meta leading-(--tl-lh) text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -180,10 +180,10 @@ function VLabel({ top, date, label }: { top: string; date: string; label: string
   const format = useFormat();
   return (
     <div style={{ top }} className="absolute inset-s-7 -translate-y-1/2 whitespace-nowrap leading-tight">
-      <div className={cn("text-[0.8125rem] font-semibold leading-(--tl-lh) tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
+      <div className={cn("type-subsection-title leading-(--tl-lh) tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
         {date ? format.date(date) : "—"}
       </div>
-      <div className="mt-(--tl-lg) text-xs leading-(--tl-lh) text-muted-foreground">{label}</div>
+      <div className="mt-(--tl-lg) type-meta leading-(--tl-lh) text-muted-foreground">{label}</div>
     </div>
   );
 }

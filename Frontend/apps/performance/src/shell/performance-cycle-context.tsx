@@ -67,7 +67,7 @@ export function PerformanceCycleContext() {
               <Check className={option.id === cycle.id ? "mt-0.5 size-4" : "mt-0.5 size-4 opacity-0"} aria-hidden />
               <span className="min-w-0">
                 <span className="block truncate text-foreground">{option.name}</span>
-                <span className="block text-xs text-muted-foreground">
+                <span className="block type-meta text-muted-foreground">
                   {t(`state.${option.state}`)} · {format.range(option.startDate, option.endDate)}
                 </span>
               </span>

@@ -26,7 +26,7 @@ export function AlignmentSection({
   const mapLink = focus ? (
     <Link
       href={alignmentMapHref(record.ref.cycleId, focus.focus, focus.near)}
-      className="inline-flex items-center gap-1.5 rounded-control-sm text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex items-center gap-1.5 rounded-control-sm type-meta-strong text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <MapView className="size-3.5" aria-hidden />
       {t("viewOnMap")}
@@ -44,8 +44,8 @@ export function AlignmentSection({
           <ScopeMark className="size-6" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium tracking-tight text-foreground">{parent.title}</span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">{parent.scopeLabel}{parent.archived ? " " + t("archived") : ""}</span>
+          <span className="block type-label tracking-tight text-foreground">{parent.title}</span>
+          <span className="mt-0.5 block type-meta text-muted-foreground">{parent.scopeLabel}{parent.archived ? " " + t("archived") : ""}</span>
         </span>
         <ChevronRight
           className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"

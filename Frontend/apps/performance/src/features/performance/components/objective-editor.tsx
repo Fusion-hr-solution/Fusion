@@ -340,7 +340,7 @@ export function ObjectiveEditor({
               />
               <div className="flex items-center justify-between gap-3 rounded-surface border border-border/70 px-3.5 py-2.5">
                 <span className="type-meta text-muted-foreground">{t("outcome")}</span>
-                <span className="truncate text-sm font-medium tabular-nums text-foreground">
+                <span className="truncate type-label tabular-nums text-foreground">
                   {preview}
                 </span>
               </div>

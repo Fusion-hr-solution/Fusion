@@ -95,8 +95,8 @@ export function ChangeRequestDraft({ value, onSave, onRemove }: {
       <div className="flex items-start gap-3 rounded-control bg-inlay px-3 py-2.5">
         <MessageSquare className="mt-0.5 size-4 shrink-0 text-primary-ink" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-muted-foreground">{t("changeToRequest")}</p>
-          <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-foreground">{value}</p>
+          <p className="type-meta-strong text-muted-foreground">{t("changeToRequest")}</p>
+          <p className="mt-0.5 whitespace-pre-wrap break-words type-body text-foreground">{value}</p>
         </div>
         <div className="flex shrink-0 gap-1">
           <Button variant="ghost" size="icon-sm" aria-label={t("editTheChange")} onClick={() => { setText(value); setEditing(true); }}>
@@ -130,13 +130,13 @@ export function ChangeRequestOutcome({ request }: { request: PlanChangeRequestDt
   return (
     <div className="rounded-control bg-inlay px-3 py-2.5">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-xs font-medium text-muted-foreground">{t("youAsked")}</p>
-        <span className={cn("text-xs font-semibold", result.tone)}>{t(result.label)}</span>
+        <p className="type-meta-strong text-muted-foreground">{t("youAsked")}</p>
+        <span className={cn("type-meta-strong", result.tone)}>{t(result.label)}</span>
       </div>
-      <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-foreground">{request.text}</p>
+      <p className="mt-0.5 whitespace-pre-wrap break-words type-body text-foreground">{request.text}</p>
       {request.reply ? (
-        <p className="mt-2 border-t border-border pt-2 text-sm text-foreground/85">
-          <span className="text-xs font-medium text-muted-foreground">{t("reply")} </span>
+        <p className="mt-2 border-t border-border pt-2 type-body text-foreground/85">
+          <span className="type-meta-strong text-muted-foreground">{t("reply")} </span>
           {request.reply}
         </p>
       ) : null}
@@ -166,16 +166,16 @@ export function OwnerChangeRequest({ request, reviewerName, decidedAt, canAddres
     <div className={cn("rounded-control px-3 py-3", addressed ? "bg-inlay" : "bg-primary-tint ring-1 ring-inset ring-primary-ring")}>
       <div className="flex items-start gap-3">
         <Avatar className="size-7 shrink-0">
-          <AvatarFallback className="text-[0.625rem]">{initials(reviewerName)}</AvatarFallback>
+          <AvatarFallback className="type-mark">{initials(reviewerName)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">
+          <p className="type-meta text-muted-foreground">
             <span className="font-semibold text-foreground">{t("askedForAChange", { reviewerName })}</span> ·{" "}
             <time dateTime={decidedAt}>{format.date(decidedAt.slice(0, 10))}</time>
           </p>
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{request.text}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words type-body text-foreground">{request.text}</p>
           {addressed ? (
-            <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+            <p className="mt-2 flex items-start gap-1.5 type-meta text-muted-foreground">
               <Check className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden />
               <span>
                 <span className="font-medium text-foreground">{t("addressed")}</span>
@@ -192,7 +192,7 @@ export function OwnerChangeRequest({ request, reviewerName, decidedAt, canAddres
       </div>
       {replying ? (
         <div className="mt-3 space-y-2 ps-10">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor={`reply-${request.id}`}>
+          <label className="type-meta-strong text-muted-foreground" htmlFor={`reply-${request.id}`}>
             {t("reply")} <span className="font-normal">{t("optional")}</span>
           </label>
           <Textarea

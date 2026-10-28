@@ -50,7 +50,7 @@ export function RatingChange({ original, current, top }: { original: number; cur
 export function PotentialBadge({ value, was }: { value: ReviewPotential | null; was?: ReviewPotential | null }) {
   if (!value) return <span className="type-meta text-muted-foreground">—</span>;
   const badge = (potential: ReviewPotential, muted = false) => (
-    <span className={cn("inline-flex rounded-control-sm px-2 py-0.5 type-meta font-semibold",
+    <span className={cn("inline-flex rounded-control-sm px-2 py-0.5 type-meta-strong",
       muted ? "text-muted-foreground line-through" : potential === "High" ? "bg-success-subtle text-success" : "bg-inlay text-foreground")}>{potential}</span>
   );
   return was && was !== value
@@ -60,7 +60,7 @@ export function PotentialBadge({ value, was }: { value: ReviewPotential | null; 
 
 export function FlagChip({ children, quiet = false }: { children: string; quiet?: boolean }) {
   return (
-    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-control-sm px-2 py-0.5 type-meta font-semibold",
+    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-control-sm px-2 py-0.5 type-meta-strong",
       quiet ? "text-info" : "bg-info-subtle text-info")}>
       <Flag className="size-3" aria-hidden />{children}
     </span>
@@ -160,7 +160,7 @@ function LevelBar({ level, max, top }: { level: CalibrationLevelDto; max: number
   return (
     <div className="flex min-w-0 flex-col items-center">
       <span className="type-metric tabular-nums text-foreground">{level.current}</span>
-      <span className={cn("mt-1 rounded-detail px-1.5 type-meta font-semibold tabular-nums", delta === 0 ? "text-muted-foreground" : "bg-info-subtle text-info")}>
+      <span className={cn("mt-1 rounded-detail px-1.5 type-meta-strong tabular-nums", delta === 0 ? "text-muted-foreground" : "bg-info-subtle text-info")}>
         {signed(delta)}
       </span>
       <div className="relative mt-3 w-full max-w-36" style={{ height }} aria-label={t("nowFromManagers", { label: level.label, current: level.current, original: level.original })} role="img">

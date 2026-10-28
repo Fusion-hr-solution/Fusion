@@ -41,26 +41,26 @@ export function CompetencyCatalog() {
   return (
     <section className="mt-10" aria-labelledby="competencies-title">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
-        <div><h3 id="competencies-title" className="type-section-title">{t("competencies")}</h3><p className="mt-1 text-sm text-muted-foreground">{t("newRoundsCanUseThese")}</p></div>
+        <div><h3 id="competencies-title" className="type-section-title">{t("competencies")}</h3><p className="mt-1 type-body text-muted-foreground">{t("newRoundsCanUseThese")}</p></div>
         <Button variant="outline" onClick={() => setDraft({ ...empty })}>{t("addCompetency")}</Button>
       </div>
       {draft ? (
         <div className="my-4 grid gap-3 border-b border-border pb-5" aria-label={draft.id ? t("editCompetency") : t("newCompetency")}>
           <Input aria-label={t("competencyName")} placeholder={t("name")} maxLength={160} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-          <textarea aria-label={t("description")} placeholder={t("whatThisCompetencyMeans")} maxLength={2000} rows={2} className="min-h-20 rounded-control border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
-          <textarea aria-label={t("observableBehaviors")} placeholder={t("observableBehaviorsOnePerLine")} rows={3} className="min-h-24 rounded-control border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={draft.behaviors} onChange={(event) => setDraft({ ...draft, behaviors: event.target.value })} />
+          <textarea aria-label={t("description")} placeholder={t("whatThisCompetencyMeans")} maxLength={2000} rows={2} className="min-h-20 rounded-control border border-input bg-background px-3 py-2 type-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
+          <textarea aria-label={t("observableBehaviors")} placeholder={t("observableBehaviorsOnePerLine")} rows={3} className="min-h-24 rounded-control border border-input bg-background px-3 py-2 type-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={draft.behaviors} onChange={(event) => setDraft({ ...draft, behaviors: event.target.value })} />
           <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setDraft(null)}>{t("cancel")}</Button><AsyncButton pending={busy} disabled={!draft.name.trim() || !draft.description.trim()} onClick={save}>{t("saveCompetency")}</AsyncButton></div>
         </div>
       ) : null}
-      {query.isLoading ? <p className="py-5 text-sm text-muted-foreground">{t("loadingCompetencies")}</p> : query.error ? <ContentUnavailable error={query.error} onRetry={query.refetch} subject={t("competencies")} /> : (
+      {query.isLoading ? <p className="py-5 type-body text-muted-foreground">{t("loadingCompetencies")}</p> : query.error ? <ContentUnavailable error={query.error} onRetry={query.refetch} subject={t("competencies")} /> : (
         <>
           {visible.length ? <ul className="divide-y divide-border border-b border-border">
             {visible.map((item) => <li key={item.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0"><div className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="type-label">{item.name}</span>{item.state === "Archived" ? <span className="type-meta text-muted-foreground">{t("archived")}</span> : null}{item.firstUsedAt ? <span className="type-meta text-muted-foreground">{t("usedInALaunchedRound")}</span> : null}</div><p className="mt-1 max-w-3xl text-sm text-muted-foreground">{item.description}</p>{item.behaviors.length ? <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">{item.behaviors.map((behavior) => <li key={behavior} className="text-muted-foreground">{behavior}</li>)}</ul> : null}</div>
+              <div className="min-w-0"><div className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="type-label">{item.name}</span>{item.state === "Archived" ? <span className="type-meta text-muted-foreground">{t("archived")}</span> : null}{item.firstUsedAt ? <span className="type-meta text-muted-foreground">{t("usedInALaunchedRound")}</span> : null}</div><p className="mt-1 max-w-3xl type-body text-muted-foreground">{item.description}</p>{item.behaviors.length ? <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 type-body">{item.behaviors.map((behavior) => <li key={behavior} className="text-muted-foreground">{behavior}</li>)}</ul> : null}</div>
               <div className="flex shrink-0 flex-wrap gap-2">{item.state === "Active" ? <><Button variant="ghost" size="sm" onClick={() => setDraft({ id: item.id, version: item.version, name: item.name, description: item.description, behaviors: item.behaviors.join("\n") })}>{t("edit")}</Button><Button variant="ghost" size="sm" onClick={async () => { try { await mutations.archive.mutateAsync({ id: item.id, expectedVersion: item.version }); toast.success(t("competencyArchived")); } catch (error) { reportPerformanceFailure(error, t("couldNotArchiveCompetency")); } }}>{t("archive")}</Button></> : null}{!item.firstUsedAt ? <Button variant="ghost" size="sm" onClick={() => setDeleting(item)}>{t("delete")}</Button> : null}</div>
             </li>)}
-          </ul> : <p className="border-b border-border py-5 text-sm text-muted-foreground">{t("no")} {showArchived ? t("competencies2") : t("activeCompetencies")} {t("yet")}</p>}
-          <label className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />{t("showArchived")}</label>
+          </ul> : <p className="border-b border-border py-5 type-body text-muted-foreground">{t("no")} {showArchived ? t("competencies2") : t("activeCompetencies")} {t("yet")}</p>}
+          <label className="mt-3 inline-flex items-center gap-2 type-body text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />{t("showArchived")}</label>
         </>
       )}
       <AlertDialog open={deleting !== null} onOpenChange={(open) => { if (!open) setDeleting(null); }}>

@@ -178,7 +178,7 @@ export function TeamResultsPanel({ results }: { results: TeamResultsDto }) {
           <div className="pb-4">
             <dt className="sr-only">{t("acknowledged")}</dt>
             <dd className="text-foreground">
-              <span className="font-display text-2xl font-semibold tabular-nums">{results.acknowledged}</span>{" "}
+              <span className="type-metric">{results.acknowledged}</span>{" "}
               <span className="type-body-secondary">{t("ofAcknowledged", { released: results.released })}</span>
             </dd>
             {notYet.length > 0 ? <dd className="mt-1 type-meta text-muted-foreground">{t("notYet", { join: notYet.join(", ") })}</dd> : null}
@@ -186,7 +186,7 @@ export function TeamResultsPanel({ results }: { results: TeamResultsDto }) {
           <div className="py-4">
             <dt className="sr-only">{t("changedInCalibration")}</dt>
             <dd className="text-foreground">
-              <span className="font-display text-2xl font-semibold tabular-nums">{results.calibrationChanges.length}</span>{" "}
+              <span className="type-metric">{results.calibrationChanges.length}</span>{" "}
               <span className="type-body-secondary">{t("changedInCalibration2")}</span>
             </dd>
             {results.calibrationChanges.map((c) => (
@@ -198,7 +198,7 @@ export function TeamResultsPanel({ results }: { results: TeamResultsDto }) {
           <div className="pt-4">
             <dt className="sr-only">{t("openGrowthGoals")}</dt>
             <dd className="text-foreground">
-              <span className="font-display text-2xl font-semibold tabular-nums">{results.openGrowthGoals}</span>{" "}
+              <span className="type-metric">{results.openGrowthGoals}</span>{" "}
               <span className="type-body-secondary">{t("openGrowth")} {results.openGrowthGoals === 1 ? t("goal") : t("goals")}</span>
             </dd>
           </div>

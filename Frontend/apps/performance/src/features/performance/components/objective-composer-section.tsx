@@ -28,12 +28,12 @@ export function ObjectiveComposerSection({
     <section className="space-y-3">
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-base font-semibold tracking-tight text-foreground">
+          <h3 className="type-panel-title text-foreground">
             {n}. {title}
           </h3>
           {action}
         </div>
-        {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
+        {hint ? <p className="type-body text-muted-foreground">{hint}</p> : null}
       </div>
       {bodyClassName ? <div className={bodyClassName}>{children}</div> : children}
     </section>

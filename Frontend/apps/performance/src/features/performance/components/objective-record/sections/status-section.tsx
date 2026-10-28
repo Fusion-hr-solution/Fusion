@@ -29,18 +29,18 @@ export function StatusSection({ record }: { record: ObjectiveRecord }) {
       <div className={RECORD_SURFACE}>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
           <ObjectiveStatusBadge status={status.value} />
-          <span className="text-xs text-muted-foreground">
+          <span className="type-meta text-muted-foreground">
             {t("reported")} <time dateTime={status.reportedAt}>{format.date(status.reportedAt.slice(0, 10))}</time>
           </span>
         </div>
         {status.reason ? (
           <div className="mt-3">
-            {risky ? <p className="text-xs font-medium text-muted-foreground">{t("whatsInTheWay")}</p> : null}
-            <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground">{status.reason}</p>
+            {risky ? <p className="type-meta-strong text-muted-foreground">{t("whatsInTheWay")}</p> : null}
+            <p className="mt-1 whitespace-pre-line type-body leading-relaxed text-foreground">{status.reason}</p>
           </div>
         ) : null}
         {risky && status.acknowledgedAt ? (
-          <p className="mt-3 flex items-center gap-1.5 border-t border-border pt-3 text-xs text-muted-foreground">
+          <p className="mt-3 flex items-center gap-1.5 border-t border-border pt-3 type-meta text-muted-foreground">
             <Check className="size-3.5 text-success" aria-hidden />
             {t("acknowledgedBy")} <span className="font-medium text-foreground">{acknowledgedBy}</span> ·{" "}
             <time dateTime={status.acknowledgedAt}>{format.date(status.acknowledgedAt.slice(0, 10))}</time>

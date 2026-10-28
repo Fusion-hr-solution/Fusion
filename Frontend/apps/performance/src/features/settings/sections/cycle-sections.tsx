@@ -246,7 +246,7 @@ function Choices<T extends string>({
           >
             <RadioGroupItem id={`${label}-${option.value}`} value={option.value} className="mt-0.5" />
             <span className="flex flex-col gap-0.5">
-              <span className="type-label font-semibold text-foreground">{option.label}</span>
+              <span className="type-subsection-title text-foreground">{option.label}</span>
               {option.detail ? <span className="type-meta text-muted-foreground">{option.detail}</span> : null}
             </span>
           </label>
@@ -295,7 +295,7 @@ function NineBoxBands({
               )}
             >
               <span className="type-meta tabular-nums text-muted-foreground">{level.value}</span>
-              <span className="truncate text-sm font-semibold text-foreground">{level.label}</span>
+              <span className="truncate type-subsection-title text-foreground">{level.label}</span>
             </li>
           ))}
         </ol>
@@ -314,7 +314,7 @@ function NineBoxBands({
           />
         ) : null}
       </div>
-      <div className="grid grid-cols-3 text-sm">
+      <div className="grid grid-cols-3 type-body">
         <span className="flex flex-col">
           <span className="font-semibold text-foreground">{t("low")}</span>
           <span className="type-meta tabular-nums text-muted-foreground">{range(0, lowIndex - 1)}</span>

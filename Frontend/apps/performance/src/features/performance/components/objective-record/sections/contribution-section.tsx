@@ -48,12 +48,12 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
       >
         <div className="space-y-1.5 rounded-surface border border-success/30 bg-success-subtle p-4">
           {links.map((link) => (
-            <div key={link.childObjectiveId} className="flex items-center justify-between gap-3 text-sm">
+            <div key={link.childObjectiveId} className="flex items-center justify-between gap-3 type-body">
               <span className="truncate">{link.childTitle}</span>
               <span className="font-medium tabular-nums">{link.weight}%</span>
             </div>
           ))}
-          <div className="mt-2 flex items-center justify-between border-t border-success/20 pt-2 text-sm font-semibold">
+          <div className="mt-2 flex items-center justify-between border-t border-success/20 pt-2 type-subsection-title">
             <span className="inline-flex items-center gap-1.5 text-success">
               <Check className="size-4" aria-hidden /> {t("baselineLocked")}
             </span>
@@ -67,7 +67,7 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
   if (children.length === 0) {
     return (
       <RecordSection label={t("contributionBaseline")}>
-        <p className="rounded-surface border border-dashed border-border p-4 text-sm text-muted-foreground">
+        <p className="rounded-surface border border-dashed border-border p-4 type-body text-muted-foreground">
           {t("noAlignedObjectivesContributeYet")}
         </p>
       </RecordSection>
@@ -85,8 +85,8 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
         {children.map((child) => (
           <div key={child.id} className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-foreground">{child.title}</p>
-              <p className="truncate text-xs text-muted-foreground">{directionScopeLabel(child, model)}</p>
+              <p className="truncate type-body text-foreground">{child.title}</p>
+              <p className="truncate type-meta text-muted-foreground">{directionScopeLabel(child, model)}</p>
             </div>
             <div className="flex items-center gap-1">
               <Input
@@ -99,16 +99,16 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
                 className="w-20 text-end"
                 placeholder="0"
               />
-              <span className="text-sm text-muted-foreground">%</span>
+              <span className="type-body text-muted-foreground">%</span>
             </div>
           </div>
         ))}
 
         <div className="flex items-center justify-between border-t border-border pt-3">
-          <span className="text-sm text-muted-foreground">
+          <span className="type-body text-muted-foreground">
             {total === 100 ? t("fullyAllocated") : total < 100 ? t("toAssign", { value: 100 - total }) : t("over", { value: total - 100 })}
           </span>
-          <span className={cn("text-lg font-semibold tabular-nums", total === 100 ? "text-success" : "text-warning")}>
+          <span className={cn("type-section-title tabular-nums", total === 100 ? "text-success" : "text-warning")}>
             {total}%
           </span>
         </div>

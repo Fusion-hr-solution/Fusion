@@ -58,8 +58,8 @@ export function ProgressHistoryTimeline({
         <li className="relative flex gap-3">
           <span className="relative z-10 mt-1 size-2.5 shrink-0 rounded-full border-2 border-muted-foreground/30" />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">{t("noEarlierUpdates")}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{t("thisWasTheFirstProgress")}</p>
+            <p className="type-label text-muted-foreground">{t("noEarlierUpdates")}</p>
+            <p className="mt-0.5 type-meta text-muted-foreground">{t("thisWasTheFirstProgress")}</p>
           </div>
         </li>
       )}
@@ -116,7 +116,7 @@ function HistoryRow({
         >
           {/* Date + attachment/note indicators + a chevron when the row expands. */}
           <div className="flex items-start justify-between gap-3">
-            <span className="text-sm font-medium text-foreground">{format.date(entry.recordedAt.slice(0, 10))}</span>
+            <span className="type-label text-foreground">{format.date(entry.recordedAt.slice(0, 10))}</span>
             <div className="flex flex-wrap items-center justify-end gap-1.5">
               {files.length > 0 ? (
                 <Chip icon={<Paperclip className="size-3" aria-hidden />} label={(files.length === 1 ? t("file", { length: files.length }) : t("files", { length: files.length }))} />
@@ -134,7 +134,7 @@ function HistoryRow({
 
           {/* Resulting progress + its improvement/regression delta. */}
           <div className="mt-0.5 flex items-center gap-2.5">
-            <span className={cn("text-xl font-semibold tabular-nums leading-none", toneClass)}>
+            <span className={cn("type-metric", toneClass)}>
               {Math.round(entry.resultingProgress)}%
             </span>
             {entry.kind === "StatusOnly" ? null : <DeltaBadge delta={entry.deltaProgress} correction={entry.isCorrection} />}
@@ -142,21 +142,21 @@ function HistoryRow({
           </div>
 
           {completed.length > 0 ? (
-            <p className="mt-1.5 text-xs font-medium text-muted-foreground">
+            <p className="mt-1.5 type-meta-strong text-muted-foreground">
               {t("completed")} {completed.map((change) => change.title ?? "Milestone").join(", ")}
             </p>
           ) : null}
           {reopened.length > 0 ? (
-            <p className="mt-1 text-xs font-medium text-muted-foreground">
+            <p className="mt-1 type-meta-strong text-muted-foreground">
               {t("reopened")} {reopened.map((change) => change.title ?? "Milestone").join(", ")}
             </p>
           ) : null}
 
-          {reason && !isOpen ? <p className="mt-1.5 text-sm leading-relaxed text-foreground/85">{reason}</p> : null}
+          {reason && !isOpen ? <p className="mt-1.5 type-body leading-relaxed text-foreground/85">{reason}</p> : null}
 
           {/* A one-line note preview when collapsed; the full note moves into the card once open. */}
           {entry.contextNote && !reason && !isOpen ? (
-            <p className="mt-1.5 line-clamp-1 text-sm leading-relaxed text-muted-foreground">{entry.contextNote}</p>
+            <p className="mt-1.5 line-clamp-1 type-body leading-relaxed text-muted-foreground">{entry.contextNote}</p>
           ) : null}
         </Wrapper>
 
@@ -185,8 +185,8 @@ function ExpandedDetail({
         <div className="flex gap-3">
           <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground/70" aria-hidden />
           <div className="min-w-0">
-            <p className="text-xs font-medium text-foreground">{t("note")}</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{note}</p>
+            <p className="type-meta-strong text-foreground">{t("note")}</p>
+            <p className="mt-1 type-body leading-relaxed text-muted-foreground">{note}</p>
           </div>
         </div>
       ) : null}
@@ -225,7 +225,7 @@ function EvidenceRow({
   const linkHref = !isFile ? item.url : null;
 
   const openClasses =
-    "inline-flex shrink-0 items-center gap-1 rounded-control px-2 py-1 text-xs font-medium text-primary-ink transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
+    "inline-flex shrink-0 items-center gap-1 rounded-control px-2 py-1 type-meta-strong text-primary-ink transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
 
   return (
     <li className="flex items-center gap-3 px-3 py-2.5">
@@ -238,8 +238,8 @@ function EvidenceRow({
         {isFile ? <FileText className="size-4" aria-hidden /> : <Link2 className="size-4" aria-hidden />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">{primary}</p>
-        {meta ? <p className="truncate text-xs text-muted-foreground">{meta}</p> : null}
+        <p className="truncate type-label text-foreground">{primary}</p>
+        {meta ? <p className="truncate type-meta text-muted-foreground">{meta}</p> : null}
       </div>
       {canOpenFile ? (
         <button type="button" onClick={() => onOpenFile(item.id)} disabled={opening} className={openClasses}>
@@ -262,7 +262,7 @@ function EvidenceRow({
 /** A quiet indicator pill for a note, file, or link attached to a progress update. */
 function Chip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-control border border-border px-2 py-1 text-xs text-muted-foreground">
+    <span className="inline-flex items-center gap-1.5 rounded-control border border-border px-2 py-1 type-meta text-muted-foreground">
       {icon}
       {label}
     </span>
@@ -278,7 +278,7 @@ function DeltaBadge({ delta, correction }: { delta: number; correction: boolean 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-control px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+        "inline-flex items-center gap-1 rounded-control px-1.5 py-0.5 type-meta-strong tabular-nums",
         up ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"
       )}
     >

@@ -201,7 +201,7 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
               {row.overdueActions > 0 ? (
-                <span className="inline-flex h-7 items-center gap-1.5 rounded-control-sm bg-destructive/12 px-2.5 type-meta font-medium text-destructive">
+                <span className="inline-flex h-7 items-center gap-1.5 rounded-control-sm bg-destructive/12 px-2.5 type-meta-strong text-destructive">
                   <Flag className="size-3.5" aria-hidden />
                   {t("action", { overdueActions: row.overdueActions })}{row.overdueActions === 1 ? "" : t("s")} {t("overdue")}
                 </span>
@@ -209,7 +209,7 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
               {[...counts.entries()].map(([kind, count]) => {
                 const Icon = SINCE_ICON[kind];
                 return (
-                  <span key={kind} className="inline-flex h-7 items-center gap-1.5 rounded-control-sm bg-inlay px-2.5 type-meta font-medium text-foreground">
+                  <span key={kind} className="inline-flex h-7 items-center gap-1.5 rounded-control-sm bg-inlay px-2.5 type-meta-strong text-foreground">
                     <Icon className="size-3.5 text-muted-foreground" aria-hidden />
                     {t(`since.${kind}`, { count })}
                   </span>

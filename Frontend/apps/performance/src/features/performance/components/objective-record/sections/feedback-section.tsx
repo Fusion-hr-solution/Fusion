@@ -37,7 +37,7 @@ export function FeedbackSection({ record }: { record: ObjectiveRecord }) {
       {list.isLoading ? (
         <Skeleton className="h-16 w-full rounded-surface" />
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("noFeedbackAboutThisObjective")}</p>
+        <p className="type-body text-muted-foreground">{t("noFeedbackAboutThisObjective")}</p>
       ) : (
         <ul className="space-y-2">
           {items.map((item) => <FeedbackCard key={item.id} feedback={item} view="received" onOpen={setOpen} hideSubject />)}

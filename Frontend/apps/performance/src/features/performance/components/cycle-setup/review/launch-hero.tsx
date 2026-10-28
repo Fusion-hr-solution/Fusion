@@ -53,11 +53,11 @@ function Stat({
         {done ? (
           <Check className="size-3" strokeWidth={3.5} />
         ) : (
-          <span className="text-[0.625rem] font-bold leading-none">!</span>
+          <span className="type-mark leading-none">!</span>
         )}
       </span>
       <span className="min-w-0 leading-tight">
-        <span className="block text-sm font-semibold text-white">{value}</span>
+        <span className="block type-subsection-title text-white">{value}</span>
         <span className="mt-0.5 block type-meta text-zinc-400">{label}</span>
       </span>
     </div>
@@ -131,7 +131,7 @@ export function LaunchHero({
             {ready ? (
               <AsyncButton
                 size="lg"
-                className="h-12 w-full bg-amber-400 px-6 text-base text-zinc-950 shadow-[0_0_28px_rgba(245,180,60,0.3)] hover:bg-amber-300 sm:w-auto"
+                className="h-12 w-full bg-amber-400 px-6 type-label text-zinc-950 shadow-[0_0_28px_rgba(245,180,60,0.3)] hover:bg-amber-300 sm:w-auto"
                 onClick={onLaunch}
                 pending={launching}
               >

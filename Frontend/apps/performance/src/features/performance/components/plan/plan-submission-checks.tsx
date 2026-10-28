@@ -38,7 +38,7 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
                 <Check className="size-3.5" aria-hidden />
               </span>
               <div>
-                <p className="text-sm font-medium text-foreground">
+                <p className="type-label text-foreground">
                   {t("check", { passedCount })}{passedCount === 1 ? "" : t("s")} {t("passed")}
                 </p>
               </div>
@@ -64,7 +64,7 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
         </>
       ) : (
         <>
-          <p className="mt-3 text-sm font-medium text-foreground">
+          <p className="mt-3 type-label text-foreground">
             {t("check2", { length: failed.length })}{failed.length === 1 ? "" : t("s")} {t("need")}
             {failed.length === 1 ? t("s") : ""} {t("attention")}
           </p>
@@ -95,7 +95,7 @@ function BareSection({ children }: { label?: string; children: ReactNode }) {
 
 function CheckRow({ passed, label, muted = false }: { passed: boolean; label: string; muted?: boolean }) {
   return (
-    <li className="flex items-start gap-2.5 text-sm">
+    <li className="flex items-start gap-2.5 type-body">
       {passed ? (
         <Check className={cn("mt-0.5 size-4 shrink-0", muted ? "text-success/60" : "text-success")} aria-hidden />
       ) : (

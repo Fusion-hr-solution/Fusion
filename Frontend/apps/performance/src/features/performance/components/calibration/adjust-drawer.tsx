@@ -50,7 +50,7 @@ export function AdjustDrawer({ roundId, reviewId, readOnly, potentialEnabled, mu
           <div className="space-y-3 p-7" role="status" aria-label={t("loading")}>
             <SheetTitle className="sr-only">{t("loading")}</SheetTitle>
             <SheetDescription className="sr-only">{t("evidenceAndCalibration")}</SheetDescription>
-            {detail.error ? <p className="text-sm text-destructive" role="alert">{detail.error.message}</p> : (
+            {detail.error ? <p className="type-body text-destructive" role="alert">{detail.error.message}</p> : (
               <><Skeleton className="h-10 w-2/3" /><Skeleton className="h-40 rounded-surface" /><Skeleton className="h-24 rounded-surface" /></>
             )}
           </div>
@@ -199,7 +199,7 @@ function DrawerBody({ detail, readOnly, potentialEnabled, mutations, onClose }: 
               {POTENTIALS.map((potential) => (
                 <button key={potential} type="button" role="radio" aria-checked={draft.potential === potential} disabled={readOnly}
                   onClick={() => setDraft({ ...draft, potential })}
-                  className={cn("rounded-nested px-3 py-1 type-meta font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  className={cn("rounded-nested px-3 py-1 type-meta-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     draft.potential === potential ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                     person.originalPotential === potential && draft.potential !== potential && "ring-1 ring-inset ring-info")}>
                   {potential}
@@ -236,7 +236,7 @@ function DrawerBody({ detail, readOnly, potentialEnabled, mutations, onClose }: 
             </ul>
           </section>
         ) : null}
-        {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+        {error ? <p className="type-body text-destructive" role="alert">{error}</p> : null}
       </div>
 
       {readOnly ? null : (

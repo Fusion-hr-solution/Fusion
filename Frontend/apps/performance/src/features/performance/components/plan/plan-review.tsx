@@ -159,7 +159,7 @@ function ReviewHeading({ plan, actions }: { plan: EmployeePlanDto; actions?: Rea
             <h1 className="type-page-title text-foreground">{plan.employee.name ?? t("employee")}</h1>
             <ReviewStateBadge plan={plan} />
           </div>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 type-body text-muted-foreground">
             {plan.orgUnitName ? (
               <span className="inline-flex items-center gap-1.5">
                 <Landmark className="size-3.5" aria-hidden />
@@ -337,8 +337,8 @@ export function ReviewDecision({
             <ul className="space-y-2">
               {requests.map((request) => (
                 <li key={request.objectiveId} className="rounded-control bg-inlay px-3 py-2.5">
-                  <p className="text-xs font-medium text-muted-foreground">{titleOf(request.objectiveId)}</p>
-                  <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-foreground">{request.text}</p>
+                  <p className="type-meta-strong text-muted-foreground">{titleOf(request.objectiveId)}</p>
+                  <p className="mt-0.5 whitespace-pre-wrap break-words type-body text-foreground">{request.text}</p>
                 </li>
               ))}
             </ul>

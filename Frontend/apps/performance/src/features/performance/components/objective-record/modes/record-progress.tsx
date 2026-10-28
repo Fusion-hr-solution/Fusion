@@ -31,7 +31,7 @@ export function RecordProgressMode({ record, onDone }: { record: ObjectiveRecord
         <button
           type="button"
           onClick={onDone}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="inline-flex items-center gap-1.5 type-label text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <ArrowLeft className="size-3.5" aria-hidden /> {t("backToObjectiveDetails")}
         </button>
@@ -43,7 +43,7 @@ export function RecordProgressMode({ record, onDone }: { record: ObjectiveRecord
         <MeasurementSection measurement={record.measurement} showMilestones={false} />
 
         <div className="border-t border-border pt-5">
-          <p className="text-sm font-semibold tracking-tight text-foreground">{t("recordProgress")}</p>
+          <p className="type-subsection-title tracking-tight text-foreground">{t("recordProgress")}</p>
           <div className="mt-4">
             {progressQuery.isLoading ? (
               <PageSkeleton rows={2} label={t("loadingProgress")} />

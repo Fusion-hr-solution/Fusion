@@ -72,7 +72,7 @@ export function PlanWeightStrip({ segments }: { segments: { weight: number; alig
           />
         ))}
       </div>
-      <span className={cn("type-meta font-semibold tabular-nums", tone)}>
+      <span className={cn("type-meta-strong tabular-nums", tone)}>
         {Math.round(total)}%<span className="sr-only"> {t("ofPlanWeightAllocated")}</span>
       </span>
     </div>

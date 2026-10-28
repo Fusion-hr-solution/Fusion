@@ -92,7 +92,7 @@ function SummaryRevision({ record, subject }: { record: PerformanceReviewDto; su
       </p>
       <Textarea id="revised-summary" className="mt-2 min-h-28 type-narrative" maxLength={4000} value={summary} onChange={(event) => setSummary(event.target.value)} />
       {commands.revise.error || commands.keep.error ? (
-        <p className="mt-2 text-sm text-destructive" role="alert">{(commands.revise.error ?? commands.keep.error)?.message}</p>
+        <p className="mt-2 type-body text-destructive" role="alert">{(commands.revise.error ?? commands.keep.error)?.message}</p>
       ) : null}
       <div className="mt-3 flex flex-wrap justify-end gap-2">
         {!settled ? (

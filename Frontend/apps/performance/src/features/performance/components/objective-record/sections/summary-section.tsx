@@ -32,7 +32,7 @@ export function ObjectiveSummary({
       </span>
       <div className="min-w-0 flex-1">
         <Title className={cn(Title === "h1" ? "type-page-title" : "type-section-title", "text-foreground")}>{record.title}</Title>
-        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 type-meta">
           <span className="font-medium text-(--type-ink)">{record.kindLabel}</span>
           {/* A plan objective's own state is its status; the plan's state is context, said below. */}
           {record.kind === "plan" ? null : (
@@ -42,7 +42,7 @@ export function ObjectiveSummary({
           )}
           <ObjectiveStatusBadge status={record.source.status?.value ?? null} />
         </p>
-        <p className="mt-1.5 truncate text-xs text-muted-foreground">
+        <p className="mt-1.5 truncate type-meta text-muted-foreground">
           {t("accountable")} <span className="text-foreground">{record.accountable.name ?? t("unassigned")}</span>
           {record.kind === "plan" && record.status.label !== "Approved" ? ` · ${record.status.label === "Submitted" ? model("planWaiting") : model("planDraft")}` : null}
         </p>
