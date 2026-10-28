@@ -91,6 +91,8 @@
 .oc-t span { font-size: 12.5px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .oc-t .oc-m { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--oc-faint); }
 .oc-t .oc-m svg { width: 11px; height: 11px; flex: none; }
+/* A dotted-line manager stays on the meta line: icons are blocks by default and would break it */
+.oc-t .oc-m .oc-dl { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
 .oc-pc.oc-chain { border-radius: 9999px; }
 .oc-pc.oc-more { border-style: dashed; border-color: var(--oc-line-strong); cursor: default; }
 .oc-well { display: grid; place-items: center; width: 46px; height: 46px; flex: none; background: var(--inlay); color: var(--muted-foreground); }

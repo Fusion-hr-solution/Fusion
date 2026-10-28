@@ -155,8 +155,8 @@ export function PersonCard({ id, ctx }: { id: string; ctx: CardContext }) {
               {person.workLocation ? <MapPin /> : null}
               {facts}
               {dotted.map((manager) => (
-                <span key={manager!.employeeKey} title={t("dotted", { name: manager!.displayName })}>
-                  {facts ? " · " : ""}<MoreHorizontal />{manager!.displayName.split(" ")[0]}
+                <span key={manager!.employeeKey} className="oc-dl" title={t("dotted", { name: manager!.displayName })}>
+                  {facts ? "· " : ""}<MoreHorizontal />{manager!.displayName.split(" ")[0]}
                 </span>
               ))}
             </span>
