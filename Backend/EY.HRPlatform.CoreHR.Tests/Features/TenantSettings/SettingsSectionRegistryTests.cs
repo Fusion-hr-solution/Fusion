@@ -8,6 +8,7 @@ using EY.HRPlatform.CoreHR.Features.TenantSettings.Commands.UpdateTenantSettings
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Queries.GetTenantSettings;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
+using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using EY.HRPlatform.SharedKernel.Api;
@@ -87,6 +88,49 @@ public class SettingsSectionRegistryTests
         Assert.Equal("Someone", sections["invitations"].LastChange?.ActorName);
         Assert.Null(sections["company"].LastChange);
         Assert.Null(sections["change-history"].LastChange);
+    }
+
+    [Fact]
+    public async Task Roles_names_the_last_role_change_from_identity()
+    {
+        var database = Guid.NewGuid().ToString();
+        var identity = new Mock<IWorkforceAccessIdentityClient>();
+        identity.Setup(client => client.GetLatestRoleChangeAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IdentityRoleChange(DateTime.UtcNow.AddHours(-3), "Amira Khelifi"));
+
+        var sections = (await Registry(TenantA, database, identity.Object).GetSectionsAsync(
+                Principal((CorePermissions.SettingsManage, PermissionScopes.Tenant), (CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant)),
+                CancellationToken.None))
+            .ToDictionary(section => section.Id);
+
+        Assert.Equal("Amira Khelifi", sections["roles"].LastChange?.ActorName);
+        Assert.Null(sections["company"].LastChange);
+    }
+
+    [Fact]
+    public async Task Identity_being_down_leaves_roles_without_a_change_and_the_list_intact()
+    {
+        var identity = new Mock<IWorkforceAccessIdentityClient>();
+        identity.Setup(client => client.GetLatestRoleChangeAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new HttpRequestException());
+
+        var sections = await Registry(TenantA, Guid.NewGuid().ToString(), identity.Object).GetSectionsAsync(
+            Principal((CorePermissions.SettingsManage, PermissionScopes.Tenant), (CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant)),
+            CancellationToken.None);
+
+        Assert.Equal(5, sections.Count);
+        Assert.Null(sections.Single(section => section.Id == "roles").LastChange);
+    }
+
+    [Fact]
+    public async Task Identity_is_not_asked_when_the_caller_cannot_see_roles()
+    {
+        var identity = new Mock<IWorkforceAccessIdentityClient>(MockBehavior.Strict);
+
+        var sections = await Registry(TenantA, Guid.NewGuid().ToString(), identity.Object).GetSectionsAsync(
+            Principal((CorePermissions.SettingsPeopleDataView, PermissionScopes.Tenant)), CancellationToken.None);
+
+        Assert.Equal("employee-fields", Assert.Single(sections).Id);
+        identity.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -181,8 +225,9 @@ public class SettingsSectionRegistryTests
         Assert.Contains("field-visibility", routes);
     }
 
-    private static SettingsSectionRegistry Registry(Guid tenantId, string? database = null)
-        => new(new CoreAccessPolicyService(), TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId), database));
+    private static SettingsSectionRegistry Registry(Guid tenantId, string? database = null, IWorkforceAccessIdentityClient? identity = null)
+        => new(new CoreAccessPolicyService(), TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId), database),
+            identity ?? Mock.Of<IWorkforceAccessIdentityClient>());
 
     private static SettingsAuditEvent Change(Guid tenantId, string sectionId, string actor, DateTime at)
     {

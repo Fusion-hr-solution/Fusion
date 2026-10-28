@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
+using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Api;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,8 @@ public interface ISettingsSectionRegistry
     Task<IReadOnlyList<FusionSettingsSectionDto>> GetSectionsAsync(ClaimsPrincipal user, CancellationToken cancellationToken);
 }
 
-public sealed class SettingsSectionRegistry(ICoreAccessPolicyService accessPolicy, CoreHRDbContext dbContext) : ISettingsSectionRegistry
+public sealed class SettingsSectionRegistry(
+    ICoreAccessPolicyService accessPolicy, CoreHRDbContext dbContext, IWorkforceAccessIdentityClient identity) : ISettingsSectionRegistry
 {
     private const string Someone = "Someone";
 
@@ -75,6 +77,8 @@ public sealed class SettingsSectionRegistry(ICoreAccessPolicyService accessPolic
                     .First())
                 .ToListAsync(cancellationToken))
             .ToDictionary(change => change.SectionId);
+        // Roles live in Identity, which keeps their audit; the list is advisory, so Identity being down shows no change.
+        var roleChange = visible.Any(section => section.Id == CoreSettingsSectionIds.Roles) ? await RoleChangeAsync(cancellationToken) : null;
         var setUpAt = await dbContext.TenantSettings.AsNoTracking()
             .Select(settings => (DateTime?)settings.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
@@ -85,8 +89,16 @@ public sealed class SettingsSectionRegistry(ICoreAccessPolicyService accessPolic
             var change = auditId is not null && latest.TryGetValue(auditId, out var found)
                 ? new FusionSettingsLastChangeDto(found.OccurredAt, ActorName(found.ActorName))
                 : null;
+            if (section.Id == CoreSettingsSectionIds.Roles && roleChange is not null && (change is null || roleChange.OccurredAt > change.At))
+                change = new FusionSettingsLastChangeDto(roleChange.OccurredAt, ActorName(roleChange.ActorName));
             return section with { LastChange = change, SetUpAt = auditId is null or SettingsSectionIds.AccessPermissions ? null : setUpAt };
         }).ToList();
+    }
+
+    private async Task<IdentityRoleChange?> RoleChangeAsync(CancellationToken cancellationToken)
+    {
+        try { return await identity.GetLatestRoleChangeAsync(cancellationToken); }
+        catch (HttpRequestException) { return null; }
     }
 
     private static string ActorName(string recorded)

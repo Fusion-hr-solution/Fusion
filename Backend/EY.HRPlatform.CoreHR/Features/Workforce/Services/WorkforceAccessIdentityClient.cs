@@ -33,6 +33,9 @@ public sealed record WorkforceAccessMutationOutcomeResult(
 public sealed record WorkforceAccessAuditLine(
     string Action, string ActorName, string? ActorRole, DateTime OccurredAt, string Summary);
 
+/// <summary>The newest change to the tenant's roles in Identity's access audit (B-107).</summary>
+public sealed record IdentityRoleChange(DateTime OccurredAt, string ActorName);
+
 public interface IWorkforceAccessIdentityClient
 {
     Task<IReadOnlyDictionary<Guid, WorkforceAccessCandidateResult>> ResolveCandidatesAsync(
@@ -63,6 +66,9 @@ public interface IWorkforceAccessIdentityClient
 
     /// <summary>Reads the recent append-only workforce-access audit for one Employee.</summary>
     Task<IReadOnlyList<WorkforceAccessAuditLine>> GetAuditAsync(Guid employeeId, CancellationToken cancellationToken);
+
+    /// <summary>The newest role created, edited or deleted in the tenant; null when none, or when Identity can't answer.</summary>
+    Task<IdentityRoleChange?> GetLatestRoleChangeAsync(CancellationToken cancellationToken);
 
     /// <summary>Suspends the workforce account (deactivate), preserving membership/binding/profiles.</summary>
     Task<(bool Ok, string Message)> SuspendAccountAsync(Guid employeeId, CancellationToken cancellationToken);
@@ -209,6 +215,16 @@ public sealed class WorkforceAccessIdentityClient(
         return envelope?.Data ?? [];
     }
 
+    public async Task<IdentityRoleChange?> GetLatestRoleChangeAsync(CancellationToken cancellationToken)
+    {
+        using var response = await SendSignedAsync(
+            HttpMethod.Get, "internal/identity/access-audit/roles/latest", null, ResolvedTenantId(), cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            return null;
+        var envelope = await response.Content.ReadFromJsonAsync<RoleChangeEnvelope>(cancellationToken: cancellationToken);
+        return envelope?.Data;
+    }
+
     public async Task<(bool Ok, string Message)> SuspendAccountAsync(Guid employeeId, CancellationToken cancellationToken)
         => await SendAccountsWithMessageAsync(HttpMethod.Delete, $"{AccountsBase}/{employeeId}", cancellationToken);
 
@@ -292,6 +308,8 @@ public sealed class WorkforceAccessIdentityClient(
     private sealed record MutationDto(string Outcome, string AccountState, Guid? MembershipId, int? AccessRevision, string Message);
 
     private sealed record AuditEnvelope(List<WorkforceAccessAuditLine> Data);
+
+    private sealed record RoleChangeEnvelope(IdentityRoleChange? Data);
 
     private sealed record FailureEnvelope(List<string>? Errors);
 }
