@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.OrgChart;
@@ -62,6 +63,34 @@ public sealed class TemporalWorkforceMaintenanceRelationalTests
             Assert.Empty((await ProfileAsync(db, ctx, ctx.KarimKey)).ComingUp);
             Assert.True((await db.WorkforceChanges.SingleAsync(item => item.Id == change.Id)).IsCancelled);
             Assert.Equal("Change.AlreadyCancelled", (await CancelAsync(db, ctx, change.Id)).Error.Code);
+        });
+
+    [RelationalDatabaseFact]
+    public Task A_manager_reads_coming_changes_and_employment_dates_only_in_their_own_branch()
+        => WithDatabaseAsync(async (db, ctx, _) =>
+        {
+            var future = Today.AddDays(30);
+            var change = await JobAsync(db, ctx, ctx.KarimKey, new JobChangeRequest(future, JobTitle: "Senior Consultant"));
+            async Task<PeopleProfileDto> AsManager(Guid managerId, DateTime? asOf = null)
+                => (await new PeopleProfileQueryHandler(db, ctx.Organization, new WorkforceChangeReader(db))
+                    .Handle(new PeopleProfileQuery(ctx.KarimKey, asOf, EmployeeReadAudience.Manager, managerId), default)).Value;
+
+            // Amina manages Karim: she sees what is coming, his dates and the chart on a later date.
+            var own = await AsManager(ctx.AminaId, future);
+            Assert.True(own.IsAsOf);
+            Assert.Equal([change.Id], (await AsManager(ctx.AminaId)).ComingUp.Select(item => item.Id));
+            Assert.NotNull((await AsManager(ctx.AminaId)).Employment.Start);
+
+            // Youssef manages others, and a manager without an employee record has no branch: both read Karim
+            // as a colleague.
+            foreach (var outsider in new[] { ctx.YoussefId, Guid.Empty })
+            {
+                var colleague = await AsManager(outsider, future);
+                Assert.Empty(colleague.ComingUp);
+                Assert.False(colleague.IsAsOf);
+                Assert.Null(colleague.Employment.Start);
+                Assert.Null(colleague.Employment.EmploymentType);
+            }
         });
 
     [RelationalDatabaseFact]
@@ -198,7 +227,7 @@ public sealed class TemporalWorkforceMaintenanceRelationalTests
         => WithDatabaseAsync(async (db, ctx, _) =>
         {
             var hire = await new HireEmployeeCommandHandler(db, ctx.Tenant, new EmployeeNumberAllocatorService(db, ctx.Tenant), ctx.Mutation, ctx.Organization).Handle(
-                new HireEmployeeCommand(new HireEmployeeRequest("Skander", "Mejri", null, null, null, EmployeeNumberMode.Generated, null,
+                new HireEmployeeCommand(new HireEmployeeRequest("Skander", "Mejri", null, "skander.mejri@example.test", null, EmployeeNumberMode.Generated, null,
                     Today.AddDays(10), "Full-time", ctx.AiId, "Product Designer", null, ctx.AminaId), Actor), default);
             Assert.True(hire.IsSuccess, hire.IsFailure ? hire.Error.Message : null);
             var upcoming = (await new UpcomingWorkforceChangesQueryHandler(db, new WorkforceChangeReader(db)).Handle(
@@ -213,7 +242,16 @@ public sealed class TemporalWorkforceMaintenanceRelationalTests
             Assert.Empty((await new UpcomingWorkforceChangesQueryHandler(db, new WorkforceChangeReader(db)).Handle(
                 new UpcomingWorkforceChangesQuery(ctx.YoussefId), default)).Value);
 
-            Assert.True((await CancelAsync(db, ctx, join.Id)).IsSuccess);
+            // Cancelling deletes him, so not while Identity holds an invitation or account for him, nor while it can't say.
+            foreach (var (state, code) in new[] { ("InvitePending", "Change.HireAccessConflict"), ("Active", "Change.HireAccessConflict"), ("down", "Change.AccessUnknown") })
+            {
+                var refused = await CancelAsync(db, ctx, join.Id, accounts: new Accounts(_ => state));
+                Assert.Equal(code, refused.Error.Code);
+                db.ChangeTracker.Clear();
+                Assert.True(await db.Employees.AnyAsync(item => item.StableEmployeeKey == hire.Value.EmployeeKey));
+            }
+
+            Assert.True((await CancelAsync(db, ctx, join.Id, accounts: new Accounts(_ => "InviteRevoked"))).IsSuccess);
             db.ChangeTracker.Clear();
             Assert.False(await db.Employees.AnyAsync(item => item.StableEmployeeKey == hire.Value.EmployeeKey));
 
@@ -453,9 +491,27 @@ public sealed class TemporalWorkforceMaintenanceRelationalTests
         => new EndEmploymentChangeCommandHandler(db, Service(db, ctx), new WorkforceChangeReader(db))
             .Handle(new EndEmploymentChangeCommand(ctx.AminaKey, request, Actor), default);
 
-    private static Task<Result<bool>> CancelAsync(CoreHRDbContext db, Fixture ctx, Guid changeId, bool canManageEmployees = true)
-        => new CancelWorkforceChangeCommandHandler(db, Service(db, ctx))
+    private static Task<Result<bool>> CancelAsync(
+        CoreHRDbContext db, Fixture ctx, Guid changeId, bool canManageEmployees = true, IWorkforceAccountStatusReader? accounts = null)
+        => new CancelWorkforceChangeCommandHandler(db, Service(db, ctx), accounts ?? new Accounts(_ => null))
             .Handle(new CancelWorkforceChangeCommand(changeId, Actor, canManageEmployees), default);
+
+    /// <summary>Identity as the test needs it: a state per person, or a failure when the state is "down".</summary>
+    private sealed class Accounts(Func<Guid, string?> stateOf) : IWorkforceAccountStatusReader
+    {
+        public Task<IReadOnlyDictionary<Guid, WorkforceAccountStatusDto>> GetStatusesAsync(
+            IReadOnlyCollection<WorkforceAccountSubjectDto> subjects, CancellationToken cancellationToken)
+        {
+            if (subjects.Any(subject => stateOf(subject.EmployeeId) == "down"))
+                throw new InvalidOperationException("Identity is unavailable.");
+            IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> found = subjects
+                .Where(subject => stateOf(subject.EmployeeId) is not null)
+                .ToDictionary(subject => subject.EmployeeId, subject => new WorkforceAccountStatusDto(
+                    subject.EmployeeId, subject.Email, null, "Employee", [], stateOf(subject.EmployeeId)!, null, null, null,
+                    null, null, null, null, null, null, null, null));
+            return Task.FromResult(found);
+        }
+    }
 
     /// <summary>Every effective-dated row of a person, to prove cancel puts them back exactly.</summary>
     private static async Task<List<string>> RowsAsync(CoreHRDbContext db, Guid employeeId)

@@ -1,6 +1,7 @@
 using System.Data;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
@@ -77,15 +78,43 @@ public sealed class JoinChangeCommandHandler(CoreHRDbContext dbContext, Workforc
     }
 }
 
-public sealed class CancelWorkforceChangeCommandHandler(CoreHRDbContext dbContext, WorkforceChangeService changes)
+public sealed class CancelWorkforceChangeCommandHandler(
+    CoreHRDbContext dbContext, WorkforceChangeService changes, IWorkforceAccountStatusReader accounts)
     : ICommandHandler<CancelWorkforceChangeCommand, Result<bool>>
 {
+    /// <summary>Identity states that leave nothing behind for a person who is deleted.</summary>
+    private static readonly HashSet<string> NoAccess = ["Unprovisioned", "InviteRevoked"];
+
     public async Task<Result<bool>> Handle(CancelWorkforceChangeCommand command, CancellationToken cancellationToken)
     {
         var change = await dbContext.WorkforceChanges.Include(item => item.Effects)
             .FirstOrDefaultAsync(item => item.Id == command.ChangeId, cancellationToken);
         if (change is null)
             return ChangeSupport.NotFound<bool>();
+
+        // Cancelling a scheduled hire deletes the person, so it must not strand a Fusion account or a live
+        // invitation in Identity. Without a work email no access can be linked; if Identity can't say, refuse.
+        if (!change.IsCancelled && WorkforceChangeService.ReadDetails(change).IsHire)
+        {
+            var person = await dbContext.Employees.AsNoTracking().FirstAsync(item => item.Id == change.EmployeeId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(person.Email))
+            {
+                IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> statuses;
+                try
+                {
+                    statuses = await accounts.GetStatusesAsync(
+                        [new WorkforceAccountSubjectDto(person.Id, person.Email, person.FirstName, person.LastName)], cancellationToken);
+                }
+                catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException or TaskCanceledException)
+                {
+                    return Result.Failure<bool>(Error.Validation("Change.AccessUnknown",
+                        "Fusion access couldn't be checked, so the hire wasn't cancelled. Try again."));
+                }
+                if (statuses.GetValueOrDefault(person.Id) is { } status && !NoAccess.Contains(status.ProvisioningState))
+                    return Result.Failure<bool>(Error.Validation("Change.HireAccessConflict",
+                        $"{person.DisplayName} already has Fusion access or an invitation. Revoke it in Workforce access, then cancel the hire."));
+            }
+        }
         var result = await ChangeSupport.RunAsync(dbContext, [() => changes.StageCancelAsync(
             change, command.Actor, command.CanManageEmployees, cancellationToken)], cancellationToken);
         return result.IsFailure ? Result.Failure<bool>(result.Error) : Result.Success(true);
