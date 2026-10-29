@@ -12,6 +12,12 @@
     "test": "node scripts/check-messages.cjs && vitest run",
     "test:watch": "vitest"
   },
+  "browserslist": [
+    "chrome >= 111",
+    "edge >= 111",
+    "firefox >= 128",
+    "safari >= 16.4"
+  ],
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.3.5",
     "@hugeicons/react": "^1.1.10",
