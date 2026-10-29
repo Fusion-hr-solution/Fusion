@@ -1,3 +1,4 @@
+using EY.HRPlatform.Identity.Features.Notifications;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Models.Requests;
@@ -18,7 +19,8 @@ public sealed class CoreAccessController(
     IAccessProfileService accessProfileService,
     IAccessAuditService accessAuditService,
     ITenantContinuityCommandExecutor continuity,
-    ITenantContext tenantContext) : ControllerBase
+    ITenantContext tenantContext,
+    IAdministratorRoleMail roleMail) : ControllerBase
 {
     [HttpGet("me")]
     [ProducesResponseType(typeof(ApiResponse<CurrentUserAccessDto>), StatusCodes.Status200OK)]
@@ -334,6 +336,8 @@ public sealed class CoreAccessController(
                 response,
                 User,
                 cancellationToken);
+            await roleMail.SendProfileChangesAsync(tenantId.Value, User.GetUserId(),
+                [(userId, ProfileIds(before), ProfileIds(response))], cancellationToken);
 
             return Ok(ApiResponse<UserAccessAssignmentDto>.Success(response));
         }
@@ -395,6 +399,10 @@ public sealed class CoreAccessController(
                 response,
                 User,
                 cancellationToken);
+            await roleMail.SendProfileChangesAsync(tenantId.Value, User.GetUserId(),
+                response.Select(after => (after.UserId,
+                    ProfileIds(before.FirstOrDefault(item => item.UserId == after.UserId)), ProfileIds(after))).ToList(),
+                cancellationToken);
 
             return Ok(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Success(response));
         }
@@ -403,6 +411,9 @@ public sealed class CoreAccessController(
             return BadRequest(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Failure(exception.Message));
         }
     }
+
+    private static IReadOnlyCollection<Guid> ProfileIds(UserAccessAssignmentDto? assignment)
+        => assignment?.AccessProfiles.Select(profile => profile.Id).ToList() ?? [];
 
     private Guid? ResolveTenantId()
         => tenantContext.TenantIdOrDefault;

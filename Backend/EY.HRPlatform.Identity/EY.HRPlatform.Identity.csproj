@@ -30,4 +30,8 @@
     <ProjectReference Include="..\EY.HRPlatform.SharedKernel\EY.HRPlatform.SharedKernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Features/Notifications/Text/*.json" LogicalName="EY.HRPlatform.Identity.Notifications.Text.%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

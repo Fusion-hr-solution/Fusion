@@ -1,0 +1,9 @@
+{
+  "RoleGranted.subject": "Le rôle {role} vous a été attribué",
+  "RoleGranted.lead": "{actor} vous a attribué le rôle {role} chez {company}. Si vous ne vous y attendiez pas, prévenez votre administrateur.",
+  "RoleRemoved.subject": "Votre rôle {role} a été retiré",
+  "RoleRemoved.lead": "{actor} a retiré votre rôle {role} chez {company}. Si vous ne vous y attendiez pas, prévenez votre administrateur.",
+  "RoleRemoved.self.lead": "Vous avez retiré votre propre rôle {role} chez {company}.",
+  "action": "Ouvrir Fusion",
+  "group": "Les changements d'accès"
+}

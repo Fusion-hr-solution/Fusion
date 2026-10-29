@@ -1,3 +1,4 @@
+using EY.HRPlatform.Identity.Features.Notifications;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
@@ -45,7 +46,8 @@ public interface ITenantAdministratorLifecycleService
 /// </summary>
 public sealed class TenantAdministratorLifecycleService(
     AppIdentityDbContext dbContext,
-    ITenantContinuityCommandExecutor continuity) : ITenantAdministratorLifecycleService
+    ITenantContinuityCommandExecutor continuity,
+    IAdministratorRoleMail? roleMail = null) : ITenantAdministratorLifecycleService
 {
     public Task<ContinuityResult<Guid>> SuspendAsync(
         AdministratorCommand command, CancellationToken cancellationToken = default)
@@ -124,9 +126,11 @@ public sealed class TenantAdministratorLifecycleService(
             return ContinuityResult<Guid>.Ok(membership.Id);
         }, cancellationToken);
 
-    public Task<ContinuityResult<Guid>> GrantAuthorityAsync(
+    public async Task<ContinuityResult<Guid>> GrantAuthorityAsync(
         AdministratorCommand command, CancellationToken cancellationToken = default)
-        => continuity.ExecuteAsync(command.TenantId, command.ActorUserId, async context =>
+    {
+        Guid? grantedTo = null;
+        var result = await continuity.ExecuteAsync(command.TenantId, command.ActorUserId, async context =>
         {
             var membership = await LoadMembershipAsync(context, command, cancellationToken);
 
@@ -165,12 +169,18 @@ public sealed class TenantAdministratorLifecycleService(
                 "Tenant Administrator authority granted.",
                 before: "None", after: TenantAdministratorAuthority.DisplayName));
 
+            grantedTo = membership.UserId;
             return ContinuityResult<Guid>.Ok(assignment.Id);
         }, cancellationToken);
+        await TellAsync(result, grantedTo, gained: true, command, cancellationToken);
+        return result;
+    }
 
-    public Task<ContinuityResult<Guid>> RevokeAuthorityAsync(
+    public async Task<ContinuityResult<Guid>> RevokeAuthorityAsync(
         AdministratorCommand command, CancellationToken cancellationToken = default)
-        => continuity.ExecuteAsync(command.TenantId, command.ActorUserId, async context =>
+    {
+        Guid? revokedFrom = null;
+        var result = await continuity.ExecuteAsync(command.TenantId, command.ActorUserId, async context =>
         {
             var membership = await LoadMembershipAsync(context, command, cancellationToken);
 
@@ -211,8 +221,21 @@ public sealed class TenantAdministratorLifecycleService(
                     : "Tenant Administrator authority removed. Account, membership, and history remain.",
                 before: TenantAdministratorAuthority.DisplayName, after: "None"));
 
+            revokedFrom = membership.UserId;
             return ContinuityResult<Guid>.Ok(assignment.Id);
         }, cancellationToken);
+        await TellAsync(result, revokedFrom, gained: false, command, cancellationToken);
+        return result;
+    }
+
+    /// <summary>Account mail once the change has committed; nothing when it was refused or changed nothing.</summary>
+    private async Task TellAsync(ContinuityResult<Guid> result, Guid? userId, bool gained, AdministratorCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (roleMail is null || !result.Succeeded || userId is not { } target) return;
+        await roleMail.SendAsync(new AdministratorRoleChange(command.TenantId, target, TenantAdministratorAuthority.DisplayName,
+            gained, command.ActorUserId), cancellationToken);
+    }
 
     // ── plumbing ─────────────────────────────────────────
 

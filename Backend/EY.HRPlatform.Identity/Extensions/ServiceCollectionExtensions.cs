@@ -198,6 +198,8 @@ public static class ServiceCollectionExtensions
         }
         services.AddScoped<IAccessProfileService, AccessProfileService>();
         services.AddScoped<NotificationAudienceReader>();
+        services.AddScoped<IAccountMailSender, SmtpAccountMailSender>();
+        services.AddScoped<IAdministratorRoleMail, AdministratorRoleMail>();
         services.AddScoped<IEligibilityDecisionService, EligibilityDecisionService>();
         services.AddScoped<IAccessAuditService, AccessAuditService>();
         services.Configure<WorkforceInvitationEmailOptions>(

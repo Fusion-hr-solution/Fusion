@@ -163,7 +163,8 @@ public class CoreAccessControllerPermissionTests
             new StubAccessProfileService(),
             new StubAccessAuditService(),
             new PassThroughContinuityExecutor(),
-            TestTenantContext.WithTenant(Guid.NewGuid()))
+            TestTenantContext.WithTenant(Guid.NewGuid()),
+            new SilentRoleMail())
         {
             ControllerContext = new ControllerContext
             {
@@ -302,5 +303,15 @@ public class CoreAccessControllerPermissionTests
             int take,
             CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<AccessAuditEventDto>>([]);
+    }
+
+    private sealed class SilentRoleMail : EY.HRPlatform.Identity.Features.Notifications.IAdministratorRoleMail
+    {
+        public Task SendAsync(EY.HRPlatform.Identity.Features.Notifications.AdministratorRoleChange change, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task SendProfileChangesAsync(Guid tenantId, Guid actorUserId,
+            IReadOnlyList<(Guid UserId, IReadOnlyCollection<Guid> Before, IReadOnlyCollection<Guid> After)> people,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

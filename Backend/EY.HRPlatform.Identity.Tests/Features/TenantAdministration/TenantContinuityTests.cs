@@ -1,3 +1,4 @@
+using EY.HRPlatform.Identity.Features.Notifications;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
@@ -230,6 +231,93 @@ public sealed class TenantContinuityTests : IAsyncLifetime
         Assert.Single(await world.Db.TenantAdministratorAssignments.IgnoreQueryFilters()
             .Where(item => item.TenantMembershipId == membershipId && item.RevokedAt == null)
             .ToListAsync());
+    }
+
+    // ── Account mail (B-155) ─────────────────────────────
+
+    [SkippableFact]
+    public async Task Gaining_or_losing_tenant_administration_mails_the_person_only_when_it_changed()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var world = await ArrangeAsync(secondAdministrator: true);
+        var membershipId = world.SecondMembershipId!.Value;
+        var mail = new CapturingRoleMail();
+        var lifecycle = new TenantAdministratorLifecycleService(world.Db, new TenantContinuityCommandExecutor(world.Db), mail);
+        var second = await world.Db.TenantMemberships.IgnoreQueryFilters().Where(item => item.Id == membershipId)
+            .Select(item => item.UserId).SingleAsync();
+
+        // Already held: nothing changes, nobody is told.
+        await lifecycle.GrantAuthorityAsync(new AdministratorCommand(world.TenantId, membershipId, world.FirstAccountId));
+        Assert.Empty(mail.Changes);
+
+        await lifecycle.RevokeAuthorityAsync(new AdministratorCommand(world.TenantId, membershipId, world.FirstAccountId));
+        await lifecycle.GrantAuthorityAsync(new AdministratorCommand(world.TenantId, membershipId, world.FirstAccountId));
+        Assert.Equal([(second, false), (second, true)], mail.Changes.Select(change => (change.UserId, change.Gained)).ToList());
+        Assert.All(mail.Changes, change => Assert.Equal((world.TenantId, world.FirstAccountId), (change.TenantId, change.ActorUserId)));
+
+        // Refused (the last administrator): nothing committed, nothing mailed.
+        await lifecycle.RevokeAuthorityAsync(new AdministratorCommand(world.TenantId, membershipId, world.FirstAccountId));
+        mail.Changes.Clear();
+        var refused = await lifecycle.RevokeAuthorityAsync(new AdministratorCommand(world.TenantId, world.FirstMembershipId, world.FirstAccountId));
+        Assert.Equal(ContinuityFailure.FinalAdministrator, refused.Failure);
+        Assert.Empty(mail.Changes);
+    }
+
+    [SkippableFact]
+    public async Task Only_administrator_profiles_gained_or_lost_send_account_mail_in_the_persons_language()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var world = await ArrangeAsync(secondAdministrator: true);
+        var second = await world.Db.TenantMemberships.IgnoreQueryFilters().Where(item => item.Id == world.SecondMembershipId)
+            .Select(item => item.UserId).SingleAsync();
+        var user = await world.Db.Users.IgnoreQueryFilters().SingleAsync(item => item.Id == second);
+        user.PreferredLanguage = "fr";
+        await world.Db.SaveChangesAsync();
+        var profiles = await world.Db.AccessProfiles.IgnoreQueryFilters().Where(item => item.TenantId == world.TenantId)
+            .ToDictionaryAsync(item => item.InternalKey ?? item.Name, item => item.Id);
+        var sender = new CapturingAccountSender();
+        var mail = new AdministratorRoleMail(world.Db, sender,
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<AdministratorRoleMail>.Instance);
+
+        await mail.SendProfileChangesAsync(world.TenantId, world.FirstAccountId,
+            [(second, [profiles["employee"]], [profiles["employee"], profiles["manager"]])]);
+        Assert.Empty(sender.Sent);
+
+        await mail.SendProfileChangesAsync(world.TenantId, world.FirstAccountId,
+            [(second, [profiles["employee"]], [profiles["employee"], profiles["hr-admin"]])]);
+        var granted = Assert.Single(sender.Sent);
+        Assert.Equal("second.admin@atlas.example", granted.To);
+        Assert.Equal("Le rôle HR Admin vous a été attribué", granted.Content.Subject);
+        Assert.Contains("Ada Admin", granted.Content.Text);
+        Assert.Null(granted.UnsubscribeUrl);
+
+        sender.Sent.Clear();
+        await mail.SendProfileChangesAsync(world.TenantId, second, [(second, [profiles["org-admin"]], [])]);
+        Assert.Contains("Vous avez retiré votre propre rôle Org Admin", Assert.Single(sender.Sent).Content.Text);
+    }
+
+    private sealed class CapturingRoleMail : IAdministratorRoleMail
+    {
+        public List<AdministratorRoleChange> Changes { get; } = [];
+        public Task SendAsync(AdministratorRoleChange change, CancellationToken cancellationToken = default)
+        {
+            Changes.Add(change);
+            return Task.CompletedTask;
+        }
+        public Task SendProfileChangesAsync(Guid tenantId, Guid actorUserId,
+            IReadOnlyList<(Guid UserId, IReadOnlyCollection<Guid> Before, IReadOnlyCollection<Guid> After)> people,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class CapturingAccountSender : IAccountMailSender
+    {
+        public List<EY.HRPlatform.SharedKernel.Notifications.FusionOutgoingEmail> Sent { get; } = [];
+        public Task SendAsync(EY.HRPlatform.SharedKernel.Notifications.FusionOutgoingEmail email, CancellationToken cancellationToken)
+        {
+            Sent.Add(email);
+            return Task.CompletedTask;
+        }
     }
 
     // ── Immediate enforcement ────────────────────────────

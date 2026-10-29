@@ -1,0 +1,9 @@
+{
+  "RoleGranted.subject": "مُنحت دور {role}",
+  "RoleGranted.lead": "منحك {actor} دور {role} في {company}. إذا لم تكن تتوقع ذلك، فأبلغ المسؤول.",
+  "RoleRemoved.subject": "أُزيل دور {role} الخاص بك",
+  "RoleRemoved.lead": "أزال {actor} دور {role} الخاص بك في {company}. إذا لم تكن تتوقع ذلك، فأبلغ المسؤول.",
+  "RoleRemoved.self.lead": "أزلت دور {role} الخاص بك في {company}.",
+  "action": "افتح Fusion",
+  "group": "تغييرات الوصول"
+}
