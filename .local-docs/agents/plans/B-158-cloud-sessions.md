@@ -82,3 +82,23 @@ The cloud does code, backend tests and frontend checks; the stack, API journeys 
 5. **Demos:** pull `wassim/develop`, `stack.ps1`, `demo-preset.mjs build <preset>`.
 
 To check in the pilot: whether a cloud session may push to `wassim/develop` directly or only its own branch (then step 2 stays a PR).
+
+## Cloud environment (B-160, 2026-10-29)
+
+Settings for the environment at claude.ai/code (one personal environment on Fusion; the user enters them once):
+
+| Field | Value |
+|---|---|
+| Setup script | the whole of `.agents/skills/fusion-dev/cloud/setup.sh` (re-paste after it changes) |
+| Network access | Custom; check "Also include default list of common package managers"; add `builds.dotnet.microsoft.com` and `ci.dot.net` |
+| Environment variables | `FUSION_PG_PASSWORD=<any value>` (only the VM's own PostgreSQL uses it) |
+
+How it fits together:
+- **Setup** (once per cache build): .NET 10 SDK into `~/.dotnet` (+ `/usr/local/bin/dotnet`), corepack for the pinned pnpm versions, pnpm store and NuGet cache warmed from the clone, untracked links made, `~/.claude/CLAUDE.md` written. That file is the bootstrap: run `cloud-session.sh` first, read AGENTS.md if it isn't loaded.
+- **Each session:** `cloud-session.sh` recreates the root `CLAUDE.md` import, `.claude/skills/fusion-dev` link and the memory link (`~/.claude/projects/<path>/memory` → `.local-docs/agents/memory/`), then `pnpm install` (fast from the warm store; the root install turns the husky hook on).
+- **Backend tests:** `test-backend.sh <Service> [filter]` starts PostgreSQL 16 when it's down, sets the `postgres` password from the variable, sets the relational connection, prints the summary line.
+- **Commits:** the husky hook skips the pwsh memory check where pwsh is missing and runs full lint + type-check.
+- Not set up (partial direction): stack, Mailpit, Playwright, `FUSION_LOCAL_PASSWORD`, `DevelopmentBootstrap__*`, Groq.
+- No SessionStart hook: a tracked `.claude/settings.json` would also run in colleagues' sessions, and user-level hooks don't run in the cloud (docs). The `~/.claude/CLAUDE.md` instruction replaces it.
+
+Unproven until the pilot (B-161): the setup inside 5 min, whether the snapshot keeps the clone (the scripts work either way), the Postgres start as root, and the hook's runtime on 4 vCPU.

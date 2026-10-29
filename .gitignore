@@ -154,6 +154,7 @@ PRODUCT.md
 
 CLAUDE.md
 AGENTS.md
+!.local-docs/agents/AGENTS.md
 GEMINI.md
 CURSOR.md
 QWEN.md

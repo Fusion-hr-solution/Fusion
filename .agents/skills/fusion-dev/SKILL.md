@@ -45,6 +45,13 @@ node .agents/skills/fusion-dev/scripts/api.cjs <email> POST /api/<service>/<path
 ```
 In scripts: `const { call, login, inviteToken } = require("<repo>/.agents/skills/fusion-dev/scripts/api.cjs")`. `inviteToken(email)` reads the newest invitation from Mailpit. Accounts: `.local-docs/agents/data/README.md`.
 
+## Cloud sessions (Linux, Claude Code on the web)
+```
+bash .agents/skills/fusion-dev/scripts/cloud-session.sh          # first command of every session
+bash .agents/skills/fusion-dev/scripts/test-backend.sh Performance ["FullyQualifiedName~Review"]
+```
+`cloud-session.sh` recreates the untracked links (root `CLAUDE.md`, this skill under `.claude/skills/`, Claude's memory folder → `.local-docs/agents/memory/`) and installs dependencies. `test-backend.sh` starts PostgreSQL and prints the same summary line as `test-backend.ps1`. Frontend checks run as above. No pwsh, no stack: `stack.ps1`, `sql.ps1`, `api.cjs` journeys and screens are local; when an item needs them, finish the rest, push, and say what's left for a local session (`claude --teleport`). The environment itself (setup script, network list, variables) is `cloud/setup.sh` and its header.
+
 ## Reading what you see
 - `/api` 401 = service up; 502 = backend down; 0 = shell not listening.
 - Next.js dev writes `.next-dev`, build writes `.next`; stop that app's dev server before building it.
