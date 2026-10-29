@@ -44,6 +44,8 @@ const NARRATED_EVENTS = new Set([
   "TenantReactivated",
   "TenantProfileChanged",
   "TenantArchived",
+  "ProductEnabled",
+  "ProductDisabled",
 ]);
 
 export function activityNarrative(

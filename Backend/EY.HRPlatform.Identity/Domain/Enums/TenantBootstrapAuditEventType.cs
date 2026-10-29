@@ -19,4 +19,10 @@ public enum TenantBootstrapAuditEventType
     TenantReactivated = 9,
     TenantProfileChanged = 10,
     TenantArchived = 11,
+
+    /// <summary>A platform administrator turned an optional product on; the reason names it.</summary>
+    ProductEnabled = 12,
+
+    /// <summary>A platform administrator turned an optional product off (paused, data kept); the reason names it.</summary>
+    ProductDisabled = 13,
 }

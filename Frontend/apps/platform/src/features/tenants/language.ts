@@ -113,6 +113,8 @@ const TITLED_EVENTS = new Set([
   "TenantReactivated",
   "TenantProfileChanged",
   "TenantArchived",
+  "ProductEnabled",
+  "ProductDisabled",
 ]);
 
 const RECOVERY_ACTIONS = new Set(["resend", "revoke", "replace", "reissue"]);

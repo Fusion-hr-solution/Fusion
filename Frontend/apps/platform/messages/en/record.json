@@ -185,7 +185,28 @@
     "granted": "Granted",
     "notGranted": "Not granted",
     "byPerson": "By {name}, at provisioning",
-    "atProvisioning": "At provisioning"
+    "atProvisioning": "At provisioning",
+    "access": "Access",
+    "switch": "{product} for this tenant",
+    "turnedOnBy": "Turned on by {name}",
+    "turnedOffBy": "Turned off by {name}",
+    "cancel": "Cancel",
+    "off": {
+      "title": "Turn off {product} for {tenant}?",
+      "description": "People lose {product} as their sessions renew, within an hour. Its data, roles and role assignments are kept, and turning it back on restores them.",
+      "confirm": "Turn off",
+      "pending": "Turning off…",
+      "done": "{product} is off for {tenant}",
+      "failed": "{product} wasn't turned off"
+    },
+    "on": {
+      "title": "Turn on {product} for {tenant}?",
+      "description": "People get {product} as their sessions renew, within an hour, with its data, roles and role assignments as they were.",
+      "confirm": "Turn on",
+      "pending": "Turning on…",
+      "done": "{product} is on for {tenant}",
+      "failed": "{product} wasn't turned on"
+    }
   },
   "activityPage": {
     "title": "Activity",

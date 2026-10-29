@@ -185,7 +185,28 @@
     "granted": "Accordé le",
     "notGranted": "Non accordé",
     "byPerson": "Par {name}, à la création",
-    "atProvisioning": "À la création"
+    "atProvisioning": "À la création",
+    "access": "Accès",
+    "switch": "{product} pour cette organisation",
+    "turnedOnBy": "Activé par {name}",
+    "turnedOffBy": "Désactivé par {name}",
+    "cancel": "Annuler",
+    "off": {
+      "title": "Désactiver {product} pour {tenant} ?",
+      "description": "Les utilisateurs perdent {product} au renouvellement de leur session, en moins d’une heure. Ses données, rôles et attributions de rôles sont conservés et reviennent à la réactivation.",
+      "confirm": "Désactiver",
+      "pending": "Désactivation…",
+      "done": "{product} est désactivé pour {tenant}",
+      "failed": "{product} n’a pas été désactivé"
+    },
+    "on": {
+      "title": "Activer {product} pour {tenant} ?",
+      "description": "Les utilisateurs retrouvent {product} au renouvellement de leur session, en moins d’une heure, avec ses données, rôles et attributions de rôles inchangés.",
+      "confirm": "Activer",
+      "pending": "Activation…",
+      "done": "{product} est activé pour {tenant}",
+      "failed": "{product} n’a pas été activé"
+    }
   },
   "activityPage": {
     "title": "Activité",

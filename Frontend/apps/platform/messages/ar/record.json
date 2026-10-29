@@ -185,7 +185,28 @@
     "granted": "تاريخ المنح",
     "notGranted": "غير ممنوح",
     "byPerson": "بواسطة {name} عند الإنشاء",
-    "atProvisioning": "عند الإنشاء"
+    "atProvisioning": "عند الإنشاء",
+    "access": "الوصول",
+    "switch": "{product} لهذه المؤسسة",
+    "turnedOnBy": "فعّله {name}",
+    "turnedOffBy": "عطّله {name}",
+    "cancel": "إلغاء",
+    "off": {
+      "title": "تعطيل {product} لـ{tenant}؟",
+      "description": "يفقد المستخدمون {product} عند تجديد جلساتهم، خلال ساعة. تُحفظ بياناته وأدواره وإسناداتها، وتعود عند إعادة تفعيله.",
+      "confirm": "تعطيل",
+      "pending": "جارٍ التعطيل…",
+      "done": "عُطّل {product} لـ{tenant}",
+      "failed": "لم يُعطَّل {product}"
+    },
+    "on": {
+      "title": "تفعيل {product} لـ{tenant}؟",
+      "description": "يستعيد المستخدمون {product} عند تجديد جلساتهم، خلال ساعة، ببياناته وأدواره وإسناداتها كما كانت.",
+      "confirm": "تفعيل",
+      "pending": "جارٍ التفعيل…",
+      "done": "فُعّل {product} لـ{tenant}",
+      "failed": "لم يُفعَّل {product}"
+    }
   },
   "activityPage": {
     "title": "النشاط",

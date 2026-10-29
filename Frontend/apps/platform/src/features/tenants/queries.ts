@@ -24,8 +24,10 @@ import {
   replaceInvitation,
   resendInvitation,
   revokeInvitation,
+  setTenantProduct,
   type InitiateRecoveryInput,
   type ProvisionTenantInput,
+  type TenantModule,
   type TenantOverviewQuery,
 } from "./api";
 
@@ -139,6 +141,15 @@ export function useRenameTenant() {
   return useApiMutation(
     (args: { tenantId: string; name: string }) =>
       renameTenant(args.tenantId, args.name),
+    { invalidateQueries: () => [{ queryKey: tenantKeys.all }] }
+  );
+}
+
+/** Turns a product on or off, then refetches the record so the tab shows the new state and who changed it. */
+export function useSetTenantProduct() {
+  return useApiMutation(
+    (args: { tenantId: string; module: TenantModule; enabled: boolean }) =>
+      setTenantProduct(args.tenantId, args.module, args.enabled),
     { invalidateQueries: () => [{ queryKey: tenantKeys.all }] }
   );
 }

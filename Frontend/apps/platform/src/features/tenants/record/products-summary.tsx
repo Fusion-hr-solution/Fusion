@@ -30,8 +30,8 @@ import { useTenantRecord } from "./record-shell";
  * and one it is not is disabled — access, not a missing feature.
  *
  * The full catalogue is shown so the operator sees the whole picture at once,
- * rather than only the two products the entitlement model can currently toggle;
- * the rest are honestly disabled until that model grows to enable them.
+ * rather than only the products the entitlement model knows; the rest are
+ * honestly disabled until that model grows to enable them.
  */
 interface ProductDefinition {
   key: string;
@@ -70,6 +70,10 @@ export interface ProductRow {
   state: "Included" | "Enabled" | "Disabled";
   tone: StatusTone;
   icon: LucideIcon;
+  /** The entitlement behind the row, when the model knows one. */
+  module?: TenantModule;
+  /** A platform administrator can turn it on or off: an entitlement that isn't granted with every tenant. */
+  toggleable: boolean;
 }
 
 /** Where the tenant stands on every Fusion product, in catalogue order. */
@@ -89,6 +93,8 @@ export function productRows(modules: TenantModule[]): ProductRow[] {
       // alarms — it is an access state, not a fault.
       tone: state === "Disabled" ? "muted" : "success",
       icon: product.icon,
+      module: product.module,
+      toggleable: Boolean(product.module) && !product.mandatory,
     };
   });
 }

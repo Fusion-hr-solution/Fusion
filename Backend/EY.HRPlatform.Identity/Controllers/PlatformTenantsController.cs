@@ -22,6 +22,7 @@ public sealed class PlatformTenantsController(
     IBootstrapInvitationRecoveryService recovery,
     ITenantLifecycleService lifecycle,
     ITenantProfileService profile,
+    ITenantProductService products,
     ITenantDetailProjection tenantDetail,
     ITenantOverviewProjection tenantOverview,
     ITenantActivityProjection tenantActivity) : ControllerBase
@@ -185,6 +186,39 @@ public sealed class PlatformTenantsController(
         {
             "tenant.not_found" => new NotFoundObjectResult(failure),
             "tenant.invalid_name" => new BadRequestObjectResult(failure),
+            _ => new BadRequestObjectResult(failure),
+        };
+    }
+
+    /// <summary>
+    /// Turns an optional product on for the tenant, or back on after a pause. Its data, roles and assignments are as
+    /// they were; people get it as their sessions renew.
+    /// </summary>
+    [HttpPost("{tenantId:guid}/products/{product}")]
+    public Task<ActionResult<ApiResponse<object?>>> EnableProduct(Guid tenantId, string product, CancellationToken ct = default)
+        => RunProductAsync(() => products.SetEnabledAsync(tenantId, product, true, User.GetUserId(), ct));
+
+    /// <summary>
+    /// Pauses an optional product for the tenant: its data, roles and assignments are kept, and people lose it as their
+    /// sessions renew. Core HR can't be turned off.
+    /// </summary>
+    [HttpDelete("{tenantId:guid}/products/{product}")]
+    public Task<ActionResult<ApiResponse<object?>>> DisableProduct(Guid tenantId, string product, CancellationToken ct = default)
+        => RunProductAsync(() => products.SetEnabledAsync(tenantId, product, false, User.GetUserId(), ct));
+
+    private static async Task<ActionResult<ApiResponse<object?>>> RunProductAsync(Func<Task<SharedKernel.Results.Result>> action)
+    {
+        var result = await action();
+        if (result.IsSuccess)
+        {
+            return new OkObjectResult(ApiResponse<object?>.Success(null));
+        }
+
+        var failure = ApiResponse<object?>.Failure(result.Error.Message, new FailureCode(result.Error.Code));
+        return result.Error.Code switch
+        {
+            "tenant.not_found" or "products.not_found" => new NotFoundObjectResult(failure),
+            "tenant.invalid_lifecycle_state" => new ConflictObjectResult(failure),
             _ => new BadRequestObjectResult(failure),
         };
     }

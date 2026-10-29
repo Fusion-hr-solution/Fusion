@@ -147,6 +147,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBootstrapInvitationRecoveryService, BootstrapInvitationRecoveryService>();
         services.AddScoped<ITenantLifecycleService, TenantLifecycleService>();
         services.AddScoped<ITenantProfileService, TenantProfileService>();
+        services.AddScoped<ITenantProductService, TenantProductService>();
         services.AddScoped<ITenantDetailProjection, TenantDetailProjection>();
         services.AddScoped<ITenantOverviewProjection, TenantOverviewProjection>();
         services.AddScoped<ITenantActivityProjection, TenantActivityProjection>();

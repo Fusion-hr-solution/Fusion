@@ -34,7 +34,9 @@
     "TenantArchived": "Organisation archivée",
     "deliveryFailed": "Échec de l’envoi de l’invitation",
     "deliverySent": "Invitation envoyée",
-    "unknown": "Activité de l’organisation"
+    "unknown": "Activité de l’organisation",
+    "ProductEnabled": "Produit activé",
+    "ProductDisabled": "Produit désactivé"
   },
   "recovery": {
     "resend": "Renvoyer l’invitation",
@@ -122,7 +124,9 @@
     "TenantReactivated": "{tenant} a été réactivée.",
     "TenantProfileChanged": "Le profil de {tenant} a été mis à jour.",
     "TenantArchived": "{tenant} a été archivée.",
-    "unknown": "Une modification a été enregistrée pour {tenant}."
+    "unknown": "Une modification a été enregistrée pour {tenant}.",
+    "ProductEnabled": "Un produit a été activé pour {tenant}.",
+    "ProductDisabled": "Un produit a été désactivé pour {tenant}."
   },
   "timestamp": {
     "today": "Aujourd’hui à {time}",

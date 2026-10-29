@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderInArabic, renderInFrench } from "@/test/intl";
 import { aTenant, anEvent, anInvitation } from "@/test/fixtures";
@@ -10,6 +10,7 @@ import { TenantProductsDestination } from "./products-page";
 const record = vi.hoisted(() => ({
   tenant: null as unknown,
   continuity: null as unknown,
+  setProduct: vi.fn(() => Promise.resolve(null)),
 }));
 
 vi.mock("./record-shell", () => ({
@@ -37,6 +38,7 @@ vi.mock("../queries", () => ({
     mutateAsync: vi.fn(),
     isLoading: false,
   }),
+  useSetTenantProduct: () => ({ mutateAsync: record.setProduct, isLoading: false }),
 }));
 
 function continuity(
@@ -116,6 +118,33 @@ describe("The tenant record tabs", () => {
     expect(
       screen.getAllByText("بواسطة Admin Platform عند الإنشاء")
     ).toHaveLength(2);
+  });
+
+  it("turns Performance back on in French after saying what it restores, with who paused it", () => {
+    record.tenant = aTenant({
+      modules: ["CoreHR"],
+      history: [
+        anEvent("ProductDisabled", "2026-10-20T09:00:00Z", { actorName: "Admin Platform", reason: "Performance" }),
+        anEvent("TenantProvisioned", "2026-08-01T09:00:00Z", { actorName: "Admin Platform" }),
+      ],
+    });
+
+    renderInFrench(<TenantProductsDestination />);
+
+    expect(screen.getByText("Désactivé par Admin Platform")).toBeInTheDocument();
+    const toggle = screen.getByRole("switch", { name: "Performance pour cette organisation" });
+    expect(toggle).not.toBeChecked();
+    expect(screen.getAllByRole("switch")).toHaveLength(1);
+    fireEvent.click(toggle);
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(/Activer Performance pour .+ \?/);
+    fireEvent.click(screen.getByRole("button", { name: "Activer" }));
+    expect(record.setProduct).toHaveBeenCalledWith({ tenantId: (record.tenant as { tenantId: string }).tenantId, module: "Performance", enabled: true });
+  });
+
+  it("offers an archived tenant no product switch", () => {
+    record.tenant = aTenant({ modules: ["CoreHR", "Performance"], isArchived: true, history: [] });
+    renderInFrench(<TenantProductsDestination />);
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
   });
 
   it("reads Activity in French, with who acted", () => {

@@ -361,6 +361,16 @@ export function archiveTenant(tenantId: string) {
   return client.post<null>(`${BASE}/${tenantId}/archive`);
 }
 
+/**
+ * Turns an optional product on or off for the tenant. Off pauses it: data, roles
+ * and assignments are kept, and people lose it as their sessions renew. Core HR
+ * can't be turned off.
+ */
+export function setTenantProduct(tenantId: string, module: TenantModule, enabled: boolean) {
+  const path = `${BASE}/${tenantId}/products/${module}`;
+  return enabled ? client.post<null>(path) : client.delete<null>(path);
+}
+
 /** Renames the organization display name. The tenant key is unaffected. */
 export function renameTenant(tenantId: string, name: string) {
   return client.post<null>(`${BASE}/${tenantId}/rename`, { name });
