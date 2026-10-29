@@ -449,11 +449,11 @@ public sealed class FinalizeCalibrationSessionHandler(PerformanceDbContext db, I
         {
             var first = team.First();
             var changed = team.Count(review => review.CalibrationChangedRating);
-            var counts = changed == 0 ? "No ratings changed." : $"{changed} of {team.Count()} ratings changed.";
             notifications.EnqueueReviewWork(first, PerformanceNotificationKind.CalibrationFinalized, team.Key, "CalibrationSession", session.Id,
                 $"{PerformanceNotificationKind.CalibrationFinalized}:{session.Id:N}:{team.Key:N}",
-                new ReviewWorkNotificationPayload(round.CycleId, round.Id, first.Id, round.Name, PerformanceNotificationTemplates.ReviewsPath, Task: counts),
-                PerformanceNotificationTemplates.ForCalibrationFinalized(round.Name, counts));
+                new ReviewWorkNotificationPayload(round.CycleId, round.Id, first.Id, round.Name, PerformanceNotificationTemplates.ReviewsPath,
+                    Task: $"{changed}/{team.Count()}"),
+                PerformanceNotificationTemplates.ForCalibrationFinalized(round.Name, changed, team.Count()));
         }
         audit.Record(session.TenantId, "CalibrationSession", session.Id, session.CycleId, PerformanceAuditActions.CalibrationFinalized,
             new

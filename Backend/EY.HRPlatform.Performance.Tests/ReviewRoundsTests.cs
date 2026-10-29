@@ -246,8 +246,8 @@ public sealed class ReviewRoundsTests
         var message = await db.OutboxMessages.SingleAsync();
         Assert.Equal(PerformanceNotificationKind.ManagerAssessmentOpened, message.Kind);
         Assert.Equal(reviewer.EmployeeId, message.RecipientEmployeeId);
-        var email = PerformanceNotificationRenderer.Render(message, "http://localhost:3000/");
-        Assert.Contains($"http://localhost:3000/performance/reviews/{review.Id}", email.Body);
+        var email = (await db.Notifications.SingleAsync(n => n.DedupeKey == message.DedupeKey)).EnglishEmail();
+        Assert.Contains($"http://localhost:3000/performance/reviews/{review.Id}", email.Text);
 
         var changedScale = scale.CreateNextVersion([
             new RatingScaleLevel(1, "Low", null), new RatingScaleLevel(2, "Developing", null),

@@ -208,7 +208,7 @@ public sealed class ReviewRoundSetupTests
             var notices = db.Notifications.Where(n => n.Kind == PerformanceNotificationKind.ReviewDueDateMoved).ToList();
             // Tarek and Mariam for the single move, then the three others for the round move.
             Assert.Equal(5, notices.Count);
-            Assert.Contains(notices, n => n.RecipientEmployeeId == world.Mariam.EmployeeId && n.Title.StartsWith("Tarek Ayari's self-assessment"));
+            Assert.Contains(notices, n => n.RecipientEmployeeId == world.Mariam.EmployeeId && n.EnglishTitle().StartsWith("Tarek Ayari's self-assessment"));
             Assert.Contains(db.AuditEntries, a => a.Action == "ReviewRound.DueDateMoved" && a.Summary.Contains("release freeze"));
         }
         var active = await Data(await world.Admin.GetAsync($"/api/performance/review-rounds/{roundId}"));

@@ -3,8 +3,10 @@ using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Evidence;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Core;
+using EY.HRPlatform.Performance.Infrastructure.Identity;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -30,10 +32,13 @@ public static class PerformanceOutboxClaim
 
 /// <summary>Runs only within the claimed message's tenant; no global recipient/content queries.</summary>
 public sealed class PerformanceNotificationDispatcher(PerformanceDbContext db, ITenantContext tenant,
-    ICoreWorkforceClient workforce, IPerformanceNotificationSender sender, IOptions<PerformanceNotificationOptions> options)
+    ICoreWorkforceClient workforce, INotificationAudienceClient audience, IPerformanceNotificationSender sender,
+    IOptions<PerformanceNotificationOptions> options)
 {
     /// <summary>The recipient turned email off for the kind's group. The in-app notification already exists.</summary>
     public const string RecipientOptedOut = "RecipientOptedOut";
+    /// <summary>The in-app record the email is worded from is gone (purged, or never staged).</summary>
+    public const string NoNotification = "no-notification";
 
     /// <summary>Deadline reminders are always emailed; any other group follows the recipient's choice (B-071 D8).</summary>
     private async Task<bool> OptedOutAsync(PerformanceOutboxMessage message, CancellationToken cancellationToken)
@@ -58,10 +63,19 @@ public sealed class PerformanceNotificationDispatcher(PerformanceDbContext db, I
             {
                 var recipients = await workforce.ResolveAsync(now, [message.RecipientEmployeeId], cancellationToken);
                 var email = recipients.SingleOrDefault(r => r.EmployeeId == message.RecipientEmployeeId)?.WorkEmail;
+                // The email says what the bell says: it's worded from the paired in-app record.
+                var notification = await db.Notifications.AsNoTracking()
+                    .FirstOrDefaultAsync(n => n.DedupeKey == message.DedupeKey, cancellationToken);
                 if (string.IsNullOrWhiteSpace(email)) message.Skip("no-work-email");
+                else if (notification is null) message.Skip(NoNotification);
                 else
                 {
-                    await sender.SendAsync(message, email, cancellationToken);
+                    var config = options.Value;
+                    var reader = await audience.ReadAsync([message.RecipientEmployeeId], cancellationToken);
+                    var content = PerformanceNotificationRenderer.Email(notification, reader.LanguageOf(message.RecipientEmployeeId),
+                        config.ShellBaseUrl, reader.TenantName);
+                    await sender.SendAsync(new FusionOutgoingEmail(email, content, $"<{message.Id:N}@fusion-performance>",
+                        PerformanceNotificationRenderer.UnsubscribeUrl(message, config.ShellBaseUrl, config.UnsubscribeKey)), cancellationToken);
                     message.MarkDispatched(PerformanceClock.UtcNow);
                 }
             }

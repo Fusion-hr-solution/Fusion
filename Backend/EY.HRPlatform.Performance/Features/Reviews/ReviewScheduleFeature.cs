@@ -21,19 +21,12 @@ public sealed record MoveReviewDueDateCommand(Guid ReviewId, MoveReviewDueDateRe
 
 internal static class ReviewSchedule
 {
-    public static string TaskLabel(ReviewStage stage) => stage switch
-    {
-        ReviewStage.SelfAssessment => "self-assessment",
-        ReviewStage.PeerInput => "peer input",
-        _ => "manager assessment",
-    };
-
     public static ReviewDueDateMoveDto ToDto(ReviewDueDateMove move)
         => new(move.Id, move.Stage, move.FromDate, move.ToDate, move.Reason, move.ActorName, move.MovedAt, move.AffectedCount,
             move.ReviewId, move.SubjectDisplayName);
 
-    /// <summary>The moved task named from the recipient's side: their own task, or the other person's.</summary>
-    public static string MovedTitle(PerformanceReview review, ReviewStage stage, Guid recipient, DateOnly to)
+    /// <summary>The catalogue key naming the moved task from the recipient's side: their own task, or the other person's.</summary>
+    public static string MovedTitleKey(PerformanceReview review, ReviewStage stage, Guid recipient)
     {
         var owner = stage switch
         {
@@ -41,22 +34,25 @@ internal static class ReviewSchedule
             ReviewStage.ManagerAssessment => review.ReviewerEmployeeId,
             _ => recipient,
         };
-        var date = to.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture);
-        if (recipient == owner) return $"Your {TaskLabel(stage)} is now due {date}";
-        return stage == ReviewStage.SelfAssessment
-            ? $"{review.SubjectDisplayName}'s self-assessment is now due {date}"
-            : $"{review.ReviewerDisplayName}'s assessment of your review is now due {date}";
+        if (recipient == owner)
+            return stage switch
+            {
+                ReviewStage.SelfAssessment => "ReviewDueDateMoved.own.selfAssessment",
+                ReviewStage.PeerInput => "ReviewDueDateMoved.own.peerInput",
+                _ => "ReviewDueDateMoved.own.managerAssessment",
+            };
+        return stage == ReviewStage.SelfAssessment ? "ReviewDueDateMoved.subjectSelf" : "ReviewDueDateMoved.reviewerAssessment";
     }
 
     public static void Notify(IPerformanceNotifications notifications, PerformanceReview review, ReviewRound round, ReviewDueDateMove move,
         Guid recipient, string resourceType, Guid resourceId, string href)
     {
-        var title = MovedTitle(review, move.Stage, recipient, move.ToDate);
+        var title = MovedTitleKey(review, move.Stage, recipient);
         var payload = new ReviewWorkNotificationPayload(review.CycleId, round.Id, review.Id, round.Name, href,
             move.ActorName, review.SubjectDisplayName, title, move.ToDate, PreviousDueDate: move.FromDate);
         notifications.EnqueueReviewWork(review, PerformanceNotificationKind.ReviewDueDateMoved, recipient, resourceType, resourceId,
             $"{PerformanceNotificationKind.ReviewDueDateMoved}:{move.Id:N}:{resourceId:N}:{recipient:N}", payload,
-            PerformanceNotificationTemplates.ForDueDateMoved(title, move.FromDate, round.Name, href));
+            PerformanceNotificationTemplates.ForDueDateMoved(title, review, move.ToDate, move.FromDate, round.Name, href));
     }
 }
 

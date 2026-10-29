@@ -216,9 +216,9 @@ public sealed class ReviewRecordTests
         await using var db = world.Factory.Store.NewContext();
         var message = Assert.Single(db.OutboxMessages.Where(m => m.Kind == PerformanceNotificationKind.ReviewAcknowledged).ToList());
         Assert.Equal(world.Mariam.EmployeeId, message.RecipientEmployeeId);
-        var email = PerformanceNotificationRenderer.Render(message, "http://localhost:3000");
-        Assert.DoesNotContain("stretch", email.Body);
-        Assert.Contains($"/performance/reviews/{reviewId}", email.Body);
+        var email = db.Notifications.Single(n => n.DedupeKey == message.DedupeKey).EnglishEmail();
+        Assert.DoesNotContain("stretch", email.Text + email.Html);
+        Assert.Contains($"/performance/reviews/{reviewId}", email.Text);
         var audit = Assert.Single(db.AuditEntries.Where(a => a.Action == "Review.Acknowledged").ToList());
         Assert.DoesNotContain("stretch", audit.Summary);
     }

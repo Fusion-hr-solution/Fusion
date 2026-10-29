@@ -4,6 +4,7 @@ using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Tests.TestHelpers;
+using EY.HRPlatform.SharedKernel.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -16,6 +17,17 @@ public sealed class NotificationTests
         var plan = Guid.NewGuid();
         return PerformanceOutboxMessage.ForPlan(tenant, kind, recipient, plan, Guid.NewGuid(),
             new(Guid.NewGuid(), plan, "Emma Employee"));
+    }
+
+    /// <summary>The in-app row staged beside <paramref name="message"/>, which its email is worded from.</summary>
+    public static PerformanceNotification InAppFor(PerformanceOutboxMessage message)
+    {
+        var payload = JsonSerializer.Deserialize<PlanNotificationPayload>(message.Payload)!;
+        var plan = EmployeePlan.Create(message.TenantId, payload.CycleId, Guid.NewGuid(), Guid.NewGuid(), "Emma Employee", null,
+            message.RecipientEmployeeId, "Manager");
+        typeof(EmployeePlan).GetProperty(nameof(EmployeePlan.Id))!.SetValue(plan, payload.PlanId);
+        return PerformanceNotification.For(message, null, PerformanceNotificationTemplates.ForPlan(plan, message.Kind, "Emma Employee"),
+            DateTime.UtcNow);
     }
 
     [Fact]
@@ -78,12 +90,15 @@ public sealed class NotificationTests
         core.ById[recipient.EmployeeId] = recipient with { WorkEmail = hasEmail ? "current@performance.test" : null };
         var sender = new CapturingNotificationSender();
         var message = Message(store.TenantId, recipient.EmployeeId);
-        await using (var db = store.NewContext()) { db.OutboxMessages.Add(message); await db.SaveChangesAsync(); }
+        await using (var db = store.NewContext())
+        {
+            db.OutboxMessages.Add(message); db.Notifications.Add(InAppFor(message)); await db.SaveChangesAsync();
+        }
         await using (var db = store.NewContext())
         {
             var tracked = await db.OutboxMessages.SingleAsync();
-            var dispatcher = new PerformanceNotificationDispatcher(db, store.Tenant, core, sender,
-                Options.Create(new PerformanceNotificationOptions { Enabled = enabled }));
+            var dispatcher = new PerformanceNotificationDispatcher(db, store.Tenant, core, new FakeNotificationAudienceClient(), sender,
+                Options.Create(new PerformanceNotificationOptions { Enabled = enabled, ShellBaseUrl = "http://localhost:3000" }));
             await dispatcher.DispatchAsync(tracked, DateTime.UtcNow, default);
             await dispatcher.DispatchAsync(tracked, DateTime.UtcNow, default);
         }
@@ -108,9 +123,9 @@ public sealed class NotificationTests
         var sender = new CapturingNotificationSender { Fail = true };
         await using var db = store.NewContext();
         var message = Message(store.TenantId, recipient.EmployeeId);
-        db.OutboxMessages.Add(message); await db.SaveChangesAsync();
-        var dispatcher = new PerformanceNotificationDispatcher(db, store.Tenant, core, sender,
-            Options.Create(new PerformanceNotificationOptions { Enabled = true }));
+        db.OutboxMessages.Add(message); db.Notifications.Add(InAppFor(message)); await db.SaveChangesAsync();
+        var dispatcher = new PerformanceNotificationDispatcher(db, store.Tenant, core, new FakeNotificationAudienceClient(), sender,
+            Options.Create(new PerformanceNotificationOptions { Enabled = true, ShellBaseUrl = "http://localhost:3000" }));
         await dispatcher.DispatchAsync(message, DateTime.UtcNow, default);
         Assert.Equal(1, message.Attempts);
         Assert.True(message.IsPending);
@@ -132,8 +147,8 @@ public sealed class NotificationTests
         var store = TestStore.ForNewTenant();
         var core = new FakeCoreWorkforceClient(); var sender = new CapturingNotificationSender();
         await using var db = store.NewContext();
-        var dispatcher = new PerformanceNotificationDispatcher(db, store.Tenant, core, sender,
-            Options.Create(new PerformanceNotificationOptions { Enabled = true }));
+        var dispatcher = new PerformanceNotificationDispatcher(db, store.Tenant, core, new FakeNotificationAudienceClient(), sender,
+            Options.Create(new PerformanceNotificationOptions { Enabled = true, ShellBaseUrl = "http://localhost:3000" }));
         await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.DispatchAsync(Message(Guid.NewGuid(), Guid.NewGuid()), DateTime.UtcNow, default));
         Assert.Null(core.LastAsOf); Assert.Empty(sender.Delivered);
     }
@@ -146,23 +161,23 @@ public sealed class NotificationTests
     {
         var message = Message(Guid.NewGuid(), Guid.NewGuid(), kind);
         var payload = JsonSerializer.Deserialize<PlanNotificationPayload>(message.Payload)!;
-        var email = PerformanceNotificationRenderer.Render(message, "http://localhost:3000/");
-        Assert.Contains($"http://localhost:3000/performance/cycles/{payload.CycleId}/plans/{payload.PlanId}", email.Body);
-        Assert.DoesNotContain("rating", email.Body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("assessment", email.Body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("evidence", email.Body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("calibration", email.Body, StringComparison.OrdinalIgnoreCase);
+        var email = InAppFor(message).EnglishEmail();
+        Assert.Contains($"http://localhost:3000/performance/cycles/{payload.CycleId}/plans/{payload.PlanId}", email.Text);
+        Assert.DoesNotContain("rating", email.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("assessment", email.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("evidence", email.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("calibration", email.Text, StringComparison.OrdinalIgnoreCase);
     }
 }
 
 public sealed class CapturingNotificationSender : IPerformanceNotificationSender
 {
     public bool Fail { get; set; }
-    public List<(Guid TenantId, Guid MessageId, string Email)> Delivered { get; } = [];
-    public Task SendAsync(PerformanceOutboxMessage message, string recipientEmail, CancellationToken cancellationToken)
+    public List<(string Email, FusionOutgoingEmail Mail)> Delivered { get; } = [];
+    public Task SendAsync(FusionOutgoingEmail email, CancellationToken cancellationToken)
     {
         if (Fail) throw new InvalidOperationException("private provider detail");
-        Delivered.Add((message.TenantId, message.Id, recipientEmail));
+        Delivered.Add((email.To, email));
         return Task.CompletedTask;
     }
 }

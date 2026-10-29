@@ -107,8 +107,8 @@ public sealed class FeedbackHttpTests
         var notification = Assert.Single(await db.Notifications.Where(n => n.RecipientEmployeeId == w.Rim).ToListAsync());
         Assert.Equal($"/performance/feedback?feedback={id}", notification.Href);
         var outbox = await db.OutboxMessages.SingleAsync(m => m.RecipientEmployeeId == w.Rim);
-        var email = PerformanceNotificationRenderer.Render(outbox, "http://localhost:3000");
-        Assert.DoesNotContain("SECRET-MESSAGE-TEXT", email.Body + email.Subject + outbox.Payload + notification.Title + notification.Context);
+        var email = notification.EnglishEmail();
+        Assert.DoesNotContain("SECRET-MESSAGE-TEXT", email.Text + email.Html + email.Subject + outbox.Payload + notification.ValuesJson);
         var audit = await db.AuditEntries.SingleAsync(e => e.Action == PerformanceAuditActions.FeedbackGiven);
         Assert.DoesNotContain("SECRET-MESSAGE-TEXT", JsonSerializer.Serialize(audit));
     }

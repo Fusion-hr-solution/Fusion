@@ -1,3 +1,4 @@
+using System.Globalization;
 using EY.HRPlatform.Performance.Domain.Calibration;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -6,9 +7,9 @@ using EY.HRPlatform.Performance.Domain.Reviews;
 namespace EY.HRPlatform.Performance.Infrastructure.Notifications;
 
 /// <summary>
-/// The in-app wording per notification kind, composed once when the notification is made. The apps
-/// are English-only; the contract carries <c>kind</c> beside the text so a later locale-aware template
-/// can replace it without changing clients.
+/// What each notification says, as catalogue keys (<c>Infrastructure/Notifications/Text/notifications-{language}.json</c>)
+/// and the values they need, plus the exact in-app path. The wording is chosen per reader when the notification is read
+/// or emailed (B-153).
 /// </summary>
 public static class PerformanceNotificationTemplates
 {
@@ -19,56 +20,60 @@ public static class PerformanceNotificationTemplates
     public static string RoundPath(Guid roundId) => $"/performance/reviews/rounds/{roundId}";
     public static string CalibrationPath(Guid roundId) => $"/performance/reviews/rounds/{roundId}/calibration";
 
-    public static PerformanceNotificationText ForPlan(EmployeePlan plan, PerformanceNotificationKind kind, string? actorName)
+    public static PerformanceNotificationMessage ForPlan(EmployeePlan plan, PerformanceNotificationKind kind, string? actorName)
     {
         var href = PlanPath(plan.CycleId, plan.Id);
         var actor = Clean(actorName);
         return kind switch
         {
-            PerformanceNotificationKind.PlanSubmitted => new($"{actor ?? plan.EmployeeDisplayName} submitted their plan",
-                "Ready for your review", actor ?? plan.EmployeeDisplayName, href),
-            PerformanceNotificationKind.PlanReturned => new("Your plan was returned",
-                actor is null ? "Open it to see what to change" : $"{actor} asked for changes", actor, href),
-            PerformanceNotificationKind.PlanApproved => new("Your plan was approved",
-                actor is null ? "You can now record progress" : $"Approved by {actor}", actor, href),
+            PerformanceNotificationKind.PlanSubmitted => Message("PlanSubmitted", "PlanSubmitted.context", actor ?? plan.EmployeeDisplayName, href,
+                ("actor", actor ?? plan.EmployeeDisplayName)),
+            PerformanceNotificationKind.PlanReturned => Message("PlanReturned",
+                actor is null ? "PlanReturned.context.anonymous" : "PlanReturned.context", actor, href, ("actor", actor)),
+            PerformanceNotificationKind.PlanApproved => Message("PlanApproved",
+                actor is null ? "PlanApproved.context.anonymous" : "PlanApproved.context", actor, href, ("actor", actor)),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), "Choose a plan notification kind."),
         };
     }
 
-    public static PerformanceNotificationText ForUpdateRequest(UpdateRequest request, string? objectiveTitle)
+    public static PerformanceNotificationMessage ForUpdateRequest(UpdateRequest request, string? objectiveTitle)
     {
         var actor = Clean(request.RequestedByName);
-        var title = $"{actor ?? "Your reviewer"} asked for a progress update";
-        return request.ObjectiveId is Guid objectiveId
-            ? new(title, Clean(objectiveTitle), actor, ObjectivePath(request.CycleId, objectiveId, record: true))
-            : new(title, "On your plan", actor, PlanPath(request.CycleId, request.PlanId));
+        var objective = request.ObjectiveId is null ? null : Clean(objectiveTitle);
+        var href = request.ObjectiveId is Guid objectiveId
+            ? ObjectivePath(request.CycleId, objectiveId, record: true) : PlanPath(request.CycleId, request.PlanId);
+        var context = request.ObjectiveId is null ? "UpdateRequested.context.plan" : objective is null ? null : "Context.objective";
+        return Message(actor is null ? "UpdateRequested.anonymous" : "UpdateRequested", context, actor, href,
+            ("actor", actor), ("objective", objective));
     }
 
-    public static PerformanceNotificationText ForObjectiveAtRisk(string ownerName, string objectiveTitle, bool offTrack, string path)
-        => new($"{ownerName}'s objective is {(offTrack ? "off track" : "at risk")}", objectiveTitle, ownerName, path);
+    public static PerformanceNotificationMessage ForObjectiveAtRisk(string ownerName, string objectiveTitle, bool offTrack, string path)
+        => Message(offTrack ? "ObjectiveAtRisk.offTrack" : "ObjectiveAtRisk", "Context.objective", ownerName, path,
+            ("owner", ownerName), ("objective", objectiveTitle));
 
-    public static PerformanceNotificationText ForUpdateRequestAnswered(string ownerName, string? objectiveTitle, string path)
-        => new($"{ownerName} updated their progress", Clean(objectiveTitle) ?? "On their plan", ownerName, path);
+    public static PerformanceNotificationMessage ForUpdateRequestAnswered(string ownerName, string? objectiveTitle, string path)
+        => Message("UpdateRequestAnswered", Clean(objectiveTitle) is null ? "UpdateRequestAnswered.context.plan" : "Context.objective",
+            ownerName, path, ("owner", ownerName), ("objective", Clean(objectiveTitle)));
 
-    public static PerformanceNotificationText ForDevelopmentGoalAdded(string actorName, string goalTitle, string path)
-        => new($"{actorName} added a development goal", goalTitle, actorName, path);
+    public static PerformanceNotificationMessage ForDevelopmentGoalAdded(string actorName, string goalTitle, string path)
+        => Message("DevelopmentGoalAdded", "Context.goal", actorName, path, ("actor", actorName), ("goal", goalTitle));
 
     public static string DevelopmentPath(Guid cycleId, Guid? planId, Guid employeeId, bool forOwner)
         => forOwner ? $"/performance/plan?cycle={cycleId}#development"
             : planId is Guid id ? $"{PlanPath(cycleId, id)}#development" : $"/performance/people/{employeeId}";
 
-    public static PerformanceNotificationText ForReview(PerformanceReview review, PerformanceNotificationKind kind, string roundName)
+    public static PerformanceNotificationMessage ForReview(PerformanceReview review, PerformanceNotificationKind kind, string roundName)
     {
         var href = ReviewPath(review.Id);
         return kind switch
         {
-            PerformanceNotificationKind.SelfAssessmentOpened => new("Your self-assessment is open",
-                review.PeerInputEnabled ? $"{roundName} · choose colleagues for peer input" : roundName, null, href),
-            PerformanceNotificationKind.ManagerAssessmentOpened => new($"{review.SubjectDisplayName}'s review is ready for your assessment",
-                roundName, null, href),
-            PerformanceNotificationKind.SelfAssessmentSubmitted => new($"{review.SubjectDisplayName} submitted their self-assessment",
-                roundName, review.SubjectDisplayName, href),
-            PerformanceNotificationKind.ReviewFinalized => new("Your review is available", roundName, null, href),
+            PerformanceNotificationKind.SelfAssessmentOpened => Message("SelfAssessmentOpened",
+                review.PeerInputEnabled ? "SelfAssessmentOpened.context.peers" : "Context.round", null, href, ("round", roundName)),
+            PerformanceNotificationKind.ManagerAssessmentOpened => Message("ManagerAssessmentOpened", "Context.round", null, href,
+                ("subject", review.SubjectDisplayName), ("round", roundName)),
+            PerformanceNotificationKind.SelfAssessmentSubmitted => Message("SelfAssessmentSubmitted", "Context.round",
+                review.SubjectDisplayName, href, ("subject", review.SubjectDisplayName), ("round", roundName)),
+            PerformanceNotificationKind.ReviewFinalized => Message("ReviewFinalized", "Context.round", null, href, ("round", roundName)),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), "Choose a review notification kind."),
         };
     }
@@ -76,37 +81,52 @@ public static class PerformanceNotificationTemplates
     public static string PeerRequestPath(Guid requestId) => $"/performance/reviews/peer-requests/{requestId}";
     public static string PeerListPath(Guid reviewId) => $"/performance/reviews?peers={reviewId}";
 
-    public static PerformanceNotificationText ForPeersNominated(string subjectName, string roundName, Guid reviewId)
-        => new($"{subjectName} chose colleagues for peer input", "Approve the list", subjectName, PeerListPath(reviewId));
+    public static PerformanceNotificationMessage ForPeersNominated(string subjectName, string roundName, Guid reviewId)
+        => Message("PeersNominated", "PeersNominated.context", subjectName, PeerListPath(reviewId),
+            ("subject", subjectName), ("round", roundName));
 
-    public static PerformanceNotificationText ForPeerListApproved(string reviewerName, string roundName, Guid reviewId)
-        => new("Your peer list was approved", $"{reviewerName} · {roundName}", reviewerName, ReviewPath(reviewId));
+    public static PerformanceNotificationMessage ForPeerListApproved(string reviewerName, string roundName, Guid reviewId)
+        => Message("PeerListApproved", "PeerListApproved.context", reviewerName, ReviewPath(reviewId),
+            ("reviewer", reviewerName), ("round", roundName));
 
-    public static PerformanceNotificationText ForPeerInputRequested(string subjectName, string roundName, DateOnly? due, Guid requestId)
-        => new($"Peer input for {subjectName}", due is DateOnly date ? $"{roundName} · due {date:ddd d MMM}" : roundName, subjectName,
-            PeerRequestPath(requestId));
+    public static PerformanceNotificationMessage ForPeerInputRequested(string subjectName, string roundName, DateOnly? due, Guid requestId)
+        => Message("PeerInputRequested", due is null ? "Context.round" : "PeerInputRequested.context.due", subjectName,
+            PeerRequestPath(requestId), ("subject", subjectName), ("round", roundName), ("due", Date(due)));
 
-    public static PerformanceNotificationText ForPeerDeclined(string peerName, string subjectName, Guid reviewId)
-        => new($"{peerName} declined peer input for {subjectName}", null, peerName, ReviewPath(reviewId));
+    public static PerformanceNotificationMessage ForPeerDeclined(string peerName, string subjectName, Guid reviewId)
+        => Message("PeerDeclined", null, peerName, ReviewPath(reviewId), ("peer", peerName), ("subject", subjectName));
 
-    /// <summary><paramref name="title"/> names the task from the recipient's side ("Your self-assessment is now due Fri 17 Sep").</summary>
-    public static PerformanceNotificationText ForDueDateMoved(string title, DateOnly? from, string roundName, string href)
-        => new(title, from is DateOnly previous ? $"Moved from {previous:ddd d MMM} · {roundName}" : roundName,
-            null, href);
+    /// <summary><paramref name="titleKey"/> names the moved task from the recipient's side.</summary>
+    public static PerformanceNotificationMessage ForDueDateMoved(string titleKey, PerformanceReview review, DateOnly to, DateOnly? from,
+        string roundName, string href)
+        => Message(titleKey, from is null ? "Context.round" : "ReviewDueDateMoved.context.from", null, href,
+            ("subject", review.SubjectDisplayName), ("reviewer", review.ReviewerDisplayName), ("due", Date(to)), ("from", Date(from)),
+            ("round", roundName));
 
-    public static PerformanceNotificationText ForReminder(ReviewWorkNotificationPayload payload)
-        => new(PerformanceNotificationRenderer.ReminderSubject(payload), payload.ReviewRoundName, null, payload.Path);
+    /// <summary>
+    /// "Your self-assessment is due Wed 15 Sep", "is a day late", "is 8 days late". <paramref name="task"/> is the
+    /// reminder's task: <c>selfAssessment</c>, <c>peerList</c>, <c>peerInput</c>, <c>review</c> or <c>acknowledge</c>.
+    /// </summary>
+    public static PerformanceNotificationMessage ForReminder(string task, string? subjectName, DateOnly? due, int daysLate,
+        string roundName, string href)
+    {
+        var state = task == "acknowledge" ? "" : daysLate > 0 ? ".late" : due is null ? ".waiting" : ".due";
+        return Message($"Reminder.{task}{state}", "Context.round", null, href, ("subject", subjectName), ("due", Date(due)),
+            ("count", daysLate > 0 ? daysLate.ToString(CultureInfo.InvariantCulture) : null), ("round", roundName));
+    }
 
-    public static PerformanceNotificationText ForAcknowledged(string subjectName, string roundName, Guid reviewId)
-        => new($"{subjectName} acknowledged their review", roundName, subjectName, ReviewPath(reviewId));
+    public static PerformanceNotificationMessage ForAcknowledged(string subjectName, string roundName, Guid reviewId)
+        => Message("ReviewAcknowledged", "Context.round", subjectName, ReviewPath(reviewId), ("subject", subjectName), ("round", roundName));
 
-    public static PerformanceNotificationText ForCalibrationReady(CalibrationSession session, string roundName)
-        => new("Calibration is ready", $"Every review in {roundName} has reached calibration", null,
-            CalibrationPath(session.ReviewRoundId));
+    public static PerformanceNotificationMessage ForCalibrationReady(CalibrationSession session, string roundName)
+        => Message("CalibrationReady", "CalibrationReady.context", null, CalibrationPath(session.ReviewRoundId), ("round", roundName));
 
     /// <summary>Counts only: who changed and why stay in the app.</summary>
-    public static PerformanceNotificationText ForCalibrationFinalized(string roundName, string counts)
-        => new("Calibration finished", $"{roundName} · {counts}", null, ReviewsPath);
+    public static PerformanceNotificationMessage ForCalibrationFinalized(string roundName, int changed, int total)
+        => Message(changed == 0 ? "CalibrationFinalized.none" : "CalibrationFinalized.changed",
+            changed == 0 ? "CalibrationFinalized.context.none" : "CalibrationFinalized.context.changed", null, ReviewsPath,
+            ("round", roundName), ("count", changed.ToString(CultureInfo.InvariantCulture)),
+            ("total", total.ToString(CultureInfo.InvariantCulture)));
 
     public const string ReviewsPath = "/performance/reviews";
 
@@ -115,35 +135,48 @@ public static class PerformanceNotificationTemplates
     public static string FeedbackRequestPath(Guid requestId) => $"/performance/feedback/requests/{requestId}";
     public static string PraisePath(Guid praiseId) => $"/performance/feedback?tab=praise&praise={praiseId}";
 
-    public static PerformanceNotificationText ForOneOnOneStarted(string actorName, Guid seriesId)
-        => new($"{actorName} started 1:1s with you", null, actorName, OneOnOnePath(seriesId));
+    public static PerformanceNotificationMessage ForOneOnOneStarted(string actorName, Guid seriesId)
+        => Message("OneOnOneStarted", null, actorName, OneOnOnePath(seriesId), ("actor", actorName));
 
-    public static PerformanceNotificationText ForOneOnOneRescheduled(string actorName, Guid seriesId)
-        => new($"{actorName} moved your next 1:1", null, actorName, OneOnOnePath(seriesId));
+    public static PerformanceNotificationMessage ForOneOnOneRescheduled(string actorName, Guid seriesId)
+        => Message("OneOnOneRescheduled", null, actorName, OneOnOnePath(seriesId), ("actor", actorName));
 
     /// <summary>The owner reads the action's text in the app; the email never carries it.</summary>
-    public static PerformanceNotificationText ForOneOnOneActionAssigned(string actorName, string actionText, Guid seriesId)
-        => new($"{actorName} gave you an action from your 1:1", actionText, actorName, OneOnOnePath(seriesId));
+    public static PerformanceNotificationMessage ForOneOnOneActionAssigned(string actorName, string actionText, Guid seriesId)
+        => Message("OneOnOneActionAssigned", "Context.action", actorName, OneOnOnePath(seriesId), ("actor", actorName), ("action", actionText));
 
     /// <summary>Names what the feedback is about, never what it says.</summary>
-    public static PerformanceNotificationText ForFeedbackReceived(string authorName, string? subjectLabel, Guid feedbackId)
-        => new($"{authorName} gave you feedback", Clean(subjectLabel), authorName, FeedbackPath(feedbackId));
+    public static PerformanceNotificationMessage ForFeedbackReceived(string authorName, string? subjectLabel, Guid feedbackId)
+        => Message("FeedbackReceived", Clean(subjectLabel) is null ? null : "Context.about", authorName, FeedbackPath(feedbackId),
+            ("actor", authorName), ("about", Clean(subjectLabel)));
 
-    public static PerformanceNotificationText ForFeedbackForReport(string authorName, string receiverName, Guid feedbackId)
-        => new($"{authorName} gave you feedback about {receiverName}", "Manager only", authorName, FeedbackPath(feedbackId));
+    public static PerformanceNotificationMessage ForFeedbackForReport(string authorName, string receiverName, Guid feedbackId)
+        => Message("FeedbackForReport", "FeedbackForReport.context", authorName, FeedbackPath(feedbackId),
+            ("actor", authorName), ("receiver", receiverName));
 
-    public static PerformanceNotificationText ForFeedbackRequested(string requesterName, string question, Guid requestId)
-        => new($"{requesterName} asked for your feedback", question, requesterName, FeedbackRequestPath(requestId));
+    public static PerformanceNotificationMessage ForFeedbackRequested(string requesterName, string question, Guid requestId)
+        => Message("FeedbackRequested", "Context.question", requesterName, FeedbackRequestPath(requestId),
+            ("actor", requesterName), ("question", question));
 
-    public static PerformanceNotificationText ForFeedbackRequestResponded(string inviteeName, bool answered, string question, Guid requestId)
-        => new(answered ? $"{inviteeName} answered your feedback request" : $"{inviteeName} declined your feedback request",
-            question, inviteeName, FeedbackRequestPath(requestId));
+    public static PerformanceNotificationMessage ForFeedbackRequestResponded(string inviteeName, bool answered, string question, Guid requestId)
+        => Message(answered ? "FeedbackRequestResponded.answered" : "FeedbackRequestResponded.declined", "Context.question", inviteeName,
+            FeedbackRequestPath(requestId), ("actor", inviteeName), ("question", question));
 
-    public static PerformanceNotificationText ForPraiseReceived(string authorName, string valueName, Guid praiseId)
-        => new($"{authorName} praised you for {valueName}", null, authorName, PraisePath(praiseId));
+    public static PerformanceNotificationMessage ForPraiseReceived(string authorName, string valueName, Guid praiseId)
+        => Message("PraiseReceived", null, authorName, PraisePath(praiseId), ("actor", authorName), ("value", valueName));
 
-    public static PerformanceNotificationText ForPraiseForReport(string authorName, string recipientName, string valueName, Guid praiseId)
-        => new($"{authorName} praised {recipientName} for {valueName}", null, authorName, PraisePath(praiseId));
+    public static PerformanceNotificationMessage ForPraiseForReport(string authorName, string recipientName, string valueName, Guid praiseId)
+        => Message("PraiseForReport", null, authorName, PraisePath(praiseId), ("actor", authorName), ("recipient", recipientName),
+            ("value", valueName));
+
+    private static PerformanceNotificationMessage Message(string titleKey, string? contextKey, string? actorName, string href,
+        params (string Name, string? Value)[] values)
+        => new(titleKey, contextKey,
+            values.Where(value => !string.IsNullOrWhiteSpace(value.Value))
+                .ToDictionary(value => value.Name, value => value.Value!.Trim(), StringComparer.Ordinal),
+            Clean(actorName), href);
+
+    private static string? Date(DateOnly? date) => date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

@@ -12,7 +12,11 @@ public sealed class PerformanceNotificationConfiguration : IEntityTypeConfigurat
         builder.HasKey(n => n.Id);
         builder.Property(n => n.Kind).HasConversion<string>().HasMaxLength(80);
         builder.Property(n => n.ResourceType).IsRequired().HasMaxLength(80);
-        builder.Property(n => n.Title).IsRequired().HasMaxLength(300);
+        builder.Property(n => n.TitleKey).HasMaxLength(120);
+        builder.Property(n => n.ContextKey).HasMaxLength(120);
+        builder.Property(n => n.ValuesJson).HasColumnName("Values").HasColumnType("jsonb").IsRequired();
+        builder.Ignore(n => n.Values);
+        builder.Property(n => n.Title).HasMaxLength(300);
         builder.Property(n => n.Context).HasMaxLength(500);
         builder.Property(n => n.ActorName).HasMaxLength(200);
         builder.Property(n => n.Href).IsRequired().HasMaxLength(500);

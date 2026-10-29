@@ -28,4 +28,9 @@
   <ItemGroup>
     <ProjectReference Include="..\EY.HRPlatform.SharedKernel\EY.HRPlatform.SharedKernel.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Infrastructure/Notifications/Text/*.json" />
+    <EmbeddedResource Include="Infrastructure/Notifications/Text/*.json" LogicalName="EY.HRPlatform.Performance.Notifications.Text.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

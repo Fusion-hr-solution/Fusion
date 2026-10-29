@@ -155,7 +155,7 @@ public sealed class ReviewWorkTests
     private static async Task<int> ScanAsync(ReviewWorld world, DateOnly day)
     {
         await using var db = world.Factory.Store.NewContext();
-        return await ReviewReminderScanner.ScanTenantAsync(db, new PerformanceNotifications(db), day.ToDateTime(new TimeOnly(9, 0), DateTimeKind.Utc), default);
+        return await ReviewReminderScanner.ScanTenantAsync(db, new PerformanceNotifications(db), day, default);
     }
 
     [Fact]
@@ -193,9 +193,9 @@ public sealed class ReviewWorkTests
         Assert.Equal(14, reminders.Count);
         Assert.DoesNotContain(reminders, n => n.ResourceId == fares);
         Assert.Equal(2, reminders.Count(n => n.ResourceId == aicha));
-        Assert.Single(reminders, n => n.RecipientEmployeeId == world.Mariam.EmployeeId && n.Title == "Your review of Aicha Ben Ali is a day late");
-        Assert.Single(reminders, n => n.RecipientEmployeeId == world.Tarek.EmployeeId && n.Title == "Your self-assessment is a day late");
-        Assert.Single(reminders, n => n.RecipientEmployeeId == world.Tarek.EmployeeId && n.Title == "Your self-assessment is 8 days late");
+        Assert.Single(reminders, n => n.RecipientEmployeeId == world.Mariam.EmployeeId && n.EnglishTitle() == "Your review of Aicha Ben Ali is a day late");
+        Assert.Single(reminders, n => n.RecipientEmployeeId == world.Tarek.EmployeeId && n.EnglishTitle() == "Your self-assessment is a day late");
+        Assert.Single(reminders, n => n.RecipientEmployeeId == world.Tarek.EmployeeId && n.EnglishTitle() == "Your self-assessment is 8 days late");
         Assert.Contains(db.OutboxMessages.ToList(), m => m.DedupeKey == $"Reminder:SelfAssessment:{aicha:N}:{due.AddDays(-3):yyyy-MM-dd}");
     }
 
@@ -250,7 +250,7 @@ public sealed class ReviewWorkTests
             await using (var db = world.Factory.Store.NewContext())
             {
                 var message = await db.OutboxMessages.SingleAsync(m => m.Kind == PerformanceNotificationKind.ReviewReminder && m.RecipientEmployeeId == world.Aicha.EmployeeId);
-                await new PerformanceNotificationDispatcher(db, world.Factory.Store.Tenant, world.Factory.Core,
+                await new PerformanceNotificationDispatcher(db, world.Factory.Store.Tenant, world.Factory.Core, world.Factory.Audience,
                     new SmtpPerformanceNotificationSender(options), options).DispatchAsync(message, DateTime.UtcNow, default);
                 Assert.NotNull(message.DispatchedAt);
             }

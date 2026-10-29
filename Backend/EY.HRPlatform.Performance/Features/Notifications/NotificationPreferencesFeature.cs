@@ -2,11 +2,14 @@ using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Features.Failures;
 using EY.HRPlatform.Performance.Infrastructure.Core;
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Notifications;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Kind = EY.HRPlatform.Performance.Domain.Notifications.PerformanceNotificationKind;
 
 namespace EY.HRPlatform.Performance.Features.Notifications;
@@ -194,5 +197,37 @@ public sealed class UpdateNotificationPreferencesHandler(PerformanceDbContext db
 
         await db.SaveChangesAsync(token);
         return await NotificationPreferences.ProjectAsync(workforce, recipient, command.Audience, command.AccountEmail, preference, token);
+    }
+}
+
+/// <summary>A one-click unsubscribe from an email's List-Unsubscribe header (B-002 N6).</summary>
+public sealed record UnsubscribeFromEmailGroupCommand(string? Token) : ICommand<Result<bool>>;
+
+/// <summary>
+/// Turns off the one email group the signed link names, for the person it was sent to. No sign-in: the token's
+/// signature is the authority, and it can only ever turn email off, never on or anything else.
+/// </summary>
+public sealed class UnsubscribeFromEmailGroupHandler(PerformanceDbContext db, TenantContext tenant,
+    IOptions<PerformanceNotificationOptions> options) : ICommandHandler<UnsubscribeFromEmailGroupCommand, Result<bool>>
+{
+    public async Task<Result<bool>> Handle(UnsubscribeFromEmailGroupCommand command, CancellationToken token)
+    {
+        var key = options.Value.UnsubscribeKey;
+        var claim = string.IsNullOrWhiteSpace(key) ? null : UnsubscribeToken.Read(command.Token, key);
+        if (claim is null || !NotificationGroups.Optional.Contains(claim.Group)
+            || (tenant.IsResolved && tenant.TenantId != claim.TenantId))
+            return Result.Failure<bool>(PerformanceErrors.Validation(PerformanceErrors.Codes.NotificationPreferencesInvalid,
+                "This unsubscribe link isn't valid."));
+        if (!tenant.IsResolved) tenant.SetTenant(claim.TenantId);
+
+        var preference = await db.NotificationPreferences.FirstOrDefaultAsync(row => row.RecipientEmployeeId == claim.RecipientEmployeeId, token);
+        if (preference is null)
+        {
+            preference = NotificationPreference.For(claim.TenantId, claim.RecipientEmployeeId, null);
+            db.NotificationPreferences.Add(preference);
+        }
+        preference.SetEmailOff([.. preference.EmailOff, claim.Group]);
+        await db.SaveChangesAsync(token);
+        return Result.Success(true);
     }
 }

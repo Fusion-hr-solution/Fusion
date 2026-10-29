@@ -1,6 +1,7 @@
 using System.Globalization;
 using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Multitenancy;
@@ -19,10 +20,17 @@ public sealed record MarkNotificationsReadResultDto(int UnreadCount);
 /// <summary>Who the feed belongs to: the caller's employee record and account, in the caller's tenant.</summary>
 public sealed record NotificationRecipient(Guid? EmployeeId, Guid? UserId);
 
-public sealed record GetNotificationsQuery(NotificationRecipient Recipient, string? Cursor, int? Limit)
+/// <summary><paramref name="Language"/> is the language the request reads in; old rows keep their English.</summary>
+public sealed record GetNotificationsQuery(NotificationRecipient Recipient, string? Cursor, int? Limit, string Language)
     : IQuery<Result<FusionNotificationPageDto>>;
 public sealed record MarkNotificationsReadCommand(NotificationRecipient Recipient, IReadOnlyList<Guid> Ids, bool All)
     : ICommand<Result<MarkNotificationsReadResultDto>>;
+
+/// <summary>The PostgreSQL channel Performance nudges open tabs on (B-153).</summary>
+public static class PerformanceFeed
+{
+    public const string Channel = "performance_feed";
+}
 
 public static class NotificationFeed
 {
@@ -42,8 +50,11 @@ public static class NotificationFeed
             && ((employeeId != null && n.RecipientEmployeeId == employeeId) || (userId != null && n.RecipientUserId == userId)));
     }
 
-    public static FusionNotificationDto ToDto(PerformanceNotification n)
-        => new(n.Id.ToString(), "performance", n.Kind.ToString(), n.Title, n.Context, n.ActorName, n.OccurredAt, n.Href, n.ReadAt);
+    public static FusionNotificationDto ToDto(PerformanceNotification n, string language)
+    {
+        var (title, context) = PerformanceNotificationRenderer.InApp(n, language);
+        return new(n.Id.ToString(), "performance", n.Kind.ToString(), title, context, n.ActorName, n.OccurredAt, n.Href, n.ReadAt);
+    }
 
     public static string EncodeCursor(DateTime occurredAt) => occurredAt.Ticks.ToString(CultureInfo.InvariantCulture);
 
@@ -66,7 +77,7 @@ public sealed class GetNotificationsHandler(PerformanceDbContext db)
         var rows = await page.OrderByDescending(n => n.OccurredAt).ThenByDescending(n => n.Id)
             .Take(limit + 1).ToListAsync(token);
         var unread = await own.CountAsync(n => n.ReadAt == null, token);
-        var items = rows.Take(limit).Select(NotificationFeed.ToDto).ToList();
+        var items = rows.Take(limit).Select(n => NotificationFeed.ToDto(n, query.Language)).ToList();
         var next = rows.Count > limit ? NotificationFeed.EncodeCursor(rows[limit - 1].OccurredAt) : null;
         return Result.Success(new FusionNotificationPageDto(items, unread, next));
     }

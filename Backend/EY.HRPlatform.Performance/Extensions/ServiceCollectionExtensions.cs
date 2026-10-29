@@ -15,6 +15,7 @@ using EY.HRPlatform.Performance.Infrastructure.Evidence;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Notifications;
 using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -65,6 +66,19 @@ public static class ServiceCollectionExtensions
             {
                 throw new InvalidOperationException(
                     "ServiceUrls:CoreHRApiBaseUrl is not configured. Set it via environment variable or appsettings.");
+            }
+
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+        });
+
+        services.AddHttpClient<INotificationAudienceClient, NotificationAudienceClient>(client =>
+        {
+            var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new InvalidOperationException(
+                    "ServiceUrls:IdentityApiBaseUrl is not configured. Set it via environment variable or appsettings.");
             }
 
             client.Timeout = TimeSpan.FromSeconds(10);
@@ -135,6 +149,9 @@ public static class ServiceCollectionExtensions
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("ConnectionStrings:PerformanceDb is not configured. Set it via environment variable or appsettings.");
 
+        // The live nudge (B-153): a new or read notification tells its recipient's open tabs to refetch.
+        services.AddFeedNudges(PerformanceFeed.Channel, connectionString);
+
         services.AddDbContext<PerformanceDbContext>((sp, options) =>
         {
             options.UseNpgsql(
@@ -147,7 +164,8 @@ public static class ServiceCollectionExtensions
             options.AddInterceptors(
                 tenantInterceptor,
                 sp.GetRequiredService<AuditAppendOnlyInterceptor>(),
-                sp.GetRequiredService<DemoClockStampInterceptor>());
+                sp.GetRequiredService<DemoClockStampInterceptor>(),
+                sp.GetRequiredService<FeedNudgeInterceptor>());
         });
 
         services.AddHealthChecks()

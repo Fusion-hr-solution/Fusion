@@ -29,11 +29,11 @@ public interface IPerformanceNotifications
     /// recipient is the person who acted. <paramref name="transitionId"/> makes the dedupe key per transition.
     /// </summary>
     void EnqueueConversation(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId, Guid actorEmployeeId,
-        string resourceType, Guid resourceId, Guid transitionId, PerformanceNotificationText text);
+        string resourceType, Guid resourceId, Guid transitionId, PerformanceNotificationMessage text);
 
     /// <summary>Stages a peer, schedule, reminder or acknowledgement notification. Nothing is staged without a recipient.</summary>
     void EnqueueReviewWork(PerformanceReview review, PerformanceNotificationKind kind, Guid recipientEmployeeId, string resourceType,
-        Guid resourceId, string dedupeKey, ReviewWorkNotificationPayload payload, PerformanceNotificationText text);
+        Guid resourceId, string dedupeKey, ReviewWorkNotificationPayload payload, PerformanceNotificationMessage text);
 }
 
 public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerformanceNotifications
@@ -108,7 +108,7 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
     }
 
     public void EnqueueConversation(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId, Guid actorEmployeeId,
-        string resourceType, Guid resourceId, Guid transitionId, PerformanceNotificationText text)
+        string resourceType, Guid resourceId, Guid transitionId, PerformanceNotificationMessage text)
     {
         if (recipientEmployeeId == Guid.Empty || recipientEmployeeId == actorEmployeeId) return;
         var message = PerformanceOutboxMessage.ForConversation(tenantId, kind, recipientEmployeeId, resourceType, transitionId,
@@ -117,7 +117,7 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
     }
 
     public void EnqueueReviewWork(PerformanceReview review, PerformanceNotificationKind kind, Guid recipientEmployeeId, string resourceType,
-        Guid resourceId, string dedupeKey, ReviewWorkNotificationPayload payload, PerformanceNotificationText text)
+        Guid resourceId, string dedupeKey, ReviewWorkNotificationPayload payload, PerformanceNotificationMessage text)
     {
         if (recipientEmployeeId == Guid.Empty) return;
         var message = PerformanceOutboxMessage.ForReviewWork(review.TenantId, kind, recipientEmployeeId, resourceType, resourceId,
@@ -129,7 +129,7 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
     /// State retries return before enqueue; this also protects repeated staging in the same context.
     /// Both rows share the outbox dedupe key, which is unique per tenant.
     /// </summary>
-    private void Stage(PerformanceOutboxMessage message, Guid? recipientUserId, PerformanceNotificationText text)
+    private void Stage(PerformanceOutboxMessage message, Guid? recipientUserId, PerformanceNotificationMessage text)
     {
         if (db.OutboxMessages.Local.Any(m => m.TenantId == message.TenantId && m.DedupeKey == message.DedupeKey)) return;
         db.OutboxMessages.Add(message);

@@ -188,8 +188,8 @@ public sealed class CalibrationPotentialTests
         // Each reviewer hears once, with counts only.
         var told = await db.Notifications.AsNoTracking().Where(item => item.Kind == PerformanceNotificationKind.CalibrationFinalized).ToListAsync();
         Assert.Equal(2, told.Count);
-        Assert.Contains(told, item => item.RecipientEmployeeId == world.Of("Tarek Ayari").ReviewerEmployeeId && item.Context!.Contains("1 of 1 ratings changed."));
-        Assert.Contains(told, item => item.RecipientEmployeeId == world.Of("Karim Haddad").ReviewerEmployeeId && item.Context!.Contains("No ratings changed."));
+        Assert.Contains(told, item => item.RecipientEmployeeId == world.Of("Tarek Ayari").ReviewerEmployeeId && item.EnglishContext()!.Contains("1 of 1 ratings changed."));
+        Assert.Contains(told, item => item.RecipientEmployeeId == world.Of("Karim Haddad").ReviewerEmployeeId && item.EnglishContext()!.Contains("No ratings changed."));
         Assert.All(await db.OutboxMessages.AsNoTracking().Where(item => item.Kind == PerformanceNotificationKind.CalibrationFinalized).Select(item => item.Payload).ToListAsync(),
             payload => Assert.DoesNotContain("Tarek", payload));
 

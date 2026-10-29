@@ -77,7 +77,7 @@ public sealed class PraiseHttpTests
         Assert.Single(notifications, n => n.RecipientEmployeeId == w.Nour && n.Kind == PerformanceNotificationKind.PraiseReceived);
         Assert.Single(notifications, n => n.RecipientEmployeeId == w.Sami && n.Kind == PerformanceNotificationKind.PraiseReceived);
         var karims = Assert.Single(notifications, n => n.RecipientEmployeeId == w.Karim);
-        Assert.Equal("Leila Baccouche praised Nour Trabelsi and Sami Kefi for Ownership", karims.Title);
+        Assert.Equal("Leila Baccouche praised Nour Trabelsi and Sami Kefi for Ownership", karims.EnglishTitle());
         Assert.Equal($"/performance/feedback?tab=praise&praise={id}", karims.Href);
         Assert.DoesNotContain(notifications, n => n.RecipientEmployeeId == w.Leila);
         var value = await db.Competencies.SingleAsync(c => c.Id == w.Ownership);

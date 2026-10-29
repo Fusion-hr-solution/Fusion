@@ -143,15 +143,18 @@ public sealed class NotificationPreferencesTests
             db.NotificationPreferences.Add(preference);
             new PerformanceNotifications(db).EnqueueConversation(store.TenantId, PerformanceNotificationKind.PraiseReceived,
                 mariam.EmployeeId, Guid.NewGuid(), "Praise", Guid.NewGuid(), Guid.NewGuid(),
-                new PerformanceNotificationText("Karim praised you", null, "Karim", "/performance/feedback"));
-            db.OutboxMessages.Add(ReminderFor(store.TenantId, mariam.EmployeeId));
+                PerformanceNotificationTemplates.ForPraiseReceived("Karim", "Ownership", Guid.NewGuid()));
+            var reminder = ReminderFor(store.TenantId, mariam.EmployeeId);
+            db.OutboxMessages.Add(reminder);
+            db.Notifications.Add(PerformanceNotification.For(reminder, null, PerformanceNotificationTemplates.ForReminder("selfAssessment", null,
+                new DateOnly(2026, 11, 2), 0, "Year-end", "/performance/reviews"), DateTime.UtcNow));
             await db.SaveChangesAsync();
         }
 
         await using (var db = store.NewContext())
         {
-            var dispatcher = new PerformanceNotificationDispatcher(db, store.Tenant, core, sender,
-                Options.Create(new PerformanceNotificationOptions { Enabled = true }));
+            var dispatcher = new PerformanceNotificationDispatcher(db, store.Tenant, core, new FakeNotificationAudienceClient(), sender,
+                Options.Create(new PerformanceNotificationOptions { Enabled = true, ShellBaseUrl = "http://localhost:3000" }));
             foreach (var message in await db.OutboxMessages.ToListAsync())
                 await dispatcher.DispatchAsync(message, DateTime.UtcNow, default);
         }

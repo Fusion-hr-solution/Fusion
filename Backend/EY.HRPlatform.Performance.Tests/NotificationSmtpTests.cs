@@ -62,7 +62,7 @@ public sealed class NotificationSmtpTests
             {
                 Assert.Equal(PlanLifecycleState.Submitted, (await db.EmployeePlans.SingleAsync()).State);
                 var message = Assert.Single(await db.OutboxMessages.ToListAsync());
-                var dispatcher = new PerformanceNotificationDispatcher(db, factory.Store.Tenant, factory.Core,
+                var dispatcher = new PerformanceNotificationDispatcher(db, factory.Store.Tenant, factory.Core, factory.Audience,
                     new SmtpPerformanceNotificationSender(options), options);
                 await dispatcher.DispatchAsync(message, DateTime.UtcNow, default);
                 await dispatcher.DispatchAsync(message, DateTime.UtcNow, default);

@@ -202,7 +202,7 @@ public sealed class ObjectiveStatusTests
         var told = Assert.Single(await NotificationsAsync(w, PerformanceNotificationKind.UpdateRequestAnswered));
         Assert.Equal(w.Lina, told.RecipientEmployeeId);
         Assert.Equal($"/performance/cycles/{w.CycleId}/objectives/{w.ManualId}", told.Href);
-        Assert.Equal("Nour Trabelsi updated their progress", told.Title);
+        Assert.Equal("Nour Trabelsi updated their progress", told.EnglishTitle());
     }
 
     // ── Status and acknowledgement (2.2) ──────────────────────────────────
@@ -230,7 +230,7 @@ public sealed class ObjectiveStatusTests
         Assert.True((await SubmitAsync(w, w.ManualId, CheckIn(35m, ObjectiveStatus.AtRisk, "Still waiting"))).IsSuccess);
         var once = Assert.Single(await NotificationsAsync(w, PerformanceNotificationKind.ObjectiveAtRisk));
         Assert.Equal(w.Lina, once.RecipientEmployeeId);
-        Assert.Equal("Nour Trabelsi's objective is at risk", once.Title);
+        Assert.Equal("Nour Trabelsi's objective is at risk", once.EnglishTitle());
 
         Assert.True((await SubmitAsync(w, w.ManualId, CheckIn(35m, ObjectiveStatus.OffTrack, "Blocked"))).IsSuccess);
         Assert.Equal(2, (await NotificationsAsync(w, PerformanceNotificationKind.ObjectiveAtRisk)).Count);

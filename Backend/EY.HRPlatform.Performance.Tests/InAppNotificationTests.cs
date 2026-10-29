@@ -57,7 +57,7 @@ public sealed class InAppNotificationTests
         Assert.Equal(toManager ? manager : employee, notification.RecipientEmployeeId);
         Assert.Equal(outbox.RecipientEmployeeId, notification.RecipientEmployeeId);
         Assert.Equal(outbox.DedupeKey, notification.DedupeKey);
-        Assert.Equal(title, notification.Title);
+        Assert.Equal(title, notification.EnglishTitle());
         Assert.Equal($"/performance/cycles/{plan.CycleId}/plans/{plan.Id}", notification.Href);
         Assert.Null(notification.ReadAt);
     }
@@ -80,8 +80,8 @@ public sealed class InAppNotificationTests
         await using var verify = store.NewContext();
         var notification = Assert.Single(await verify.Notifications.ToListAsync());
         Assert.Equal(toSubject ? review.SubjectEmployeeId : review.ReviewerEmployeeId, notification.RecipientEmployeeId);
-        Assert.Equal(title, notification.Title);
-        Assert.Equal("Year-end", notification.Context);
+        Assert.Equal(title, notification.EnglishTitle());
+        Assert.Equal("Year-end", notification.EnglishContext());
         Assert.Equal($"/performance/reviews/{review.Id}", notification.Href);
     }
 
@@ -120,7 +120,7 @@ public sealed class InAppNotificationTests
         await using var verify = store.NewContext();
         var notification = Assert.Single(await verify.Notifications.ToListAsync());
         Assert.Equal(employee, notification.RecipientEmployeeId);
-        Assert.Equal("Lina asked for a progress update", notification.Title);
+        Assert.Equal("Lina asked for a progress update", notification.EnglishTitle());
         Assert.Equal($"/performance/cycles/{plan.CycleId}/plans/{plan.Id}", notification.Href);
         var cycleId = Guid.NewGuid(); var objectiveId = Guid.NewGuid();
         Assert.Equal($"/performance/cycles/{cycleId}/objectives/{objectiveId}?mode=record",
@@ -148,10 +148,11 @@ public sealed class InAppNotificationTests
         var notification = PerformanceNotification.For(message, null,
             PerformanceNotificationTemplates.ForReview(review, PerformanceNotificationKind.ReviewFinalized, "Year-end"), DateTime.UtcNow);
         // The round can be renamed later; the stored text and path don't depend on it.
-        Assert.Equal("Year-end", notification.Context);
+        Assert.Equal("Year-end", notification.EnglishContext());
         Assert.Equal($"/performance/reviews/{review.Id}", notification.Href);
         Assert.Throws<ArgumentException>(() => PerformanceNotification.For(message, null,
-            new PerformanceNotificationText("x", null, null, "https://elsewhere.test"), DateTime.UtcNow));
+            new PerformanceNotificationMessage("ReviewFinalized", null, new Dictionary<string, string>(), null, "https://elsewhere.test"),
+            DateTime.UtcNow));
     }
 
     // ── HTTP: feed and read ──────────────────────────────────────────────────

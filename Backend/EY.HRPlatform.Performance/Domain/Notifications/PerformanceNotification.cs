@@ -1,13 +1,16 @@
+using System.Text.Json;
 using EY.HRPlatform.Performance.Domain.Common;
+using EY.HRPlatform.SharedKernel.Notifications;
 
 namespace EY.HRPlatform.Performance.Domain.Notifications;
 
 /// <summary>
 /// An in-app record of something that happened for one recipient (D-30). Staged beside the
-/// outbox message of the same transition, so both commit or roll back together. Text, actor and
-/// path are frozen at creation: later renames never rewrite what the person was told.
+/// outbox message of the same transition, so both commit or roll back together. It stores what happened (text keys
+/// and the names, titles and dates they need), frozen at creation, and is worded in the reader's language when read
+/// (B-153). Adding or reading one nudges the recipient's open tabs.
 /// </summary>
-public sealed class PerformanceNotification : PerformanceChildEntity
+public sealed class PerformanceNotification : PerformanceChildEntity, IFeedNudgeRecipient
 {
     public const int RetentionDays = 180;
 
@@ -20,7 +23,15 @@ public sealed class PerformanceNotification : PerformanceChildEntity
     public PerformanceNotificationKind Kind { get; private set; }
     public string ResourceType { get; private set; } = string.Empty;
     public Guid ResourceId { get; private set; }
-    public string Title { get; private set; } = string.Empty;
+    /// <summary>The catalogue entry for the title; null only on rows from before B-153.</summary>
+    public string? TitleKey { get; private set; }
+    public string? ContextKey { get; private set; }
+    /// <summary>What the wording needs: names as written, titles, ISO dates, counts.</summary>
+    public string ValuesJson { get; private set; } = "{}";
+    public IReadOnlyDictionary<string, string> Values
+        => JsonSerializer.Deserialize<Dictionary<string, string>>(ValuesJson) ?? [];
+    /// <summary>English text written before B-153; shown as written for those rows.</summary>
+    public string? Title { get; private set; }
     public string? Context { get; private set; }
     public string? ActorName { get; private set; }
     public string Href { get; private set; } = string.Empty;
@@ -30,12 +41,12 @@ public sealed class PerformanceNotification : PerformanceChildEntity
     public string DedupeKey { get; private set; } = string.Empty;
 
     public static PerformanceNotification For(PerformanceOutboxMessage message, Guid? recipientUserId,
-        PerformanceNotificationText text, DateTime occurredAt)
+        PerformanceNotificationMessage text, DateTime occurredAt)
     {
         var employee = message.RecipientEmployeeId == Guid.Empty ? (Guid?)null : message.RecipientEmployeeId;
         if (employee is null && recipientUserId is null)
             throw new ArgumentException("A notification needs a recipient.");
-        if (string.IsNullOrWhiteSpace(text.Title) || !text.Href.StartsWith("/performance/", StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(text.TitleKey) || !text.Href.StartsWith("/performance/", StringComparison.Ordinal))
             throw new ArgumentException("A notification needs a title and an in-app Performance path.");
         return new PerformanceNotification
         {
@@ -45,8 +56,9 @@ public sealed class PerformanceNotification : PerformanceChildEntity
             Kind = message.Kind,
             ResourceType = message.ResourceType,
             ResourceId = message.ResourceId,
-            Title = text.Title,
-            Context = text.Context,
+            TitleKey = text.TitleKey,
+            ContextKey = text.ContextKey,
+            ValuesJson = JsonSerializer.Serialize(text.Values),
             ActorName = text.ActorName,
             Href = text.Href,
             OccurredAt = occurredAt,
@@ -63,5 +75,9 @@ public sealed class PerformanceNotification : PerformanceChildEntity
     }
 }
 
-/// <summary>Display text and path composed by Performance, in English, when the notification is made.</summary>
-public sealed record PerformanceNotificationText(string Title, string? Context, string? ActorName, string Href);
+/// <summary>
+/// What a notification says, as catalogue keys and values (worded per reader, B-153), plus who acted and where it
+/// opens. Values hold names as written, titles, ISO dates (<c>yyyy-MM-dd</c>) and counts, never feedback or answers.
+/// </summary>
+public sealed record PerformanceNotificationMessage(string TitleKey, string? ContextKey, IReadOnlyDictionary<string, string> Values,
+    string? ActorName, string Href);

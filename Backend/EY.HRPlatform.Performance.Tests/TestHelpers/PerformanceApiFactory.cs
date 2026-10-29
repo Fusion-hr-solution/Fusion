@@ -20,6 +20,8 @@ public sealed class PerformanceApiFactory(string environment = "Testing") : WebA
     public TestStore Store { get; } = TestStore.ForNewTenant();
     public FakeCoreWorkforceClient Core { get; } = new();
     public FakePermissionHoldersClient Holders { get; } = new();
+    public FakeNotificationAudienceClient Audience { get; } = new();
+    public const string UnsubscribeKey = "test-unsubscribe-key-0123456789abcdef";
     /// <summary>Never the real provider: a GROQ_API_KEY in the environment must not reach tests.</summary>
     public FakePerformanceAiProvider Ai { get; } = new();
 
@@ -32,10 +34,13 @@ public sealed class PerformanceApiFactory(string environment = "Testing") : WebA
         builder.UseSetting("Database:AutoMigrate", "false");
         builder.UseSetting("ConnectionStrings:PerformanceDb", "Host=localhost;Database=unused_http_test_store");
         builder.UseSetting("Urls", "http://localhost");
+        builder.UseSetting("Notifications:UnsubscribeKey", UnsubscribeKey);
 
         builder.ConfigureServices(services =>
         {
             foreach (var service in services.Where(s => s.ImplementationType == typeof(EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceBackgroundWorker)).ToList())
+                services.Remove(service);
+            foreach (var service in services.Where(s => s.ImplementationType == typeof(EY.HRPlatform.SharedKernel.Notifications.FeedNudgeListener)).ToList())
                 services.Remove(service);
             services.RemoveAll<PerformanceDbContext>();
             services.RemoveAll<DbContextOptions<PerformanceDbContext>>();
@@ -45,6 +50,8 @@ public sealed class PerformanceApiFactory(string environment = "Testing") : WebA
             services.AddSingleton<ICoreWorkforceClient>(Core);
             services.RemoveAll<EY.HRPlatform.Performance.Infrastructure.Identity.IPermissionHoldersClient>();
             services.AddSingleton<EY.HRPlatform.Performance.Infrastructure.Identity.IPermissionHoldersClient>(Holders);
+            services.RemoveAll<EY.HRPlatform.Performance.Infrastructure.Identity.INotificationAudienceClient>();
+            services.AddSingleton<EY.HRPlatform.Performance.Infrastructure.Identity.INotificationAudienceClient>(Audience);
             services.RemoveAll<IPerformanceAiProvider>();
             services.AddSingleton<IPerformanceAiProvider>(Ai);
         });

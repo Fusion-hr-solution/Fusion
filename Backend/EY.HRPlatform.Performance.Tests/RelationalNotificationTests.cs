@@ -1,9 +1,12 @@
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Core;
+using EY.HRPlatform.Performance.Infrastructure.Identity;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Infrastructure.Persistence.Interceptors;
+using EY.HRPlatform.Performance.Tests.TestHelpers;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -85,7 +88,9 @@ public sealed class RelationalNotificationTests
             {
                 await using var db = RelationalTests.CreateDb(connection, tenant);
                 await db.Database.MigrateAsync();
-                db.OutboxMessages.Add(NotificationTests.Message(tenant, recipient));
+                var message = NotificationTests.Message(tenant, recipient);
+                db.OutboxMessages.Add(message);
+                db.Notifications.Add(NotificationTests.InAppFor(message));
                 await db.SaveChangesAsync();
             }
             var services = new ServiceCollection();
@@ -95,7 +100,8 @@ public sealed class RelationalNotificationTests
                 .AddInterceptors(new TenantSaveChangesInterceptor(sp.GetRequiredService<ITenantContext>())));
             services.AddScoped<ICoreWorkforceClient>(sp => new TenantCheckingWorkforceClient(sp.GetRequiredService<ITenantContext>(), resolvedTenants));
             services.AddSingleton<IPerformanceNotificationSender>(sender);
-            services.Configure<PerformanceNotificationOptions>(o => o.Enabled = true);
+            services.AddSingleton<INotificationAudienceClient>(new FakeNotificationAudienceClient());
+            services.Configure<PerformanceNotificationOptions>(o => { o.Enabled = true; o.ShellBaseUrl = "http://localhost:3000"; });
             services.AddScoped<PerformanceNotificationDispatcher>();
             await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
             using var worker = new PerformanceBackgroundWorker(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<PerformanceBackgroundWorker>.Instance, new EY.HRPlatform.Performance.Infrastructure.Evidence.EvidenceUploadSweeper(provider.GetRequiredService<IServiceScopeFactory>()),
@@ -105,9 +111,8 @@ public sealed class RelationalNotificationTests
             await worker.ProcessBatchAsync(default);
             await worker.ProcessBatchAsync(default);
             Assert.Equal(new[] { tenantA, tenantB }.Order(), resolvedTenants.Order());
-            Assert.Equal(2, sender.Delivered.Count);
-            foreach (var delivery in sender.Delivered)
-                Assert.Equal($"{delivery.TenantId:N}@tenant.test", delivery.Email);
+            Assert.Equal(new[] { tenantA, tenantB }.Select(tenant => $"{tenant:N}@tenant.test").Order(),
+                sender.Delivered.Select(delivery => delivery.Email).Order());
             foreach (var tenant in new[] { tenantA, tenantB })
             {
                 await using var db = RelationalTests.CreateDb(connection, tenant);
@@ -139,7 +144,9 @@ public sealed class RelationalNotificationTests
             await using (var db = RelationalTests.CreateDb(connection, tenant))
             {
                 await db.Database.MigrateAsync();
-                db.OutboxMessages.Add(NotificationTests.Message(tenant, Guid.NewGuid()));
+                var message = NotificationTests.Message(tenant, Guid.NewGuid());
+                db.OutboxMessages.Add(message);
+                db.Notifications.Add(NotificationTests.InAppFor(message));
                 await db.SaveChangesAsync();
             }
             var services = new ServiceCollection();
@@ -149,7 +156,8 @@ public sealed class RelationalNotificationTests
                 .AddInterceptors(new TenantSaveChangesInterceptor(sp.GetRequiredService<ITenantContext>())));
             services.AddScoped<ICoreWorkforceClient>(sp => new TenantCheckingWorkforceClient(sp.GetRequiredService<ITenantContext>(), resolvedTenants));
             services.AddSingleton<IPerformanceNotificationSender>(sender);
-            services.Configure<PerformanceNotificationOptions>(o => o.Enabled = true);
+            services.AddSingleton<INotificationAudienceClient>(new FakeNotificationAudienceClient());
+            services.Configure<PerformanceNotificationOptions>(o => { o.Enabled = true; o.ShellBaseUrl = "http://localhost:3000"; });
             services.AddScoped<PerformanceNotificationDispatcher>();
             await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
             var scopes = provider.GetRequiredService<IServiceScopeFactory>();
@@ -187,9 +195,9 @@ public sealed class RelationalNotificationTests
     private sealed class CrashAfterAcceptSender(CancellationTokenSource crash) : IPerformanceNotificationSender
     {
         public List<Guid> Accepted { get; } = [];
-        public Task SendAsync(PerformanceOutboxMessage message, string recipientEmail, CancellationToken cancellationToken)
+        public Task SendAsync(FusionOutgoingEmail email, CancellationToken cancellationToken)
         {
-            Accepted.Add(message.Id);
+            Accepted.Add(Guid.ParseExact(email.MessageId[1..33], "N"));
             if (Accepted.Count == 1)
             {
                 crash.Cancel();
