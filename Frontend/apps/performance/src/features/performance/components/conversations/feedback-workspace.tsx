@@ -32,6 +32,7 @@ import { FeedbackDrawer, PraiseDrawer } from "./drawers";
 import { REACTION_ICONS } from "./reaction-icons";
 import { useTranslations } from "next-intl";
 import { useFormat } from "@repo/ds/lib/use-format";
+import { useLanding } from "@/lib/use-landing";
 
 type Tab = "received" | "given" | "requests" | "praise" | "team";
 const TABS: readonly { value: Tab }[] = [{ value: "received" }, { value: "given" }, { value: "requests" }, { value: "praise" }];
@@ -318,6 +319,8 @@ function FeedbackPage({
 }) {
   const t = useTranslations("conversations.FeedbackPage");
   const page = useFeedbackList({ view, before, limit: 50 });
+  // A notification lands on its card in the newest page; an older one opens in the drawer.
+  useLanding("feedback", before === null && Boolean(page.data), onOpen);
   if (page.error) return <ContentUnavailable error={page.error} onRetry={page.refetch} subject={t("feedback")} />;
   if (!page.data) return <FeedSkeleton />;
   if (page.data.items.length === 0) return <>{empty}</>;
@@ -350,8 +353,9 @@ export function FeedbackCard({
     <li>
       <button
         type="button"
+        id={`feedback-${feedback.id}`}
         onClick={() => onOpen(feedback.id)}
-        className="flex w-full flex-col gap-3.5 rounded-surface bg-card p-5 text-start transition-colors hover:bg-inlay/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex w-full scroll-mt-24 flex-col gap-3.5 rounded-surface bg-card p-5 text-start transition-colors hover:bg-inlay/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex w-full items-center gap-3">
           <PersonInitials name={person.name} />
@@ -675,6 +679,7 @@ function PraisePage({
 }) {
   const t = useTranslations("conversations.PraisePage");
   const page = usePraisePage(query);
+  useLanding("praise", first && Boolean(page.data), onOpen);
   const react = useReactToPraise();
   if (page.error) return <ContentUnavailable error={page.error} onRetry={page.refetch} subject={t("praise")} />;
   if (!page.data) return <FeedSkeleton />;

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NotificationBell, relativeStamp, type NotificationBellItem } from "./notification-bell";
+import { NotificationBell, notificationDay, relativeStamp, type NotificationBellItem } from "./notification-bell";
 import { renderWithIntl } from "../testing/intl";
 import fr from "../messages/fr.json";
 
@@ -101,6 +101,95 @@ describe("NotificationBell", () => {
     expect(screen.getByText("30 min")).toBeInTheDocument();
     // The notification's own words come from the server and stay as sent until phase 5.
     expect(screen.getByText("Nour submitted their plan 1")).toBeInTheDocument();
+  });
+
+  it("groups the panel into Today, Yesterday and Earlier", async () => {
+    render(
+      <NotificationBell
+        items={[
+          { ...item("1"), title: "Today's" },
+          { ...item("2"), title: "Yesterday's", occurredAt: "2026-10-14T09:00:00Z" },
+          { ...item("3"), title: "Older", occurredAt: "2026-10-03T09:00:00Z" },
+        ]}
+        unreadCount={3}
+        modules={[performance]}
+        onOpenItem={vi.fn()}
+        onMarkAllRead={vi.fn()}
+        now={now}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
+    expect(screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual(["Today", "Yesterday", "Earlier"]);
+    expect(notificationDay("2026-10-15T00:30:00", new Date("2026-10-15T23:00:00"))).toBe("today");
+  });
+
+  it("pops up what arrives and opens it", async () => {
+    const onOpenItem = vi.fn();
+    const arrived = { ...item("9"), title: "Hana Belhaj gave you feedback", actorName: "Hana Belhaj", badge: "feedback" as const };
+    render(
+      <NotificationBell
+        items={[arrived, item("1")]}
+        unreadCount={2}
+        modules={[performance]}
+        onOpenItem={onOpenItem}
+        onMarkAllRead={vi.fn()}
+        arrival={{ seq: 1, items: [arrived] }}
+        sound={false}
+        now={now}
+      />,
+    );
+    const popup = await screen.findByRole("status");
+    expect(popup).toHaveTextContent("Hana Belhaj gave you feedback");
+    await userEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(onOpenItem).toHaveBeenCalledWith(expect.objectContaining({ id: "9" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("collapses a burst into one pop-up that shows the panel", async () => {
+    const burst = [
+      { ...item("7"), actorName: "Sami Gharbi" },
+      { ...item("8"), actorName: "Leila Mansour" },
+      { ...item("9"), actorName: "Hana Belhaj" },
+    ];
+    render(
+      <NotificationBell
+        items={burst}
+        unreadCount={3}
+        modules={[performance]}
+        onOpenItem={vi.fn()}
+        onMarkAllRead={vi.fn()}
+        arrival={{ seq: 1, items: burst }}
+        sound={false}
+        now={now}
+      />,
+    );
+    const popup = await screen.findByRole("status");
+    expect(popup).toHaveTextContent("3 new notifications");
+    expect(popup).toHaveTextContent("Sami Gharbi, Leila Mansour, and Hana Belhaj");
+    await userEvent.click(screen.getByRole("button", { name: "Show" }));
+    expect(screen.getByRole("button", { name: "Mark all read" })).toBeInTheDocument();
+  });
+
+  it("stays quiet when pop-ups are off, and puts the count in the tab title", () => {
+    document.title = "Home · Fusion";
+    const arrived = item("9");
+    const { unmount } = render(
+      <NotificationBell
+        items={[arrived]}
+        unreadCount={2}
+        modules={[performance]}
+        onOpenItem={vi.fn()}
+        onMarkAllRead={vi.fn()}
+        arrival={{ seq: 1, items: [arrived] }}
+        popups={false}
+        sound={false}
+        now={now}
+      />,
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(document.title).toBe("(2) Home · Fusion");
+    unmount();
+    expect(document.title).toBe("Home · Fusion");
   });
 
   it("stamps time relatively", () => {

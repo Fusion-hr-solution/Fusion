@@ -42,7 +42,11 @@ export function PraiseCard({ praise, reactionIcons, onReact, onOpen, pendingReac
     <p dir="auto" className={cn(reading ? "type-narrative" : "type-body", "text-foreground", onOpen && "line-clamp-4")}>{praise.message}</p>
   );
   return (
-    <article className="flex flex-col gap-3.5 rounded-surface bg-card p-5" aria-label={t("praised", { author, recipients })}>
+    <article
+      id={`praise-${praise.id}`}
+      className="flex scroll-mt-24 flex-col gap-3.5 rounded-surface bg-card p-5"
+      aria-label={t("praised", { author, recipients })}
+    >
       <header className="flex items-center gap-3">
         <AvatarStack names={praise.recipients.map((r) => r.name)} size="lg" max={3} />
         <div className="min-w-0 flex-1">

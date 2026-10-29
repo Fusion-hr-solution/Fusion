@@ -139,6 +139,34 @@ describe("useFusionNotifications", () => {
     expect(result.current.unreadCount).toBe(2);
   });
 
+  it("reports only what arrives after the first load, unread", async () => {
+    const pages = [
+      page("performance", ["n1", "n2"], ["n1"]),
+      page("performance", ["n1", "n2", "n3", "n4"], ["n1", "n3"]),
+    ];
+    const api = fakeApi({
+      getNotifications: vi.fn(async () => pages.shift() ?? page("performance", ["n1"], [])),
+      // A failed read refetches the feed, which is how this test brings the next page in.
+      markNotificationsRead: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+    });
+    const { result } = renderHook(
+      () => useFusionNotifications(["performance"], { api }),
+      { wrapper: wrapper() }
+    );
+    await waitFor(() => expect(result.current.items).toHaveLength(2));
+    // What was already there on load is never replayed as new.
+    expect(result.current.arrival).toBeNull();
+
+    await act(async () => {
+      await result.current.markRead({ id: "zz", module: "performance" });
+    });
+    await waitFor(() => expect(result.current.arrival?.seq).toBe(1));
+    // n4 arrived already read (read in another tab), so only n3 rings.
+    expect(result.current.arrival!.items.map((item) => item.id)).toEqual(["n3"]);
+  });
+
   it("marks one read optimistically", async () => {
     let resolveMark: (value: { unreadCount: number }) => void = () => {};
     const api = fakeApi({

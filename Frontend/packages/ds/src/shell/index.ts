@@ -81,9 +81,12 @@ export type {
   FusionSidebarSettingsGroup,
   FusionSidebarSettingsSection,
 } from "./types";
-export { NotificationBell, relativeStamp } from "./notification-bell";
-export type { StampWords } from "./notification-bell";
+export { NotificationBell, notificationDay, relativeStamp } from "./notification-bell";
+export type { NotificationDay, StampWords } from "./notification-bell";
+export { claimChime, playChime } from "./notification-arrival";
 export type {
+  NotificationBellArrival,
+  NotificationBellBadge,
   NotificationBellItem,
   NotificationBellModule,
   NotificationBellProps,

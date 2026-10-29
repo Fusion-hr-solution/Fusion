@@ -27,6 +27,7 @@ import { AvatarStack, ObjectiveStatusBadge, PersonInitials, PlanDial } from "@re
 import { CalendarDays, Check, ChevronDown, Flag, Plus, X } from "@/lib/icons";
 import { useOneOnOne, useOneOnOneCommands } from "../../api/use-conversations";
 import { usePersonSummary } from "../../api/use-performance";
+import { useLanding } from "@/lib/use-landing";
 import { ContentUnavailable } from "../content-unavailable";
 import { PlanDocument, PlanSection, SidebarSection } from "../plan/plan-layout";
 import { NotesEditor } from "./notes-editor";
@@ -70,6 +71,8 @@ function SeriesView({ series }: { series: OneOnOneSeriesDto }) {
   const format = useFormat();
   const t = useTranslations("oneOnOnes.SeriesView");
   const commands = useOneOnOneCommands(series.id);
+  // A notification about an action assigned to you lands on it.
+  useLanding("action", true);
   const [rescheduling, setRescheduling] = useState(false);
   const isManager = series.viewerRole === "Manager";
   const other = isManager ? series.report : series.manager;
@@ -413,7 +416,7 @@ function Actions({
     <ul className="divide-y divide-border overflow-hidden rounded-surface bg-card">
       {actions.length === 0 && !writable ? <li className="px-5 py-4 type-body-secondary text-muted-foreground">{t("noActions")}</li> : null}
       {actions.map((action) => (
-        <li key={action.id} className="flex min-h-14 items-center gap-4 px-5 py-3">
+        <li key={action.id} id={`action-${action.id}`} className="flex min-h-14 scroll-mt-24 items-center gap-4 px-5 py-3">
           <Checkbox
             checked={action.done}
             disabled={!writable}

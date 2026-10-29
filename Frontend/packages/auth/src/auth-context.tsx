@@ -84,6 +84,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 accessProfiles: d.accessProfiles ?? [],
                 effectivePermissions: d.effectivePermissions ?? [],
                 language: d.language,
+                notificationPopups: d.notificationPopups,
+                notificationSound: d.notificationSound,
               },
             };
 
@@ -139,6 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           accessProfiles: d.accessProfiles ?? [],
           effectivePermissions: d.effectivePermissions ?? [],
           language: d.language,
+                notificationPopups: d.notificationPopups,
+                notificationSound: d.notificationSound,
         };
         setUser(authUser);
         setAccessToken(d.accessToken);
@@ -174,6 +178,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           accessProfiles: d.accessProfiles ?? [],
           effectivePermissions: d.effectivePermissions ?? [],
           language: d.language,
+                notificationPopups: d.notificationPopups,
+                notificationSound: d.notificationSound,
         };
         setUser(authUser);
         setAccessToken(d.accessToken);

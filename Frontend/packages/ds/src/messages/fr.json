@@ -99,6 +99,16 @@
         "minutes": "{count} min",
         "hours": "{count} h",
         "yesterday": "Hier"
+      },
+      "today": "Aujourd’hui",
+      "yesterday": "Hier",
+      "earlier": "Plus tôt",
+      "settings": "Paramètres de notification",
+      "popup": {
+        "open": "Ouvrir",
+        "show": "Afficher",
+        "dismiss": "Fermer",
+        "many": "{count, plural, one {# nouvelle notification} other {# nouvelles notifications}}"
       }
     },
     "work": {

@@ -52,7 +52,9 @@
     "temporarilyUnavailable": "غير متاح مؤقتًا",
     "couldNotBeLoadedBecause": "تعذّر تحميل {subject} لأن الخدمة غير متاحة مؤقتًا. سيعود عند عودة الخدمة.",
     "retry": "إعادة المحاولة",
-    "unavailable": "{subject} غير متاح"
+    "unavailable": "{subject} غير متاح",
+    "noLongerAvailable": "لم يعد هذا متاحًا",
+    "goToOverview": "الانتقال إلى النظرة العامة"
   },
   "CycleContextBar": {
     "planningBy": "التخطيط قبل",

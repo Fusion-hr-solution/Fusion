@@ -17,6 +17,13 @@
       "emailGoesTo": "Email goes to <b>{address}</b>",
       "none": "None of your modules send notifications yet.",
       "notSaved": "That change didn't save. Your choices are as shown.",
+      "alerts": {
+        "popups": "Pop-ups",
+        "popupsDescription": "Show new notifications as they arrive",
+        "sound": "Sound",
+        "soundDescription": "Play a chime with each pop-up",
+        "play": "Play"
+      },
       "about": "About",
       "inFusion": "In Fusion",
       "email": "Email",

@@ -99,6 +99,16 @@
         "minutes": "{count}m",
         "hours": "{count}h",
         "yesterday": "Yesterday"
+      },
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "earlier": "Earlier",
+      "settings": "Notification settings",
+      "popup": {
+        "open": "Open",
+        "show": "Show",
+        "dismiss": "Dismiss",
+        "many": "{count, plural, other {# new notifications}}"
       }
     },
     "work": {

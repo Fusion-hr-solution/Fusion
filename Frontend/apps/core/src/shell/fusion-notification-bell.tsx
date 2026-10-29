@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useFusionNotifications } from "@repo/api/query";
-import { resolveFusionAttentionModules, useAuth } from "@repo/auth";
+import { useFusionNotifications, usePeoplePhotos } from "@repo/api/query";
+import { resolveFusionAttentionModules, useAuth, useNotificationAlerts } from "@repo/auth";
 import { NotificationBell } from "@repo/ds/shell";
 
 const BASE_PATH = "/core";
@@ -15,6 +15,8 @@ export function FusionNotificationBell() {
   const { user } = useAuth();
   const router = useRouter();
   const notifications = useFusionNotifications(resolveFusionAttentionModules(user), { enabled: Boolean(user?.tenantId) });
+  const { alerts } = useNotificationAlerts();
+  const photos = usePeoplePhotos(notifications.items.flatMap((item) => (item.actorEmployeeId ? [item.actorEmployeeId] : [])));
   if (!user?.tenantId) return null;
 
   return (
@@ -22,6 +24,11 @@ export function FusionNotificationBell() {
       items={notifications.items}
       unreadCount={notifications.unreadCount}
       modules={notifications.modules}
+      arrival={notifications.arrival}
+      popups={alerts.popups}
+      sound={alerts.sound}
+      photos={photos}
+      onOpenSettings={() => window.location.assign("/settings/notifications")}
       onMarkAllRead={() => void notifications.markAllRead()}
       onOpenItem={(item) => {
         const notification = notifications.items.find((candidate) => candidate.id === item.id && candidate.module === item.module);

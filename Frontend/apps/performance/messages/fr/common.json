@@ -52,7 +52,9 @@
     "temporarilyUnavailable": "Temporairement indisponible",
     "couldNotBeLoadedBecause": "{subject} n’a pas pu être chargé, car le service est temporairement indisponible. Il reviendra dès que le service sera rétabli.",
     "retry": "Réessayer",
-    "unavailable": "{subject} indisponible"
+    "unavailable": "{subject} indisponible",
+    "noLongerAvailable": "Cet élément n’est plus disponible",
+    "goToOverview": "Aller à la vue d’ensemble"
   },
   "CycleContextBar": {
     "planningBy": "Planification jusqu’au",

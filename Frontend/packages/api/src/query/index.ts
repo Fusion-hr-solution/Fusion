@@ -30,6 +30,7 @@ export {
   useFusionWork,
   type FusionModuleLoadStatus,
   type FusionModuleState,
+  type FusionNotificationArrival,
   type UseFusionAttentionOptions,
 } from "./useFusionAttention";
 export {
@@ -39,7 +40,7 @@ export {
   type ReactToPraiseArgs,
   type UsePraiseOptions,
 } from "./usePraise";
-export { usePhoto } from "./usePhoto";
+export { usePeoplePhotos, usePhoto } from "./usePhoto";
 export {
   useFusionNavigation,
   useMyCard,

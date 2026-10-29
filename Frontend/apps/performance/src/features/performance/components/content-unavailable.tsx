@@ -1,7 +1,9 @@
 "use client";
 
-import { PageError } from "@repo/ds/shell";
-import { classifyApiError } from "@repo/api";
+import Link from "next/link";
+import { Button } from "@repo/ds/components/ui/button";
+import { PageEmpty, PageError } from "@repo/ds/shell";
+import { ApiError, classifyApiError } from "@repo/api";
 import { useTranslations } from "next-intl";
 
 /**
@@ -23,6 +25,20 @@ export function ContentUnavailable({
 }) {
   const t = useTranslations("common.ContentUnavailable");
   const kind = classifyApiError(error);
+
+  // Gone, e.g. opened from an older notification: say so plainly; retrying can't bring it back.
+  if (error instanceof ApiError && error.status === 404) {
+    return (
+      <PageEmpty
+        title={t("noLongerAvailable")}
+        action={
+          <Button asChild variant="outline">
+            <Link href="/">{t("goToOverview")}</Link>
+          </Button>
+        }
+      />
+    );
+  }
 
   if (kind === "upstream-unavailable" || kind === "network") {
     return (

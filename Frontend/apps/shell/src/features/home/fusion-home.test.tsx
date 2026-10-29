@@ -43,6 +43,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ 
 vi.mock("@repo/auth", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useAuth: () => ({ user: mocks.user, isLoading: false, logout: vi.fn() }),
+  useNotificationAlerts: () => ({ alerts: { popups: true, sound: true }, save: vi.fn(), saving: false }),
 }));
 
 vi.mock("@repo/api/query", () => ({
@@ -80,6 +81,7 @@ vi.mock("@repo/api/query", () => ({
     recent: [],
     person: { name: "Nour Ben Ali", detail: "QA Automation Engineer", detailPending: false },
   }),
+  usePeoplePhotos: () => new Map(),
   useFusionNotifications: () => ({
     items: [],
     unreadCount: 0,

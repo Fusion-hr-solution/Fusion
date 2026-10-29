@@ -27,6 +27,8 @@ const mocks = vi.hoisted(() => ({
   preferences: undefined as NotificationPreferences | undefined,
   mutate: vi.fn(),
   invalidateQueries: vi.fn(),
+  alerts: { popups: true, sound: true },
+  saveAlerts: vi.fn<(change: { popups?: boolean; sound?: boolean }) => Promise<void>>(async () => {}),
 }));
 
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
@@ -41,6 +43,7 @@ vi.mock("@repo/ds/shell", async (importOriginal) => ({
 
 vi.mock("@repo/auth", () => ({
   useLanguage: () => [mocks.language, mocks.setLanguage, false],
+  useNotificationAlerts: () => ({ alerts: mocks.alerts, save: mocks.saveAlerts, saving: false }),
 }));
 
 vi.mock("@repo/api/query", () => ({
@@ -296,6 +299,15 @@ describe("Notifications", () => {
       screen.queryByRole("switch", { name: "Email for Deadline reminders" })
     ).not.toBeTruthy();
     expect(screen.getAllByText("Always").length).toBeGreaterThan(0);
+  });
+
+  it("turns pop-ups and their sound on and off on the account", () => {
+    mocks.preferences = PREFERENCES;
+    render(<Notifications />);
+    expect(screen.getByRole("switch", { name: "Pop-ups" }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("switch", { name: "Sound" }));
+    expect(mocks.saveAlerts).toHaveBeenCalledWith({ sound: false });
+    expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
   });
 
   it("saves the whole set of groups turned off when one switch changes", () => {

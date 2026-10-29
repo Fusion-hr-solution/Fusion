@@ -17,6 +17,13 @@
       "emailGoesTo": "Les e-mails sont envoyés à <b>{address}</b>",
       "none": "Aucun de vos modules n’envoie encore de notifications.",
       "notSaved": "Cette modification n’a pas été enregistrée. Vos choix sont ceux affichés.",
+      "alerts": {
+        "popups": "Fenêtres contextuelles",
+        "popupsDescription": "Afficher les nouvelles notifications dès leur arrivée",
+        "sound": "Son",
+        "soundDescription": "Jouer un carillon avec chaque fenêtre",
+        "play": "Écouter"
+      },
       "about": "Sujet",
       "inFusion": "Dans Fusion",
       "email": "E-mail",

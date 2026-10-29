@@ -5,8 +5,18 @@ import { Check, ChevronRight, Lock } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { ApiError, type NotificationGroupKey, type NotificationPreferenceGroup } from "@repo/api";
 import { useNotificationPreferences, useUpdateNotificationPreferences } from "@repo/api/query";
-import { cn, Switch } from "@repo/ds";
-import { FUSION_MODULE_ICONS, PageError, SettingsBlock, SettingsPage, SettingsSaved } from "@repo/ds/shell";
+import { useNotificationAlerts, type NotificationAlerts } from "@repo/auth";
+import { Button, cn, Switch } from "@repo/ds";
+import {
+  FUSION_MODULE_ICONS,
+  PageError,
+  playChime,
+  SettingsBlock,
+  SettingsPage,
+  SettingsRow,
+  SettingsRows,
+  SettingsSaved,
+} from "@repo/ds/shell";
 
 /**
  * Performance serves its groups and lines from a fixed English catalogue with no codes for the lines
@@ -135,7 +145,32 @@ function GroupRow({
 }
 
 /**
- * Settings › Notifications: what each module tells the person, always in Fusion, and by email per group.
+ * How a new notification shows up while Fusion is open: a pop-up, and a chime with it. Both live on the account, so
+ * they follow the person to every device; each saves the moment it changes.
+ */
+function Alerts({ onSaved, onFailed }: { onSaved: () => void; onFailed: () => void }) {
+  const t = useTranslations("settings.notifications.alerts");
+  const { alerts, save, saving } = useNotificationAlerts();
+  const change = (next: Partial<NotificationAlerts>) => {
+    save(next).then(onSaved, onFailed);
+  };
+  return (
+    <SettingsRows>
+      <SettingsRow label={t("popups")} description={t("popupsDescription")}>
+        <Switch aria-label={t("popups")} checked={alerts.popups} disabled={saving} onCheckedChange={(popups) => change({ popups })} />
+      </SettingsRow>
+      <SettingsRow label={t("sound")} description={t("soundDescription")}>
+        <Button variant="ghost" size="sm" onClick={playChime}>
+          {t("play")}
+        </Button>
+        <Switch aria-label={t("sound")} checked={alerts.sound} disabled={saving} onCheckedChange={(sound) => change({ sound })} />
+      </SettingsRow>
+    </SettingsRows>
+  );
+}
+
+/**
+ * Settings › Notifications: pop-ups and their chime, then what each module tells the person, always in Fusion, and by email per group.
  * Deadline reminders are always emailed. Each choice saves the moment it changes.
  */
 export function Notifications() {
@@ -189,6 +224,13 @@ export function Notifications() {
           })}
         </p>
       ) : null}
+      <Alerts
+        onSaved={() => {
+          setFailed(false);
+          setSavedAt(Date.now());
+        }}
+        onFailed={() => setFailed(true)}
+      />
       {unavailable || !data ? (
         <p className="type-body-secondary text-muted-foreground">{t("none")}</p>
       ) : (

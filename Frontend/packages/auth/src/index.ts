@@ -22,6 +22,8 @@ export {
   saveLanguage,
 } from "./auth-service";
 export { useLanguage } from "./language";
+export { useNotificationAlerts } from "./notification-alerts";
+export type { NotificationAlerts } from "./auth-service";
 
 // Auth context & hook
 export { AuthProvider, useAuth } from "./auth-context";

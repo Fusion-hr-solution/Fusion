@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useFusionNotifications } from "@repo/api/query";
-import { resolveFusionAttentionModules, useAuth } from "@repo/auth";
+import { useFusionNotifications, usePeoplePhotos } from "@repo/api/query";
+import { resolveFusionAttentionModules, useAuth, useNotificationAlerts } from "@repo/auth";
 import { NotificationBell } from "@repo/ds/shell";
 
 const BASE_PATH = "/performance";
@@ -15,6 +15,8 @@ export function FusionNotificationBell() {
   const { user } = useAuth();
   const router = useRouter();
   const notifications = useFusionNotifications(resolveFusionAttentionModules(user), { enabled: Boolean(user?.tenantId) });
+  const { alerts } = useNotificationAlerts();
+  const photos = usePeoplePhotos(notifications.items.flatMap((item) => (item.actorEmployeeId ? [item.actorEmployeeId] : [])));
   if (!user?.tenantId) return null;
 
   return (
@@ -22,6 +24,11 @@ export function FusionNotificationBell() {
       items={notifications.items}
       unreadCount={notifications.unreadCount}
       modules={notifications.modules}
+      arrival={notifications.arrival}
+      popups={alerts.popups}
+      sound={alerts.sound}
+      photos={photos}
+      onOpenSettings={() => window.location.assign("/settings/notifications")}
       onMarkAllRead={() => void notifications.markAllRead()}
       onOpenItem={(item) => {
         const notification = notifications.items.find((candidate) => candidate.id === item.id && candidate.module === item.module);
@@ -29,6 +36,8 @@ export function FusionNotificationBell() {
         const read = notifications.markRead(notification);
         if (notification.href === BASE_PATH || notification.href.startsWith(`${BASE_PATH}/`)) {
           router.push(notification.href.slice(BASE_PATH.length) || "/");
+          // The router changes the hash without a hashchange event; pages that land on an item listen for one.
+          if (notification.href.includes("#")) setTimeout(() => window.dispatchEvent(new HashChangeEvent("hashchange")), 0);
         } else {
           // A full navigation unloads the page, so let the read land first.
           void read.finally(() => window.location.assign(notification.href));

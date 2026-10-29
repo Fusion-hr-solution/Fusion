@@ -5,7 +5,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createFusionAttentionApi,
   FUSION_ATTENTION_MODULES,
@@ -278,6 +278,46 @@ function withRead(
   };
 }
 
+/** What arrived after the bell first loaded: a new object per arrival, its notifications newest first. */
+export interface FusionNotificationArrival {
+  seq: number;
+  items: FusionNotification[];
+}
+
+/**
+ * Notifications that weren't in the feed before, unread. A module's first page only records what is there, so
+ * opening a page or switching modules never replays old notifications as new.
+ */
+function useArrivals(
+  keys: readonly FusionAttentionModuleKey[],
+  pages: readonly (FusionNotificationPage | undefined)[]
+): FusionNotificationArrival | null {
+  // Runs after every render: a page object only changes when its feed was refetched, and the loop is a page or two.
+  const seen = useRef(new Map<FusionAttentionModuleKey, Set<string>>());
+  const [arrival, setArrival] = useState<FusionNotificationArrival | null>(null);
+  useEffect(() => {
+    const fresh: FusionNotification[] = [];
+    keys.forEach((key, index) => {
+      const page = pages[index];
+      if (!page) return;
+      const known = seen.current.get(key);
+      if (!known) {
+        seen.current.set(key, new Set(page.items.map((item) => item.id)));
+        return;
+      }
+      for (const item of page.items) {
+        if (known.has(item.id)) continue;
+        known.add(item.id);
+        if (!item.readAt) fresh.push(item);
+      }
+    });
+    if (fresh.length === 0) return;
+    fresh.sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : a.occurredAt > b.occurredAt ? -1 : 0));
+    setArrival((previous) => ({ seq: (previous?.seq ?? 0) + 1, items: fresh }));
+  });
+  return arrival;
+}
+
 /**
  * The signed-in person's notifications across the given modules, newest first.
  * Each module's live nudge refetches the moment something arrives or is read in
@@ -336,6 +376,10 @@ export function useFusionNotifications(
     (total, page) => total + page.unreadCount,
     0
   );
+  const arrival = useArrivals(
+    serving.map((module) => module.key),
+    results.map((result) => result.data)
+  );
 
   const markRead = useCallback(
     async (target: Pick<FusionNotification, "id" | "module"> | "all") => {
@@ -383,6 +427,8 @@ export function useFusionNotifications(
   return {
     items,
     unreadCount,
+    /** The latest arrival, for the bell's ring, pop-up and chime; null until something arrives. */
+    arrival,
     modules: states,
     isLoading: states.some((state) => state.status === "loading"),
     failedModules: states.filter((state) => state.status === "error"),

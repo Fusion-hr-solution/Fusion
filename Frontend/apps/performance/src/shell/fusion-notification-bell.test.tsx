@@ -16,9 +16,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@repo/auth", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useAuth: () => ({ user: mocks.user, isLoading: false }),
+  useNotificationAlerts: () => ({ alerts: { popups: true, sound: true }, save: async () => {}, saving: false }),
 }));
 
 vi.mock("@repo/api/query", () => ({
+  usePeoplePhotos: () => new Map(),
   useFusionNotifications: (modules: string[]) => {
     mocks.modules = modules;
     return {

@@ -99,6 +99,16 @@
         "minutes": "{count} د",
         "hours": "{count} س",
         "yesterday": "أمس"
+      },
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "earlier": "قبل ذلك",
+      "settings": "إعدادات الإشعارات",
+      "popup": {
+        "open": "فتح",
+        "show": "عرض",
+        "dismiss": "إغلاق",
+        "many": "{count, plural, one {إشعار جديد} two {إشعاران جديدان} few {# إشعارات جديدة} many {# إشعارًا جديدًا} other {# إشعار جديد}}"
       }
     },
     "work": {

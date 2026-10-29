@@ -45,6 +45,9 @@ export interface AuthResponse {
   effectivePermissions: EffectivePermissionGrantDto[];
   /** The person's language: their choice, else their tenant's, else `en`. */
   language: string;
+  /** Whether new notifications slide in as pop-ups, and whether they chime. */
+  notificationPopups: boolean;
+  notificationSound: boolean;
 }
 
 // ── Client-side auth state ───────────────────────────────────────────
@@ -68,6 +71,9 @@ export interface AuthUser {
   effectivePermissions: EffectivePermissionGrantDto[];
   /** As Identity resolved it. Sessions stored before it existed lack it. */
   language?: string;
+  /** Pop-ups and their chime for new notifications; sessions stored before they existed lack them (on). */
+  notificationPopups?: boolean;
+  notificationSound?: boolean;
 }
 
 export interface AuthState {

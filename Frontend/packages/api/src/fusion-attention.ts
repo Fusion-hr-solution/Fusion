@@ -55,6 +55,12 @@ export interface FusionUpcoming {
   covers?: string[] | null;
 }
 
+/**
+ * The family a notification belongs to, so the bell can mark it (a small badge on the face) without knowing a
+ * module's kinds.
+ */
+export type FusionNotificationBadge = "praise" | "feedback" | "meeting" | "action" | "plan" | "review" | "reminder" | "team";
+
 /** Something that happened for the person. Text and path are frozen when it's created. */
 export interface FusionNotification {
   id: string;
@@ -63,6 +69,9 @@ export interface FusionNotification {
   title: string;
   context?: string | null;
   actorName?: string | null;
+  /** The employee record of the person who acted, for their photo; null for Fusion's own reminders. */
+  actorEmployeeId?: string | null;
+  badge?: FusionNotificationBadge | null;
   /** ISO timestamp. */
   occurredAt: string;
   href: string;

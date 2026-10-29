@@ -52,7 +52,9 @@
     "temporarilyUnavailable": "Temporarily unavailable",
     "couldNotBeLoadedBecause": "{subject} could not be loaded because the service is temporarily unavailable. It will recover when the service is back.",
     "retry": "Retry",
-    "unavailable": "{subject} unavailable"
+    "unavailable": "{subject} unavailable",
+    "noLongerAvailable": "This is no longer available",
+    "goToOverview": "Go to Overview"
   },
   "CycleContextBar": {
     "planningBy": "Planning by",

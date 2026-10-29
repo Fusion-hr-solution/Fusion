@@ -43,6 +43,16 @@ export async function saveLanguage(language: string): Promise<string> {
   return result.language;
 }
 
+export interface NotificationAlerts {
+  popups: boolean;
+  sound: boolean;
+}
+
+/** Saves the signed-in person's pop-up and chime choices on their account; resolves with both as saved. */
+export async function saveNotificationAlerts(change: Partial<NotificationAlerts>): Promise<NotificationAlerts> {
+  return client.put<NotificationAlerts>("/identity/account/alerts", change);
+}
+
 // ── Token storage (localStorage + cookie) ────────────────────────────
 
 const STORAGE_KEY = "ey_hr_auth";
