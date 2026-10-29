@@ -5,6 +5,7 @@ using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.Accounts;
 using EY.HRPlatform.Identity.Features.Eligibility;
 using EY.HRPlatform.Identity.Features.Membership;
+using EY.HRPlatform.Identity.Features.Notifications;
 using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Features.TenantProvisioning;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
@@ -196,6 +197,7 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IBootstrapInvitationEmailSender, UnconfiguredBootstrapInvitationEmailSender>();
         }
         services.AddScoped<IAccessProfileService, AccessProfileService>();
+        services.AddScoped<NotificationAudienceReader>();
         services.AddScoped<IEligibilityDecisionService, EligibilityDecisionService>();
         services.AddScoped<IAccessAuditService, AccessAuditService>();
         services.Configure<WorkforceInvitationEmailOptions>(
