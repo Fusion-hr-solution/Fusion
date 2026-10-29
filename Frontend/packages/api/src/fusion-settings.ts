@@ -1,5 +1,5 @@
 import { FUSION_MODULE_REGISTRY } from "./fusion-navigation";
-import type { SelfServiceSettingsDto } from "./tenant-settings";
+import type { OrgChartSettingsDto, SelfServiceSettingsDto } from "./tenant-settings";
 import type { ApiClient } from "./types";
 
 // ── Fusion Settings (B-071) ──
@@ -184,6 +184,8 @@ export interface FieldVisibilityRule {
 export interface FieldVisibility {
   fields: Record<string, FieldVisibilityRule>;
   selfService: SelfServiceSettingsDto;
+  /** Who sees the org chart, so every surface can hide what leads to it. */
+  orgChart: OrgChartSettingsDto;
 }
 
 export function createFusionSettingsApi(client: ApiClient) {

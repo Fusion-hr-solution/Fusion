@@ -97,7 +97,11 @@
   },
   "access": {
     "title": "Accès à l'organigramme requis",
-    "description": "Votre rôle n'inclut pas l'organigramme. Demandez-le à votre administrateur si besoin."
+    "description": "Votre rôle n'inclut pas l'organigramme. Demandez-le à votre administrateur si besoin.",
+    "narrowed": {
+      "title": "L’organigramme ne vous est pas partagé",
+      "description": "Votre entreprise le réserve aux managers et aux RH."
+    }
   },
   "showInChart": "Voir dans l'organigramme",
   "time": {

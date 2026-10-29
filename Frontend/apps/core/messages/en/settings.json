@@ -93,7 +93,20 @@
       "optional": "{label} becomes optional.",
       "canChange": "Employees can change {their} on My Profile.",
       "cannotChange": "Employees can no longer change {their}.",
-      "more": "{sentences} And {count, plural, one {# more change} other {# more changes}}."
+      "more": "{sentences} And {count, plural, one {# more change} other {# more changes}}.",
+      "orgChartEveryone": "Everyone sees the org chart.",
+      "orgChartManagersAndHr": "Only managers and HR see the org chart."
+    },
+    "orgChart": {
+      "title": "Who sees the org chart",
+      "Everyone": {
+        "label": "Everyone",
+        "detail": "Everyone sees the whole company."
+      },
+      "ManagersAndHr": {
+        "label": "Managers and HR",
+        "detail": "HR sees the whole company and managers their own line. Nobody else sees the chart."
+      }
     }
   },
   "invitations": {

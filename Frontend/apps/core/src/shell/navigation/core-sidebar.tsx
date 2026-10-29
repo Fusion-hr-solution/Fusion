@@ -9,11 +9,11 @@ import {
   useAuth,
   canViewWorkforceAccess,
   canViewCoreOrganization,
-  canSeeCoreOrgChartNavigation,
   canSeeCoreSettingsNavigation,
   canViewTenantAdministration,
 } from "@repo/auth";
 import { useCoreNav } from "@/shell/navigation/use-core-nav";
+import { useOrgChartAccess } from "@/features/org-chart/api/use-org-chart-access";
 import {
   canSeeEmployeeRosterNavigation,
   canSeeSelfEmployeeProfileNavigation,
@@ -39,7 +39,7 @@ export function CoreSidebar() {
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
   const canSeeOrganization = canViewCoreOrganization(user);
-  const canSeeOrgChart = canSeeCoreOrgChartNavigation(user);
+  const canSeeOrgChart = useOrgChartAccess().canSee;
   const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user);
   const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user);
 

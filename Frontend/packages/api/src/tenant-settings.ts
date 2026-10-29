@@ -14,6 +14,16 @@ export interface SelfServiceSettingsDto {
   canEditPhone: boolean;
 }
 
+/**
+ * Who sees the org chart: everyone, or only managers (their own line) and people who read the whole workforce. The
+ * server enforces it; screens read it to hide what leads to the chart.
+ */
+export type OrgChartAudience = "Everyone" | "ManagersAndHr";
+
+export interface OrgChartSettingsDto {
+  audience: OrgChartAudience;
+}
+
 export interface ProvisioningSettingsDto {
   defaultAccessProfileId: string | null;
   inviteExpiryDays: number;
@@ -50,6 +60,7 @@ export interface TenantSettingsDto {
   branding: BrandingSettingsDto;
   selfService: SelfServiceSettingsDto;
   provisioning: ProvisioningSettingsDto;
+  orgChart: OrgChartSettingsDto;
 }
 
 export interface UpdateTenantSettingsRequest {
@@ -57,6 +68,7 @@ export interface UpdateTenantSettingsRequest {
   branding?: BrandingSettingsInputDto | null;
   selfService?: SelfServiceSettingsInputDto | null;
   provisioning?: ProvisioningSettingsInputDto | null;
+  orgChart?: OrgChartSettingsDto | null;
 }
 
 export interface SettingsAuditEventDto {
@@ -88,6 +100,7 @@ export interface PeopleDataSettingsDto {
   employeeFieldConfig: Record<string, FieldConfigDto>;
   selfService: SelfServiceSettingsDto;
   downstreamConsumers: string[];
+  orgChart: OrgChartSettingsDto;
 }
 
 export interface ProvisioningSettingsResponseDto {

@@ -93,7 +93,20 @@
       "optional": "{label} n’est plus obligatoire.",
       "canChange": "Les collaborateurs peuvent modifier {their} sur Mon profil.",
       "cannotChange": "Les collaborateurs ne peuvent plus modifier {their}.",
-      "more": "{sentences} Et {count, plural, one {# autre modification} other {# autres modifications}}."
+      "more": "{sentences} Et {count, plural, one {# autre modification} other {# autres modifications}}.",
+      "orgChartEveryone": "Tout le monde voit l’organigramme.",
+      "orgChartManagersAndHr": "Seuls les managers et les RH voient l’organigramme."
+    },
+    "orgChart": {
+      "title": "Qui voit l’organigramme",
+      "Everyone": {
+        "label": "Tout le monde",
+        "detail": "Chacun voit toute l’entreprise."
+      },
+      "ManagersAndHr": {
+        "label": "Managers et RH",
+        "detail": "Les RH voient toute l’entreprise et les managers leur propre ligne. Les autres ne le voient pas."
+      }
     }
   },
   "invitations": {

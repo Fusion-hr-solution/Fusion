@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Features.OrgChart;
 using EY.HRPlatform.CoreHR.Features.Security;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
@@ -14,13 +16,15 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 [Authorize]
 public sealed class OrgChartController(
     ISender sender,
-    ICoreAccessPolicyService accessPolicy) : ControllerBase
+    ICoreAccessPolicyService accessPolicy,
+    ITenantSettingsReadService tenantSettings) : ControllerBase
 {
     /// <summary>
     /// The people org chart as of a date (today by default), shaped for the caller: Tenant scope sees everyone,
     /// DirectReports scope sees its own chain and branch with the rest folded into counts. Another date than today
     /// is for HR only, since future moves and exits are confidential. Above 3,000 people, or with a root, a window
-    /// comes back: the root's chain to the top and its branch to a depth, the rest folded into loadable counts.
+    /// comes back: the root's chain to the top and its branch to a depth, the rest folded into loadable counts. A tenant
+    /// that shows the chart to managers and HR only narrows everyone else (<see cref="Chart"/>).
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<OrgChartDto>), StatusCodes.Status200OK)]
@@ -30,7 +34,7 @@ public sealed class OrgChartController(
     public async Task<IActionResult> Get(
         [FromQuery] DateOnly? asOf, [FromQuery] string? root, [FromQuery] int? depth, CancellationToken cancellationToken)
     {
-        if (Chart(asOf) is not { } chart) return Forbid();
+        if (await Chart(asOf, cancellationToken) is not { } chart) return Forbid();
         if (depth is < 1 or > OrgChartQuery.MaxDepth)
             return BadRequest(ApiResponse.Failure($"Give a depth from 1 to {OrgChartQuery.MaxDepth}."));
 
@@ -47,14 +51,18 @@ public sealed class OrgChartController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Search([FromQuery] string? q, [FromQuery] DateOnly? asOf, CancellationToken cancellationToken)
     {
-        if (Chart(asOf) is not { } chart) return Forbid();
+        if (await Chart(asOf, cancellationToken) is not { } chart) return Forbid();
 
         var result = await sender.Send(new OrgChartSearchQuery(chart.AsOf, chart.Scope, User.GetEmployeeId(), chart.Hr, q ?? ""), cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<OrgChartPersonDto>>.Success(result.Value));
     }
 
-    /// <summary>The caller's chart scope and date, or null when they may not read the chart on that date.</summary>
-    private (DateOnly AsOf, string Scope, bool Hr)? Chart(DateOnly? asOf)
+    /// <summary>
+    /// The caller's chart scope and date, or null when they may not read the chart on that date. When the tenant shows
+    /// the chart to managers and HR only, people who read the whole workforce keep their scope, managers see their own
+    /// chain and branch, and nobody else sees it.
+    /// </summary>
+    private async Task<(DateOnly AsOf, string Scope, bool Hr)?> Chart(DateOnly? asOf, CancellationToken cancellationToken)
     {
         var scope = accessPolicy.GetOrgChartScope(User);
         if (scope is null) return null;
@@ -62,6 +70,15 @@ public sealed class OrgChartController(
         var hr = accessPolicy.CanViewTenantEmployees(User);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (asOf is { } date && date != today && !hr) return null;
+        if (!hr)
+        {
+            var settings = await tenantSettings.GetCurrentAsync(cancellationToken);
+            if (settings.OrgChart.Audience == OrgChartAudiences.ManagersAndHr)
+            {
+                if (!accessPolicy.CanViewTeam(User)) return null;
+                scope = PermissionScopes.DirectReports;
+            }
+        }
         return (asOf ?? today, scope == PermissionScopes.Tenant ? OrgChartScopes.Tenant : OrgChartScopes.DirectReports, hr);
     }
 

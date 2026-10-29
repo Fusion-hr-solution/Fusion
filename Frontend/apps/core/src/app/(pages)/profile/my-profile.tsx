@@ -6,7 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Camera, User } from "lucide-react";
 import { useFieldVisibility, useMyCard } from "@repo/api/query";
-import { canAccessCoreOrgChart, canEnterPerformance, useAuth } from "@repo/auth";
+import { canEnterPerformance, useAuth } from "@repo/auth";
 import { Button } from "@repo/ds";
 import {
   PageContainer,
@@ -14,6 +14,7 @@ import {
   PageError,
   PageHeader,
 } from "@repo/ds/shell";
+import { useOrgChartAccess } from "@/features/org-chart/api/use-org-chart-access";
 import { WorkerProfile } from "@/features/people/components/worker-profile/worker-profile";
 import { PerformanceRecordView } from "@/features/people/components/record-views";
 import { WorkerProfileSkeleton } from "@/features/people/components/worker-profile/worker-profile-skeleton";
@@ -32,6 +33,7 @@ import { usePeoplePersonal, usePeopleProfile } from "@/features/people/api/use-p
 /** The signed-in person's own record: Job, Personal and Performance tabs. */
 export function MyProfile() {
   const { user, isLoading: authLoading } = useAuth();
+  const orgChart = useOrgChartAccess();
   const t = useTranslations("profile.self");
   const tPhoto = useTranslations("profile.band");
   const say = useSay("profile");
@@ -127,7 +129,7 @@ export function MyProfile() {
         tabs={tabs}
         currentTab={tab}
         teammates={teammates}
-        orgChartHref={canAccessCoreOrgChart(user) ? "/org-chart" : undefined}
+        orgChartHref={orgChart.canSee ? "/org-chart" : undefined}
         photoAction={
           canChangePhoto ? (
             <Button size="icon" variant="outline" className="size-9 rounded-full bg-popover shadow-raised" aria-label={tPhoto("changePhoto")} onClick={() => setPhotoOpen(true)}>

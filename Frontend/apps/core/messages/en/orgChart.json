@@ -97,7 +97,11 @@
   },
   "access": {
     "title": "Org chart access required",
-    "description": "Your role doesn't include the org chart. Ask your administrator if you need it."
+    "description": "Your role doesn't include the org chart. Ask your administrator if you need it.",
+    "narrowed": {
+      "title": "The org chart isn't shared with you",
+      "description": "Your company shows it to managers and HR only."
+    }
   },
   "showInChart": "Show in org chart",
   "time": {

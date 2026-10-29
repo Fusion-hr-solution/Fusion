@@ -96,6 +96,15 @@ export function describeChange(path: string, before: unknown, after: unknown, sa
       sentence: said(after ? "selfCan" : "selfCannot", { their }),
     };
   }
+  if (path.endsWith("orgChart.audience")) {
+    const audience = (value: unknown) => (value === "ManagersAndHr" ? "ManagersAndHr" : "Everyone");
+    return {
+      label: say("employeeFields.orgChart.title"),
+      before: say(`employeeFields.orgChart.${audience(before)}.label`),
+      after: say(`employeeFields.orgChart.${audience(after)}.label`),
+      sentence: say(`employeeFields.consequence.orgChart${audience(after)}`),
+    };
+  }
   const count = (value: unknown) => (typeof value === "number" ? value : Number(value));
   if (path.endsWith("inviteExpiryDays"))
     return {

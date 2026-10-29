@@ -21,7 +21,7 @@ import { useAuth } from "@repo/auth";
 
 interface UpdatePeopleDataSettingsArgs {
   expectedVersion: number | null;
-  input: Pick<UpdateTenantSettingsRequest, "employeeFieldConfig" | "selfService">;
+  input: Pick<UpdateTenantSettingsRequest, "employeeFieldConfig" | "selfService" | "orgChart">;
 }
 
 interface UpdateProvisioningSettingsArgs {

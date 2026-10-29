@@ -18,6 +18,7 @@ import {
   canManageCoreAccessProfiles,
   canViewCoreOrganization,
   canManageCoreOrganization,
+  canSeeCoreOrgChart,
 } from "../roles";
 import type { AuthUser } from "../types";
 
@@ -257,5 +258,15 @@ describe("role helpers", () => {
     expect(canSeeCoreSettingsNavigation(profileManager)).toBe(true);
   });
 
+  it("leaves the org chart to managers and HR when the company says so", () => {
+    const chart = grant("core.orgchart.view", "Tenant");
+    const employee = makeUser(["Employee"], "employee-1", [chart, grant("core.employee.view", "Self")]);
+    const manager = makeUser(["Manager"], "employee-2", [chart, grant("core.team.view", "DirectReports")]);
+    const hr = makeUser(["HRAdmin"], "employee-3", [chart, grant("core.employee.view", "Tenant")]);
+    const noChart = makeUser(["HRAdmin"], "employee-4", [grant("core.employee.view", "Tenant")]);
 
+    expect([employee, manager, hr, noChart].map((user) => canSeeCoreOrgChart(user, "Everyone"))).toEqual([true, true, true, false]);
+    expect([employee, manager, hr, noChart].map((user) => canSeeCoreOrgChart(user, "ManagersAndHr"))).toEqual([false, true, true, false]);
+    expect(canSeeCoreOrgChart(employee, undefined)).toBe(false);
+  });
 });

@@ -1,4 +1,4 @@
-import type { PermissionScope } from "@repo/api";
+import type { OrgChartAudience, PermissionScope } from "@repo/api";
 import type { AuthUser } from "./types";
 
 export const PLATFORM_ADMIN_ROLE = "PlatformAdmin";
@@ -264,6 +264,15 @@ export function canAccessCoreOrgChart(user: AuthUser | null): boolean {
     hasCorePermission(user, CORE_PERMISSION.orgChartView, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.orgChartView, "DirectReports")
   );
+}
+
+/**
+ * Whether the org chart is open to the user under the tenant's audience (Core HR settings › Employee fields): with
+ * "ManagersAndHr" only people who read the whole workforce and managers (their own line) see it, as Core HR enforces.
+ * While the audience is unknown, only they do.
+ */
+export function canSeeCoreOrgChart(user: AuthUser | null, audience: OrgChartAudience | null | undefined): boolean {
+  return canAccessCoreOrgChart(user) && (audience === "Everyone" || canAccessCoreTeam(user));
 }
 
 /** Canonical tenant Organization access; intentionally excludes legacy Structure/setup grants. */

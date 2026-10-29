@@ -47,7 +47,7 @@ public class TenantSettingsController(
         var fields = settings.EmployeeFieldConfig.ToDictionary(
             field => field.Key,
             field => new FieldVisibilityRuleDto(field.Value.Required, field.Value.VisibleToEmployee, field.Value.VisibleToManager));
-        return Ok(ApiResponse<FieldVisibilityDto>.Success(new FieldVisibilityDto(fields, settings.SelfService)));
+        return Ok(ApiResponse<FieldVisibilityDto>.Success(new FieldVisibilityDto(fields, settings.SelfService, settings.OrgChart)));
     }
 
     /// <summary>
@@ -147,7 +147,7 @@ public class TenantSettingsController(
         var before = await GetSettingsAsync(cancellationToken);
         var updated = await UpdateSettingsAsync(
             ifMatch,
-            new UpdateTenantSettingsRequest(request.EmployeeFieldConfig, null, request.SelfService, null),
+            new UpdateTenantSettingsRequest(request.EmployeeFieldConfig, null, request.SelfService, null, request.OrgChart),
             cancellationToken);
 
         await auditService.RecordAsync(
@@ -252,7 +252,8 @@ public class TenantSettingsController(
             request.EmployeeFieldConfig,
             request.Branding,
             request.SelfService,
-            request.Provisioning);
+            request.Provisioning,
+            request.OrgChart);
 
         var before = await sender.Send(new GetTenantSettingsQuery(), cancellationToken);
         var result = await sender.Send(command, cancellationToken);
@@ -291,7 +292,8 @@ public class TenantSettingsController(
             request.EmployeeFieldConfig,
             request.Branding,
             request.SelfService,
-            request.Provisioning), cancellationToken);
+            request.Provisioning,
+            request.OrgChart), cancellationToken);
 
         return result.Value;
     }
@@ -310,7 +312,8 @@ public class TenantSettingsController(
             settings.Version,
             settings.EmployeeFieldConfig,
             settings.SelfService,
-            ["Employee profiles", "Employee import validation", "Self-service profile forms"]);
+            ["Employee profiles", "Employee import validation", "Self-service profile forms", "Org chart"],
+            settings.OrgChart);
 
     private static ProvisioningSettingsDto MapProvisioning(TenantSettingsDto settings)
         => new(
@@ -322,7 +325,7 @@ public class TenantSettingsController(
     {
         if (request.Branding is not null)
             yield return SettingsSectionIds.Organization;
-        if (request.EmployeeFieldConfig is not null || request.SelfService is not null)
+        if (request.EmployeeFieldConfig is not null || request.SelfService is not null || request.OrgChart is not null)
             yield return SettingsSectionIds.PeopleData;
         if (request.Provisioning is not null)
             yield return SettingsSectionIds.Provisioning;
@@ -352,7 +355,8 @@ public sealed record UpdateOrganizationSettingsRequest(BrandingSettingsInput? Br
 
 public sealed record UpdatePeopleDataSettingsRequest(
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
-    SelfServiceSettingsInput? SelfService);
+    SelfServiceSettingsInput? SelfService,
+    OrgChartSettingsInput? OrgChart = null);
 
 
 public sealed record UpdateProvisioningSettingsRequest(ProvisioningSettingsInput? Provisioning);

@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { AlertTriangle, ArrowLeftRight, Briefcase, Maximize, Minus, Play, Plus, Search, Square, X } from "lucide-react";
 import type { ChangePersonRef, OrgChartDto, OrgChartOpenRoleDto, OrgChartPersonDto, WorkforceChangeDto } from "@repo/api";
 import {
-  canAccessCoreOrgChart,
   canAccessCorePeople,
   canEnterPerformance,
   canAccessCoreTeam,
@@ -37,6 +36,7 @@ import { PageHeader, PagePermissionNotice } from "@repo/ds/shell";
 import { useFormat } from "@repo/ds/lib/use-format";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
 import { useOrgChart, useOrgChartBranches, useOrgChartChanges, useOrgChartSearch, usePrefetchOrgChart, useReviewProgress } from "../api/use-org-chart";
+import { useOrgChartAccess } from "../api/use-org-chart-access";
 import {
   HR_LENSES,
   MAX_ZOOM,
@@ -101,18 +101,22 @@ type FitRequest = { mode: "fit" | "top" } | { mode: "centre"; id: string; s: num
 
 export default function OrgChartWorkspace() {
   const t = useTranslations("orgChart");
-  const { user, isLoading: authLoading } = useAuth();
-  const canView = canAccessCoreOrgChart(user);
+  const { user } = useAuth();
+  const access = useOrgChartAccess();
+  const canView = access.canSee;
   // HR's time bar: null is today. The previous chart stays on screen while the next date loads.
   const [asOf, setAsOf] = useState<string | null>(null);
   const chart = useOrgChart(asOf);
 
-  if (authLoading) return <Frame title={t("title")}><StageSkeleton /></Frame>;
+  if (access.isLoading) return <Frame title={t("title")}><StageSkeleton /></Frame>;
   if (!canView) {
     return (
       <div className="p-6">
         <PageHeader title={t("title")} />
-        <PagePermissionNotice title={t("access.title")} description={t("access.description")} />
+        <PagePermissionNotice
+          title={t(access.narrowed ? "access.narrowed.title" : "access.title")}
+          description={t(access.narrowed ? "access.narrowed.description" : "access.description")}
+        />
       </div>
     );
   }

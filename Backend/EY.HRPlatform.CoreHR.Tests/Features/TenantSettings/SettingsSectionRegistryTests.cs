@@ -146,7 +146,8 @@ public class SettingsSectionRegistryTests
         var json = JsonSerializer.SerializeToElement(result.Value, new JsonSerializerOptions(JsonSerializerDefaults.Web))
             .GetProperty("data");
 
-        Assert.Equal(["fields", "selfService"], json.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(["fields", "selfService", "orgChart"], json.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(OrgChartAudiences.Everyone, json.GetProperty("orgChart").GetProperty("audience").GetString());
         var phone = json.GetProperty("fields").GetProperty("phone");
         Assert.True(phone.GetProperty("visibleToManager").GetBoolean());
         Assert.True(json.GetProperty("selfService").GetProperty("canEditPhone").GetBoolean());
@@ -179,6 +180,26 @@ public class SettingsSectionRegistryTests
         var result = Assert.IsType<OkObjectResult>(await controller.GetFieldVisibility(CancellationToken.None));
         var data = Assert.IsType<ApiResponse<FieldVisibilityDto>>(result.Value).Data!;
         Assert.True(data.Fields["phone"].VisibleToManager);
+    }
+
+    [Fact]
+    public async Task The_org_chart_audience_is_one_of_two_is_kept_by_other_saves_and_every_member_reads_it()
+    {
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantA));
+        var handler = new UpdateTenantSettingsCommandHandler(db, TestTenantContext.WithTenant(TenantA));
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.Handle(
+            new UpdateTenantSettingsCommand(null, null, null, OrgChart: new OrgChartSettingsInput("Nobody")), CancellationToken.None));
+
+        var saved = await handler.Handle(
+            new UpdateTenantSettingsCommand(null, null, null, OrgChart: new OrgChartSettingsInput(OrgChartAudiences.ManagersAndHr)), CancellationToken.None);
+        var phone = await handler.Handle(new UpdateTenantSettingsCommand(saved.Value.Version,
+            new() { ["phone"] = new FieldConfigInput(null, null, null, false) }, null), CancellationToken.None);
+        Assert.Equal(OrgChartAudiences.ManagersAndHr, phone.Value.OrgChart.Audience);
+
+        var controller = Controller(db, Mock.Of<ICoreAccessPolicyService>(), TestTenantContext.WithTenant(TenantA),
+            Principal((CorePermissions.ProfileSelfView, PermissionScopes.Self)));
+        var result = Assert.IsType<OkObjectResult>(await controller.GetFieldVisibility(CancellationToken.None));
+        Assert.Equal(OrgChartAudiences.ManagersAndHr, Assert.IsType<ApiResponse<FieldVisibilityDto>>(result.Value).Data!.OrgChart.Audience);
     }
 
     [Theory]

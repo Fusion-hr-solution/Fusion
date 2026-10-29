@@ -17,7 +17,8 @@ public static class TenantSettingsOverrideBuilder
         Dictionary<string, FieldConfigInput>? employeeFieldConfig,
         BrandingSettingsInput? branding,
         SelfServiceSettingsInput? selfService = null,
-        ProvisioningSettingsInput? provisioning = null)
+        ProvisioningSettingsInput? provisioning = null,
+        OrgChartSettingsInput? orgChart = null)
     {
         var root = string.IsNullOrWhiteSpace(existingOverridesJson)
             ? new JsonObject()
@@ -69,6 +70,13 @@ public static class TenantSettingsOverrideBuilder
             if (provisioning.ResendCooldownHours.HasValue) existing["resendCooldownHours"] = provisioning.ResendCooldownHours.Value;
             if (provisioning.PendingInviteBehavior is not null) existing["pendingInviteBehavior"] = provisioning.PendingInviteBehavior;
             if (existing.Count > 0) root["provisioning"] = existing;
+        }
+
+        if (orgChart?.Audience is not null)
+        {
+            var existing = root["orgChart"]?.AsObject() ?? new JsonObject();
+            existing["audience"] = orgChart.Audience;
+            root["orgChart"] = existing;
         }
 
         return root.Count == 0 ? null : root.ToJsonString(JsonOptions);

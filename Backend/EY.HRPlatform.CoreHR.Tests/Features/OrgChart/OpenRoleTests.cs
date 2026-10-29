@@ -230,7 +230,7 @@ public sealed class OpenRoleTests
         var result = failure is null ? Result.Success(dto) : Result.Failure<OrgChartOpenRoleDto>(failure);
         sender.Setup(s => s.Send(It.IsAny<CreateOpenRoleCommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
         sender.Setup(s => s.Send(It.IsAny<UpdateOpenRoleCommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
-        return (new OrgChartController(sender.Object, new CoreAccessPolicyService())
+        return (new OrgChartController(sender.Object, new CoreAccessPolicyService(), Mock.Of<ITenantSettingsReadService>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = caller } },
         }, sender);

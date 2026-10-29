@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import type { FusionSettingsSection, PeopleDataSettingsDto } from "@repo/api";
+import type { FusionSettingsSection, OrgChartAudience, PeopleDataSettingsDto } from "@repo/api";
 import { useSettingsConflictSaver } from "@repo/api/query";
 import { useStagedSettings } from "@repo/api/react";
-import { Checkbox, cn, Switch } from "@repo/ds";
+import { Checkbox, cn, RadioGroup, RadioGroupItem, Switch } from "@repo/ds";
 import {
   PageError,
   SettingsBlock,
@@ -33,6 +33,7 @@ interface FieldRule {
 export interface EmployeeFieldsDraft {
   fields: Record<FieldKey, FieldRule>;
   selfService: { canEditPreferredName: boolean; canEditPhone: boolean };
+  orgChart: OrgChartAudience;
 }
 
 /**
@@ -55,6 +56,8 @@ const COLUMNS: readonly Audience[] = ["required", "visibleToEmployee", "visibleT
 
 const SELF_SERVICE = ["canEditPreferredName", "canEditPhone"] as const;
 
+const ORG_CHART_AUDIENCES: readonly OrgChartAudience[] = ["Everyone", "ManagersAndHr"];
+
 export function toDraft(settings: PeopleDataSettingsDto): EmployeeFieldsDraft {
   const fields = Object.fromEntries(
     FIELDS.map((field) => {
@@ -69,7 +72,7 @@ export function toDraft(settings: PeopleDataSettingsDto): EmployeeFieldsDraft {
       ];
     })
   ) as Record<FieldKey, FieldRule>;
-  return { fields, selfService: { ...settings.selfService } };
+  return { fields, selfService: { ...settings.selfService }, orgChart: settings.orgChart?.audience ?? "Everyone" };
 }
 
 /** What saving does, one sentence per change, at most two before "and N more". */
@@ -96,6 +99,7 @@ export function employeeFieldsConsequence(saved: EmployeeFieldsDraft, draft: Emp
       sentences.push(said(draft.selfService[option] ? "canChange" : "cannotChange", { their }));
     }
   }
+  if (saved.orgChart !== draft.orgChart) sentences.push(say(`employeeFields.consequence.orgChart${draft.orgChart}`));
   if (sentences.length <= 2) return sentences.join(" ");
   return say("employeeFields.consequence.more", { sentences: sentences.slice(0, 2).join(" "), count: sentences.length - 2 });
 }
@@ -122,6 +126,7 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
             FIELDS.map((field) => [field.key, { visible: true, ...draft.fields[field.key] }])
           ),
           selfService: draft.selfService,
+          orgChart: { audience: draft.orgChart },
         },
       }),
     [mutateAsync, version]
@@ -241,6 +246,41 @@ export function EmployeeFieldsSettings({ section }: { section: FusionSettingsSec
                 </SettingsRow>
               ))}
             </SettingsRows>
+          </SettingsBlock>
+
+          <SettingsBlock title={say("employeeFields.orgChart.title")}>
+            {editable ? (
+              <RadioGroup
+                aria-label={say("employeeFields.orgChart.title")}
+                value={draft.orgChart}
+                onValueChange={(value) => staged.update((current) => ({ ...current, orgChart: value as OrgChartAudience }))}
+                className="gap-3"
+              >
+                {ORG_CHART_AUDIENCES.map((audience) => (
+                  <label
+                    key={audience}
+                    htmlFor={`org-chart-${audience}`}
+                    className={cn(
+                      "flex cursor-pointer items-start gap-3 rounded-surface border px-5 py-4 transition-colors",
+                      draft.orgChart === audience ? "border-primary bg-primary-tint" : "border-border bg-card hover:border-foreground/30"
+                    )}
+                  >
+                    <RadioGroupItem id={`org-chart-${audience}`} value={audience} className="mt-0.5" />
+                    <span className="flex flex-col gap-0.5">
+                      <span className="type-label font-semibold text-foreground">{say(`employeeFields.orgChart.${audience}.label`)}</span>
+                      <span className="type-meta text-muted-foreground">{say(`employeeFields.orgChart.${audience}.detail`)}</span>
+                    </span>
+                  </label>
+                ))}
+              </RadioGroup>
+            ) : (
+              <SettingsRows>
+                <SettingsRow
+                  label={say(`employeeFields.orgChart.${draft.orgChart}.label`)}
+                  description={say(`employeeFields.orgChart.${draft.orgChart}.detail`)}
+                />
+              </SettingsRows>
+            )}
           </SettingsBlock>
 
           {editable && saved ? (

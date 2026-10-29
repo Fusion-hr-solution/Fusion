@@ -34,7 +34,8 @@ public sealed record PeopleDataSettingsDto(
     uint? Version,
     Dictionary<string, FieldConfig> EmployeeFieldConfig,
     SelfServiceSettings SelfService,
-    IReadOnlyList<string> DownstreamConsumers);
+    IReadOnlyList<string> DownstreamConsumers,
+    OrgChartSettings OrgChart);
 
 public sealed record ProvisioningSettingsDto(
     uint? Version,
@@ -58,7 +59,11 @@ public sealed record SettingsAuditEventDto(
 /// <summary>How one employee field is treated on profiles. HR always sees every field.</summary>
 public sealed record FieldVisibilityRuleDto(bool Required, bool VisibleToEmployee, bool VisibleToManager);
 
-/// <summary>The field policy profiles read (B-071 D9): per-field visibility and what employees edit themselves.</summary>
+/// <summary>
+/// The field policy profiles read (B-071 D9): per-field visibility, what employees edit themselves, and who sees the
+/// org chart (so every surface can hide what leads to it).
+/// </summary>
 public sealed record FieldVisibilityDto(
     IReadOnlyDictionary<string, FieldVisibilityRuleDto> Fields,
-    SelfServiceSettings SelfService);
+    SelfServiceSettings SelfService,
+    OrgChartSettings OrgChart);

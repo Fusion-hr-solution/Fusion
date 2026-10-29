@@ -4,7 +4,8 @@ import { useCallback, useMemo } from "react";
 import { useQueries, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { coreOrgChartQueryKeys, createCoreOrgChartApi, createPlatformApiClient, createReviewsApi, reviewQueryKeys, type OpenRoleRequest, type OrgChartDto } from "@repo/api";
 import { keepPreviousData, useApiMutation, useApiQuery } from "@repo/api/query";
-import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
+import { useAuth } from "@repo/auth";
+import { useOrgChartAccess } from "./use-org-chart-access";
 
 function useOrgChartApi() {
   return useMemo(() => createCoreOrgChartApi(createPlatformApiClient()), []);
@@ -15,12 +16,13 @@ function useOrgChartApi() {
  * previous chart on screen until the next one arrives, so cards move instead of the stage flashing a skeleton.
  */
 export function useOrgChart(asOf: string | null = null) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const access = useOrgChartAccess();
   const api = useOrgChartApi();
   return useApiQuery(
     coreOrgChartQueryKeys.chart(asOf),
     useCallback((signal) => api.chart(asOf, signal), [api, asOf]),
-    { enabled: !isLoading && isAuthenticated && canAccessCoreOrgChart(user), placeholderData: keepPreviousData }
+    { enabled: !access.isLoading && isAuthenticated && access.canSee, placeholderData: keepPreviousData }
   );
 }
 

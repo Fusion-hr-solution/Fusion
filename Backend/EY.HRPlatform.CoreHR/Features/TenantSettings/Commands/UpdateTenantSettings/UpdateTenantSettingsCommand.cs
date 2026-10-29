@@ -13,9 +13,11 @@ namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Commands.UpdateTenantSett
 /// <param name="Branding">Branding settings to update, or null to keep existing.</param>
 /// <param name="SelfService">Self-service settings to update, or null to keep existing.</param>
 /// <param name="Provisioning">Provisioning settings to update, or null to keep existing.</param>
+/// <param name="OrgChart">Who sees the org chart, or null to keep existing.</param>
 public sealed record UpdateTenantSettingsCommand(
     uint? ExpectedVersion,
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
     BrandingSettingsInput? Branding,
     SelfServiceSettingsInput? SelfService = null,
-    ProvisioningSettingsInput? Provisioning = null) : ICommand<Result<TenantSettingsDto>>;
+    ProvisioningSettingsInput? Provisioning = null,
+    OrgChartSettingsInput? OrgChart = null) : ICommand<Result<TenantSettingsDto>>;

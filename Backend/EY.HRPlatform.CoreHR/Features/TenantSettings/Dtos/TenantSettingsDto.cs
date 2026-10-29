@@ -33,6 +33,11 @@ public sealed record TenantSettingsDto
     public ProvisioningSettings Provisioning { get; init; } = new();
 
     /// <summary>
+    /// Who sees the org chart (B-152): everyone, or only managers (their own line) and people who read the whole workforce.
+    /// </summary>
+    public OrgChartSettings OrgChart { get; init; } = new();
+
+    /// <summary>
     /// Default field configuration for employee records.
     /// All fields default to visible for all roles.
     /// </summary>
@@ -57,6 +62,22 @@ public sealed record TenantSettingsDto
 public sealed record SelfServiceSettings(
     bool CanEditPreferredName = true,
     bool CanEditPhone = true);
+
+/// <summary>Who sees the org chart: <see cref="OrgChartAudiences"/>.</summary>
+public sealed record OrgChartSettings(string Audience = OrgChartAudiences.Everyone);
+
+public static class OrgChartAudiences
+{
+    /// <summary>Everyone with the org chart permission sees it as their grant allows (the default).</summary>
+    public const string Everyone = "Everyone";
+
+    /// <summary>
+    /// People who read the whole workforce see it as before; managers see their own chain and branch; nobody else sees it.
+    /// </summary>
+    public const string ManagersAndHr = "ManagersAndHr";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>([Everyone, ManagersAndHr]);
+}
 
 public sealed record ProvisioningSettings(
     Guid? DefaultAccessProfileId = null,

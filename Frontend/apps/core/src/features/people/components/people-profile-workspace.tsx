@@ -32,6 +32,7 @@ import {
 import { PageContainer, PageListSkeleton } from "@repo/ds/shell";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
+import { useOrgChartAccess } from "@/features/org-chart/api/use-org-chart-access";
 import {
   canAccessCorePeople,
   canAccessCoreTeam,
@@ -39,7 +40,6 @@ import {
   canManageCoreEmployees,
   canViewWorkforceAccess,
   useAuth,
-  canAccessCoreOrgChart,
 } from "@repo/auth";
 import { classifyApiError } from "@repo/api";
 import {
@@ -92,6 +92,7 @@ export default function PeopleProfileWorkspace({ employeeKey }: { employeeKey: s
   const asOfParam = searchParams.get("asOf");
 
   const { user, isLoading: authLoading } = useAuth();
+  const orgChart = useOrgChartAccess();
   const t = useTranslations("profile.record");
   const tPhoto = useTranslations("profile.band");
   const say = useSay("profile");
@@ -223,7 +224,7 @@ export default function PeopleProfileWorkspace({ employeeKey }: { employeeKey: s
   const isFormer = employee.employment.state === "Former";
   // Reporting admins change the line too; the panel shows them only the line and the team.
   const showActions = rights.lines && !isAsOf && (!isFormer || canManage);
-  const orgChartHref = canAccessCoreOrgChart(user) ? `/org-chart?focus=${encodeURIComponent(employeeKey)}` : undefined;
+  const orgChartHref = orgChart.canSee ? `/org-chart?focus=${encodeURIComponent(employeeKey)}` : undefined;
   const goAsOf = (date: string) => router.push(`${pathname}?asOf=${date}`);
   const returnToToday = () => router.push(tab === "job" ? pathname : `${pathname}?tab=${tab}`);
 

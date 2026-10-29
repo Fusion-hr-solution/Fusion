@@ -52,6 +52,7 @@ export {
   canSeeOwnCoreProfileNavigation,
   canSeeCoreTeamNavigation,
   canAccessCoreOrgChart,
+  canSeeCoreOrgChart,
   canSeeCoreOrgChartNavigation,
   canViewCoreOrganization,
   canManageCoreOrganization,

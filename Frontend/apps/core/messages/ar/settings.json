@@ -93,7 +93,20 @@
       "optional": "يصبح {label} اختياريًا.",
       "canChange": "يمكن للموظفين تغيير {their} في «ملفي الشخصي».",
       "cannotChange": "لم يعد بإمكان الموظفين تغيير {their}.",
-      "more": "{sentences} و{count, plural, one {تغيير آخر} other {# تغييرات أخرى}}."
+      "more": "{sentences} و{count, plural, one {تغيير آخر} other {# تغييرات أخرى}}.",
+      "orgChartEveryone": "يرى الجميع الهيكل التنظيمي.",
+      "orgChartManagersAndHr": "يقتصر الهيكل التنظيمي على المديرين والموارد البشرية."
+    },
+    "orgChart": {
+      "title": "من يرى الهيكل التنظيمي",
+      "Everyone": {
+        "label": "الجميع",
+        "detail": "يرى الجميع الشركة كاملة."
+      },
+      "ManagersAndHr": {
+        "label": "المديرون والموارد البشرية",
+        "detail": "ترى الموارد البشرية الشركة كاملة ويرى المديرون فرقهم فقط. لا يراه أحد غيرهم."
+      }
     }
   },
   "invitations": {

@@ -36,7 +36,8 @@ public static class TenantSettingsMerger
                 overrides.Provisioning?.DefaultAccessProfileId ?? defaults.Provisioning.DefaultAccessProfileId,
                 overrides.Provisioning?.InviteExpiryDays ?? defaults.Provisioning.InviteExpiryDays,
                 overrides.Provisioning?.ResendCooldownHours ?? defaults.Provisioning.ResendCooldownHours,
-                overrides.Provisioning?.PendingInviteBehavior ?? defaults.Provisioning.PendingInviteBehavior)
+                overrides.Provisioning?.PendingInviteBehavior ?? defaults.Provisioning.PendingInviteBehavior),
+            OrgChart = new OrgChartSettings(overrides.OrgChart?.Audience ?? defaults.OrgChart.Audience),
         };
     }
 
@@ -66,10 +67,12 @@ public static class TenantSettingsMerger
         public BrandingSettingsOverrides? Branding { get; init; }
         public SelfServiceSettingsOverrides? SelfService { get; init; }
         public ProvisioningSettingsOverrides? Provisioning { get; init; }
+        public OrgChartSettingsOverrides? OrgChart { get; init; }
     }
 
     private sealed record FieldConfigOverrides(bool? Visible, bool? Required, bool? VisibleToEmployee, bool? VisibleToManager);
     private sealed record BrandingSettingsOverrides(string? LogoUrl);
     private sealed record SelfServiceSettingsOverrides(bool? CanEditPreferredName, bool? CanEditPhone);
+    private sealed record OrgChartSettingsOverrides(string? Audience);
     private sealed record ProvisioningSettingsOverrides(Guid? DefaultAccessProfileId, int? InviteExpiryDays, int? ResendCooldownHours, string? PendingInviteBehavior);
 }

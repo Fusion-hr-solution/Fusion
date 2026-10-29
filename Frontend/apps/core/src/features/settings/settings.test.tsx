@@ -45,6 +45,7 @@ const PEOPLE_DATA: PeopleDataSettingsDto = {
   version: 3,
   downstreamConsumers: [],
   selfService: { canEditPreferredName: true, canEditPhone: true },
+  orgChart: { audience: "Everyone" },
   employeeFieldConfig: {
     firstName: { visible: true, required: true, visibleToEmployee: true, visibleToManager: true },
     lastName: { visible: true, required: true, visibleToEmployee: true, visibleToManager: true },
@@ -75,6 +76,15 @@ describe("Employee fields", () => {
     expect(screen.getByRole("checkbox", { name: "First name: Required" })).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: "Phone: Their manager" })).toBeEnabled();
     expect(screen.getByRole("checkbox", { name: "Phone: HR always sees it" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: /^Everyone/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /^Managers and HR/ })).not.toBeChecked();
+  });
+
+  it("shows a view-only reader who sees the org chart", () => {
+    mocks.peopleData = { ...PEOPLE_DATA, orgChart: { audience: "ManagersAndHr" } };
+    render(<EmployeeFieldsSettings section={section("employee-fields", "view")} />);
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
+    expect(screen.getByText("Managers and HR")).toBeInTheDocument();
   });
 
   it("names the consequence of a change", () => {
@@ -87,6 +97,7 @@ describe("Employee fields", () => {
     expect(
       employeeFieldsConsequence(draft, { ...draft, selfService: { ...draft.selfService, canEditPhone: false } })
     ).toBe("Employees can no longer change their phone number.");
+    expect(employeeFieldsConsequence(draft, { ...draft, orgChart: "ManagersAndHr" })).toBe("Only managers and HR see the org chart.");
   });
 });
 
@@ -135,6 +146,12 @@ describe("In French", () => {
       sentence: "Téléphone : les managers le voient désormais",
     });
     expect(describeChange("provisioning.inviteExpiryDays", 7, 14, sayInFrench).after).toBe("14 jours");
+    expect(describeChange("orgChart.audience", undefined, "ManagersAndHr", sayInFrench)).toEqual({
+      label: "Qui voit l’organigramme",
+      before: "Tout le monde",
+      after: "Managers et RH",
+      sentence: "Seuls les managers et les RH voient l’organigramme.",
+    });
     expect(periodOf(new Date(2026, 8, 3), new Date(2026, 9, 24), sayInFrench, "fr")).toBe("Septembre");
     expect(periodOf(new Date(2026, 9, 22), new Date(2026, 9, 24), sayInFrench, "fr")).toBe("Cette semaine");
   });

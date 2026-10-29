@@ -5,6 +5,7 @@ using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.OrgChart;
 using EY.HRPlatform.CoreHR.Features.Security;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Commands.UpdateTenantSettings;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
@@ -562,7 +563,8 @@ public sealed class OrgChartTests
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"));
     }
 
-    private static (OrgChartController Controller, Mock<ISender> Sender) Controller(ClaimsPrincipal caller)
+    private static (OrgChartController Controller, Mock<ISender> Sender) Controller(
+        ClaimsPrincipal caller, ITenantSettingsReadService? settings = null)
     {
         var sender = new Mock<ISender>();
         sender.Setup(s => s.Send(It.IsAny<OrgChartQuery>(), It.IsAny<CancellationToken>()))
@@ -571,7 +573,7 @@ public sealed class OrgChartTests
             .ReturnsAsync(Result.Success<IReadOnlyList<OrgChartChangeDto>>([]));
         sender.Setup(s => s.Send(It.IsAny<OrgChartSearchQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<IReadOnlyList<OrgChartPersonDto>>([]));
-        return (new OrgChartController(sender.Object, new CoreAccessPolicyService())
+        return (new OrgChartController(sender.Object, new CoreAccessPolicyService(), settings ?? Audience(OrgChartAudiences.Everyone))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = caller } },
         }, sender);
@@ -580,6 +582,72 @@ public sealed class OrgChartTests
     private static readonly (string, string) Everyone = (CorePermissions.OrgChartView, PermissionScopes.Tenant);
     private static readonly (string, string) Branch = (CorePermissions.OrgChartView, PermissionScopes.DirectReports);
     private static readonly (string, string) Hr = (CorePermissions.EmployeeView, PermissionScopes.Tenant);
+    private static readonly (string, string) OwnRecord = (CorePermissions.EmployeeView, PermissionScopes.Self);
+    private static readonly (string, string)[] ManagerGrants =
+        [Everyone, (CorePermissions.EmployeeView, PermissionScopes.DirectReports), (CorePermissions.TeamView, PermissionScopes.DirectReports)];
+
+    private static ITenantSettingsReadService Audience(string audience)
+    {
+        var settings = new Mock<ITenantSettingsReadService>();
+        settings.Setup(s => s.GetCurrentAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TenantSettingsDto { OrgChart = new OrgChartSettings(audience) });
+        return settings.Object;
+    }
+
+    /// <summary>The scope the chart and search are read with, or null when both are forbidden and nothing is read.</summary>
+    private static async Task<string?> ScopeAsync(ITenantSettingsReadService settings, params (string, string)[] grants)
+    {
+        var (controller, sender) = Controller(Caller(Guid.NewGuid(), grants), settings);
+        var chart = await controller.Get(null, null, null, default);
+        var search = await controller.Search("a", null, default);
+        if (chart is ForbidResult)
+        {
+            Assert.IsType<ForbidResult>(search);
+            sender.VerifyNoOtherCalls();
+            return null;
+        }
+        Assert.IsType<OkObjectResult>(search);
+        return Assert.IsType<ApiResponse<OrgChartDto>>(Assert.IsType<OkObjectResult>(chart).Value).Data!.Scope;
+    }
+
+    [Theory]
+    [InlineData(OrgChartAudiences.Everyone, OrgChartScopes.Tenant, OrgChartScopes.Tenant, OrgChartScopes.Tenant)]
+    [InlineData(OrgChartAudiences.ManagersAndHr, OrgChartScopes.Tenant, OrgChartScopes.DirectReports, null)]
+    public async Task The_tenants_audience_decides_who_sees_the_chart_and_how_much(
+        string audience, string hrScope, string managerScope, string? employeeScope)
+    {
+        var settings = Audience(audience);
+        Assert.Equal(hrScope, await ScopeAsync(settings, Everyone, Hr));
+        Assert.Equal(managerScope, await ScopeAsync(settings, ManagerGrants));
+        Assert.Equal(employeeScope, await ScopeAsync(settings, Everyone, OwnRecord));
+    }
+
+    [Fact]
+    public async Task Managers_and_HR_only_never_widens_a_grant_or_a_date()
+    {
+        var settings = Audience(OrgChartAudiences.ManagersAndHr);
+        Assert.Null(await ScopeAsync(settings, (CorePermissions.TeamView, PermissionScopes.DirectReports)));
+        Assert.Null(await ScopeAsync(settings, Hr));
+        var (manager, sender) = Controller(Caller(Guid.NewGuid(), ManagerGrants), settings);
+        Assert.IsType<ForbidResult>(await manager.Get(Today.AddDays(5), null, null, default));
+        sender.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task One_tenants_audience_never_applies_to_another()
+    {
+        var database = Guid.NewGuid().ToString();
+        await using (var seed = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantA), database))
+        {
+            await new UpdateTenantSettingsCommandHandler(seed, TestTenantContext.WithTenant(TenantA)).Handle(new UpdateTenantSettingsCommand(
+                null, null, null, OrgChart: new OrgChartSettingsInput(OrgChartAudiences.ManagersAndHr)), default);
+        }
+
+        await using var inA = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantA), database);
+        Assert.Null(await ScopeAsync(new TenantSettingsReadService(inA), Everyone, OwnRecord));
+        await using var inB = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantB), database);
+        Assert.Equal(OrgChartScopes.Tenant, await ScopeAsync(new TenantSettingsReadService(inB), Everyone, OwnRecord));
+    }
 
     [Fact]
     public async Task Without_the_permission_the_chart_is_forbidden()

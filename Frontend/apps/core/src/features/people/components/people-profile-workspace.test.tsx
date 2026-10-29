@@ -77,6 +77,10 @@ vi.mock("@repo/api/query", () => ({
   useCompanyValues: () => ({ data: [] }),
 }));
 
+vi.mock("@/features/org-chart/api/use-org-chart-access", () => ({
+  useOrgChartAccess: () => ({ canSee: true, isLoading: false }),
+}));
+
 vi.mock("../changes/use-changes", () => ({
   useChangeRights: () => ({ people: true, lines: true, seeComing: true }),
   useChangeMutations: () => ({ dottedLine: { isLoading: false, mutateAsync: vi.fn() } }),

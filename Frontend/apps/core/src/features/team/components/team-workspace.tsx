@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ArrowRight, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
+import { useAuth } from "@repo/auth";
+import { useOrgChartAccess } from "@/features/org-chart/api/use-org-chart-access";
 import {
   PageContainer,
   PageHeader,
@@ -48,6 +49,7 @@ function TeamComingUp() {
 
 export default function TeamWorkspace() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const orgChart = useOrgChartAccess();
   const t = useTranslations("team");
   const employeeId = user?.employeeId ?? null;
   const canAccess = canAccessTeamWorkspace(user);
@@ -130,7 +132,7 @@ export default function TeamWorkspace() {
         title={t("title")}
         description={t("description")}
         actions={
-          canAccessCoreOrgChart(user) ? (
+          orgChart.canSee ? (
             <Button asChild variant="outline" size="sm">
               <Link href="/org-chart">{t("showInChart")}</Link>
             </Button>

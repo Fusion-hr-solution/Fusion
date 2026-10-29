@@ -23,7 +23,8 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
         var settings = await dbContext.TenantSettings.FirstOrDefaultAsync(cancellationToken);
         if (settings is null)
         {
-            var overrides = TenantSettingsOverrideBuilder.Build(null, request.EmployeeFieldConfig, request.Branding, request.SelfService, request.Provisioning);
+            var overrides = TenantSettingsOverrideBuilder.Build(null, request.EmployeeFieldConfig, request.Branding, request.SelfService, request.Provisioning,
+                request.OrgChart);
             settings = Domain.Entities.TenantSettings.Create(tenantContext.TenantId, overrides);
             dbContext.TenantSettings.Add(settings);
         }
@@ -36,7 +37,8 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
                 request.EmployeeFieldConfig,
                 request.Branding,
                 request.SelfService,
-                request.Provisioning));
+                request.Provisioning,
+                request.OrgChart));
         }
 
         try
@@ -69,6 +71,8 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
         }
         if (request.Branding?.LogoUrl is not null && !Uri.TryCreate(request.Branding.LogoUrl, UriKind.Absolute, out _))
             throw new ArgumentException("LogoUrl must be a valid absolute URL.");
+        if (request.OrgChart?.Audience is { } audience && !OrgChartAudiences.All.Contains(audience))
+            throw new ArgumentException($"Org chart audience must be one of: {string.Join(", ", OrgChartAudiences.All)}.");
         if (request.Provisioning?.InviteExpiryDays is < 1 or > 90)
             throw new ArgumentException("InviteExpiryDays must be between 1 and 90.");
         if (request.Provisioning?.ResendCooldownHours is < 0 or > 720)

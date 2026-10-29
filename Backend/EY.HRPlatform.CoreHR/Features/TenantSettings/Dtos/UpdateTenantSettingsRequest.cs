@@ -8,7 +8,8 @@ public sealed record UpdateTenantSettingsRequest(
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
     BrandingSettingsInput? Branding,
     SelfServiceSettingsInput? SelfService,
-    ProvisioningSettingsInput? Provisioning
+    ProvisioningSettingsInput? Provisioning,
+    OrgChartSettingsInput? OrgChart = null
 );
 
 /// <summary>
@@ -30,6 +31,9 @@ public sealed record BrandingSettingsInput(string? LogoUrl);
 public sealed record SelfServiceSettingsInput(
     bool? CanEditPreferredName,
     bool? CanEditPhone);
+
+/// <summary>Who sees the org chart: one of <see cref="OrgChartAudiences"/>.</summary>
+public sealed record OrgChartSettingsInput(string? Audience);
 
 public sealed record ProvisioningSettingsInput(
     Guid? DefaultAccessProfileId,
