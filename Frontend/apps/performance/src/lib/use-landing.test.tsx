@@ -18,15 +18,26 @@ function List({ ready, onMissing }: { ready: boolean; onMissing?: (id: string) =
 describe("useLanding", () => {
   afterEach(() => window.history.replaceState(null, "", "/"));
 
-  it("outlines the item the hash names once its list has loaded, then drops the hash", () => {
+  it("outlines the item the hash names once its list has loaded, once per mount", () => {
     Element.prototype.scrollIntoView = vi.fn();
     window.history.replaceState(null, "", "/feedback?tab=received#feedback-b");
     const { rerender } = render(<List ready={false} />);
     rerender(<List ready />);
     expect(screen.getByText("B").classList.contains("animate-land")).toBe(true);
     expect(screen.getByText("A").classList.contains("animate-land")).toBe(false);
-    expect(window.location.hash).toBe("");
-    expect(window.location.search).toBe("?tab=received");
+    rerender(<List ready />);
+    screen.getByText("B").classList.remove("animate-land");
+    rerender(<List ready />);
+    expect(screen.getByText("B").classList.contains("animate-land")).toBe(false);
+    screen.getByText("B").classList.add("animate-land");
+
+    // An animation ending inside the item doesn't cut the outline short; its own end does.
+    const inner = document.createElement("span");
+    screen.getByText("B").append(inner);
+    inner.dispatchEvent(new Event("animationend", { bubbles: true }));
+    expect(screen.getByText("B").classList.contains("animate-land")).toBe(true);
+    screen.getByText("B").dispatchEvent(new Event("animationend", { bubbles: true }));
+    expect(screen.getByText("B").classList.contains("animate-land")).toBe(false);
   });
 
   it("hands over an item that isn't on the page", () => {

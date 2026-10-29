@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 
 /**
  * Lands on the item a notification opened (B-154): `#feedback-{id}` scrolls the element with that id into view and
- * outlines it for a moment, once `ready` says its list has loaded. The hash is then dropped, so going back or
- * reloading doesn't land again. When the item isn't on the page (an older one, or another tab's), `onMissing` gets
- * its id, e.g. to open it in a drawer instead.
+ * outlines it for a moment, once `ready` says its list has loaded. The hash stays: a list that mounts again (Next
+ * re-renders the page once after loading) lands again instead of losing the outline. When the item isn't on the page
+ * (an older one, or another tab's), `onMissing` gets its id, e.g. to open it in a drawer instead.
  */
 export function useLanding(prefix: string, ready: boolean, onMissing?: (id: string) => void): void {
   const [target, setTarget] = useState<string | null>(null);
@@ -24,7 +24,6 @@ export function useLanding(prefix: string, ready: boolean, onMissing?: (id: stri
   useEffect(() => {
     if (!target || !ready) return;
     setTarget(null);
-    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
     const element = document.getElementById(`${prefix}-${target}`);
     if (!element) {
       onMissing?.(target);
@@ -34,6 +33,12 @@ export function useLanding(prefix: string, ready: boolean, onMissing?: (id: stri
     element.classList.remove("animate-land");
     void element.offsetWidth;
     element.classList.add("animate-land");
-    element.addEventListener("animationend", () => element.classList.remove("animate-land"), { once: true });
+    // Animations inside the item bubble their end up here too; only the outline's own end clears it.
+    const done = (event: AnimationEvent) => {
+      if (event.target !== element) return;
+      element.classList.remove("animate-land");
+      element.removeEventListener("animationend", done);
+    };
+    element.addEventListener("animationend", done);
   }, [target, ready, prefix, onMissing]);
 }

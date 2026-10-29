@@ -8,8 +8,8 @@ import { PageProgressBar } from "../components/page-progress-bar";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Frontend - Shell",
-  description: "Main container application for the Frontend microfrontend architecture",
+  title: "Fusion",
+  description: "Fusion HR",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
