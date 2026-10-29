@@ -5,8 +5,8 @@
 # every 7 days), must exit 0 and should finish within ~5 min, so independent installs run in parallel.
 # Logs: /tmp/fusion-setup/*.log
 # The environment's other settings:
-# - Network access: Custom, "Also include default list of common package managers" checked, plus
-#   builds.dotnet.microsoft.com and ci.dot.net (the .NET SDK download).
+# - Network access: Limited, "Allow package managers" ticked, allowed domains builds.dotnet.microsoft.com
+#   and ci.dot.net (the .NET SDK download).
 # - Environment variables: FUSION_PG_PASSWORD=<any value; the cloud VM's own PostgreSQL gets it>.
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 log=/tmp/fusion-setup

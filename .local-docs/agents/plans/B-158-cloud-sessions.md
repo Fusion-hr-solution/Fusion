@@ -90,7 +90,7 @@ Settings for the environment at claude.ai/code (one personal environment on Fusi
 | Field | Value |
 |---|---|
 | Setup script | the whole of `.agents/skills/fusion-dev/cloud/setup.sh` (re-paste after it changes) |
-| Network access | Custom; check "Also include default list of common package managers"; add `builds.dotnet.microsoft.com` and `ci.dot.net` |
+| Network access | Limited; "Allow package managers" ticked; allowed domains `builds.dotnet.microsoft.com` and `ci.dot.net` (the docs call Limited "Custom") |
 | Environment variables | `FUSION_PG_PASSWORD=<any value>` (only the VM's own PostgreSQL uses it) |
 
 How it fits together:
