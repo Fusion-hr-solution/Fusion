@@ -6,7 +6,7 @@ import type {
   EmployeeDetailsDto,
   EmployeeReportingLinesDto,
 } from "@/features/people/api/employee-roster.types";
-import type { PeopleTimelineEventDto } from "@repo/api";
+import type { PeopleProfileDto, PeopleTimelineEventDto } from "@repo/api";
 import { ProfileTimeline } from "./job-tab";
 import { WorkerProfile } from "./worker-profile";
 import { fromSelfDetails, tenure } from "./worker-profile-view";
@@ -140,6 +140,19 @@ describe("WorkerProfile", () => {
     // manager and reports deep-link into the people profile route
     expect(screen.getByRole("link", { name: /Alexandre Idrissi/ })).toHaveAttribute("href", "/people/AST-1000");
     expect(screen.getByRole("link", { name: /Sami Trabelsi/ })).toHaveAttribute("href", "/people/AST-1002");
+  });
+
+  it("takes the manager's and reports' photos from the person's own record", () => {
+    const people = {
+      primaryManager: { employeeKey: "AST-1000", displayName: "Alexandre Idrissi", employeeNumber: "AST-1000", photoUrl: "/p/1000?v=a" },
+      directReports: [{ employeeKey: "AST-1002", employeeNumber: "AST-1002", displayName: "Sami Trabelsi", jobTitle: null, photoUrl: "/p/1002?v=b" }],
+      directReportCount: 7,
+    } as unknown as PeopleProfileDto;
+    const view = fromSelfDetails(details, reportingLines, { people });
+
+    expect(view.manager).toMatchObject({ name: "Alexandre Idrissi", photoUrl: "/p/1000?v=a" });
+    expect(view.directReports).toEqual([{ name: "Sami Trabelsi", href: "/people/AST-1002", jobTitle: null, photoUrl: "/p/1002?v=b" }]);
+    expect(view.directReportCount).toBe(7);
   });
 
   it("gives a colleague outside the branch the reporting line in place of tabs", () => {

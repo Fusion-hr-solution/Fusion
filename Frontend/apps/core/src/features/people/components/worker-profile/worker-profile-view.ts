@@ -32,12 +32,14 @@ export interface WorkerProfileManager {
   href: string;
   email?: string | null;
   employeeNumber?: string | null;
+  photoUrl?: string | null;
 }
 
 export interface WorkerProfileReport {
   name: string;
   href: string;
   jobTitle?: string | null;
+  photoUrl?: string | null;
 }
 
 export interface WorkerProfileAccess {
@@ -149,7 +151,13 @@ const PEOPLE_STATE_TONE: Record<string, StatusTone> = {
 export function fromSelfDetails(
   details: EmployeeDetailsDto,
   reportingLines: EmployeeReportingLinesDto | undefined,
-  context: { timeline?: PeopleTimelineDto; access?: MyFusionAccessDto | null; photoUrl?: string | null },
+  context: {
+    timeline?: PeopleTimelineDto;
+    access?: MyFusionAccessDto | null;
+    photoUrl?: string | null;
+    /** The person's own record: its manager and reports carry photos, which the self sources don't. */
+    people?: PeopleProfileDto;
+  },
   words: ProfileWords = ENGLISH
 ): WorkerProfileView {
   const { say, locale } = words;
@@ -201,17 +209,20 @@ export function fromSelfDetails(
           // The People profile route resolves by stable employee key, not the uuid.
           href: `/people/${manager.managerStableEmployeeKey}`,
           email: manager.managerEmail,
+          photoUrl: context.people?.primaryManager?.photoUrl ?? null,
         }
       : null,
-    directReports: reports.map(({ employee }) => ({
-      name:
-        employee.displayName ||
-        employee.fullName ||
-        `${employee.firstName} ${employee.lastName}`,
-      href: `/people/${employee.stableEmployeeKey}`,
-      jobTitle: employee.jobTitle,
-    })),
-    directReportCount: reports.length,
+    directReports: context.people
+      ? reportsOf(context.people)
+      : reports.map(({ employee }) => ({
+          name:
+            employee.displayName ||
+            employee.fullName ||
+            `${employee.firstName} ${employee.lastName}`,
+          href: `/people/${employee.stableEmployeeKey}`,
+          jobTitle: employee.jobTitle,
+        })),
+    directReportCount: context.people?.directReportCount ?? reports.length,
 
     access: access
       ? {
@@ -273,13 +284,10 @@ export function fromPeopleProfile(
           employeeKey: primaryManager.employeeKey,
           href: `/people/${primaryManager.employeeKey}`,
           employeeNumber: primaryManager.employeeNumber,
+          photoUrl: primaryManager.photoUrl ?? null,
         }
       : null,
-    directReports: profile.directReports.map((report) => ({
-      name: report.displayName,
-      href: `/people/${report.employeeKey}`,
-      jobTitle: report.jobTitle,
-    })),
+    directReports: reportsOf(profile),
     directReportCount: profile.directReportCount,
 
     access: access
@@ -295,6 +303,15 @@ export function fromPeopleProfile(
     isAsOf: profile.isAsOf,
     viewedDate: profile.viewedDate,
   };
+}
+
+function reportsOf(profile: PeopleProfileDto): WorkerProfileReport[] {
+  return profile.directReports.map((report) => ({
+    name: report.displayName,
+    href: `/people/${report.employeeKey}`,
+    jobTitle: report.jobTitle,
+    photoUrl: report.photoUrl ?? null,
+  }));
 }
 
 /** Whole years, months and days from `from` (yyyy-mm-dd…) to `to`; null for a future or missing date. */

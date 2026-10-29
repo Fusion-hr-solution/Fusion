@@ -59,6 +59,7 @@ export function MyProfile() {
   const managerKey = details?.currentManager?.managerStableEmployeeKey ?? "";
   const hasReports = (reportingLines?.directReports.length ?? 0) > 0;
   const team = usePeopleProfile(details && reportingLines && !hasReports ? managerKey : "", null);
+  const own = usePeopleProfile(employeeKey, null);
 
   if (authLoading) {
     return <WorkerProfileSkeleton />;
@@ -112,10 +113,11 @@ export function MyProfile() {
     timeline: profileContext?.timeline,
     access: profileContext?.access ?? null,
     photoUrl: card?.photoUrl ?? null,
+    people: own.data,
   }, { say, locale });
   const teammates = (team.data?.directReports ?? [])
     .filter((mate) => mate.employeeKey !== employeeKey)
-    .map((mate) => ({ name: mate.displayName, href: `/people/${mate.employeeKey}`, jobTitle: mate.jobTitle }));
+    .map((mate) => ({ name: mate.displayName, href: `/people/${mate.employeeKey}`, jobTitle: mate.jobTitle, photoUrl: mate.photoUrl }));
   const canChangePhoto = personal.data?.canEdit === true;
 
   return (

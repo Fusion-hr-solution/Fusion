@@ -48,7 +48,9 @@ public sealed record PeopleProfileReportDto(
     string EmployeeKey,
     string EmployeeNumber,
     string DisplayName,
-    string? JobTitle);
+    string? JobTitle,
+    /// <summary>API-relative photo address with a cache version, or null without a photo.</summary>
+    string? PhotoUrl = null);
 
 public sealed record PeopleProfileDto(
     PeopleProfileIdentityDto Identity,
@@ -74,7 +76,9 @@ public sealed record PeopleDottedLineManagerDto(
     string DisplayName,
     string EmployeeNumber,
     Guid EmployeeId,
-    DateTime Since);
+    DateTime Since,
+    /// <summary>API-relative photo address with a cache version, or null without a photo.</summary>
+    string? PhotoUrl = null);
 
 public sealed class PeopleProfileQueryHandler(
     CoreHRDbContext dbContext,
@@ -161,7 +165,8 @@ public sealed class PeopleProfileQueryHandler(
                 select new PeopleManagerDto(
                     managerEmployee.StableEmployeeKey,
                     (managerEmployee.PreferredName ?? managerEmployee.FirstName) + " " + managerEmployee.LastName,
-                    managerEmployee.EmployeeNumber))
+                    managerEmployee.EmployeeNumber,
+                    EmployeePhotos.UrlFor(managerEmployee.StableEmployeeKey, managerEmployee.PhotoKey)))
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
@@ -181,7 +186,8 @@ public sealed class PeopleProfileQueryHandler(
                     (managerEmployee.PreferredName ?? managerEmployee.FirstName) + " " + managerEmployee.LastName,
                     managerEmployee.EmployeeNumber,
                     managerEmployee.Id,
-                    relationship.EffectiveFrom))
+                    relationship.EffectiveFrom,
+                    EmployeePhotos.UrlFor(managerEmployee.StableEmployeeKey, managerEmployee.PhotoKey)))
                 .ToListAsync(cancellationToken);
 
         var directReportQuery =
@@ -210,7 +216,8 @@ public sealed class PeopleProfileQueryHandler(
                         && (assignment.EffectiveTo == null || displayAt < assignment.EffectiveTo))
                     .OrderByDescending(assignment => assignment.EffectiveFrom)
                     .Select(assignment => assignment.JobTitle)
-                    .FirstOrDefault()))
+                    .FirstOrDefault(),
+                EmployeePhotos.UrlFor(report.StableEmployeeKey, report.PhotoKey)))
             .ToListAsync(cancellationToken);
 
         var comingUp = isAsOf || request.Audience == EmployeeReadAudience.Employee

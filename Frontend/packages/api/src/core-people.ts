@@ -14,6 +14,8 @@ export interface PeopleManagerDto {
   employeeKey: string;
   displayName: string;
   employeeNumber: string;
+  /** API-relative photo address with a cache version, or null without a photo. */
+  photoUrl?: string | null;
 }
 
 /** A dotted-line manager on the profile; the id is what ending the dotted line takes. */
@@ -162,6 +164,8 @@ export interface PeopleProfileReportDto {
   employeeNumber: string;
   displayName: string;
   jobTitle: string | null;
+  /** API-relative photo address with a cache version, or null without a photo. */
+  photoUrl?: string | null;
 }
 
 export type PeopleChangeKind =

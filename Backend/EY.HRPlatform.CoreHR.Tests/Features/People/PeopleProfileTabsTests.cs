@@ -304,6 +304,43 @@ public sealed class PeopleProfileTabsTests : IDisposable
     }
 
     [Fact]
+    public async Task The_profile_and_job_history_carry_the_photos_of_the_people_around_the_person()
+    {
+        await SeedAsync();
+        await using (var db = Db(TenantA))
+        {
+            var nourAssignment = db.WorkAssignments.Single(item => item.EmployeeId == _nour);
+            var karimAssignment = db.WorkAssignments.Single(item => item.EmployeeId == _karim);
+            db.ManagerRelationships.Add(ManagerRelationship.Create(TenantA, _nour, _karim, nourAssignment.Id, karimAssignment.Id,
+                ReportingRelationshipType.SecondaryManager, Today.AddMonths(-1), WorkforceSourceType.Manual));
+            await db.SaveChangesAsync();
+        }
+        var karimKey = Db(TenantA).Employees.Single(item => item.Id == _karim).StableEmployeeKey;
+        var mariamPhoto = (await UploadAsync(_mariamKey, PeopleAdmin(_amira), Png())).Value.PhotoUrl;
+        var nourPhoto = (await UploadAsync(_nourKey, PeopleAdmin(_amira), Png())).Value.PhotoUrl;
+        var karimPhoto = (await UploadAsync(karimKey, PeopleAdmin(_amira), Png())).Value.PhotoUrl;
+
+        Task<PeopleProfileDto> ProfileAsync(string key)
+        {
+            var db = Db(TenantA);
+            var organization = new Mock<IOrganizationService>();
+            organization.Setup(o => o.GetUnitAsync(It.IsAny<Guid>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new OrganizationUnitStateDto(Guid.NewGuid(), "OPS", "Operations", Guid.NewGuid(), "Department", null, null,
+                    "Operations", OrgUnitLifecycleState.Active, DateOnly.MinValue, 1));
+            return new PeopleProfileQueryHandler(db, organization.Object, new WorkforceChangeReader(db))
+                .Handle(new PeopleProfileQuery(key, null, EmployeeReadAudience.HrAdmin, null, _amira), default)
+                .ContinueWith(task => task.Result.Value);
+        }
+
+        var nour = await ProfileAsync(_nourKey);
+        Assert.Equal(mariamPhoto, nour.PrimaryManager!.PhotoUrl);
+        Assert.Equal(karimPhoto, Assert.Single(nour.DottedLineManagers).PhotoUrl);
+        Assert.Equal(nourPhoto, Assert.Single((await ProfileAsync(_mariamKey)).DirectReports).PhotoUrl);
+        Assert.Null(Assert.Single((await ProfileAsync(karimKey)).DirectReports).PhotoUrl);
+        Assert.All((await HistoryAsync(_nourKey, PeopleAdmin(_amira))).Value.Rows, row => Assert.Equal(mariamPhoto, row.Manager!.PhotoUrl));
+    }
+
+    [Fact]
     public async Task Only_the_person_or_a_people_admin_changes_a_photo()
     {
         await SeedAsync();

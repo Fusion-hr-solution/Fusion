@@ -50,7 +50,7 @@ export function DottedLines({ person, canEdit }: { person: PeopleProfileDto; can
         <li key={line.employeeKey} className="grid min-h-[54px] grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 border-t">
           <span className="grid place-items-center text-muted-foreground"><DottedMark /></span>
           <Link href={`/people/${line.employeeKey}`} className="group flex min-w-0 items-center gap-2.5">
-            <Monogram name={line.displayName} size="sm" />
+            <Monogram name={line.displayName} photoUrl={line.photoUrl} size="sm" />
             <span className="min-w-0">
               <span className="block truncate type-label font-semibold group-hover:underline">{line.displayName}</span>
               <span className="block truncate type-meta text-muted-foreground">{t("since", { date: format.date(line.since, { year: "always" }) })}</span>

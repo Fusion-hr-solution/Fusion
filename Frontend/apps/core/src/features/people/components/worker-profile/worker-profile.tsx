@@ -202,10 +202,22 @@ function RailLine({ icon: Icon, children }: { icon: typeof Mail; children: React
   );
 }
 
-function PersonLink({ name, href, detail, size = "sm" }: { name: string; href: string; detail?: string | null; size?: "sm" | "xs" }) {
+function PersonLink({
+  name,
+  href,
+  detail,
+  photoUrl,
+  size = "sm",
+}: {
+  name: string;
+  href: string;
+  detail?: string | null;
+  photoUrl?: string | null;
+  size?: "sm" | "xs";
+}) {
   return (
     <Link href={href} className="group flex min-w-0 items-center gap-2.5 py-1 outline-none focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-ring">
-      <Monogram name={name} size={size} />
+      <Monogram name={name} photoUrl={photoUrl} size={size} />
       <span className="min-w-0">
         <span className="block truncate type-label text-foreground group-hover:underline">{name}</span>
         {detail ? <span className="block truncate type-meta text-muted-foreground">{detail}</span> : null}
@@ -293,7 +305,7 @@ function ProfileRail({
         <>
           <RailGroup label={t("manager")}>
             {view.manager ? (
-              <PersonLink name={view.manager.name} href={view.manager.href} detail={view.manager.employeeNumber} />
+              <PersonLink name={view.manager.name} href={view.manager.href} detail={view.manager.employeeNumber} photoUrl={view.manager.photoUrl} />
             ) : (
               <p className="type-body text-muted-foreground">{t("noManager")}</p>
             )}
@@ -302,7 +314,7 @@ function ProfileRail({
           {view.directReportCount > 0 ? (
             <RailGroup label={t("directReports")} aside={<span className="type-meta tabular-nums">{view.directReportCount}</span>}>
               {reports.map((report) => (
-                <PersonLink key={report.href} name={report.name} href={report.href} size="xs" />
+                <PersonLink key={report.href} name={report.name} href={report.href} photoUrl={report.photoUrl} size="xs" />
               ))}
               {reportsFooter ??
                 (view.directReportCount > reports.length ? (
@@ -315,7 +327,7 @@ function ProfileRail({
                 {mates.slice(0, 8).map((mate) => (
                   <li key={mate.href} className="-ms-2 first:ms-0">
                     <Link href={mate.href} title={mate.name} className="block rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <Monogram name={mate.name} size="sm" className="border-2 border-background" />
+                      <Monogram name={mate.name} photoUrl={mate.photoUrl} size="sm" className="border-2 border-background" />
                     </Link>
                   </li>
                 ))}
@@ -347,7 +359,7 @@ function ReportingLine({ view }: { view: WorkerProfileView }) {
         <li className="px-5 py-3">
           <p className="type-label text-muted-foreground">{t("rail.manager")}</p>
           {view.manager ? (
-            <PersonLink name={view.manager.name} href={view.manager.href} />
+            <PersonLink name={view.manager.name} href={view.manager.href} photoUrl={view.manager.photoUrl} />
           ) : (
             <p className="py-1 type-body text-muted-foreground">{t("rail.noManager")}</p>
           )}
@@ -366,7 +378,7 @@ function ReportingLine({ view }: { view: WorkerProfileView }) {
               <span className="type-meta tabular-nums">{view.directReportCount}</span>
             </p>
             {reports.map((report) => (
-              <PersonLink key={report.href} name={report.name} href={report.href} detail={report.jobTitle} />
+              <PersonLink key={report.href} name={report.name} href={report.href} detail={report.jobTitle} photoUrl={report.photoUrl} />
             ))}
             {view.directReportCount > reports.length ? (
               <p className="mt-1 type-meta text-muted-foreground">{t("rail.more", { count: view.directReportCount - reports.length })}</p>

@@ -197,7 +197,7 @@ function JobInformation({ rows, isLoading }: { rows: PeopleJobHistoryRowDto[] | 
         cell: ({ row }) =>
           row.original.manager ? (
             <Link href={`/people/${row.original.manager.employeeKey}`} className="group flex min-w-0 items-center gap-2">
-              <Monogram name={row.original.manager.displayName} size="xs" />
+              <Monogram name={row.original.manager.displayName} photoUrl={row.original.manager.photoUrl} size="xs" />
               <span className="truncate type-body text-foreground group-hover:underline">{row.original.manager.displayName}</span>
             </Link>
           ) : (

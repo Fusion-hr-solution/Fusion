@@ -62,7 +62,8 @@ public sealed class PeopleJobHistoryQueryHandler(CoreHRDbContext dbContext)
                 Dto = new PeopleManagerDto(
                     item.StableEmployeeKey,
                     (item.PreferredName ?? item.FirstName) + " " + item.LastName,
-                    item.EmployeeNumber),
+                    item.EmployeeNumber,
+                    EmployeePhotos.UrlFor(item.StableEmployeeKey, item.PhotoKey)),
             })
             .ToDictionaryAsync(item => item.Id, item => item.Dto, cancellationToken);
 

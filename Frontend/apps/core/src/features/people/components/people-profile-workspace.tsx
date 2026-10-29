@@ -253,7 +253,7 @@ export default function PeopleProfileWorkspace({ employeeKey }: { employeeKey: s
   const timelineForbidden = Boolean(timeline.error) && classifyApiError(timeline.error) === "auth";
   const teammates = (team.data?.directReports ?? [])
     .filter((mate) => mate.employeeKey !== employeeKey)
-    .map((mate) => ({ name: mate.displayName, href: `/people/${mate.employeeKey}`, jobTitle: mate.jobTitle }));
+    .map((mate) => ({ name: mate.displayName, href: `/people/${mate.employeeKey}`, jobTitle: mate.jobTitle, photoUrl: mate.photoUrl }));
   const canChangePhoto = !isAsOf && (canManage || (isSelf && personal.data?.canEdit === true));
   const hasDottedLines = employee.dottedLineManagers.length > 0 || (rights.lines && !isFormer);
 

@@ -45,7 +45,9 @@ public sealed record PeopleQuery(
 public sealed record PeopleManagerDto(
     string EmployeeKey,
     string DisplayName,
-    string EmployeeNumber);
+    string EmployeeNumber,
+    /// <summary>API-relative photo address with a cache version, or null without a photo.</summary>
+    string? PhotoUrl = null);
 
 public sealed record PeopleWorkDto(
     Guid? OrgUnitId,
