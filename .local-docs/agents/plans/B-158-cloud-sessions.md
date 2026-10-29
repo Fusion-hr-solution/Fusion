@@ -117,3 +117,12 @@ Unproven until the pilot (B-161): the setup inside 5 min, whether the snapshot k
 
 Starting a session: select the repository `Fusion-hr-solution/Fusion` and the Fusion environment.
 
+### Pushing through a fork (decided 2026-10-29)
+
+The user is a member of `Fusion-hr-solution` with push rights but not an admin; installing the Claude GitHub App on the org needs the org admin, and requesting it is out for now. So cloud sessions work on the user's fork `wassim-triki/Fusion`:
+- Fork default branch `wassim/develop`, so a session's clone starts there. The Claude app is installed on the user's account for the fork only.
+- Sessions push their own branches to the fork and end with a compare link into the org repo's `wassim/develop`; the user opens and merges the PR (push rights allow it), or a local session fetches the branch from the `fork` remote and pushes it.
+- Local pushes of `wassim/develop` go to `origin` and `fork`.
+- Lost: `claude --teleport` (it refuses a fork's session from the org checkout), so a local check fetches the branch instead; the conversation doesn't carry, the repo's STATE and board do. Cloud sessions can't open PRs on the org repo.
+- If the org admin installs the app later: drop the fork, sessions run on the org repo and teleport works.
+

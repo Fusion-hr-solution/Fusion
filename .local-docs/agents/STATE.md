@@ -6,7 +6,7 @@ Lets any agent resume mid-task. Update after each step. When done: log to `LOG.m
 
 ## Active work
 
-**B-161** Cloud pilot (child of B-158). First cloud session done 2026-10-29 (results on the board and in the B-158 plan › First cloud session). Blocked on the user: GitHub push access for the Claude app on the `Fusion-hr-solution` org, and re-pasting the updated `cloud/setup.sh`.
+**B-161** Cloud pilot (child of B-158). First cloud session done 2026-10-29 (results on the board and in the B-158 plan › First cloud session). Org app access is out for now, so cloud sessions push to the user's fork `wassim-triki/Fusion` (B-158 plan › Pushing through a fork). Setup.sh re-pasted by the user.
 
 ## Goal
 
@@ -16,7 +16,7 @@ One backend-only item end to end in a cloud session (tests, commit, push, PR int
 
 1. [x] Environment checks in the cloud (bootstrap, relational tests, hook): pass.
 2. [x] Fixed: setup warms caches from a `master` clone; `~/.claude/CLAUDE.md` switches onto `wassim/develop` (local commit pending).
-3. [ ] User: install the Claude GitHub App on the org (or reconnect GitHub), re-paste setup.sh, start sessions with the repo selected.
+3. [ ] Fork: user runs the fork + remote commands (auto mode blocked them for the agent), installs the Claude app on the fork; agent sets the fork's default branch to `wassim/develop`. Docs updated for the fork flow.
 4. [ ] Cloud session: one backend item end to end with push + PR. None small and backend-only is Ready; pick or split one with the user.
 5. [ ] Teleport locally, check, merge.
 
@@ -26,8 +26,8 @@ One backend-only item end to end in a cloud session (tests, commit, push, PR int
 
 ## Where it stands
 
-Waiting on GitHub access.
+Waiting on the user to create the fork and install the app on it; then a cloud session on the fork pushes a trivial change to prove the flow.
 
 ## Open questions & blockers
 
-- Push 403: Claude GitHub App not installed on `Fusion-hr-solution` (https://github.com/apps/claude/installations/select_target, org admin), or reconnect at https://claude.ai/connect-github.
+- Push 403 on the org repo (no app access; admin approval out for now): worked around with the fork.
