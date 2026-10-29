@@ -42,8 +42,10 @@ public static class CoreNotificationRenderer
             throw new InvalidOperationException("A notification opens an in-app Core HR path.");
         var (title, context) = InApp(notification, language);
         var values = new Dictionary<string, string>(notification.Values) { ["title"] = title };
+        // A title's first segment names what it's about, so a cancellation ("TeamJoining.cancelled") still opens the team.
+        var about = notification.TitleKey.Split('.')[0];
         string? Part(string part)
-            => Catalog.Text(language, $"{notification.TitleKey}.{part}", values) ?? Catalog.Text(language, $"{notification.Kind}.{part}", values);
+            => Catalog.Text(language, $"{notification.TitleKey}.{part}", values) ?? Catalog.Text(language, $"{about}.{part}", values);
         const string group = CoreNotificationPreference.TeamAndJobChanges;
         return FusionNotificationEmail.Render(language,
             new NotificationEmailText(Part("subject") ?? title, context is null ? title : $"{title}. {context}.",

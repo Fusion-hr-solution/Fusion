@@ -182,4 +182,22 @@ public static class CoreChangeMoments
         }
         return new CoreNotificationMessage(title, context, values, actor, href, actor is null ? null : actorEmployeeId);
     }
+
+    /// <summary>What a cancellation says to someone the change told, from that notification's frozen values.</summary>
+    public static CoreNotificationMessage CancelledWords(CoreNotification told, string? actorName = null, Guid? actorEmployeeId = null)
+    {
+        var values = told.Values.Where(item => item.Key != "actor").ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
+        var actor = string.IsNullOrWhiteSpace(actorName) ? null : actorName.Trim();
+        if (actor is not null) values["actor"] = actor;
+        var title = told.Kind switch
+        {
+            CoreNotificationKind.TeamJoining when told.ContextKey == "TeamJoining.context.hire" => "TeamJoining.hire.cancelled",
+            CoreNotificationKind.TeamLeaving when told.TitleKey.StartsWith("TeamLeaving.lastDay", StringComparison.Ordinal) => "TeamLeaving.lastDay.cancelled",
+            CoreNotificationKind.ManagerChanged or CoreNotificationKind.JobChanged or CoreNotificationKind.TeamJoining
+                or CoreNotificationKind.TeamLeaving => $"{told.Kind}.cancelled",
+            _ => throw new ArgumentOutOfRangeException(nameof(told), told.Kind, "A cancellation answers what the change told."),
+        };
+        return new CoreNotificationMessage(title, actor is null ? null : "Context.cancelledBy", values, actor, told.Href,
+            actor is null ? null : actorEmployeeId);
+    }
 }

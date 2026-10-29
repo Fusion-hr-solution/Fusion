@@ -1,5 +1,6 @@
 {
   "Context.recordedBy": "Recorded by {actor}",
+  "Context.cancelledBy": "Cancelled by {actor}",
 
   "ManagerChanged": "Your manager will be {manager} from {date:date}",
   "ManagerChanged.now": "Your manager is now {manager}",
@@ -7,6 +8,7 @@
   "ManagerChanged.none": "You won't report to a manager from {date:date}",
   "ManagerChanged.none.now": "You no longer report to a manager",
   "ManagerChanged.none.upcoming": "You stop reporting to a manager",
+  "ManagerChanged.cancelled": "Your manager change on {date:date} was cancelled",
   "ManagerChanged.action": "Open your profile",
 
   "JobChanged": "Your job changes on {date:date}",
@@ -14,6 +16,7 @@
   "JobChanged.upcoming": "Your job changes",
   "JobChanged.context": "{summary}",
   "JobChanged.context.manager": "{summary} · reporting to {manager}",
+  "JobChanged.cancelled": "Your job change on {date:date} was cancelled",
   "JobChanged.action": "Open your profile",
 
   "TeamJoining#one": "{name} joins your team on {date:date}",
@@ -23,6 +26,9 @@
   "TeamJoining.upcoming#one": "{name} joins your team",
   "TeamJoining.upcoming#other": "{count} people join your team",
   "TeamJoining.context.hire": "New hire · {title}",
+  "TeamJoining.cancelled#one": "{name}'s move to your team on {date:date} was cancelled",
+  "TeamJoining.cancelled#other": "The move of {count} people to your team on {date:date} was cancelled",
+  "TeamJoining.hire.cancelled": "{name}'s hire starting {date:date} was cancelled",
   "TeamJoining.action": "Open your team",
 
   "TeamLeaving#one": "{name} leaves your team on {date:date}",
@@ -34,6 +40,9 @@
   "TeamLeaving.lastDay": "{name}'s last day is {date:date}",
   "TeamLeaving.lastDay.now": "Today is {name}'s last day",
   "TeamLeaving.lastDay.upcoming": "{name}'s last day",
+  "TeamLeaving.cancelled#one": "{name}'s move off your team on {date:date} was cancelled",
+  "TeamLeaving.cancelled#other": "The move of {count} people off your team on {date:date} was cancelled",
+  "TeamLeaving.lastDay.cancelled": "{name}'s last day on {date:date} was cancelled",
   "TeamLeaving.action": "Open your team",
 
   "group.team-and-job-changes": "Team and job changes"

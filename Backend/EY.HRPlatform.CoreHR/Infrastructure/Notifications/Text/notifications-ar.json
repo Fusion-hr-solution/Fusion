@@ -1,5 +1,6 @@
 {
   "Context.recordedBy": "سجّله {actor}",
+  "Context.cancelledBy": "ألغاه {actor}",
 
   "ManagerChanged": "سيكون {manager} مديرك اعتبارًا من {date:date}",
   "ManagerChanged.now": "أصبح {manager} مديرك",
@@ -7,6 +8,7 @@
   "ManagerChanged.none": "لن يكون لديك مدير اعتبارًا من {date:date}",
   "ManagerChanged.none.now": "لم يعد لديك مدير",
   "ManagerChanged.none.upcoming": "لن يكون لديك مدير",
+  "ManagerChanged.cancelled": "أُلغي تغيير مديرك المقرر في {date:date}",
   "ManagerChanged.action": "افتح ملفك الشخصي",
 
   "JobChanged": "تتغير وظيفتك في {date:date}",
@@ -14,6 +16,7 @@
   "JobChanged.upcoming": "تتغير وظيفتك",
   "JobChanged.context": "{summary}",
   "JobChanged.context.manager": "{summary} · تحت إشراف {manager}",
+  "JobChanged.cancelled": "أُلغي تغيير وظيفتك المقرر في {date:date}",
   "JobChanged.action": "افتح ملفك الشخصي",
 
   "TeamJoining#one": "ينضم {name} إلى فريقك في {date:date}",
@@ -23,6 +26,9 @@
   "TeamJoining.upcoming#one": "ينضم {name} إلى فريقك",
   "TeamJoining.upcoming#other": "ينضم {count} أشخاص إلى فريقك",
   "TeamJoining.context.hire": "موظف جديد · {title}",
+  "TeamJoining.cancelled#one": "أُلغي انضمام {name} إلى فريقك في {date:date}",
+  "TeamJoining.cancelled#other": "أُلغي انضمام {count} أشخاص إلى فريقك في {date:date}",
+  "TeamJoining.hire.cancelled": "أُلغي توظيف {name} الذي كان سيبدأ في {date:date}",
   "TeamJoining.action": "افتح فريقك",
 
   "TeamLeaving#one": "يغادر {name} فريقك في {date:date}",
@@ -34,6 +40,9 @@
   "TeamLeaving.lastDay": "آخر يوم عمل لـ {name} هو {date:date}",
   "TeamLeaving.lastDay.now": "اليوم آخر يوم عمل لـ {name}",
   "TeamLeaving.lastDay.upcoming": "آخر يوم عمل لـ {name}",
+  "TeamLeaving.cancelled#one": "أُلغيت مغادرة {name} لفريقك في {date:date}",
+  "TeamLeaving.cancelled#other": "أُلغيت مغادرة {count} أشخاص لفريقك في {date:date}",
+  "TeamLeaving.lastDay.cancelled": "أُلغي آخر يوم عمل لـ {name} في {date:date}",
   "TeamLeaving.action": "افتح فريقك",
 
   "group.team-and-job-changes": "الفريق وتغييرات الوظيفة"

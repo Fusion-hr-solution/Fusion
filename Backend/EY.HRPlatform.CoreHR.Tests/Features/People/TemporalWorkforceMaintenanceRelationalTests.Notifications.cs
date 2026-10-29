@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Notifications;
+using EY.HRPlatform.CoreHR.Features.People;
 using EY.HRPlatform.CoreHR.Features.People.Changes;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Notifications;
@@ -127,6 +129,115 @@ public sealed partial class TemporalWorkforceMaintenanceRelationalTests
             Assert.Equal(CoreNotificationDispatcher.RecipientOptedOut, notification.EmailSkippedReason);
             Assert.Empty(sender.Sent);
         });
+
+    [RelationalDatabaseFact]
+    public Task A_cancelled_change_tells_everyone_it_told_except_whoever_cancelled_it()
+        => WithDatabaseAsync(async (db, ctx, other) =>
+        {
+            var date = DateOnly.FromDateTime(Today).AddDays(10);
+            var change = await JobAsync(db, ctx, ctx.KarimKey, new JobChangeRequest(At(date), ManagerEmployeeId: ctx.YoussefId));
+
+            // Amina cancels it, so she hears nothing; Karim and Youssef hear it's off, and keep what they were told.
+            var cancelled = await new CancelWorkforceChangeCommandHandler(db, ServiceAs(db, ctx, ctx.AminaId), new Accounts(_ => null))
+                .Handle(new CancelWorkforceChangeCommand(change.Id, Actor, true), default);
+            Assert.True(cancelled.IsSuccess, cancelled.IsFailure ? cancelled.Error.Message : null);
+            db.ChangeTracker.Clear();
+
+            var rows = await db.Notifications.AsNoTracking().ToListAsync();
+            Assert.Equal(3, rows.Count(item => item.Kind != CoreNotificationKind.ChangeCancelled));
+            var notices = rows.Where(item => item.Kind == CoreNotificationKind.ChangeCancelled).OrderBy(item => item.TitleKey).ToList();
+            Assert.Equal([(ctx.KarimId, "ManagerChanged.cancelled", "/core/profile"), (ctx.YoussefId, "TeamJoining.cancelled", "/core/team")],
+                notices.Select(item => (item.RecipientEmployeeId, item.TitleKey, item.Href)).ToList());
+            Assert.All(notices, item => Assert.Equal((change.Id, ctx.AminaId), (item.ChangeId, item.ActorEmployeeId!.Value)));
+
+            var day = date.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture);
+            var feed = Feed(db, ctx.Tenant.TenantId);
+            var karim = await feed.PageAsync(ctx.KarimId, null, null, "en", default);
+            Assert.Equal(2, karim.UnreadCount);
+            Assert.Equal(($"Your manager change on {day} was cancelled", "Cancelled by Workforce Administrator"), (karim.Items[0].Title, karim.Items[0].Context));
+            Assert.Equal($"Karim Zayed's move to your team on {day} was cancelled", (await feed.PageAsync(ctx.YoussefId, null, null, "en", default)).Items[0].Title);
+            Assert.StartsWith("L'arrivée de Karim Zayed dans votre équipe", (await feed.PageAsync(ctx.YoussefId, null, null, "fr", default)).Items[0].Title);
+            Assert.StartsWith("أُلغي انضمام Karim Zayed", (await feed.PageAsync(ctx.YoussefId, null, null, "ar", default)).Items[0].Title);
+            Assert.All((await feed.PageAsync(ctx.AminaId, null, null, "en", default)).Items, item => Assert.DoesNotContain("cancelled", item.Title));
+
+            var email = CoreNotificationRenderer.Email(notices[1], "en", "http://localhost:3000", "Asteria");
+            Assert.Equal($"Karim Zayed's move to your team on {day} was cancelled", email.Subject);
+            Assert.Contains("Open your team", email.Text);
+            Assert.Equal(0, await other.Db.Notifications.CountAsync());
+        });
+
+    [RelationalDatabaseFact]
+    public Task An_edit_tells_the_people_both_changes_tell_only_the_new_one_and_the_rest_its_cancelled()
+        => WithDatabaseAsync(async (db, ctx, _) =>
+        {
+            var original = await JobAsync(db, ctx, ctx.KarimKey, new JobChangeRequest(At(DateOnly.FromDateTime(Today).AddDays(10)), ManagerEmployeeId: ctx.YoussefId));
+            var handler = new EditWorkforceChangeCommandHandler(db, Service(db, ctx), new WorkforceChangeReader(db));
+
+            // A refused edit tells nobody anything.
+            var refused = await handler.Handle(new EditWorkforceChangeCommand(
+                original.Id, new EditChangeRequest(Job: new JobChangeRequest(Today.AddDays(-3), JobTitle: "Past")), Actor, true), default);
+            Assert.Equal("Change.PastDate", refused.Error.Code);
+            db.ChangeTracker.Clear();
+            Assert.Equal(3, await db.Notifications.CountAsync());
+
+            // Now only Karim's title changes, under Amina: Karim hears the new change, Youssef and Amina that the move is off.
+            var edited = await handler.Handle(new EditWorkforceChangeCommand(
+                original.Id, new EditChangeRequest(Job: new JobChangeRequest(Today.AddDays(12), JobTitle: "Principal Consultant")), Actor, true), default);
+            Assert.True(edited.IsSuccess, edited.IsFailure ? edited.Error.Message : null);
+            db.ChangeTracker.Clear();
+
+            var fresh = await db.Notifications.AsNoTracking().Where(item => item.ChangeId == edited.Value.Id).ToListAsync();
+            Assert.Equal((ctx.KarimId, CoreNotificationKind.JobChanged), (Assert.Single(fresh).RecipientEmployeeId, fresh[0].Kind));
+            var notices = await db.Notifications.AsNoTracking()
+                .Where(item => item.Kind == CoreNotificationKind.ChangeCancelled).OrderBy(item => item.TitleKey).ToListAsync();
+            Assert.Equal([(ctx.YoussefId, "TeamJoining.cancelled"), (ctx.AminaId, "TeamLeaving.cancelled")],
+                notices.Select(item => (item.RecipientEmployeeId, item.TitleKey)).ToList());
+            Assert.All(notices, item => Assert.Equal(original.Id, item.ChangeId));
+        });
+
+    [RelationalDatabaseFact]
+    public Task A_cancelled_hire_or_last_day_tells_the_manager()
+        => WithDatabaseAsync(async (db, ctx, _) =>
+        {
+            var start = DateOnly.FromDateTime(Today).AddDays(10);
+            var hire = await new HireEmployeeCommandHandler(db, ctx.Tenant, new EmployeeNumberAllocatorService(db, ctx.Tenant), ctx.Mutation,
+                ctx.Organization, notifications: new CoreChangeNotifications(db)).Handle(
+                new HireEmployeeCommand(new HireEmployeeRequest("Skander", "Mejri", null, null, null, EmployeeNumberMode.Generated, null,
+                    At(start), "Full-time", ctx.AiId, "Product Designer", null, ctx.AminaId), Actor), default);
+            Assert.True(hire.IsSuccess, hire.IsFailure ? hire.Error.Message : null);
+            var hireChange = await db.WorkforceChanges.AsNoTracking().SingleAsync();
+            Assert.True((await CancelAsync(db, ctx, hireChange.Id)).IsSuccess);
+            db.ChangeTracker.Clear();
+            Assert.False(await db.Employees.AnyAsync(item => item.StableEmployeeKey == hire.Value.EmployeeKey));
+
+            var feed = Feed(db, ctx.Tenant.TenantId);
+            var day = start.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal($"Skander Mejri's hire starting {day} was cancelled", (await feed.PageAsync(ctx.AminaId, null, null, "en", default)).Items[0].Title);
+
+            var lastDay = DateOnly.FromDateTime(Today).AddDays(5);
+            var ended = await new EndEmploymentChangeCommandHandler(db, Service(db, ctx), new WorkforceChangeReader(db)).Handle(
+                new EndEmploymentChangeCommand(ctx.KarimKey, new EndEmploymentChangeRequest(At(lastDay)), Actor), default);
+            Assert.True(ended.IsSuccess, ended.IsFailure ? ended.Error.Message : null);
+            Assert.True((await CancelAsync(db, ctx, ended.Value.Id)).IsSuccess);
+            db.ChangeTracker.Clear();
+            var lastDayText = lastDay.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal($"Karim Zayed's last day on {lastDayText} was cancelled", (await feed.PageAsync(ctx.AminaId, null, null, "en", default)).Items[0].Title);
+            Assert.Equal(2, await db.Notifications.CountAsync(item => item.Kind == CoreNotificationKind.ChangeCancelled));
+        });
+
+    /// <summary>The change service as a signed-in person, who is never told about what they did.</summary>
+    private static WorkforceChangeService ServiceAs(CoreHRDbContext db, Fixture ctx, Guid employeeId)
+    {
+        var http = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(CustomClaimTypes.EmployeeId, employeeId.ToString())], "test")),
+            },
+        };
+        return new WorkforceChangeService(db, ctx.Tenant, ctx.Mutation, ctx.Organization,
+            new WorkEmailOccupancyService(db, ctx.Tenant), new CoreChangeNotifications(db, http));
+    }
 
     private static CoreNotificationFeed Feed(CoreHRDbContext db, Guid? tenantId)
     {

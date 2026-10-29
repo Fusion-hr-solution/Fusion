@@ -13,6 +13,9 @@ namespace EY.HRPlatform.CoreHR.Features.Notifications;
 /// </summary>
 public sealed class CoreChangeNotifications(CoreHRDbContext db, IHttpContextAccessor? http = null)
 {
+    /// <summary>Cancellations staged in this unit of work, so an edit's new change can take their place.</summary>
+    private readonly List<CoreNotification> cancellations = [];
+
     public async Task StageAsync(WorkforceChange change, WorkforceChangeDetails details, CancellationToken cancellationToken)
     {
         var employee = db.Employees.Local.FirstOrDefault(item => item.Id == change.EmployeeId)
@@ -32,6 +35,39 @@ public sealed class CoreChangeNotifications(CoreHRDbContext db, IHttpContextAcce
                 CoreChangeMoments.Words(moment, CoreMomentTense.Recorded, today, actorName, actorEmployeeId), now);
             if (db.Notifications.Local.Any(item => item.DedupeKey == notification.DedupeKey)) continue;
             db.Notifications.Add(notification);
+        }
+
+        // An edit: whoever the new change tells hears it instead of the cancellation, so nobody hears twice. A rolled-back
+        // attempt clears the tracker, so its cancellations are no longer ours to take back.
+        cancellations.RemoveAll(item => db.Entry(item).State == EntityState.Detached);
+        var told = moments.Select(moment => moment.RecipientEmployeeId).ToHashSet();
+        foreach (var superseded in cancellations.Where(item => told.Contains(item.RecipientEmployeeId)).ToList())
+        {
+            db.Notifications.Remove(superseded);
+            cancellations.Remove(superseded);
+        }
+    }
+
+    /// <summary>
+    /// Tells everyone the change told that it was cancelled, from the notifications it stored rather than recomputed, so
+    /// a cancelled hire (the person is deleted) still reaches the manager. Their earlier rows stay as history; whoever
+    /// cancelled hears nothing.
+    /// </summary>
+    public async Task StageCancelledAsync(WorkforceChange change, string actor, CancellationToken cancellationToken)
+    {
+        var told = await db.Notifications.AsNoTracking()
+            .Where(item => item.ChangeId == change.Id && item.Kind != CoreNotificationKind.ChangeCancelled)
+            .OrderBy(item => item.OccurredAt).ThenBy(item => item.Id)
+            .ToListAsync(cancellationToken);
+        var actorEmployeeId = http?.HttpContext?.User.GetEmployeeId();
+        var actorName = ChangeSupport.ActorName(actor);
+        var now = DateTime.UtcNow;
+        foreach (var item in told)
+        {
+            if (item.RecipientEmployeeId == actorEmployeeId) continue;
+            var notification = CoreNotification.CancellationOf(item, CoreChangeMoments.CancelledWords(item, actorName, actorEmployeeId), now);
+            db.Notifications.Add(notification);
+            cancellations.Add(notification);
         }
     }
 }

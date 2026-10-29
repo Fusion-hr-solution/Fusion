@@ -15,6 +15,8 @@ public enum CoreNotificationKind
     TeamJoining = 3,
     /// <summary>To a manager: one or more people stop reporting to them (moving away, or leaving the company).</summary>
     TeamLeaving = 4,
+    /// <summary>To everyone a change told: it was cancelled before its date.</summary>
+    ChangeCancelled = 5,
 }
 
 /// <summary>
@@ -81,6 +83,16 @@ public sealed class CoreNotification : ITenantEntity, IFeedNudgeRecipient
             DedupeKey = $"{kind}:{changeId:N}:{recipientEmployeeId:N}",
             EmailNextAttemptAt = occurredAt,
         };
+    }
+
+    /// <summary>Tells someone a change they heard about was cancelled: one per notification it answers.</summary>
+    public static CoreNotification CancellationOf(CoreNotification told, CoreNotificationMessage text, DateTime occurredAt)
+    {
+        if (told.Kind == CoreNotificationKind.ChangeCancelled)
+            throw new ArgumentException("A cancellation answers what the change told.", nameof(told));
+        var notification = For(told.TenantId, told.RecipientEmployeeId, CoreNotificationKind.ChangeCancelled, told.ChangeId, text, occurredAt);
+        notification.DedupeKey = $"{CoreNotificationKind.ChangeCancelled}:{told.Kind}:{told.ChangeId:N}:{told.RecipientEmployeeId:N}";
+        return notification;
     }
 
     public void MarkRead(DateTime now)

@@ -446,6 +446,7 @@ public sealed class WorkforceChangeService(
             tenantContext.TenantId, "WorkforceChange", change.Id, WorkforceAuditAction.WorkforceChangeCancelled,
             WorkforceSourceType.Manual, actor, At(change.EffectiveDate),
             changeDetails: $"{change.Kind} on {change.EffectiveDate:yyyy-MM-dd} cancelled."));
+        await notifications.StageCancelledAsync(change, actor, cancellationToken);
 
         if (deletesEmployee)
         {
