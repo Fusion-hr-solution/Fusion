@@ -122,9 +122,11 @@
       "leadUnit": {
         "late": "{count, plural, one {jour de retard} other {jours de retard}}",
         "today": "échéance aujourd’hui",
-        "left": "{count, plural, one {jour restant} other {jours restants}}"
+        "left": "{count, plural, one {jour restant} other {jours restants}}",
+        "waiting": "{count, plural, =0 {en attente depuis aujourd’hui} one {jour d’attente} other {jours d’attente}}"
       },
       "dueOn": "Échéance le {date}",
+      "waitingSince": "En attente depuis le {date}",
       "nothingToday": "Rien ne vous attend aujourd’hui",
       "today": "Aujourd’hui",
       "tomorrow": "Demain",

@@ -29,6 +29,8 @@ export interface FusionWorkItem {
   steps?: FusionWorkStep[] | null;
   /** What the work's button does ("Review plan"); the home says "Open" when a module doesn't say. */
   actionLabel?: string | null;
+  /** ISO UTC instant since which another person has been blocked until the viewer acts; null when nobody waits. */
+  waitingSince?: string | null;
 }
 
 export interface FusionWorkStep {

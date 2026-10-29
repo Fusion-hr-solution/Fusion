@@ -122,9 +122,11 @@
       "leadUnit": {
         "late": "{count, plural, one {day late} other {days late}}",
         "today": "due today",
-        "left": "{count, plural, one {day left} other {days left}}"
+        "left": "{count, plural, one {day left} other {days left}}",
+        "waiting": "{count, plural, =0 {waiting since today} one {day waiting} other {days waiting}}"
       },
       "dueOn": "Due {date}",
+      "waitingSince": "Waiting since {date}",
       "nothingToday": "Nothing needs you today",
       "today": "Today",
       "tomorrow": "Tomorrow",

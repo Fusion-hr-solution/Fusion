@@ -71,6 +71,10 @@ public sealed class WorkItemsHttpTests
 
     private static string Kind(JsonElement item) => item.GetProperty("kind").GetString()!;
 
+    /// <summary>The item says since when someone has waited on the caller, to the second the store keeps.</summary>
+    private static void AssertWaitingSince(DateTime expected, JsonElement item)
+        => Assert.Equal(expected, item.GetProperty("waitingSince").GetDateTime().ToUniversalTime(), TimeSpan.FromSeconds(1));
+
     [Fact]
     public async Task A_participant_in_planning_has_one_item_to_write_their_plan_due_on_the_deadline()
     {
@@ -84,6 +88,7 @@ public sealed class WorkItemsHttpTests
         Assert.Equal("/performance/plan", item.GetProperty("href").GetString());
         Assert.Equal("/performance/plan", item.GetProperty("section").GetString());
         Assert.StartsWith("performance:plan-write:", item.GetProperty("id").GetString());
+        Assert.Equal(JsonValueKind.Null, item.GetProperty("waitingSince").ValueKind);
     }
 
     [Fact]
@@ -109,6 +114,7 @@ public sealed class WorkItemsHttpTests
         Assert.Equal("Sami", decision.GetProperty("subject").GetProperty("displayName").GetString());
         Assert.Equal($"/performance/cycles/{world.Cycle.Id}/plans/{world.SamiPlan.Id}", decision.GetProperty("href").GetString());
         Assert.Equal("/performance/team", decision.GetProperty("section").GetString());
+        AssertWaitingSince(world.SamiPlan.SubmittedAt!.Value, decision);
 
         await DecideAsync(world, plan => plan.Approve(world.Lina));
         Assert.DoesNotContain(await WorkAsync(lina), item => Kind(item) == "plan-decision");
@@ -120,6 +126,7 @@ public sealed class WorkItemsHttpTests
         var world = await PlanningAsync();
         await using var _ = world.Factory;
         Guid objectiveId;
+        var requestedAt = DateTime.UtcNow.AddDays(-2);
         await DecideAsync(world, plan => plan.Approve(world.Lina));
         await using (var db = world.Factory.Store.NewContext())
         {
@@ -129,7 +136,7 @@ public sealed class WorkItemsHttpTests
                 Domain.Objectives.ObjectiveMeasurement.ManualPercentage(), 100m, null, null, world.Cycle.StartDate, world.Cycle.EndDate);
             objectiveId = objective.Id;
             db.Objectives.Add(objective);
-            db.UpdateRequests.Add(UpdateRequest.Create(plan, objective, world.Lina, "Lina", null, DateTime.UtcNow));
+            db.UpdateRequests.Add(UpdateRequest.Create(plan, objective, world.Lina, "Lina", null, requestedAt));
             await db.SaveChangesAsync();
         }
         var item = Assert.Single(await WorkAsync(world.Factory.CreateAuthenticatedClient(employeeId: world.Sami, permissions: Employee)));
@@ -137,6 +144,7 @@ public sealed class WorkItemsHttpTests
         Assert.Equal("Update progress on Ship the playbook", item.GetProperty("title").GetString());
         Assert.Equal($"/performance/cycles/{world.Cycle.Id}/objectives/{objectiveId}?mode=record", item.GetProperty("href").GetString());
         Assert.Equal("/performance/plan", item.GetProperty("section").GetString());
+        AssertWaitingSince(requestedAt, item);
     }
 
     [Fact]
@@ -168,6 +176,7 @@ public sealed class WorkItemsHttpTests
         var self = Assert.Single(await WorkAsync(nour), item => Kind(item) == "self-assessment");
         Assert.Equal(Today.AddDays(5).ToString("yyyy-MM-dd"), self.GetProperty("dueOn").GetString());
         Assert.Equal($"/performance/reviews/{review.Id}", self.GetProperty("href").GetString());
+        Assert.Equal(JsonValueKind.Null, self.GetProperty("waitingSince").ValueKind);
         Assert.Equal("/performance/reviews", self.GetProperty("section").GetString());
         Assert.DoesNotContain(await WorkAsync(lina), item => Kind(item) == "manager-assessment");
 

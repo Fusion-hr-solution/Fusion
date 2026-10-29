@@ -122,9 +122,11 @@
       "leadUnit": {
         "late": "{count, plural, one {يوم تأخير} other {أيام تأخير}}",
         "today": "مستحق اليوم",
-        "left": "{count, plural, one {يوم متبقٍ} other {أيام متبقية}}"
+        "left": "{count, plural, one {يوم متبقٍ} other {أيام متبقية}}",
+        "waiting": "{count, plural, =0 {بانتظارك منذ اليوم} one {يوم انتظار} other {أيام انتظار}}"
       },
       "dueOn": "مستحق في {date}",
+      "waitingSince": "بانتظارك منذ {date}",
       "nothingToday": "لا شيء يتطلب تدخلك اليوم",
       "today": "اليوم",
       "tomorrow": "غدًا",

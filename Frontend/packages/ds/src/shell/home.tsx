@@ -25,6 +25,8 @@ export interface HomeMoment {
 /** A work item as the home leads with it: with the kind (for agenda dedupe) and the steps of its path. */
 export interface HomeWorkItem extends WorkListItem {
   kind?: string;
+  /** ISO UTC instant since which someone else has waited on the person; null when nobody waits. */
+  waitingSince?: string | null;
 }
 
 export type HomeLead<T extends HomeWorkItem = HomeWorkItem> =
@@ -40,20 +42,24 @@ const defaultLink: RenderWorkLink = ({ href, className, children }) => (
 
 /** The local calendar day of a moment: its time's day when it has one, else its date. */
 export function momentDay(moment: HomeMoment): string {
-  if (!moment.at) return moment.date;
-  const at = new Date(moment.at);
-  return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
+  return moment.at ? localDay(moment.at) : moment.date;
 }
 
 /**
- * The one thing the home leads with (fusion-home): an overdue item first, else the earliest due, else the first
- * undated item in module order; with no work, the next upcoming moment. Null when there is nothing at all.
+ * The one thing the home leads with (fusion-home): overdue work first (earliest due), then work someone else is waiting
+ * on (longest wait), then the earliest due, then the first undated item in module order; with no work, the next upcoming
+ * moment. Null when there is nothing at all. A pending decision costs another person time every day; one's own work
+ * that isn't due yet costs nothing today.
  */
 export function selectLead<T extends HomeWorkItem>(work: readonly T[], moments: readonly HomeMoment[], today: Date): HomeLead<T> {
   const dated = work.filter((item) => item.dueOn);
   const overdue = dated.filter((item) => daysUntil(item.dueOn!, today) < 0);
+  const waiting = work.filter((item) => item.waitingSince);
   const earliest = (items: T[]) => items.reduce((first, item) => (item.dueOn! < first.dueOn! ? item : first));
+  const longestWaiting = (items: T[]) =>
+    items.reduce((first, item) => (Date.parse(item.waitingSince!) < Date.parse(first.waitingSince!) ? item : first));
   if (overdue.length > 0) return { kind: "work", item: earliest(overdue) };
+  if (waiting.length > 0) return { kind: "work", item: longestWaiting(waiting) };
   if (dated.length > 0) return { kind: "work", item: earliest(dated) };
   if (work.length > 0) return { kind: "work", item: work[0]! };
   const next = [...moments].sort((a, b) => (a.at ?? `${a.date}T23:59`) < (b.at ?? `${b.date}T23:59`) ? -1 : 1)[0];
@@ -66,6 +72,12 @@ const WEEKDAY = { weekday: "short" } as const;
 function localDate(isoDate: string): Date {
   const [y, m, d] = isoDate.split("-").map(Number);
   return new Date(y!, (m ?? 1) - 1, d ?? 1);
+}
+
+/** The local calendar day (`yyyy-mm-dd`) of a UTC instant. */
+function localDay(instant: string): string {
+  const at = new Date(instant);
+  return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
 }
 
 /** "Sat 31 Oct" (the year outside this year). */
@@ -127,6 +139,9 @@ export function LeadFocus({ lead, moduleLabel, today, renderLink = defaultLink }
     const item = lead.item;
     const days = item.dueOn ? daysUntil(item.dueOn, reference) : null;
     const late = days !== null && days < 0;
+    // Someone waiting on the person reads as how long they've waited, unless the work is already late.
+    const waitingSince = !late && item.waitingSince ? localDay(item.waitingSince) : null;
+    const waited = waitingSince ? Math.max(0, -daysUntil(waitingSince, reference)) : null;
     return (
       <section lang={locale} aria-label={t("mostImportant")} className="flex flex-col gap-6 rounded-surface bg-primary/10 p-6 ring-1 ring-inset ring-primary/40">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -138,7 +153,19 @@ export function LeadFocus({ lead, moduleLabel, today, renderLink = defaultLink }
             <h2 className="type-section-title text-foreground">{item.title}</h2>
             {item.subject ? <p className="type-body-secondary text-muted-foreground">{item.subject.displayName}</p> : null}
           </div>
-          {days !== null && item.dueOn ? (
+          {waited !== null && waitingSince ? (
+            <div className="shrink-0 text-end">
+              <p className="type-metric text-primary">
+                {waited > 0 ? waited : null}
+                <span className={cn("type-body font-semibold text-foreground", waited > 0 && "ms-1.5")}>
+                  {t("leadUnit.waiting", { count: waited })}
+                </span>
+              </p>
+              <p className="type-meta text-muted-foreground">
+                {item.dueOn ? t("dueOn", { date: shortDay(item.dueOn, locale) }) : t("waitingSince", { date: shortDay(waitingSince, locale) })}
+              </p>
+            </div>
+          ) : days !== null && item.dueOn ? (
             <div className="shrink-0 text-end">
               <p className={cn("type-metric", late ? "text-warning" : "text-primary")}>
                 {Math.abs(days)}

@@ -34,6 +34,24 @@ const lateReviews: HomeWorkItem = {
   dueOn: "2026-10-19",
   href: "/performance/reviews/3",
 };
+const aichaPlan: HomeWorkItem = {
+  id: "performance:plan-decision:4",
+  module: "performance",
+  kind: "plan-decision",
+  title: "Review Aicha's plan",
+  href: "/performance/cycles/c/plans/4",
+  subject: { displayName: "Aicha" },
+  waitingSince: "2026-10-17T09:00:00Z",
+};
+const peerInput: HomeWorkItem = {
+  id: "performance:peer-input:5",
+  module: "performance",
+  kind: "peer-input",
+  title: "Peer input for Omar",
+  dueOn: "2026-10-30",
+  href: "/performance/reviews/peer-requests/5",
+  waitingSince: "2026-10-19T09:00:00Z",
+};
 const access: HomeWorkItem = { id: "core:access", module: "core", title: "12 people don't have Fusion access yet", href: "/core/workforce-access" };
 const oneOnOne: HomeMoment = {
   id: "performance:one-on-one:m1",
@@ -64,6 +82,18 @@ describe("selectLead", () => {
     expect(selectLead([access, updateRequest], [oneOnOne], today)).toEqual({ kind: "work", item: access });
   });
 
+  it("puts work someone is waiting on ahead of the person's own work that isn't late, longest wait first", () => {
+    expect(selectLead([selfAssessment, peerInput, aichaPlan], [oneOnOne], today)).toEqual({ kind: "work", item: aichaPlan });
+    expect(selectLead([selfAssessment, peerInput], [], today)).toEqual({ kind: "work", item: peerInput });
+    expect(selectLead([access, aichaPlan], [], today)).toEqual({ kind: "work", item: aichaPlan });
+  });
+
+  it("still leads with the person's own late work over work someone is waiting on", () => {
+    expect(selectLead([aichaPlan, lateReviews, peerInput], [], today)).toEqual({ kind: "work", item: lateReviews });
+    const latePeerInput = { ...peerInput, dueOn: "2026-10-18" };
+    expect(selectLead([aichaPlan, latePeerInput], [], today)).toEqual({ kind: "work", item: latePeerInput });
+  });
+
   it("leads with the next moment when there is no work, and nothing when there is nothing", () => {
     expect(selectLead([], [selfDue, oneOnOne], today)).toEqual({ kind: "moment", moment: oneOnOne });
     expect(selectLead([], [], today)).toBeNull();
@@ -79,6 +109,20 @@ describe("LeadFocus", () => {
     expect(screen.getAllByText("Due Fri 23 Oct")).toHaveLength(2);
     expect(screen.getByRole("list", { name: "Where this stands" }).children).toHaveLength(4);
     expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/performance/reviews/1");
+  });
+
+  it("reads work someone is waiting on as how long they've waited", () => {
+    render(<LeadFocus lead={{ kind: "work", item: aichaPlan }} moduleLabel={label} today={today} />);
+    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("days waiting")).toBeInTheDocument();
+    expect(screen.getByText("Waiting since Sat 17 Oct")).toBeInTheDocument();
+    expect(screen.queryByText(/days left/)).not.toBeInTheDocument();
+  });
+
+  it("keeps a waiting item's due date and says when the wait started today", () => {
+    render(<LeadFocus lead={{ kind: "work", item: { ...peerInput, waitingSince: "2026-10-20T08:00:00" } }} moduleLabel={label} today={today} />);
+    expect(screen.getByText("waiting since today")).toBeInTheDocument();
+    expect(screen.getByText("Due Fri 30 Oct")).toBeInTheDocument();
   });
 
   it("reads an overdue item as late", () => {

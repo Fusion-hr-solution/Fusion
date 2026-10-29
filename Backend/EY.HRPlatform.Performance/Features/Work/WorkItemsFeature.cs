@@ -24,7 +24,8 @@ public sealed record GetWorkItemsQuery(WorkActor Actor) : IQuery<Result<IReadOnl
 /// The caller's Performance work, derived at request time from the active Cycle and the active review rounds
 /// (P3: one list, never stored). Each rule mirrors the surface where the work is done: My Plan's planning
 /// state, the plan decision authority, open update requests, the review work queue, calibration sessions
-/// and round finalization. Items carry absolute app paths and stable ids.
+/// and round finalization. Items carry absolute app paths and stable ids. Work another person is blocked on (a plan
+/// decision, a peer list, peer input, a feedback request, an update request) carries when they started waiting.
 /// </summary>
 public sealed class GetWorkItemsHandler(PerformanceDbContext db)
     : IQueryHandler<GetWorkItemsQuery, Result<IReadOnlyList<FusionWorkItemDto>>>
@@ -121,17 +122,18 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             Steps: WorkSteps.Plan(returned, open, reviewer)));
     }
 
-    /// <summary>Submitted plans waiting for the caller's decision as their responsible reviewer.</summary>
+    /// <summary>Submitted plans waiting for the caller's decision as their responsible reviewer, longest waiting first.</summary>
     private async Task PlanDecisionsAsync(PerformanceCycle cycle, Guid employeeId, List<FusionWorkItemDto> items, CancellationToken token)
     {
         var plans = await db.EmployeePlans.AsNoTracking()
             .Where(p => p.CycleId == cycle.Id && p.ResponsibleManagerId == employeeId && p.State == PlanLifecycleState.Submitted)
-            .OrderByDescending(p => p.SubmittedAt)
-            .Select(p => new { p.Id, p.EmployeeDisplayName })
+            .OrderBy(p => p.SubmittedAt)
+            .Select(p => new { p.Id, p.EmployeeDisplayName, p.SubmittedAt })
             .ToListAsync(token);
         items.AddRange(plans.Select(p => new FusionWorkItemDto(Id("plan-decision", p.Id), Module, "plan-decision",
             $"Review {p.EmployeeDisplayName}'s plan", "Waiting for your decision", null,
-            PerformanceNotificationTemplates.PlanPath(cycle.Id, p.Id), new FusionWorkSubjectDto(p.EmployeeDisplayName), Sections.Team)));
+            PerformanceNotificationTemplates.PlanPath(cycle.Id, p.Id), new FusionWorkSubjectDto(p.EmployeeDisplayName), Sections.Team,
+            WaitingSince: p.SubmittedAt)));
     }
 
     /// <summary>
@@ -163,14 +165,14 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                           join objective in db.Objectives.AsNoTracking() on request.ObjectiveId equals objective.Id into targets
                           from objective in targets.DefaultIfEmpty()
                           orderby request.RequestedAt descending
-                          select new { request.Id, request.PlanId, request.ObjectiveId, request.RequestedByName, Title = objective == null ? null : objective.Title })
+                          select new { request.Id, request.PlanId, request.ObjectiveId, request.RequestedByName, request.RequestedAt, Title = objective == null ? null : objective.Title })
             .ToListAsync(token);
         items.AddRange(open.Select(r => new FusionWorkItemDto(Id("update-request", r.Id), Module, "update-request",
             r.ObjectiveId is null ? "Update progress on your plan" : $"Update progress on {r.Title}",
             $"{r.RequestedByName} asked for an update", null,
             r.ObjectiveId is Guid objectiveId
                 ? PerformanceNotificationTemplates.ObjectivePath(cycle.Id, objectiveId, record: true)
-                : PerformanceNotificationTemplates.PlanPath(cycle.Id, r.PlanId), Section: Sections.Plan)));
+                : PerformanceNotificationTemplates.PlanPath(cycle.Id, r.PlanId), Section: Sections.Plan, WaitingSince: r.RequestedAt)));
     }
 
     /// <summary>Feedback the caller was asked for and hasn't answered or declined, while the request is open. Not cycle-bound.</summary>
@@ -181,7 +183,8 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                 && r.Invitees.Any(i => i.EmployeeId == employeeId && i.Status == Domain.Conversations.FeedbackInviteeStatus.Waiting))
             .OrderBy(r => r.DueDate).ToListAsync(token);
         items.AddRange(waiting.Select(r => new FusionWorkItemDto(Id("feedback-request", r.Id), Module, "feedback-request",
-            $"Feedback for {r.RequesterName}", r.Question, r.DueDate, PerformanceNotificationTemplates.FeedbackRequestPath(r.Id), Section: Sections.Feedback)));
+            $"Feedback for {r.RequesterName}", r.Question, r.DueDate, PerformanceNotificationTemplates.FeedbackRequestPath(r.Id), Section: Sections.Feedback,
+            WaitingSince: r.RequestedAt)));
     }
 
     /// <summary>The caller's open 1:1 action items in an active series, once due within three days or overdue. Not cycle-bound.</summary>
@@ -250,10 +253,11 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                                join round in db.ReviewRounds.AsNoTracking() on request.ReviewRoundId equals round.Id
                                where round.State == ReviewRoundState.Active && request.PeerEmployeeId == me && request.State == PeerRequestState.Open
                                orderby request.DueDate
-                               select new { request.Id, request.SubjectDisplayName, request.DueDate, RoundName = round.Name }).ToListAsync(token);
+                               select new { request.Id, request.SubjectDisplayName, request.DueDate, request.RequestedAt, RoundName = round.Name }).ToListAsync(token);
             items.AddRange(asked.Select(r => new FusionWorkItemDto(Id("peer-input", r.Id), Module, "peer-input",
                 $"Peer input for {r.SubjectDisplayName}", LateContext(r.RoundName, r.DueDate, today), r.DueDate,
-                PerformanceNotificationTemplates.PeerRequestPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName), Sections.Reviews)));
+                PerformanceNotificationTemplates.PeerRequestPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName), Sections.Reviews,
+                WaitingSince: r.RequestedAt)));
 
             var unacknowledged = await (from review in db.PerformanceReviews.AsNoTracking()
                                         join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
@@ -273,11 +277,12 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                                      && review.ManagerAssessment.SubmittedAt == null
                                      && (review.State == PerformanceReviewState.SelfAssessment || review.State == PerformanceReviewState.ManagerAssessment)
                                orderby review.PeersNominatedAt
-                               select new { review.Id, review.SubjectDisplayName, Due = review.SelfAssessmentDueDate ?? round.SelfAssessmentDueDate, RoundName = round.Name })
+                               select new { review.Id, review.SubjectDisplayName, Due = review.SelfAssessmentDueDate ?? round.SelfAssessmentDueDate, RoundName = round.Name, review.PeersNominatedAt })
                 .ToListAsync(token);
             items.AddRange(lists.Select(r => new FusionWorkItemDto(Id("approve-peer-list", r.Id), Module, "approve-peer-list",
                 $"Review {r.SubjectDisplayName}'s peer list", LateContext(r.RoundName, r.Due, today), r.Due,
-                PerformanceNotificationTemplates.PeerListPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName), Sections.Reviews)));
+                PerformanceNotificationTemplates.PeerListPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName), Sections.Reviews,
+                WaitingSince: r.PeersNominatedAt)));
 
             // Calibration changed the rating: the reviewer checks the summary still reads right before release.
             var summaries = await (from review in db.PerformanceReviews.AsNoTracking()

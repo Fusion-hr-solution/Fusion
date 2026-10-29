@@ -21,7 +21,8 @@ public sealed record FusionWorkStepDto(string Label, string? Detail, string Stat
 /// module navigation path the item is counted under in the Fusion sidebar (e.g. `/performance/team`).
 /// <paramref name="Steps"/> is the path the work belongs to, so the home can show where it stands.
 /// <paramref name="ActionLabel"/> names what the work's button does ("Review plan", "Record progress"); the home falls
-/// back to "Open" when a module doesn't say.
+/// back to "Open" when a module doesn't say. <paramref name="WaitingSince"/> is the UTC instant since which another person
+/// has been blocked until the viewer acts (a submitted plan, a peer request); null when nobody waits on it.
 /// </summary>
 public sealed record FusionWorkItemDto(
     string Id,
@@ -34,7 +35,8 @@ public sealed record FusionWorkItemDto(
     FusionWorkSubjectDto? Subject = null,
     string? Section = null,
     IReadOnlyList<FusionWorkStepDto>? Steps = null,
-    string? ActionLabel = null);
+    string? ActionLabel = null,
+    DateTime? WaitingSince = null);
 
 /// <summary>
 /// Something dated that isn't work (a 1:1, a deadline, a cycle's end), served at `GET /api/{module}/upcoming`.

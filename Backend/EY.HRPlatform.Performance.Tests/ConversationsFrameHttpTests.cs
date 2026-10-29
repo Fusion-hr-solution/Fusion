@@ -89,6 +89,7 @@ public sealed class ConversationsFrameHttpTests
         Assert.Equal("/performance/feedback", item.GetProperty("section").GetString());
         Assert.Equal("Feedback for Leila Baccouche", item.GetProperty("title").GetString());
         Assert.Equal($"/performance/feedback/requests/{requestId}", item.GetProperty("href").GetString());
+        Assert.Equal(DateTime.UtcNow, item.GetProperty("waitingSince").GetDateTime().ToUniversalTime(), TimeSpan.FromMinutes(1));
 
         await DataAsync(await w.As(w.Nour).PostAsJsonAsync($"/api/performance/feedback/requests/{requestId}/answer",
             new { feedbackId = Guid.NewGuid(), message = "Smooth" }));

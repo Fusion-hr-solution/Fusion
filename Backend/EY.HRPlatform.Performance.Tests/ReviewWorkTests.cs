@@ -107,6 +107,7 @@ public sealed class ReviewWorkTests
         var approve = Assert.Single(await WorkAsync(world.As(world.Mariam)), i => i.GetProperty("kind").GetString() == "approve-peer-list");
         Assert.Equal("/performance/reviews", approve.GetProperty("section").GetString());
         Assert.Equal("Review Aicha Ben Ali's peer list", approve.GetProperty("title").GetString());
+        Assert.Equal(DateTime.UtcNow, approve.GetProperty("waitingSince").GetDateTime().ToUniversalTime(), TimeSpan.FromMinutes(1));
 
         await Data(await world.As(world.Mariam).PostAsJsonAsync($"/api/performance/reviews/{aicha}/peers/approve",
             new { expectedVersion = Version(world, aicha), employeeIds = new[] { world.Leila.EmployeeId } }));
@@ -115,6 +116,7 @@ public sealed class ReviewWorkTests
         Assert.Equal("Peer input for Aicha Ben Ali", input.GetProperty("title").GetString());
         Assert.Equal(Today.AddDays(14).ToString("yyyy-MM-dd"), input.GetProperty("dueOn").GetString());
         Assert.StartsWith("/performance/reviews/peer-requests/", input.GetProperty("href").GetString());
+        Assert.Equal(DateTime.UtcNow, input.GetProperty("waitingSince").GetDateTime().ToUniversalTime(), TimeSpan.FromMinutes(1));
 
         await Data(await world.Admin.PostAsJsonAsync($"/api/performance/reviews/{aicha}/due-date",
             new { expectedVersion = Version(world, aicha), dueDate = Today.AddDays(18), reason = "Back from leave" }));
