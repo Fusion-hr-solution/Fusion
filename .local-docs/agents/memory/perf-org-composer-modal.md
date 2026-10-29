@@ -1,0 +1,22 @@
+---
+name: perf-org-composer-modal
+description: Org Objective composer converted from full-page route to a surface-agnostic modal; shared MeasurementEditor extracted; goals routes deleted
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: 2d396078-e0cf-4b55-9821-ee3a6f4cfc11
+  modified: 2026-09-08T13:29:06.739Z
+---
+
+Converted the Organizational Objective composer from a full-page route into a surface-agnostic **modal** modelled on the employee `PlanGoalComposer`, and extracted the shared measurement UI. Uncommitted, 2026-09-08. Rationale: the two "author an objective" surfaces should feel like one act; a modal handles draft/edit fine and the composer is meant to open from multiple surfaces (Goals now; a team-performance "create team objective" trigger later — designed for, **not wired** this pass). User chose: design-for-later on team page, and **delete** the old routes (no URL-addressable modal).
+
+Key files (all `apps/performance/src`):
+- **NEW `features/performance/components/measurement/measurement-editor.tsx`** — `MeasurementEditor` (method tiles + numeric + manual note + milestone). Converged on the plan composer's richer numeric editor (`UnitCombobox` + segmented direction); org's old `MethodChip`/`ButtonGroup` numeric dropped. Re-exports `MeasurementMethod` from `@repo/api` (one source of truth). Reuses `MilestoneEditor` from `milestone-editor.tsx`. Both composers now render it (plan directly; org only when source=Direct).
+- **`components/goals/org-objective-composer.tsx`** — rewritten as `<Dialog>` (plan shell: `flex max-h-[92vh] ... p-0 sm:max-w-3xl`, sticky header + `flex-1 overflow-y-auto` body + sticky footer). Props: `open/onOpenChange/parent/objective?/defaultAccountable/defaultOrgUnit/onCreate/onUpdate/onPublish` (caller owns mutations+invalidation). Numbered `Section`s (1 Definition / 2 Scope & accountability / 3 Measurement), `ParentDirectionBand` leads body, `SourceCard` Direct/Calculated stays org-local, Draft/Publish footer kept. `committedId` state: create-then-publish where publish-fail keeps the modal open in edit mode (scope locked) to retry — replaces the old route push.
+- **`components/plan/goal-composer.tsx`** — its section-3 body swapped to `<MeasurementEditor/>`; deleted local NumericTargetEditor/UnitCombobox/NumericField/DirectionOption + UNIT_OPTIONS + local MeasurementMethod type. `ChoiceTile` (alignment) kept.
+- **`app/(pages)/goals/page.tsx`** — new `OrgComposerHost` launcher resolves parent via `useGoal` (create) or `objective.parent` (edit), owns `useGoalMutations`, defensive precondition guard (toast+close). Triggers now `setComposer(...)` instead of `router.push`; on success sets `focusId` directly (no `?focus=` round-trip). `useRouter` removed.
+- **Deleted**: `app/(pages)/goals/new`, `app/(pages)/goals/[objectiveId]/edit`, `components/goals/composer-skeleton.tsx`, `components/goals/composer-notices.tsx`; removed `buildCreateHref` from `working-context-lib.ts` (+ its test).
+
+**Demo accounts for testing (asteria-demo, activated 2026-09-08, pw the local password (`FUSION_LOCAL_PASSWORD`)):** a from-scratch-create pair separate from Hana/Nour — manager **`insights.lead@asteria-demo.com`** (Nourhene Khelifi, Insights Pod lead, Manager profile→org-manage; Insights Pod has no objective → gets "Create objective for Insights Pod" CTA on `/goals`) + her report **`sofia.karray@asteria-demo.com`** (Employee profile). Activated by hand in `hris_identity` (AspNetUsers+TenantMembership+UserAccessProfile, EmployeeId=asteria `Employees.Id`, PasswordHash copied from Hana). NOTE: CoreHR reuses names/emails across tenants but Identity emails are globally unique — Nourhene's real email was taken by another tenant, hence the `insights.lead@` login. Identity membership `EmployeeId` = asteria `Employees.Id` (same id space as objective `AccountablePersonId`), NOT StableEmployeeKey.
+
+Gates: type-check + lint clean, 19 tests pass, build green (route list now shows only `/goals`). Rendered-verified on asteria-demo as Nour (Talent Pod): edit modal light+dark+narrow, numeric + weighted-milestone editors, publish gate (disabled until weights=100%), scope read-only on edit. Create modal not exercised live (no empty unit / demo plan locked) but shares the identical component; seeded+deleted a QA draft to reach edit. Builds on [[perf-frontend-reengineering-pass]], perf-screen2-org-objective-composer (archived) (which this supersedes — that made it a full-page route), [[perf-my-plan-populated-draft]].

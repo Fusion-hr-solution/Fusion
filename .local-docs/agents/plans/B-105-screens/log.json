@@ -1,0 +1,110 @@
+[
+  {
+    "name": "en-home",
+    "route": "/",
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "Good evening, Aicha",
+    "url": "/"
+  },
+  {
+    "name": "en-performance-plan",
+    "route": "/performance/plan",
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "My Plan",
+    "url": "/performance/plan"
+  },
+  {
+    "name": "rtl-home",
+    "route": "/",
+    "console": [],
+    "dir": "rtl",
+    "lang": "ar",
+    "h1": "Good evening, Aicha",
+    "url": "/"
+  },
+  {
+    "name": "rtl-performance-plan",
+    "route": "/performance/plan",
+    "console": [],
+    "dir": "rtl",
+    "lang": "ar",
+    "h1": "My Plan",
+    "url": "/performance/plan"
+  },
+  {
+    "name": "en-core-people",
+    "route": "/core/people",
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "People",
+    "url": "/core/people"
+  },
+  {
+    "name": "en-settings-company",
+    "route": "/core/settings/company",
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "Company",
+    "url": "/core/settings/company"
+  },
+  {
+    "name": "en-preferences",
+    "route": "/settings",
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "Preferences",
+    "url": "/settings"
+  },
+  {
+    "name": "fr-preferences",
+    "route": null,
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "Préférences",
+    "url": "/settings"
+  },
+  {
+    "name": "fr-core-settings-company",
+    "route": "/core/settings/company",
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "Company",
+    "url": "/core/settings/company"
+  },
+  {
+    "name": "fr-performance-plan-untranslated",
+    "route": "/performance/plan",
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "My Plan",
+    "url": "/performance/plan"
+  },
+  {
+    "name": "en-preferences-back",
+    "route": null,
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "Preferences",
+    "url": "/settings"
+  },
+  {
+    "name": "en-platform-tenants",
+    "route": "/platform",
+    "console": [],
+    "dir": "ltr",
+    "lang": "en",
+    "h1": "Tenants",
+    "url": "/platform/tenants"
+  }
+]

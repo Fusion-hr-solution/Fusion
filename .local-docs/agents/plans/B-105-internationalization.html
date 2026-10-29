@@ -1,0 +1,340 @@
+<title>Fusion in Three Languages</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; the live card demo sits on its own surface at the top, decisions below as a ledger. */
+:root {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --inlay: #efeee9;
+  --fg: #1d1d1b;
+  --muted: #64625c;
+  --line: #dcdad3;
+  --accent: #b77905;
+  --accent-soft: #f6e7c4;
+  --good: #2f7a4b;
+  --warn: #a4511c;
+  --font-display: "IBM Plex Sans Condensed", "IBM Plex Sans Arabic", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141413; --surface: #1d1d1b; --inlay: #262624; --fg: #ecebe6; --muted: #a09d94; --line: #34332f;
+    --accent: #f0b23a; --accent-soft: #3a2d12; --good: #6cc58d; --warn: #ec9a62; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141413; --surface: #1d1d1b; --inlay: #262624; --fg: #ecebe6; --muted: #a09d94; --line: #34332f;
+  --accent: #f0b23a; --accent-soft: #3a2d12; --good: #6cc58d; --warn: #ec9a62; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 72px;
+}
+.wrap { max-width: 860px; margin-inline: auto; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+p { margin: 0; max-width: 66ch; }
+.eyebrow { font-family: var(--font-data); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); font-size: 17px; }
+header { display: grid; gap: 14px; }
+section { display: grid; gap: 20px; }
+code { font-family: var(--font-data); font-size: 0.88em; background: var(--inlay); padding: 1px 5px; border-radius: 5px; }
+
+/* Demo */
+.demo { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: grid; gap: 22px; }
+.controls { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: end; }
+.control { display: grid; gap: 6px; }
+.control > span { font-size: 12px; color: var(--muted); }
+.seg { display: inline-flex; background: var(--inlay); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button {
+  font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--muted); padding: 6px 12px; border-radius: 8px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.seg button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.range { display: flex; gap: 10px; align-items: center; }
+.range input { width: 160px; accent-color: var(--accent); }
+.range output { font-family: var(--font-data); font-variant-numeric: tabular-nums; min-width: 3ch; }
+.stage { background: var(--inlay); border-radius: 12px; padding: 22px; display: grid; gap: 14px; }
+.stage-note { font-size: 13px; color: var(--muted); min-height: 1.6em; }
+.stage-note.bad { color: var(--warn); }
+.stage-note.ok { color: var(--good); }
+
+/* The Fusion card, built twice */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 14px; max-width: 460px; }
+.card-head { display: flex; gap: 12px; align-items: center; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 600; font-size: 13px; flex: none; }
+.who { display: grid; min-width: 0; }
+.who b { font-weight: 600; }
+.who small { color: var(--muted); font-size: 13px; }
+.pill { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 500; white-space: nowrap; }
+.title { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); }
+.bar { position: relative; height: 6px; border-radius: 999px; background: var(--inlay); overflow: hidden; }
+.bar i { position: absolute; top: 0; bottom: 0; width: 60%; background: var(--accent); border-radius: 999px; }
+.foot { display: flex; align-items: center; gap: 10px; }
+.btn { font: inherit; font-size: 14px; font-weight: 500; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 9px; display: inline-flex; gap: 6px; align-items: center; }
+.arrow { display: inline-block; }
+.waiting { font-size: 13px; }
+
+/* Built with start/end: follows the writing direction */
+.logical .pill { margin-inline-start: auto; }
+.logical .bar i { inset-inline-start: 0; }
+.logical { text-align: start; }
+.logical .foot .btn { margin-inline-start: auto; }
+.logical[dir="rtl"] .arrow { transform: scaleX(-1); }
+
+/* Built with left/right: the habit we have today */
+.physical .pill { margin-left: auto; }
+.physical .bar i { left: 0; }
+.physical { text-align: left; }
+.physical .foot .btn { margin-left: auto; }
+.physical[dir="rtl"] .pill { margin-left: 0; margin-right: auto; }
+
+/* Facts */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.fact b { font-family: var(--font-data); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.fact span { font-size: 14px; color: var(--muted); }
+
+/* Decisions ledger */
+.ledger { display: grid; border-top: 1px solid var(--line); }
+.decision { border-bottom: 1px solid var(--line); padding-block: 20px; display: grid; gap: 10px; }
+.d-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.d-id { font-family: var(--font-data); font-size: 13px; color: var(--muted); }
+.tag { font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.tag.yours { border-color: var(--accent); color: var(--accent); }
+.pick { font-weight: 500; }
+.why { color: var(--muted); }
+details { font-size: 14px; }
+summary { cursor: pointer; color: var(--muted); }
+details ul { margin: 8px 0 0; padding-inline-start: 20px; display: grid; gap: 4px; color: var(--muted); }
+
+/* Phases */
+.phases { display: grid; gap: 12px; counter-reset: phase; }
+.phase { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; }
+.phase::before { counter-increment: phase; content: counter(phase); font-family: var(--font-data); width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; color: var(--muted); }
+.phase div { display: grid; gap: 4px; min-width: 0; }
+.phase p { color: var(--muted); }
+
+.asks { display: grid; gap: 10px; margin: 0; padding-inline-start: 22px; }
+.asks li { max-width: 66ch; }
+footer { font-size: 13px; color: var(--muted); }
+@media (max-width: 520px) { .demo { padding: 16px; } .stage { padding: 14px; } }
+@media (prefers-reduced-motion: no-preference) { .seg button { transition: background 0.15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">B-105 · decision page · 24 Oct 2026</span>
+    <h1>Fusion in English, French and Arabic</h1>
+    <p class="lede">Fusion will speak three languages, and Arabic reads right to left. Every screen we build now in hard-coded English with left/right spacing adds to the bill. This page sets out how I'd lay the foundation, and the few calls that are yours.</p>
+  </header>
+
+  <section aria-labelledby="demo-h">
+    <h2 id="demo-h">The same card, three languages</h2>
+    <p class="why">A Home card as Fusion shows it. Dates, numbers and plurals below come from your browser's own locale data, the same engine Fusion would use. Switch to Arabic, then compare the two ways of building it.</p>
+    <div class="demo">
+      <div class="controls">
+        <div class="control"><span id="lang-l">Language</span>
+          <div class="seg" role="group" aria-labelledby="lang-l">
+            <button type="button" id="l-en" data-lang="en" aria-pressed="true">English</button>
+            <button type="button" id="l-fr" data-lang="fr" aria-pressed="false">Français</button>
+            <button type="button" id="l-ar" data-lang="ar" aria-pressed="false">العربية</button>
+          </div>
+        </div>
+        <div class="control"><span id="build-l">Built with</span>
+          <div class="seg" role="group" aria-labelledby="build-l">
+            <button type="button" id="b-logical" data-build="logical" aria-pressed="true">start / end</button>
+            <button type="button" id="b-physical" data-build="physical" aria-pressed="false">left / right</button>
+          </div>
+        </div>
+        <div class="control"><label for="days" id="days-l">Days left</label>
+          <div class="range"><input type="range" id="days" min="0" max="120" value="17"><output id="days-o" for="days">17</output></div>
+        </div>
+      </div>
+      <div class="stage">
+        <article class="card logical" id="card" dir="ltr" lang="en">
+          <div class="card-head">
+            <span class="avatar" aria-hidden="true">AB</span>
+            <span class="who"><b>Aicha Bouazizi</b><small id="c-role"></small></span>
+            <span class="pill" id="c-pill"></span>
+          </div>
+          <div class="title" id="c-title"></div>
+          <div class="meta"><span id="c-due"></span><span id="c-left"></span><span id="c-pct"></span></div>
+          <div class="bar" aria-hidden="true"><i></i></div>
+          <div class="foot"><span class="waiting" id="c-wait"></span><span class="btn"><span id="c-btn"></span><span class="arrow" aria-hidden="true">→</span></span></div>
+        </article>
+        <p class="stage-note" id="note" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="facts-h">
+    <h2 id="facts-h">Where Fusion stands today</h2>
+    <div class="facts">
+      <div class="fact"><b>0</b><span>screens in our modules translated. The language switch saves a choice and nothing reads it.</span></div>
+      <div class="fact"><b>2</b><span>language cookies: ours (<code>fusion_locale</code>) and Learning's (<code>NEXT_LOCALE</code>), so the two can disagree.</span></div>
+      <div class="fact"><b>1,718</b><span>strings Learning already translates, on a shared <code>@repo/i18n</code> package (next-intl 4, EN/FR) a colleague built.</span></div>
+      <div class="fact"><b>~2,800</b><span>English strings in our screens and <code>@repo/ds</code>, by a rough count.</span></div>
+      <div class="fact"><b>~1,150</b><span>English sentences in the backend: emails, notifications, errors, audit wording. No resource files.</span></div>
+      <div class="fact"><b>~880</b><span>left/right spacing and alignment classes in our code, against about 10 that use start/end.</span></div>
+      <div class="fact"><b>47</b><span>places that format with <code>en-GB</code> fixed, including the shared date grammar in <code>@repo/ds/lib/dates</code>.</span></div>
+      <div class="fact"><b>None</b><span>of Arabic in our font: Geist has no Arabic letters, so the browser would pick one at random.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="dec-h">
+    <h2 id="dec-h">What to decide</h2>
+    <p class="why">Seven calls, all settled on 24 Oct 2026: the language lives on the account, the rest as recommended. Phase 1 is the OpenSpec change <code>add-i18n-foundation</code>.</p>
+    <div class="ledger">
+      <article class="decision">
+        <div class="d-head"><span class="d-id">I-1</span><h3>Which library</h3><span class="tag">My call</span></div>
+        <p class="pick">The shared <code>@repo/i18n</code> on next-intl 4, which Learning already runs.</p>
+        <p class="why">It is built for the Next.js App Router and server components, formats dates, numbers and plurals with the browser's own locale data, and already sits in the repo. One library across every module means one cookie, one switch, and one way to write a translated sentence.</p>
+        <details><summary>Also considered</summary><ul>
+          <li>i18next with react-i18next: mature, but its server-component story is bolted on, and it would be a second library next to Learning's.</li>
+          <li>Lingui or FormatJS: good extraction tooling, same objection: a second system.</li>
+        </ul></details>
+      </article>
+      <article class="decision">
+        <div class="d-head"><span class="d-id">I-2</span><h3>How sentences are written in code</h3><span class="tag">My call</span></div>
+        <p class="pick">Named keys in one catalogue per module (<code>t("plan.write")</code>), type-checked, with a check that every language has every key.</p>
+        <p class="why">A typo in a key fails the type-check, and a missing French or Arabic line fails the check before it ships. That is how Learning works, so the gate already exists to copy. Each catalogue sits with its module; <code>@repo/ds</code> ships its own for shared parts such as the save bar.</p>
+        <details><summary>Also considered</summary><ul>
+          <li>next-intl's <code>useExtracted</code>: you write the English inline and it generates keys and catalogues. Less friction for 2,800 strings, but it is marked experimental in 4.14. Worth a second look when the migration starts.</li>
+        </ul></details>
+      </article>
+      <article class="decision">
+        <div class="d-head"><span class="d-id">I-3</span><h3>Where a person's language lives</h3><span class="tag yours">Decided: on the account</span></div>
+        <p class="pick">On the person, in Identity, not only in the browser. Fusion uses the person's choice, then the company's default language, then English.</p>
+        <p class="why">Emails and notifications are written on the server, after the person has closed the tab, so the server must know their language. It also follows them to their phone. The company default already exists as the tenant's locale, and it is where B-110's "make Fusion yours" meets this work.</p>
+        <details><summary>The alternative</summary><ul>
+          <li>Keep it per device, as today: no backend work, but every email goes out in the company language whatever the person picked.</li>
+        </ul></details>
+      </article>
+      <article class="decision">
+        <div class="d-head"><span class="d-id">I-4</span><h3>Right to left</h3><span class="tag">My call</span></div>
+        <p class="pick">Set the page direction from the language, and build every layout with start/end instead of left/right, enforced by a lint rule.</p>
+        <p class="why">The demo above shows the difference. With start/end, Arabic lays itself out: spacing, alignment, progress bars and drawers flip, and the shadcn direction provider in <code>@repo/ds</code> handles menus and the sidebar. Arrows that mean "forward" flip too; charts, numbers and code stay left to right. The rule is the same kind of guard as the radius and surface roles.</p>
+        <details><summary>What it costs</summary><ul>
+          <li>Converting about 880 classes, mostly mechanical: <code>pl-</code> to <code>ps-</code>, <code>text-left</code> to <code>text-start</code>, <code>left-</code> to <code>start-</code>.</li>
+          <li>A look at each drawer, sheet and animated panel that slides in from a side.</li>
+        </ul></details>
+      </article>
+      <article class="decision">
+        <div class="d-head"><span class="d-id">I-5</span><h3>Arabic type</h3><span class="tag">My call</span></div>
+        <p class="pick">Pair Geist with an Arabic face of similar weight, such as IBM Plex Sans Arabic or Noto Sans Arabic, loaded only for Arabic letters.</p>
+        <p class="why">Without it the browser substitutes whatever it has, and Arabic screens look unfinished. Loading the face only for Arabic letters keeps English and French pages as they are. This page uses Plex Arabic, so you can judge it in the demo.</p>
+      </article>
+      <article class="decision">
+        <div class="d-head"><span class="d-id">I-6</span><h3>Dates, numbers and plurals</h3><span class="tag">My call</span></div>
+        <p class="pick">The date grammar in <code>@repo/ds/lib/dates</code> takes the language instead of a fixed <code>en-GB</code>; plurals go through the message format, never through <code>count === 1</code>.</p>
+        <p class="why">Arabic has six plural forms: none, one, two, a few, many, and other. The slider in the demo walks through all of them. Tunisian Arabic formatting keeps Western digits, so figures read the same in all three languages.</p>
+      </article>
+      <article class="decision">
+        <div class="d-head"><span class="d-id">I-7</span><h3>Text the server writes</h3><span class="tag">My call</span></div>
+        <p class="pick">Errors and in-app notifications travel as a code with values, and the screen turns them into a sentence. Emails are written on the server in the recipient's language. Change history stores what happened, not a sentence.</p>
+        <p class="why">Performance already returns error codes, so screens can translate them without the backend learning three languages. Emails are the one place the server must write the words itself.</p>
+      </article>
+    </div>
+  </section>
+
+  <section aria-labelledby="order-h">
+    <h2 id="order-h">Order of work</h2>
+    <div class="phases">
+      <div class="phase"><div><h3>Stop the bill growing</h3><p>The lint rule for start/end with the 880 classes converted, one language cookie for every app, and the date grammar taking a language. Small, and every slice after it is cheaper.</p></div></div>
+      <div class="phase"><div><h3>The frame in English and French</h3><p>Shell, <code>@repo/ds</code>, sign-in and Settings on the shared catalogues, with the parity check. The switch starts working for real.</p></div></div>
+      <div class="phase"><div><h3>Core HR, Performance and Platform</h3><p>One module at a time, behind the same check, French reviewed by someone who writes it natively.</p></div></div>
+      <div class="phase"><div><h3>Arabic</h3><p>Arabic catalogues, the Arabic face, and a right-to-left pass through every screen, dark at 1440×900 as usual.</p></div></div>
+      <div class="phase"><div><h3>The server in three languages</h3><p>The person's language in Identity, emails per recipient, notification and error codes rendered on screen.</p></div></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="ask-h">
+    <h2 id="ask-h">Decided</h2>
+    <ol class="asks">
+      <li><b>I-3:</b> a person's language lives on their account, so it follows them across devices and emails can use it.</li>
+      <li><b>Learning:</b> other contributors' modules only must not break. Phase 1 keeps the shared package at English and French, so Learning runs unchanged.</li>
+      <li><b>Who translates:</b> we draft French and Arabic ourselves; no native review step.</li>
+      <li><b>When:</b> phase 1 is proposed as <code>add-i18n-foundation</code>, applied once B-089 and B-071 are committed and B-071 is signed off.</li>
+    </ol>
+  </section>
+
+  <footer>Counts come from the working tree on 24 Oct 2026, by pattern search, so treat them as sizes rather than exact figures. next-intl facts are from its 4.14 documentation.</footer>
+</div>
+
+<script>
+(function () {
+  var copy = {
+    en: { locale: "en-GB", dir: "ltr", role: "Plan for 2026", pill: "Draft", title: "Write your plan", due: "Due", btn: "Open plan",
+      left: { one: "{n} day left", other: "{n} days left" }, wait: { one: "{n} person is waiting", other: "{n} people are waiting" } },
+    fr: { locale: "fr-FR", dir: "ltr", role: "Plan 2026", pill: "Brouillon", title: "Rédigez votre plan", due: "À rendre le", btn: "Ouvrir le plan",
+      left: { one: "{n} jour restant", other: "{n} jours restants" }, wait: { one: "{n} personne attend", other: "{n} personnes attendent" } },
+    ar: { locale: "ar-TN", dir: "rtl", role: "خطة 2026", pill: "مسودة", title: "اكتب خطتك", due: "الموعد", btn: "فتح الخطة",
+      left: { zero: "لم يتبقَّ أي يوم", one: "يتبقى يوم واحد", two: "يتبقى يومان", few: "تتبقى {n} أيام", many: "يتبقى {n} يومًا", other: "يتبقى {n} يوم" },
+      wait: { zero: "لا أحد ينتظر", one: "شخص واحد ينتظر", two: "شخصان ينتظران", few: "{n} أشخاص ينتظرون", many: "{n} شخصًا ينتظرون", other: "{n} شخص ينتظرون" } }
+  };
+  var state = { lang: "en", build: "logical", days: 17 };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function plural(lang, forms, n) {
+    var cat = new Intl.PluralRules(copy[lang].locale).select(n);
+    var text = forms[cat] || forms.other;
+    return { text: text.replace("{n}", new Intl.NumberFormat(copy[lang].locale).format(n)), cat: cat };
+  }
+
+  function render() {
+    var c = copy[state.lang], card = $("card");
+    card.className = "card " + state.build;
+    card.dir = c.dir;
+    card.lang = state.lang;
+    $("c-role").textContent = c.role;
+    $("c-pill").textContent = c.pill;
+    $("c-title").textContent = c.title;
+    var due = new Date(2026, 10, 10);
+    $("c-due").textContent = c.due + " " + new Intl.DateTimeFormat(c.locale, { day: "numeric", month: "long", year: "numeric" }).format(due);
+    var left = plural(state.lang, c.left, state.days);
+    $("c-left").textContent = left.text;
+    $("c-pct").textContent = new Intl.NumberFormat(c.locale, { style: "percent" }).format(0.6);
+    var waitN = Math.max(0, Math.round(state.days / 6));
+    $("c-wait").textContent = plural(state.lang, c.wait, waitN).text;
+    $("c-btn").textContent = c.btn;
+    $("days-o").textContent = state.days;
+
+    var note = $("note");
+    note.className = "stage-note";
+    if (state.lang === "ar" && state.build === "physical") {
+      note.textContent = "Built with left/right: the text stays pinned left, the bar fills the wrong way and the arrow points backwards. Each fix is a one-off patch.";
+      note.classList.add("bad");
+    } else if (state.lang === "ar") {
+      note.textContent = "Built with start/end: the same code lays itself out right to left. Plural form used: " + left.cat + ".";
+      note.classList.add("ok");
+    } else {
+      note.textContent = "Plural form used for " + state.days + ": " + left.cat + ". English and French have two forms, Arabic has six.";
+    }
+  }
+
+  function bind(attr, key) {
+    document.querySelectorAll("[data-" + attr + "]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        state[key] = button.getAttribute("data-" + attr);
+        document.querySelectorAll("[data-" + attr + "]").forEach(function (b) { b.setAttribute("aria-pressed", String(b === button)); });
+        render();
+      });
+    });
+  }
+  bind("lang", "lang");
+  bind("build", "build");
+  $("days").addEventListener("input", function (e) { state.days = Number(e.target.value); render(); });
+  render();
+})();
+</script>

@@ -12,12 +12,20 @@ Backend/EY.HRPlatform.Performance/App_Data/
 # Project docs (local only)
 # ========================
 EY_ACADEMY_MODULE.md
-DESIGN.md
 docs/corehr/
 docs/demo/
 artifacts/
 external-skills/
-.local-docs/
+# Working notes are tracked; their archive and machine-local files are not.
+.local-docs/*
+!.local-docs/agents/
+.local-docs/agents/archive/
+.local-docs/agents/data/*.local.json
+.local-docs/agents/data/**/.work/
+.local-docs/agents/plans/*screens*/**/*.png
+.local-docs/agents/plans/*screens*/**/*.jpg
+.local-docs/agents/plans/*screens*/**/*.webp
+.local-docs/agents/data/node_modules
 
 # GSD / local planning (per-developer, never shared)
 .planning/
@@ -135,7 +143,10 @@ openspec/
 # ========================
 .github/skills/
 .codex/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/fusion-dev/
 Frontend/.github/
 PROJECT_SUMMARY.md
 PRODUCT.md
