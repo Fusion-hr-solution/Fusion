@@ -135,6 +135,13 @@ public static class PerformanceNotificationTemplates
     public static string FeedbackRequestPath(Guid requestId) => $"/performance/feedback/requests/{requestId}";
     public static string PraisePath(Guid praiseId) => $"/performance/feedback?tab=praise&praise={praiseId}";
 
+    // Notifications land on the item in its list (B-154): the hash names the card or action to scroll to and outline.
+    // The query forms above open a drawer instead; both work for old links.
+    public static string FeedbackLandingPath(Guid feedbackId, bool team = false)
+        => $"/performance/feedback{(team ? "?tab=team" : "")}#feedback-{feedbackId}";
+    public static string PraiseLandingPath(Guid praiseId) => $"/performance/feedback?tab=praise#praise-{praiseId}";
+    public static string ActionLandingPath(Guid seriesId, Guid actionId) => $"{OneOnOnePath(seriesId)}#action-{actionId}";
+
     public static PerformanceNotificationMessage ForOneOnOneStarted(string actorName, Guid seriesId)
         => Message("OneOnOneStarted", null, actorName, OneOnOnePath(seriesId), ("actor", actorName));
 
@@ -142,16 +149,17 @@ public static class PerformanceNotificationTemplates
         => Message("OneOnOneRescheduled", null, actorName, OneOnOnePath(seriesId), ("actor", actorName));
 
     /// <summary>The owner reads the action's text in the app; the email never carries it.</summary>
-    public static PerformanceNotificationMessage ForOneOnOneActionAssigned(string actorName, string actionText, Guid seriesId)
-        => Message("OneOnOneActionAssigned", "Context.action", actorName, OneOnOnePath(seriesId), ("actor", actorName), ("action", actionText));
+    public static PerformanceNotificationMessage ForOneOnOneActionAssigned(string actorName, string actionText, Guid seriesId, Guid actionId)
+        => Message("OneOnOneActionAssigned", "Context.action", actorName, ActionLandingPath(seriesId, actionId), ("actor", actorName),
+            ("action", actionText));
 
     /// <summary>Names what the feedback is about, never what it says.</summary>
     public static PerformanceNotificationMessage ForFeedbackReceived(string authorName, string? subjectLabel, Guid feedbackId)
-        => Message("FeedbackReceived", Clean(subjectLabel) is null ? null : "Context.about", authorName, FeedbackPath(feedbackId),
+        => Message("FeedbackReceived", Clean(subjectLabel) is null ? null : "Context.about", authorName, FeedbackLandingPath(feedbackId),
             ("actor", authorName), ("about", Clean(subjectLabel)));
 
     public static PerformanceNotificationMessage ForFeedbackForReport(string authorName, string receiverName, Guid feedbackId)
-        => Message("FeedbackForReport", "FeedbackForReport.context", authorName, FeedbackPath(feedbackId),
+        => Message("FeedbackForReport", "FeedbackForReport.context", authorName, FeedbackLandingPath(feedbackId, team: true),
             ("actor", authorName), ("receiver", receiverName));
 
     public static PerformanceNotificationMessage ForFeedbackRequested(string requesterName, string question, Guid requestId)
@@ -163,10 +171,10 @@ public static class PerformanceNotificationTemplates
             FeedbackRequestPath(requestId), ("actor", inviteeName), ("question", question));
 
     public static PerformanceNotificationMessage ForPraiseReceived(string authorName, string valueName, Guid praiseId)
-        => Message("PraiseReceived", null, authorName, PraisePath(praiseId), ("actor", authorName), ("value", valueName));
+        => Message("PraiseReceived", null, authorName, PraiseLandingPath(praiseId), ("actor", authorName), ("value", valueName));
 
     public static PerformanceNotificationMessage ForPraiseForReport(string authorName, string recipientName, string valueName, Guid praiseId)
-        => Message("PraiseForReport", null, authorName, PraisePath(praiseId), ("actor", authorName), ("recipient", recipientName),
+        => Message("PraiseForReport", null, authorName, PraiseLandingPath(praiseId), ("actor", authorName), ("recipient", recipientName),
             ("value", valueName));
 
     private static PerformanceNotificationMessage Message(string titleKey, string? contextKey, string? actorName, string href,

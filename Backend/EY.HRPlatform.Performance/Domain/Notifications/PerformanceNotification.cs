@@ -34,6 +34,8 @@ public sealed class PerformanceNotification : PerformanceChildEntity, IFeedNudge
     public string? Title { get; private set; }
     public string? Context { get; private set; }
     public string? ActorName { get; private set; }
+    /// <summary>The employee record of the person who acted, for their photo; null for Fusion's own reminders.</summary>
+    public Guid? ActorEmployeeId { get; private set; }
     public string Href { get; private set; } = string.Empty;
     public DateTime OccurredAt { get; private set; }
     public DateTime? ReadAt { get; private set; }
@@ -60,6 +62,8 @@ public sealed class PerformanceNotification : PerformanceChildEntity, IFeedNudge
             ContextKey = text.ContextKey,
             ValuesJson = JsonSerializer.Serialize(text.Values),
             ActorName = text.ActorName,
+            // A notification that doesn't name who acted (an exceptional approval) never carries who it was either.
+            ActorEmployeeId = text.ActorName is null || text.ActorEmployeeId == Guid.Empty ? null : text.ActorEmployeeId,
             Href = text.Href,
             OccurredAt = occurredAt,
             DedupeKey = message.DedupeKey,
@@ -78,6 +82,7 @@ public sealed class PerformanceNotification : PerformanceChildEntity, IFeedNudge
 /// <summary>
 /// What a notification says, as catalogue keys and values (worded per reader, B-153), plus who acted and where it
 /// opens. Values hold names as written, titles, ISO dates (<c>yyyy-MM-dd</c>) and counts, never feedback or answers.
+/// <paramref name="ActorEmployeeId"/> is the employee record behind <paramref name="ActorName"/>, so the bell shows their face (B-154).
 /// </summary>
 public sealed record PerformanceNotificationMessage(string TitleKey, string? ContextKey, IReadOnlyDictionary<string, string> Values,
-    string? ActorName, string Href);
+    string? ActorName, string Href, Guid? ActorEmployeeId = null);

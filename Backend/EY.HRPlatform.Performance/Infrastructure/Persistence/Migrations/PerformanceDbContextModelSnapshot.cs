@@ -1342,6 +1342,9 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ActorEmployeeId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ActorName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");

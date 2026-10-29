@@ -59,6 +59,8 @@ public sealed class InAppNotificationTests
         Assert.Equal(outbox.DedupeKey, notification.DedupeKey);
         Assert.Equal(title, notification.EnglishTitle());
         Assert.Equal($"/performance/cycles/{plan.CycleId}/plans/{plan.Id}", notification.Href);
+        // The face in the bell is whoever acted: the employee who submitted, the manager who decided.
+        Assert.Equal(toManager ? employee : manager, notification.ActorEmployeeId);
         Assert.Null(notification.ReadAt);
     }
 
@@ -199,6 +201,37 @@ public sealed class InAppNotificationTests
         Assert.Equal("performance", first.GetProperty("module").GetString());
         Assert.Equal("PlanSubmitted", first.GetProperty("kind").GetString());
         Assert.Equal("Nour submitted their plan", first.GetProperty("title").GetString());
+        Assert.Equal("plan", first.GetProperty("badge").GetString());
+        Assert.True(first.TryGetProperty("actorEmployeeId", out _));
+    }
+
+    [Fact]
+    public async Task A_notification_without_a_name_carries_no_actor_either()
+    {
+        var store = TestStore.ForNewTenant();
+        var employee = Guid.NewGuid(); var manager = Guid.NewGuid();
+        var plan = SubmittedPlan(store.TenantId, employee, manager);
+        plan.Approve(manager);
+        await using (var db = store.NewContext())
+        {
+            new PerformanceNotifications(db).EnqueuePlan(plan, PerformanceNotificationKind.PlanApproved, null);
+            await db.SaveChangesAsync();
+        }
+        await using var verify = store.NewContext();
+        var notification = Assert.Single(await verify.Notifications.ToListAsync());
+        Assert.Null(notification.ActorName);
+        Assert.Null(notification.ActorEmployeeId);
+    }
+
+    [Fact]
+    public void Every_kind_has_a_badge_the_bell_knows()
+    {
+        string[] known = ["praise", "feedback", "meeting", "action", "plan", "review", "reminder"];
+        foreach (var kind in Enum.GetValues<PerformanceNotificationKind>())
+            Assert.Contains(NotificationFeed.Badge(kind), known);
+        Assert.Equal("praise", NotificationFeed.Badge(PerformanceNotificationKind.PraiseReceived));
+        Assert.Equal("action", NotificationFeed.Badge(PerformanceNotificationKind.OneOnOneActionAssigned));
+        Assert.Equal("reminder", NotificationFeed.Badge(PerformanceNotificationKind.ReviewReminder));
     }
 
     [Fact]

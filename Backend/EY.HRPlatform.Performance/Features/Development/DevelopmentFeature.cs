@@ -174,7 +174,7 @@ public abstract class DevelopmentHandlerBase(PerformanceDbContext db, ICoreWorkf
         var recipient = actorId == owner ? context.ReviewerId : owner;
         if (recipient is not Guid to || to == Guid.Empty || to == actorId) return;
         var path = PerformanceNotificationTemplates.DevelopmentPath(context.Cycle.Id, context.ObjectivePlan?.Id, owner, forOwner: to == owner);
-        notifications.EnqueueDevelopmentGoalAdded(plan.TenantId, context.Cycle.Id, plan.Id, goal.Id, to, ActorName(context, actorId), goal.Title, path);
+        notifications.EnqueueDevelopmentGoalAdded(plan.TenantId, context.Cycle.Id, plan.Id, goal.Id, to, actorId, ActorName(context, actorId), goal.Title, path);
     }
 
     protected async Task<DevelopmentPlanDto> ProjectAsync(Guid cycleId, Guid employeeId, PersonSummaryViewer viewer, CancellationToken token)

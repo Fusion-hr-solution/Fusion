@@ -86,6 +86,7 @@ public sealed class OneOnOneHttpTests
         await using var db = w.Factory.Store.NewContext();
         var notification = Assert.Single(await db.Notifications.Where(n => n.RecipientEmployeeId == w.Karim).ToListAsync());
         Assert.Equal($"/performance/one-on-ones/{Id(series)}", notification.Href);
+        Assert.Equal(w.Nour, notification.ActorEmployeeId);
         Assert.Empty(await db.Notifications.Where(n => n.RecipientEmployeeId == w.Nour).ToListAsync());
     }
 

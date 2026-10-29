@@ -22,7 +22,7 @@ public interface IPerformanceNotifications
     void EnqueueObjectiveAtRisk(EmployeePlan plan, Objective objective, ObjectiveStatus status, Guid progressUpdateId);
     void EnqueueUpdateRequestAnswered(UpdateRequest request, string ownerName, string? objectiveTitle);
     void EnqueueDevelopmentGoalAdded(Guid tenantId, Guid cycleId, Guid developmentPlanId, Guid goalId, Guid recipientEmployeeId,
-        string actorName, string goalTitle, string path);
+        Guid actorEmployeeId, string actorName, string goalTitle, string path);
 
     /// <summary>
     /// Stages a 1:1, feedback, request or praise notification for one recipient. Nothing is staged when the
@@ -46,7 +46,8 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
         var transition = plan.Decisions.Last();
         var message = PerformanceOutboxMessage.ForPlan(plan.TenantId, kind, employeeId, plan.Id, transition.Id,
             new PlanNotificationPayload(plan.CycleId, plan.Id, actorDisplayName));
-        Stage(message, null, PerformanceNotificationTemplates.ForPlan(plan, kind, actorDisplayName));
+        Stage(message, null, PerformanceNotificationTemplates.ForPlan(plan, kind, actorDisplayName)
+            with { ActorEmployeeId = kind == PerformanceNotificationKind.PlanSubmitted ? plan.EmployeeId : transition.ActorEmployeeId });
     }
 
     public void EnqueueReview(PerformanceReview review, PerformanceNotificationKind kind, string reviewRoundName)
@@ -55,7 +56,8 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
             ? review.SubjectEmployeeId : review.ReviewerEmployeeId;
         var message = PerformanceOutboxMessage.ForReview(review.TenantId, kind, recipient, review.Id, review.ReviewRoundId,
             new ReviewNotificationPayload(review.CycleId, review.ReviewRoundId, review.Id, reviewRoundName));
-        Stage(message, null, PerformanceNotificationTemplates.ForReview(review, kind, reviewRoundName));
+        Stage(message, null, PerformanceNotificationTemplates.ForReview(review, kind, reviewRoundName)
+            with { ActorEmployeeId = kind == PerformanceNotificationKind.SelfAssessmentSubmitted ? review.SubjectEmployeeId : null });
     }
 
     public void EnqueueCalibrationReady(CalibrationSession session, string reviewRoundName)
@@ -72,7 +74,8 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
     {
         var message = PerformanceOutboxMessage.ForPlan(request.TenantId, PerformanceNotificationKind.UpdateRequested, request.EmployeeId,
             request.PlanId, request.Id, new PlanNotificationPayload(request.CycleId, request.PlanId, request.RequestedByName));
-        Stage(message, null, PerformanceNotificationTemplates.ForUpdateRequest(request, objectiveTitle));
+        Stage(message, null, PerformanceNotificationTemplates.ForUpdateRequest(request, objectiveTitle)
+            with { ActorEmployeeId = request.RequestedByEmployeeId });
     }
 
     /// <summary>The plan's responsible reviewer hears when a report's objective goes at risk or off track.</summary>
@@ -83,7 +86,7 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
         var message = PerformanceOutboxMessage.ForPath(plan.TenantId, PerformanceNotificationKind.ObjectiveAtRisk, reviewer,
             "Objective", progressUpdateId, new PathNotificationPayload(objective.CycleId, objective.Id, plan.EmployeeDisplayName, path));
         Stage(message, null, PerformanceNotificationTemplates.ForObjectiveAtRisk(plan.EmployeeDisplayName, objective.Title,
-            status == ObjectiveStatus.OffTrack, path));
+            status == ObjectiveStatus.OffTrack, path) with { ActorEmployeeId = plan.EmployeeId });
     }
 
     /// <summary>The requester hears when recorded progress answers their request.</summary>
@@ -95,16 +98,18 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
         var message = PerformanceOutboxMessage.ForPath(request.TenantId, PerformanceNotificationKind.UpdateRequestAnswered,
             request.RequestedByEmployeeId, "UpdateRequest", request.SatisfiedByProgressUpdateId ?? request.Id,
             new PathNotificationPayload(request.CycleId, request.Id, ownerName, path));
-        Stage(message, null, PerformanceNotificationTemplates.ForUpdateRequestAnswered(ownerName, objectiveTitle, path));
+        Stage(message, null, PerformanceNotificationTemplates.ForUpdateRequestAnswered(ownerName, objectiveTitle, path)
+            with { ActorEmployeeId = request.EmployeeId });
     }
 
     /// <summary>The other person hears when a development goal is added to the plan they share.</summary>
     public void EnqueueDevelopmentGoalAdded(Guid tenantId, Guid cycleId, Guid developmentPlanId, Guid goalId, Guid recipientEmployeeId,
-        string actorName, string goalTitle, string path)
+        Guid actorEmployeeId, string actorName, string goalTitle, string path)
     {
         var message = PerformanceOutboxMessage.ForPath(tenantId, PerformanceNotificationKind.DevelopmentGoalAdded, recipientEmployeeId,
             "DevelopmentPlan", goalId, new PathNotificationPayload(cycleId, developmentPlanId, actorName, path));
-        Stage(message, null, PerformanceNotificationTemplates.ForDevelopmentGoalAdded(actorName, goalTitle, path));
+        Stage(message, null, PerformanceNotificationTemplates.ForDevelopmentGoalAdded(actorName, goalTitle, path)
+            with { ActorEmployeeId = actorEmployeeId });
     }
 
     public void EnqueueConversation(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId, Guid actorEmployeeId,
@@ -113,7 +118,7 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
         if (recipientEmployeeId == Guid.Empty || recipientEmployeeId == actorEmployeeId) return;
         var message = PerformanceOutboxMessage.ForConversation(tenantId, kind, recipientEmployeeId, resourceType, transitionId,
             new ConversationNotificationPayload(resourceId, text.ActorName, text.Href));
-        Stage(message, null, text);
+        Stage(message, null, text with { ActorEmployeeId = actorEmployeeId });
     }
 
     public void EnqueueReviewWork(PerformanceReview review, PerformanceNotificationKind kind, Guid recipientEmployeeId, string resourceType,

@@ -42,7 +42,8 @@ public sealed class AcknowledgeReviewHandler(PerformanceDbContext db, IPerforman
         notifications.EnqueueReviewWork(review, PerformanceNotificationKind.ReviewAcknowledged, review.ReviewerEmployeeId, "PerformanceReview",
             review.Id, $"{PerformanceNotificationKind.ReviewAcknowledged}:{review.Id:N}:{review.ReviewerEmployeeId:N}",
             new ReviewWorkNotificationPayload(review.CycleId, round.Id, review.Id, round.Name, href, review.SubjectDisplayName, review.SubjectDisplayName),
-            PerformanceNotificationTemplates.ForAcknowledged(review.SubjectDisplayName, round.Name, review.Id));
+            PerformanceNotificationTemplates.ForAcknowledged(review.SubjectDisplayName, round.Name, review.Id)
+                with { ActorEmployeeId = review.SubjectEmployeeId });
         audit.Record(review.TenantId, "PerformanceReview", review.Id, review.CycleId, PerformanceAuditActions.ReviewAcknowledged,
             new { acknowledgedAt = review.AcknowledgedAt, hasComment = review.AcknowledgementComment is not null });
         await db.SaveChangesAsync(token);

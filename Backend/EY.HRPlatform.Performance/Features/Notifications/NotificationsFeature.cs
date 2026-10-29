@@ -10,9 +10,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.Notifications;
 
-/// <summary>The shared Fusion notification contract (`@repo/api` FusionNotification).</summary>
+/// <summary>
+/// The shared Fusion notification contract (`@repo/api` FusionNotification). <paramref name="Badge"/> is the kind's family
+/// (praise, feedback, meeting, action, plan, review, reminder), so the bell marks it without knowing Performance's kinds.
+/// </summary>
 public sealed record FusionNotificationDto(string Id, string Module, string Kind, string Title, string? Context,
-    string? ActorName, DateTime OccurredAt, string Href, DateTime? ReadAt);
+    string? ActorName, Guid? ActorEmployeeId, string Badge, DateTime OccurredAt, string Href, DateTime? ReadAt);
 public sealed record FusionNotificationPageDto(IReadOnlyList<FusionNotificationDto> Items, int UnreadCount, string? NextCursor);
 public sealed record MarkNotificationsReadRequest(IReadOnlyList<Guid>? Ids, bool? All);
 public sealed record MarkNotificationsReadResultDto(int UnreadCount);
@@ -53,8 +56,23 @@ public static class NotificationFeed
     public static FusionNotificationDto ToDto(PerformanceNotification n, string language)
     {
         var (title, context) = PerformanceNotificationRenderer.InApp(n, language);
-        return new(n.Id.ToString(), "performance", n.Kind.ToString(), title, context, n.ActorName, n.OccurredAt, n.Href, n.ReadAt);
+        return new(n.Id.ToString(), "performance", n.Kind.ToString(), title, context, n.ActorName, n.ActorEmployeeId, Badge(n.Kind),
+            n.OccurredAt, n.Href, n.ReadAt);
     }
+
+    public static string Badge(PerformanceNotificationKind kind) => kind switch
+    {
+        PerformanceNotificationKind.PraiseReceived or PerformanceNotificationKind.PraiseForReport => "praise",
+        PerformanceNotificationKind.FeedbackReceived or PerformanceNotificationKind.FeedbackForReport
+            or PerformanceNotificationKind.FeedbackRequested or PerformanceNotificationKind.FeedbackRequestResponded => "feedback",
+        PerformanceNotificationKind.OneOnOneStarted or PerformanceNotificationKind.OneOnOneRescheduled => "meeting",
+        PerformanceNotificationKind.OneOnOneActionAssigned => "action",
+        PerformanceNotificationKind.PlanSubmitted or PerformanceNotificationKind.PlanReturned or PerformanceNotificationKind.PlanApproved
+            or PerformanceNotificationKind.UpdateRequested or PerformanceNotificationKind.ObjectiveAtRisk
+            or PerformanceNotificationKind.UpdateRequestAnswered or PerformanceNotificationKind.DevelopmentGoalAdded => "plan",
+        PerformanceNotificationKind.ReviewDueDateMoved or PerformanceNotificationKind.ReviewReminder => "reminder",
+        _ => "review",
+    };
 
     public static string EncodeCursor(DateTime occurredAt) => occurredAt.Ticks.ToString(CultureInfo.InvariantCulture);
 

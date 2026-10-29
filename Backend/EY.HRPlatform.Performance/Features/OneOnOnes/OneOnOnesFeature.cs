@@ -847,7 +847,7 @@ public sealed class AddActionHandler(PerformanceDbContext db, ICoreWorkforceClie
             if (added)
                 notifications.EnqueueConversation(series.TenantId, PerformanceNotificationKind.OneOnOneActionAssigned, item.OwnerEmployeeId, me,
                     "OneOnOneSeries", series.Id, item.Id,
-                    PerformanceNotificationTemplates.ForOneOnOneActionAssigned(NameOf(series, me), item.Text, series.Id));
+                    PerformanceNotificationTemplates.ForOneOnOneActionAssigned(NameOf(series, me), item.Text, series.Id, item.Id));
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) { return Invalid(ex); }
         return await SaveAsync(series.Id, command.Viewer, token);

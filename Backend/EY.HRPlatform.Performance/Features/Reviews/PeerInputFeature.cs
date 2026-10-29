@@ -122,7 +122,8 @@ public sealed class NominatePeersHandler(PerformanceDbContext db, ICoreWorkforce
             notifications.EnqueueReviewWork(review, PerformanceNotificationKind.PeersNominated, review.ReviewerEmployeeId, "PerformanceReview",
                 review.Id, $"{PerformanceNotificationKind.PeersNominated}:{review.Id:N}:{review.ReviewerEmployeeId:N}",
                 new ReviewWorkNotificationPayload(review.CycleId, round.Id, review.Id, round.Name, href, review.SubjectDisplayName, review.SubjectDisplayName),
-                PerformanceNotificationTemplates.ForPeersNominated(review.SubjectDisplayName, round.Name, review.Id));
+                PerformanceNotificationTemplates.ForPeersNominated(review.SubjectDisplayName, round.Name, review.Id)
+                    with { ActorEmployeeId = review.SubjectEmployeeId });
         }
         audit.Record(review.TenantId, "PerformanceReview", review.Id, review.CycleId, PerformanceAuditActions.ReviewPeersNominated,
             new { peers = resolved.Value.Select(p => p.EmployeeId).ToArray() });
@@ -163,7 +164,8 @@ public sealed class ApprovePeerListHandler(PerformanceDbContext db, ICoreWorkfor
         notifications.EnqueueReviewWork(review, PerformanceNotificationKind.PeerListApproved, review.SubjectEmployeeId, "PerformanceReview", review.Id,
             $"{PerformanceNotificationKind.PeerListApproved}:{review.Id:N}:{review.SubjectEmployeeId:N}",
             new ReviewWorkNotificationPayload(review.CycleId, round.Id, review.Id, round.Name, reviewHref, review.ReviewerDisplayName, review.SubjectDisplayName),
-            PerformanceNotificationTemplates.ForPeerListApproved(review.ReviewerDisplayName, round.Name, review.Id));
+            PerformanceNotificationTemplates.ForPeerListApproved(review.ReviewerDisplayName, round.Name, review.Id)
+                with { ActorEmployeeId = review.ReviewerEmployeeId });
         foreach (var request in requests)
         {
             var href = PerformanceNotificationTemplates.PeerRequestPath(request.Id);
@@ -171,7 +173,8 @@ public sealed class ApprovePeerListHandler(PerformanceDbContext db, ICoreWorkfor
                 $"{PerformanceNotificationKind.PeerInputRequested}:{request.Id:N}:{request.PeerEmployeeId:N}",
                 new ReviewWorkNotificationPayload(review.CycleId, round.Id, review.Id, round.Name, href, null, review.SubjectDisplayName,
                     "peer input", request.DueDate),
-                PerformanceNotificationTemplates.ForPeerInputRequested(review.SubjectDisplayName, round.Name, request.DueDate, request.Id));
+                PerformanceNotificationTemplates.ForPeerInputRequested(review.SubjectDisplayName, round.Name, request.DueDate, request.Id)
+                    with { ActorEmployeeId = review.SubjectEmployeeId });
         }
         audit.Record(review.TenantId, "PerformanceReview", review.Id, review.CycleId, PerformanceAuditActions.ReviewPeerListApproved,
             new { approved = resolved.Value.Select(p => p.EmployeeId).ToArray(), removed = decision.Removed, added = decision.Added });
@@ -320,7 +323,8 @@ public sealed class DeclinePeerRequestHandler(PerformanceDbContext db, IPerforma
             notifications.EnqueueReviewWork(review, PerformanceNotificationKind.PeerDeclined, review.ReviewerEmployeeId, "PeerRequest", request.Id,
                 $"{PerformanceNotificationKind.PeerDeclined}:{request.Id:N}:{review.ReviewerEmployeeId:N}",
                 new ReviewWorkNotificationPayload(review.CycleId, round.Id, review.Id, round.Name, href, request.PeerDisplayName, review.SubjectDisplayName),
-                PerformanceNotificationTemplates.ForPeerDeclined(request.PeerDisplayName, review.SubjectDisplayName, review.Id));
+                PerformanceNotificationTemplates.ForPeerDeclined(request.PeerDisplayName, review.SubjectDisplayName, review.Id)
+                    with { ActorEmployeeId = request.PeerEmployeeId });
             audit.Record(request.TenantId, "PeerRequest", request.Id, request.CycleId, PerformanceAuditActions.ReviewPeerDeclined,
                 new { reviewId = request.ReviewId, hasNote = request.DeclineNote is not null });
             await db.SaveChangesAsync(token);
