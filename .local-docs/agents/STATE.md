@@ -6,24 +6,28 @@ Lets any agent resume mid-task. Update after each step. When done: log to `LOG.m
 
 ## Active work
 
-None. Next: **B-161** cloud pilot, once the user has created the environment (settings in the B-158 plan › Cloud environment) and pushed; then B-106, B-156.
+**B-161** Cloud pilot (child of B-158). First cloud session done 2026-10-29 (results on the board and in the B-158 plan › First cloud session). Blocked on the user: GitHub push access for the Claude app on the `Fusion-hr-solution` org, and re-pasting the updated `cloud/setup.sh`.
 
 ## Goal
 
-None.
+One backend-only item end to end in a cloud session (tests, commit, push, PR into `wassim/develop`), then `claude --teleport` for the local check.
 
 ## Plan & progress
 
-None.
+1. [x] Environment checks in the cloud (bootstrap, relational tests, hook): pass.
+2. [x] Fixed: setup warms caches from a `master` clone; `~/.claude/CLAUDE.md` switches onto `wassim/develop` (local commit pending).
+3. [ ] User: install the Claude GitHub App on the org (or reconnect GitHub), re-paste setup.sh, start sessions with the repo selected.
+4. [ ] Cloud session: one backend item end to end with push + PR. None small and backend-only is Ready; pick or split one with the user.
+5. [ ] Teleport locally, check, merge.
 
 ## Decisions & reasoning
 
-None.
+- The pilot's findings commit (34a1c2c) stayed in its container; recorded locally instead of recovering it.
 
 ## Where it stands
 
-None.
+Waiting on GitHub access.
 
 ## Open questions & blockers
 
-None.
+- Push 403: Claude GitHub App not installed on `Fusion-hr-solution` (https://github.com/apps/claude/installations/select_target, org admin), or reconnect at https://claude.ai/connect-github.

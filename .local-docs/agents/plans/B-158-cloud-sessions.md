@@ -102,3 +102,18 @@ How it fits together:
 - No SessionStart hook: a tracked `.claude/settings.json` would also run in colleagues' sessions, and user-level hooks don't run in the cloud (docs). The `~/.claude/CLAUDE.md` instruction replaces it.
 
 Unproven until the pilot (B-161): the setup inside 5 min, whether the snapshot keeps the clone (the scripts work either way), the Postgres start as root, and the hook's runtime on 4 vCPU.
+
+### First cloud session (B-161, 2026-10-29)
+
+| Check | Result |
+|---|---|
+| `cloud-session.sh` | clean: links, deps; dotnet 10.0.403, node 22.22.0, pnpm 10.33.0 |
+| `test-backend.sh CoreHR` | 590 passed, 0 failed, 5 skipped, relational on; PostgreSQL started as root (cold NuGet cache) |
+| Commit hook | lint + type-check 15/15, commit in 84 s |
+| Instructions + skill | loaded once the repo was in the session |
+| Setup warm-up | skipped: no repository was attached, only `dotnet.log` |
+| Branch | clone on `master` (no agent docs); fixed by the `~/.claude/CLAUDE.md` step that switches onto `wassim/develop` |
+| Push / PR | 403: Claude GitHub App not installed on the `Fusion-hr-solution` org |
+
+Starting a session: select the repository `Fusion-hr-solution/Fusion` and the Fusion environment.
+
