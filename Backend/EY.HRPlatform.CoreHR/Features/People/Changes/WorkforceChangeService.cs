@@ -2,6 +2,7 @@ using System.Text.Json;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
+using EY.HRPlatform.CoreHR.Features.Notifications;
 using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
@@ -22,7 +23,8 @@ public sealed class WorkforceChangeService(
     ITenantContext tenantContext,
     IWorkforceMutationService mutations,
     IOrganizationService organizations,
-    IWorkEmailOccupancyService occupancy)
+    IWorkEmailOccupancyService occupancy,
+    CoreChangeNotifications notifications)
 {
     public const string ForbiddenCode = "Change.Forbidden";
 
@@ -156,8 +158,10 @@ public sealed class WorkforceChangeService(
             TeamManager: teamManager,
             DottedLinesEnded: dottedLinesEnded);
 
-        return Result.Success(WorkforceChangeRecorder.Record(
-            dbContext, tenantContext.TenantId, subject.Id, WorkforceChangeKind.JobChange, date, request.Note, details, actor));
+        var change = WorkforceChangeRecorder.Record(
+            dbContext, tenantContext.TenantId, subject.Id, WorkforceChangeKind.JobChange, date, request.Note, details, actor);
+        await notifications.StageAsync(change, details, cancellationToken);
+        return Result.Success(change);
     }
 
     // --- End of employment ------------------------------------------------------------------------
@@ -271,8 +275,10 @@ public sealed class WorkforceChangeService(
             Reassigned: reassigned,
             DottedLinesEnded: preview.Value.DottedLinesEnding,
             LastDay: lastDay);
-        return Result.Success(WorkforceChangeRecorder.Record(
-            dbContext, tenantContext.TenantId, subject.Id, WorkforceChangeKind.EndEmployment, boundaryDate, request.Note, details, actor));
+        var change = WorkforceChangeRecorder.Record(
+            dbContext, tenantContext.TenantId, subject.Id, WorkforceChangeKind.EndEmployment, boundaryDate, request.Note, details, actor);
+        await notifications.StageAsync(change, details, cancellationToken);
+        return Result.Success(change);
     }
 
     // --- Join (rehire) ----------------------------------------------------------------------------
@@ -312,8 +318,10 @@ public sealed class WorkforceChangeService(
             request.ManagerEmployeeId is { } to ? await PersonAsync(to, cancellationToken) : null,
             request.OrgUnitId, await UnitNameAsync(request.OrgUnitId, date, cancellationToken),
             work.Value.JobTitle, location, request.EmploymentType, isHire: false);
-        return Result.Success(WorkforceChangeRecorder.Record(
-            dbContext, tenantContext.TenantId, subject.Id, WorkforceChangeKind.Join, date, request.Note, details, actor));
+        var change = WorkforceChangeRecorder.Record(
+            dbContext, tenantContext.TenantId, subject.Id, WorkforceChangeKind.Join, date, request.Note, details, actor);
+        await notifications.StageAsync(change, details, cancellationToken);
+        return Result.Success(change);
     }
 
     internal static WorkforceChangeDetails JoinDetails(

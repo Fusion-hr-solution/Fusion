@@ -1,5 +1,8 @@
 using EY.HRPlatform.SharedKernel.Ai;
+using EY.HRPlatform.CoreHR.Features.Notifications;
 using EY.HRPlatform.CoreHR.Infrastructure.Imports;
+using EY.HRPlatform.CoreHR.Infrastructure.Notifications;
+using EY.HRPlatform.SharedKernel.Notifications;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
@@ -56,6 +59,23 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
         services.AddScoped<Features.People.Changes.WorkforceChangeService>();
+
+        // Team and job change notifications (B-155): staged with each change, emailed by the worker in the person's language.
+        services.Configure<CoreNotificationOptions>(configuration.GetSection("Notifications"));
+        services.AddScoped<Features.Notifications.CoreChangeNotifications>();
+        services.AddScoped<Features.Notifications.CoreNotificationFeed>();
+        services.AddScoped<ICoreNotificationSender, SmtpCoreNotificationSender>();
+        services.AddScoped<CoreNotificationDispatcher>();
+        services.AddHostedService<CoreNotificationWorker>();
+        services.AddHttpClient<ICoreNotificationAudienceClient, CoreNotificationAudienceClient>(client =>
+        {
+            var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                throw new InvalidOperationException(
+                    "ServiceUrls:IdentityApiBaseUrl is not configured. Set it via environment variable or appsettings.");
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
+        });
         services.AddScoped<Features.People.Changes.WorkforceChangeReader>();
         services.AddScoped<Features.People.Changes.WorkforceChangeBackfill>();
         services.AddHostedService<Features.People.Changes.WorkforceChangeBackfillService>();
@@ -197,6 +217,9 @@ public static class ServiceCollectionExtensions
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("ConnectionStrings:CoreHRDb is not configured. Set it via environment variable or appsettings.");
 
+        // The live nudge (B-155): a new or read notification tells its recipient's open tabs to refetch.
+        services.AddFeedNudges(CoreNotificationFeed.Channel, connectionString);
+
         services.AddDbContext<CoreHRDbContext>((sp, options) =>
         {
             options.UseNpgsql(
@@ -210,7 +233,7 @@ public static class ServiceCollectionExtensions
                 throw new InvalidOperationException(
                     "TenantSaveChangesInterceptor is not registered. Ensure AddMultitenancy() is called to register multitenancy services.");
             }
-            options.AddInterceptors(tenantInterceptor);
+            options.AddInterceptors(tenantInterceptor, sp.GetRequiredService<FeedNudgeInterceptor>());
         });
 
         services.AddHealthChecks()

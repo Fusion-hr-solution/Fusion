@@ -54,6 +54,8 @@ public class CoreHRDbContext : DbContext
     public DbSet<OrganizationChange> OrganizationChanges => Set<OrganizationChange>();
     public DbSet<WorkforceChange> WorkforceChanges => Set<WorkforceChange>();
     public DbSet<WorkforceChangeEffect> WorkforceChangeEffects => Set<WorkforceChangeEffect>();
+    public DbSet<CoreNotification> Notifications => Set<CoreNotification>();
+    public DbSet<CoreNotificationPreference> NotificationPreferences => Set<CoreNotificationPreference>();
     public DbSet<OpenRole> OpenRoles => Set<OpenRole>();
     public DbSet<OrganizationalUnitType> OrganizationalUnitTypes => Set<OrganizationalUnitType>();
     public DbSet<OrgUnitCodeReservation> OrgUnitCodeReservations => Set<OrgUnitCodeReservation>();
@@ -127,6 +129,12 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<WorkforceChangeEffect>()
             .HasQueryFilter(effect => CurrentTenantId != Guid.Empty && effect.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<CoreNotification>()
+            .HasQueryFilter(notification => CurrentTenantId != Guid.Empty && notification.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<CoreNotificationPreference>()
+            .HasQueryFilter(preference => CurrentTenantId != Guid.Empty && preference.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<OpenRole>()
             .HasQueryFilter(role => CurrentTenantId != Guid.Empty && role.TenantId == CurrentTenantId);

@@ -3,22 +3,13 @@ using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
+using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.Notifications;
-
-/// <summary>
-/// The shared Fusion notification contract (`@repo/api` FusionNotification). <paramref name="Badge"/> is the kind's family
-/// (praise, feedback, meeting, action, plan, review, reminder), so the bell marks it without knowing Performance's kinds.
-/// </summary>
-public sealed record FusionNotificationDto(string Id, string Module, string Kind, string Title, string? Context,
-    string? ActorName, Guid? ActorEmployeeId, string Badge, DateTime OccurredAt, string Href, DateTime? ReadAt);
-public sealed record FusionNotificationPageDto(IReadOnlyList<FusionNotificationDto> Items, int UnreadCount, string? NextCursor);
-public sealed record MarkNotificationsReadRequest(IReadOnlyList<Guid>? Ids, bool? All);
-public sealed record MarkNotificationsReadResultDto(int UnreadCount);
 
 /// <summary>Who the feed belongs to: the caller's employee record and account, in the caller's tenant.</summary>
 public sealed record NotificationRecipient(Guid? EmployeeId, Guid? UserId);

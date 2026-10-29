@@ -1,0 +1,40 @@
+{
+  "Context.recordedBy": "سجّله {actor}",
+
+  "ManagerChanged": "سيكون {manager} مديرك اعتبارًا من {date:date}",
+  "ManagerChanged.now": "أصبح {manager} مديرك",
+  "ManagerChanged.upcoming": "يصبح {manager} مديرك",
+  "ManagerChanged.none": "لن يكون لديك مدير اعتبارًا من {date:date}",
+  "ManagerChanged.none.now": "لم يعد لديك مدير",
+  "ManagerChanged.none.upcoming": "لن يكون لديك مدير",
+  "ManagerChanged.action": "افتح ملفك الشخصي",
+
+  "JobChanged": "تتغير وظيفتك في {date:date}",
+  "JobChanged.now": "تغيرت وظيفتك",
+  "JobChanged.upcoming": "تتغير وظيفتك",
+  "JobChanged.context": "{summary}",
+  "JobChanged.context.manager": "{summary} · تحت إشراف {manager}",
+  "JobChanged.action": "افتح ملفك الشخصي",
+
+  "TeamJoining#one": "ينضم {name} إلى فريقك في {date:date}",
+  "TeamJoining#other": "ينضم {count} أشخاص إلى فريقك في {date:date}",
+  "TeamJoining.now#one": "انضم {name} إلى فريقك",
+  "TeamJoining.now#other": "انضم {count} أشخاص إلى فريقك",
+  "TeamJoining.upcoming#one": "ينضم {name} إلى فريقك",
+  "TeamJoining.upcoming#other": "ينضم {count} أشخاص إلى فريقك",
+  "TeamJoining.context.hire": "موظف جديد · {title}",
+  "TeamJoining.action": "افتح فريقك",
+
+  "TeamLeaving#one": "يغادر {name} فريقك في {date:date}",
+  "TeamLeaving#other": "يغادر {count} أشخاص فريقك في {date:date}",
+  "TeamLeaving.now#one": "غادر {name} فريقك",
+  "TeamLeaving.now#other": "غادر {count} أشخاص فريقك",
+  "TeamLeaving.upcoming#one": "يغادر {name} فريقك",
+  "TeamLeaving.upcoming#other": "يغادر {count} أشخاص فريقك",
+  "TeamLeaving.lastDay": "آخر يوم عمل لـ {name} هو {date:date}",
+  "TeamLeaving.lastDay.now": "اليوم آخر يوم عمل لـ {name}",
+  "TeamLeaving.lastDay.upcoming": "آخر يوم عمل لـ {name}",
+  "TeamLeaving.action": "افتح فريقك",
+
+  "group.team-and-job-changes": "الفريق وتغييرات الوظيفة"
+}

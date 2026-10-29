@@ -1,6 +1,7 @@
 using System.Data;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Features.Notifications;
 using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
@@ -17,7 +18,8 @@ public sealed class HireEmployeeCommandHandler(
     ITenantContext tenantContext,
     IEmployeeNumberAllocator employeeNumberAllocator,
     IWorkforceMutationService mutationService,
-    IOrganizationService organizationService)
+    IOrganizationService organizationService,
+    CoreChangeNotifications? notifications = null)
     : ICommandHandler<HireEmployeeCommand, Result<EstablishmentResultDto>>
 {
     public Task<Result<EstablishmentResultDto>> Handle(HireEmployeeCommand command, CancellationToken cancellationToken)
@@ -29,7 +31,8 @@ public sealed class HireEmployeeCommandHandler(
             organizationService,
             EstablishmentInput.FromHire(command.Request),
             command.Actor,
-            cancellationToken);
+            cancellationToken,
+            notifications);
 }
 
 public sealed class AddExistingEmployeeCommandHandler(
@@ -92,7 +95,8 @@ internal static class EstablishmentOrchestrator
         IOrganizationService organizationService,
         EstablishmentInput input,
         string actor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CoreChangeNotifications? notifications = null)
     {
         var employmentStart = NormalizeDate(input.EmploymentStart);
         var workEffectiveFrom = NormalizeDate(input.WorkEffectiveFrom);
@@ -208,12 +212,15 @@ internal static class EstablishmentOrchestrator
                 var manager = input.ManagerEmployeeId is { } managerId
                     ? Changes.WorkforceChangeService.Ref(await dbContext.Employees.FirstAsync(item => item.Id == managerId, cancellationToken))
                     : null;
-                Changes.WorkforceChangeRecorder.Record(
+                var details = Changes.WorkforceChangeService.JoinDetails(
+                    manager, input.OrgUnitId, orgUnit.Name, assignmentResult.Value.JobTitle, assignmentResult.Value.WorkLocation,
+                    input.EmploymentType, isHire: true);
+                var change = Changes.WorkforceChangeRecorder.Record(
                     dbContext, tenantContext.TenantId, employee.Id, WorkforceChangeKind.Join, DateOnly.FromDateTime(employmentStart), null,
-                    Changes.WorkforceChangeService.JoinDetails(
-                        manager, input.OrgUnitId, orgUnit.Name, assignmentResult.Value.JobTitle, assignmentResult.Value.WorkLocation,
-                        input.EmploymentType, isHire: true),
-                    actor);
+                    details, actor);
+                // The new hire's manager hears who joins their team.
+                if (notifications is not null)
+                    await notifications.StageAsync(change, details, cancellationToken);
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);

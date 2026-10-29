@@ -1,0 +1,40 @@
+{
+  "Context.recordedBy": "Recorded by {actor}",
+
+  "ManagerChanged": "Your manager will be {manager} from {date:date}",
+  "ManagerChanged.now": "Your manager is now {manager}",
+  "ManagerChanged.upcoming": "{manager} becomes your manager",
+  "ManagerChanged.none": "You won't report to a manager from {date:date}",
+  "ManagerChanged.none.now": "You no longer report to a manager",
+  "ManagerChanged.none.upcoming": "You stop reporting to a manager",
+  "ManagerChanged.action": "Open your profile",
+
+  "JobChanged": "Your job changes on {date:date}",
+  "JobChanged.now": "Your job changed",
+  "JobChanged.upcoming": "Your job changes",
+  "JobChanged.context": "{summary}",
+  "JobChanged.context.manager": "{summary} · reporting to {manager}",
+  "JobChanged.action": "Open your profile",
+
+  "TeamJoining#one": "{name} joins your team on {date:date}",
+  "TeamJoining#other": "{count} people join your team on {date:date}",
+  "TeamJoining.now#one": "{name} joined your team",
+  "TeamJoining.now#other": "{count} people joined your team",
+  "TeamJoining.upcoming#one": "{name} joins your team",
+  "TeamJoining.upcoming#other": "{count} people join your team",
+  "TeamJoining.context.hire": "New hire · {title}",
+  "TeamJoining.action": "Open your team",
+
+  "TeamLeaving#one": "{name} leaves your team on {date:date}",
+  "TeamLeaving#other": "{count} people leave your team on {date:date}",
+  "TeamLeaving.now#one": "{name} left your team",
+  "TeamLeaving.now#other": "{count} people left your team",
+  "TeamLeaving.upcoming#one": "{name} leaves your team",
+  "TeamLeaving.upcoming#other": "{count} people leave your team",
+  "TeamLeaving.lastDay": "{name}'s last day is {date:date}",
+  "TeamLeaving.lastDay.now": "Today is {name}'s last day",
+  "TeamLeaving.lastDay.upcoming": "{name}'s last day",
+  "TeamLeaving.action": "Open your team",
+
+  "group.team-and-job-changes": "Team and job changes"
+}

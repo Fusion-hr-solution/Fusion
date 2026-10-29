@@ -4,6 +4,7 @@ using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.OrgChart;
 using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.People;
+using EY.HRPlatform.CoreHR.Features.Notifications;
 using EY.HRPlatform.CoreHR.Features.People.Changes;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
@@ -23,7 +24,7 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.People;
 /// rows it wrote (job change, end of employment, join), with its ripple on the team; cancel and edit restore rows
 /// exactly; a person's changes apply in order; and the rules the server keeps whatever the UI offers.
 /// </summary>
-public sealed class TemporalWorkforceMaintenanceRelationalTests
+public sealed partial class TemporalWorkforceMaintenanceRelationalTests
 {
     private const string Actor = "test|Workforce Administrator";
     private static readonly DateTime Today = DateTime.UtcNow.Date;
@@ -474,7 +475,7 @@ public sealed class TemporalWorkforceMaintenanceRelationalTests
     }
 
     private static WorkforceChangeService Service(CoreHRDbContext db, Fixture ctx)
-        => new(db, ctx.Tenant, ctx.Mutation, ctx.Organization, new WorkEmailOccupancyService(db, ctx.Tenant));
+        => new(db, ctx.Tenant, ctx.Mutation, ctx.Organization, new WorkEmailOccupancyService(db, ctx.Tenant), new CoreChangeNotifications(db));
 
     private static Task<Result<WorkforceChangeDto>> TryJobAsync(CoreHRDbContext db, Fixture ctx, string key, JobChangeRequest request)
         => new JobChangeCommandHandler(db, Service(db, ctx), new WorkforceChangeReader(db))

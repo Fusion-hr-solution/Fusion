@@ -35,6 +35,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Infrastructure/Notifications/Text/*.json" LogicalName="EY.HRPlatform.CoreHR.Notifications.Text.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>EY.HRPlatform.CoreHR.Tests</_Parameter1>
     </AssemblyAttribute>

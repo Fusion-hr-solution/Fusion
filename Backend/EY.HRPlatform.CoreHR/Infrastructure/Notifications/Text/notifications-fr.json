@@ -1,0 +1,40 @@
+{
+  "Context.recordedBy": "Enregistré par {actor}",
+
+  "ManagerChanged": "{manager} sera votre responsable à partir du {date:date}",
+  "ManagerChanged.now": "{manager} est désormais votre responsable",
+  "ManagerChanged.upcoming": "{manager} devient votre responsable",
+  "ManagerChanged.none": "Vous n'aurez plus de responsable à partir du {date:date}",
+  "ManagerChanged.none.now": "Vous n'avez plus de responsable",
+  "ManagerChanged.none.upcoming": "Vous n'avez plus de responsable",
+  "ManagerChanged.action": "Ouvrir votre profil",
+
+  "JobChanged": "Votre poste change le {date:date}",
+  "JobChanged.now": "Votre poste a changé",
+  "JobChanged.upcoming": "Votre poste change",
+  "JobChanged.context": "{summary}",
+  "JobChanged.context.manager": "{summary} · rattaché à {manager}",
+  "JobChanged.action": "Ouvrir votre profil",
+
+  "TeamJoining#one": "{name} rejoint votre équipe le {date:date}",
+  "TeamJoining#other": "{count} personnes rejoignent votre équipe le {date:date}",
+  "TeamJoining.now#one": "{name} a rejoint votre équipe",
+  "TeamJoining.now#other": "{count} personnes ont rejoint votre équipe",
+  "TeamJoining.upcoming#one": "{name} rejoint votre équipe",
+  "TeamJoining.upcoming#other": "{count} personnes rejoignent votre équipe",
+  "TeamJoining.context.hire": "Nouvelle recrue · {title}",
+  "TeamJoining.action": "Ouvrir votre équipe",
+
+  "TeamLeaving#one": "{name} quitte votre équipe le {date:date}",
+  "TeamLeaving#other": "{count} personnes quittent votre équipe le {date:date}",
+  "TeamLeaving.now#one": "{name} a quitté votre équipe",
+  "TeamLeaving.now#other": "{count} personnes ont quitté votre équipe",
+  "TeamLeaving.upcoming#one": "{name} quitte votre équipe",
+  "TeamLeaving.upcoming#other": "{count} personnes quittent votre équipe",
+  "TeamLeaving.lastDay": "Dernier jour de {name} : {date:date}",
+  "TeamLeaving.lastDay.now": "C'est le dernier jour de {name}",
+  "TeamLeaving.lastDay.upcoming": "Dernier jour de {name}",
+  "TeamLeaving.action": "Ouvrir votre équipe",
+
+  "group.team-and-job-changes": "Équipe et changements de poste"
+}
