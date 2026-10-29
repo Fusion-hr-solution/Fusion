@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   language: "en" as "en" | "fr",
   setLanguage: vi.fn<(next: "en" | "fr") => Promise<void>>(),
   preferences: undefined as NotificationPreferences | undefined,
+  corePreferences: undefined as NotificationPreferences | undefined,
   mutate: vi.fn(),
   invalidateQueries: vi.fn(),
   alerts: { popups: true, sound: true },
@@ -47,13 +48,16 @@ vi.mock("@repo/auth", () => ({
 }));
 
 vi.mock("@repo/api/query", () => ({
-  useNotificationPreferences: () => ({
-    data: mocks.preferences,
-    isPending: !mocks.preferences,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
+  useNotificationPreferences: (module: "core" | "performance") =>
+    module === "core"
+      ? { data: mocks.corePreferences, isPending: false, isError: false, error: null, refetch: vi.fn() }
+      : {
+          data: mocks.preferences,
+          isPending: !mocks.preferences,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        },
   useUpdateNotificationPreferences: () => ({
     mutate: mocks.mutate,
     isPending: false,
@@ -63,6 +67,7 @@ vi.mock("@repo/api/query", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  mocks.corePreferences = undefined;
 });
 
 /**
@@ -299,6 +304,33 @@ describe("Notifications", () => {
       screen.queryByRole("switch", { name: "Email for Deadline reminders" })
     ).not.toBeTruthy();
     expect(screen.getAllByText("Always").length).toBeGreaterThan(0);
+  });
+
+  it("lists Core HR's team and job changes beside Performance, switchable by email", () => {
+    mocks.preferences = PREFERENCES;
+    mocks.corePreferences = {
+      emailAddress: "aicha.bouazizi@example.test",
+      version: 0,
+      groups: [
+        {
+          key: "team-and-job-changes",
+          label: "Team and job changes",
+          summary: "Your manager, your job, your team",
+          email: true,
+          locked: false,
+          count: 2,
+          items: [{ label: "Your manager changes", team: false, always: false, count: 1 }],
+        },
+      ],
+    };
+    render(<Notifications />);
+    expect(screen.getByText("Core HR")).toBeTruthy();
+    expect(screen.getByText("Your manager, your job, your team")).toBeTruthy();
+    fireEvent.click(screen.getByRole("switch", { name: "Email for Team and job changes" }));
+    expect(mocks.mutate).toHaveBeenCalledWith(
+      { expectedVersion: 0, emailOff: ["team-and-job-changes"] },
+      expect.anything()
+    );
   });
 
   it("turns pop-ups and their sound on and off on the account", () => {

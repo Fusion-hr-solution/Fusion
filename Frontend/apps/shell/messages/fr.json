@@ -37,7 +37,8 @@
         "reviews-and-calibration": "Évaluations et calibrage",
         "one-on-ones": "Entretiens individuels",
         "feedback-and-praise": "Feedback et reconnaissances",
-        "deadline-reminders": "Rappels d’échéance"
+        "deadline-reminders": "Rappels d’échéance",
+        "team-and-job-changes": "Équipe et changements de poste"
       },
       "summaries": {
         "plansAndGoals": "Votre plan approuvé ou renvoyé, les mises à jour qu’on vous demande, les objectifs de développement ajoutés",
@@ -47,7 +48,8 @@
         "oneOnOnes": "Un entretien commencé ou déplacé, les actions qui vous sont attribuées",
         "feedback": "Le feedback et les reconnaissances que vous recevez, les demandes de feedback",
         "feedbackLeader": "Le feedback et les reconnaissances pour vous et votre équipe, les demandes et leurs réponses",
-        "deadlines": "Une échéance proche ou dépassée"
+        "deadlines": "Une échéance proche ou dépassée",
+        "teamAndJob": "Votre responsable, votre poste, votre équipe"
       },
       "lines": {
         "reminder": "Une de vos évaluations est due demain ou en retard",
@@ -69,7 +71,10 @@
         "teamFeedback": "Feedback et reconnaissances pour votre équipe",
         "feedbackReceived": "Feedback et reconnaissances que vous recevez",
         "feedbackRequests": "Demandes de feedback",
-        "requestAnswers": "Réponses à vos demandes"
+        "requestAnswers": "Réponses à vos demandes",
+        "managerChanges": "Votre responsable change",
+        "jobChange": "Un changement de votre poste",
+        "teamChanges": "Quelqu'un rejoint ou quitte votre équipe"
       }
     }
   },

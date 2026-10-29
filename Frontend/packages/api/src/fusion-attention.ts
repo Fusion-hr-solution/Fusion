@@ -121,7 +121,7 @@ export const FUSION_ATTENTION_MODULES: readonly FusionAttentionModule[] = [
     label: "Core HR",
     apiBase: "/corehr",
     entitlement: "CoreHR",
-    serves: { work: true, notifications: false, upcoming: false },
+    serves: { work: true, notifications: true, upcoming: true },
   },
   {
     key: "performance",

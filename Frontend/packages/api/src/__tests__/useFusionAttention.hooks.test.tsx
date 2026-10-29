@@ -55,6 +55,23 @@ function page(
   };
 }
 
+/** Core HR's feed: one read team change, older than Performance's. */
+const CORE_PAGE: FusionNotificationPage = {
+  items: [
+    {
+      id: "c1",
+      module: "core",
+      kind: "ManagerChanged",
+      title: "c1",
+      badge: "team",
+      occurredAt: "2026-10-09T10:00:00Z",
+      href: "/core/profile",
+      readAt: "2026-10-09T11:00:00Z",
+    },
+  ],
+  unreadCount: 0,
+};
+
 function fakeApi(
   overrides: Partial<FusionAttentionApi> = {}
 ): FusionAttentionApi {
@@ -64,8 +81,8 @@ function fakeApi(
         ? [work("c1", "core")]
         : [work("p1", "performance", "2026-10-20")]
     ),
-    getNotifications: vi.fn(async () =>
-      page("performance", ["n1", "n2"], ["n1", "n2"])
+    getNotifications: vi.fn(async (key) =>
+      key === "core" ? CORE_PAGE : page("performance", ["n1", "n2"], ["n1", "n2"])
     ),
     markNotificationsRead: vi.fn(async () => ({ unreadCount: 0 })),
     getUpcoming: vi.fn(async () => [] as FusionUpcoming[]),
@@ -115,10 +132,10 @@ describe("useFusionWork", () => {
 });
 
 describe("useFusionNotifications", () => {
-  it("skips modules that don't serve notifications", async () => {
+  it("asks nothing without a module the viewer may enter", async () => {
     const api = fakeApi();
     const { result } = renderHook(
-      () => useFusionNotifications(["core"], { api }),
+      () => useFusionNotifications([], { api }),
       { wrapper: wrapper() }
     );
     expect(result.current.modules).toEqual([]);
@@ -135,7 +152,7 @@ describe("useFusionNotifications", () => {
       }
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.items.map((item) => item.id)).toEqual(["n2", "n1"]);
+    expect(result.current.items.map((item) => item.id)).toEqual(["n2", "n1", "c1"]);
     expect(result.current.unreadCount).toBe(2);
   });
 
@@ -237,35 +254,37 @@ function moment(
 }
 
 describe("useFusionUpcoming", () => {
-  it("asks only modules that serve moments, for the window, earliest first", async () => {
+  it("asks every module that serves moments, for the window, earliest first", async () => {
     const api = fakeApi({
-      getUpcoming: vi.fn(async () => [
-        moment("plans-due", "2026-10-31"),
-        moment("1:1 late", "2026-10-22", "2026-10-22T14:00:00Z"),
-        moment("1:1 early", "2026-10-22", "2026-10-22T09:00:00Z"),
-      ]),
+      getUpcoming: vi.fn(async (key) =>
+        key === "core"
+          ? [{ ...moment("manager", "2026-10-25"), module: "core" as const, kind: "ManagerChanged", href: "/core/profile" }]
+          : [
+              moment("plans-due", "2026-10-31"),
+              moment("1:1 late", "2026-10-22", "2026-10-22T14:00:00Z"),
+              moment("1:1 early", "2026-10-22", "2026-10-22T09:00:00Z"),
+            ]
+      ),
     });
     const { result } = renderHook(
       () => useFusionUpcoming(["core", "performance"], { api }),
       { wrapper: wrapper() }
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(api.getUpcoming).toHaveBeenCalledTimes(1);
-    expect(api.getUpcoming).toHaveBeenCalledWith(
-      "performance",
-      14,
-      expect.anything()
-    );
+    expect(api.getUpcoming).toHaveBeenCalledTimes(2);
+    expect(api.getUpcoming).toHaveBeenCalledWith("core", 14, expect.anything());
+    expect(api.getUpcoming).toHaveBeenCalledWith("performance", 14, expect.anything());
     expect(result.current.items.map((item) => item.id)).toEqual([
       "1:1 early",
       "1:1 late",
+      "manager",
       "plans-due",
     ]);
   });
 
   it("asks nothing without an entitled module that serves moments", () => {
     const api = fakeApi();
-    renderHook(() => useFusionUpcoming(["core"], { api }), {
+    renderHook(() => useFusionUpcoming([], { api }), {
       wrapper: wrapper(),
     });
     expect(api.getUpcoming).not.toHaveBeenCalled();
@@ -305,7 +324,7 @@ describe("live nudge", () => {
   it("opens one stream per module for every bell and refetches when the feed changes", async () => {
     const api = fakeApi();
     const openStream = vi.fn(async (path: string) => {
-      expect(path).toBe("/performance/notifications/stream");
+      expect(["/corehr/notifications/stream", "/performance/notifications/stream"]).toContain(path);
       return stream(["ready", "changed"]);
     });
     const Wrapper = wrapper();
@@ -316,13 +335,14 @@ describe("live nudge", () => {
       ],
       { wrapper: Wrapper }
     );
-    await waitFor(() => expect(result.current[0]!.items).toHaveLength(2));
+    await waitFor(() => expect(result.current[0]!.items).toHaveLength(3));
     await waitFor(() =>
       expect(
         vi.mocked(api.getNotifications).mock.calls.length
-      ).toBeGreaterThanOrEqual(2)
+      ).toBeGreaterThanOrEqual(4)
     );
-    expect(openStream).toHaveBeenCalledTimes(1);
+    // One stream per module, shared by both bells.
+    expect(openStream).toHaveBeenCalledTimes(2);
     unmount();
   });
 

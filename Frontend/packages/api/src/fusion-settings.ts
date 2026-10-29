@@ -35,7 +35,8 @@ export type FusionSettingsGroupKey = "you" | FusionSettingsModuleKey;
 export const fusionSettingsPaths = {
   sections: (module: FusionSettingsModuleKey) =>
     module === "core" ? "/corehr/settings/sections" : "/performance/settings/sections",
-  notificationPreferences: () => "/performance/notification-preferences",
+  notificationPreferences: (module: FusionSettingsModuleKey) =>
+    module === "core" ? "/corehr/notification-preferences" : "/performance/notification-preferences",
   fieldVisibility: () => "/corehr/settings/field-visibility",
 } as const;
 
@@ -43,8 +44,8 @@ export const fusionSettingsQueryKeys = {
   all: () => ["fusion-settings"] as const,
   sections: (module: FusionSettingsModuleKey, tenantId: string | null) =>
     [...fusionSettingsQueryKeys.all(), "sections", module, tenantId ?? "none"] as const,
-  notificationPreferences: (tenantId: string | null, userId: string | null) =>
-    [...fusionSettingsQueryKeys.all(), "notification-preferences", tenantId ?? "none", userId ?? "none"] as const,
+  notificationPreferences: (module: FusionSettingsModuleKey, tenantId: string | null, userId: string | null) =>
+    [...fusionSettingsQueryKeys.all(), "notification-preferences", module, tenantId ?? "none", userId ?? "none"] as const,
   fieldVisibility: (tenantId: string | null) => [...fusionSettingsQueryKeys.all(), "field-visibility", tenantId ?? "none"] as const,
 };
 
@@ -132,9 +133,10 @@ export function settingsReturnLabel(path: string): string {
   return FUSION_MODULE_REGISTRY.find((entry) => entry.href === `/${zone}`)?.label ?? "settings.place.home";
 }
 
-// ── Notifications (Performance's groups, the caller's own email choices) ──
+// ── Notifications (each module's groups, the caller's own email choices) ──
 
 export type NotificationGroupKey =
+  | "team-and-job-changes"
   | "plans-and-goals"
   | "reviews-and-calibration"
   | "one-on-ones"
@@ -192,10 +194,10 @@ export function createFusionSettingsApi(client: ApiClient) {
   return {
     getSections: (module: FusionSettingsModuleKey, signal?: AbortSignal) =>
       client.get<FusionSettingsSection[]>(fusionSettingsPaths.sections(module), { signal }),
-    getNotificationPreferences: (signal?: AbortSignal) =>
-      client.get<NotificationPreferences>(fusionSettingsPaths.notificationPreferences(), { signal }),
-    updateNotificationPreferences: (request: UpdateNotificationPreferencesRequest) =>
-      client.put<NotificationPreferences>(fusionSettingsPaths.notificationPreferences(), request),
+    getNotificationPreferences: (module: FusionSettingsModuleKey, signal?: AbortSignal) =>
+      client.get<NotificationPreferences>(fusionSettingsPaths.notificationPreferences(module), { signal }),
+    updateNotificationPreferences: (module: FusionSettingsModuleKey, request: UpdateNotificationPreferencesRequest) =>
+      client.put<NotificationPreferences>(fusionSettingsPaths.notificationPreferences(module), request),
     getFieldVisibility: (signal?: AbortSignal) =>
       client.get<FieldVisibility>(fusionSettingsPaths.fieldVisibility(), { signal }),
   };

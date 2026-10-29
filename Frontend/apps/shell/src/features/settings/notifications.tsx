@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, ChevronRight, Lock } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { ApiError, type NotificationGroupKey, type NotificationPreferenceGroup } from "@repo/api";
+import { ApiError, type FusionSettingsModuleKey, type NotificationGroupKey, type NotificationPreferenceGroup } from "@repo/api";
 import { useNotificationPreferences, useUpdateNotificationPreferences } from "@repo/api/query";
 import { useNotificationAlerts, type NotificationAlerts } from "@repo/auth";
 import { Button, cn, Switch } from "@repo/ds";
@@ -19,9 +19,9 @@ import {
 } from "@repo/ds/shell";
 
 /**
- * Performance serves its groups and lines from a fixed English catalogue with no codes for the lines
- * (NotificationPreferenceCatalog). The screen names them from its own catalogue: groups by key, summaries and lines
- * by the server's English. Anything the catalogue doesn't know yet is shown as the server sent it.
+ * Each module serves its groups and lines from a fixed English catalogue with no codes for the lines (Performance's
+ * NotificationPreferenceCatalog, Core HR's notification feed). The screen names them from its own catalogue: groups by
+ * key, summaries and lines by the server's English. Anything the catalogue doesn't know yet is shown as the server sent it.
  */
 const SUMMARIES: Record<string, string> = {
   "Your plan approved or returned, updates asked of you, development goals added": "plansAndGoals",
@@ -32,6 +32,7 @@ const SUMMARIES: Record<string, string> = {
   "Feedback and praise you receive, requests for your feedback": "feedback",
   "Feedback and praise for you and your team, requests and answers": "feedbackLeader",
   "Something of yours is due soon or late": "deadlines",
+  "Your manager, your job, your team": "teamAndJob",
 };
 
 const LINES: Record<string, string> = {
@@ -55,6 +56,9 @@ const LINES: Record<string, string> = {
   "Feedback and praise you receive": "feedbackReceived",
   "Requests for your feedback": "feedbackRequests",
   "Answers to your requests": "requestAnswers",
+  "Your manager changes": "managerChanges",
+  "A change to your job": "jobChange",
+  "Someone joins or leaves your team": "teamChanges",
 };
 
 type NotificationsT = ReturnType<typeof useTranslations<"settings.notifications">>;
@@ -169,23 +173,31 @@ function Alerts({ onSaved, onFailed }: { onSaved: () => void; onFailed: () => vo
   );
 }
 
-/**
- * Settings › Notifications: pop-ups and their chime, then what each module tells the person, always in Fusion, and by email per group.
- * Deadline reminders are always emailed. Each choice saves the moment it changes.
- */
-export function Notifications() {
-  const t = useTranslations("settings.notifications");
-  const locale = useLocale();
-  const preferences = useNotificationPreferences();
-  const update = useUpdateNotificationPreferences();
-  const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [failed, setFailed] = useState(false);
+/** The modules that tell people things, in the order the screen lists them. */
+const MODULES: { key: FusionSettingsModuleKey; label: string }[] = [
+  { key: "performance", label: "Performance" },
+  { key: "core", label: "Core HR" },
+];
 
-  const unavailable = preferences.error instanceof ApiError && preferences.error.status === 403;
+/** One module's groups: what it tells the person, always in Fusion, and by email per group. */
+function ModuleNotifications({
+  module,
+  label,
+  preferences,
+  onSaved,
+}: {
+  module: FusionSettingsModuleKey;
+  label: string;
+  preferences: ReturnType<typeof useNotificationPreferences>;
+  onSaved: () => void;
+}) {
+  const t = useTranslations("settings.notifications");
+  const update = useUpdateNotificationPreferences(module);
+  const [failed, setFailed] = useState(false);
   const data = preferences.data;
+  if (!data) return null;
 
   const changeEmail = (key: NotificationGroupKey, email: boolean) => {
-    if (!data) return;
     const emailOff = data.groups
       .filter((group) => !group.locked && (group.key === key ? !email : !group.email))
       .map((group) => group.key);
@@ -193,7 +205,7 @@ export function Notifications() {
     update.mutate(
       { expectedVersion: data.version, emailOff },
       {
-        onSuccess: () => setSavedAt(Date.now()),
+        onSuccess: onSaved,
         onError: () => {
           setFailed(true);
           void preferences.refetch();
@@ -202,73 +214,107 @@ export function Notifications() {
     );
   };
 
-  if (preferences.isError && !unavailable) {
+  const Icon = FUSION_MODULE_ICONS[module];
+  return (
+    <SettingsBlock
+      title={
+        <span className="flex items-center gap-2.5">
+          <span className="grid size-7 place-items-center rounded-detail bg-primary-tint text-primary-ink">
+            {Icon ? <Icon aria-hidden className="size-4" /> : null}
+          </span>
+          {label}
+        </span>
+      }
+    >
+      {failed ? (
+        <p role="alert" className="type-meta text-destructive">
+          {t("notSaved")}
+        </p>
+      ) : null}
+      <div className="overflow-hidden rounded-surface border border-border bg-card">
+        <div className="grid grid-cols-[minmax(0,1fr)_96px_104px] gap-4 border-b border-border bg-inlay px-5 py-2.5 type-meta font-semibold text-muted-foreground">
+          <span>{t("about")}</span>
+          <span className="text-center">{t("inFusion")}</span>
+          <span className="text-center">{t("email")}</span>
+        </div>
+        <ul>
+          {data.groups.map((group) => (
+            <GroupRow
+              key={group.key}
+              group={group}
+              saving={update.isPending}
+              onEmailChange={(email) => changeEmail(group.key, email)}
+            />
+          ))}
+        </ul>
+      </div>
+    </SettingsBlock>
+  );
+}
+
+const isUnavailable = (error: unknown) => error instanceof ApiError && error.status === 403;
+
+/**
+ * Settings › Notifications: pop-ups and their chime, then what each module tells the person, always in Fusion, and by
+ * email per group. A module that tells the person nothing (403) shows no block. Deadline reminders are always emailed.
+ * Each choice saves the moment it changes.
+ */
+export function Notifications() {
+  const t = useTranslations("settings.notifications");
+  const locale = useLocale();
+  const performance = useNotificationPreferences("performance");
+  const core = useNotificationPreferences("core");
+  const byModule = { performance, core };
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [alertsFailed, setAlertsFailed] = useState(false);
+  const saved = () => {
+    setAlertsFailed(false);
+    setSavedAt(Date.now());
+  };
+
+  const queries = MODULES.map((module) => byModule[module.key]);
+  const broken = queries.find((query) => query.isError && !isUnavailable(query.error));
+  if (broken) {
     return (
       <div lang={locale} className="contents">
         <SettingsPage title={t("title")}>
-          <PageError title={t("didNotLoad")} onRetry={() => void preferences.refetch()} />
+          <PageError title={t("didNotLoad")} onRetry={() => void broken.refetch()} />
         </SettingsPage>
       </div>
     );
   }
 
-  const PerformanceIcon = FUSION_MODULE_ICONS.performance;
+  const loading = queries.some((query) => query.isPending && !isUnavailable(query.error));
+  const none = queries.every((query) => isUnavailable(query.error) || !query.data);
+  const emailAddress = queries.map((query) => query.data?.emailAddress).find(Boolean);
   return (
     <div lang={locale} className="contents">
-    <SettingsPage title={t("title")} loading={preferences.isPending && !unavailable} aside={<SettingsSaved at={savedAt} />}>
-      {data?.emailAddress ? (
-        <p className="-mt-6 type-meta text-muted-foreground">
-          {t.rich("emailGoesTo", {
-            address: data.emailAddress,
-            b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
-          })}
-        </p>
-      ) : null}
-      <Alerts
-        onSaved={() => {
-          setFailed(false);
-          setSavedAt(Date.now());
-        }}
-        onFailed={() => setFailed(true)}
-      />
-      {unavailable || !data ? (
-        <p className="type-body-secondary text-muted-foreground">{t("none")}</p>
-      ) : (
-        <SettingsBlock
-          title={
-            <span className="flex items-center gap-2.5">
-              <span className="grid size-7 place-items-center rounded-detail bg-primary-tint text-primary-ink">
-                {PerformanceIcon ? <PerformanceIcon aria-hidden className="size-4" /> : null}
-              </span>
-              Performance
-            </span>
-          }
-        >
-          {failed ? (
-            <p role="alert" className="type-meta text-destructive">
-              {t("notSaved")}
-            </p>
-          ) : null}
-          <div className="overflow-hidden rounded-surface border border-border bg-card">
-            <div className="grid grid-cols-[minmax(0,1fr)_96px_104px] gap-4 border-b border-border bg-inlay px-5 py-2.5 type-meta font-semibold text-muted-foreground">
-              <span>{t("about")}</span>
-              <span className="text-center">{t("inFusion")}</span>
-              <span className="text-center">{t("email")}</span>
-            </div>
-            <ul>
-              {data.groups.map((group) => (
-                <GroupRow
-                  key={group.key}
-                  group={group}
-                  saving={update.isPending}
-                  onEmailChange={(email) => changeEmail(group.key, email)}
-                />
-              ))}
-            </ul>
-          </div>
-        </SettingsBlock>
-      )}
-    </SettingsPage>
+      <SettingsPage title={t("title")} loading={loading} aside={<SettingsSaved at={savedAt} />}>
+        {emailAddress ? (
+          <p className="-mt-6 type-meta text-muted-foreground">
+            {t.rich("emailGoesTo", {
+              address: emailAddress,
+              b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+            })}
+          </p>
+        ) : null}
+        {alertsFailed ? (
+          <p role="alert" className="type-meta text-destructive">
+            {t("notSaved")}
+          </p>
+        ) : null}
+        <Alerts onSaved={saved} onFailed={() => setAlertsFailed(true)} />
+        {none ? <p className="type-body-secondary text-muted-foreground">{t("none")}</p> : null}
+        {MODULES.map((module) => (
+          <ModuleNotifications
+            key={module.key}
+            module={module.key}
+            label={module.label}
+            preferences={byModule[module.key]}
+            onSaved={saved}
+          />
+        ))}
+      </SettingsPage>
     </div>
   );
 }

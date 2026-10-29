@@ -37,7 +37,8 @@
         "reviews-and-calibration": "Reviews and calibration",
         "one-on-ones": "1:1s",
         "feedback-and-praise": "Feedback and praise",
-        "deadline-reminders": "Deadline reminders"
+        "deadline-reminders": "Deadline reminders",
+        "team-and-job-changes": "Team and job changes"
       },
       "summaries": {
         "plansAndGoals": "Your plan approved or returned, updates asked of you, development goals added",
@@ -47,7 +48,8 @@
         "oneOnOnes": "A 1:1 started or moved, actions assigned to you",
         "feedback": "Feedback and praise you receive, requests for your feedback",
         "feedbackLeader": "Feedback and praise for you and your team, requests and answers",
-        "deadlines": "Something of yours is due soon or late"
+        "deadlines": "Something of yours is due soon or late",
+        "teamAndJob": "Your manager, your job, your team"
       },
       "lines": {
         "reminder": "A review of yours is due tomorrow or late",
@@ -69,7 +71,10 @@
         "teamFeedback": "Feedback and praise for your team",
         "feedbackReceived": "Feedback and praise you receive",
         "feedbackRequests": "Requests for your feedback",
-        "requestAnswers": "Answers to your requests"
+        "requestAnswers": "Answers to your requests",
+        "managerChanges": "Your manager changes",
+        "jobChange": "A change to your job",
+        "teamChanges": "Someone joins or leaves your team"
       }
     }
   },

@@ -13,6 +13,7 @@ import {
   type FieldVisibility,
   type FusionSettingsApi,
   type FusionSettingsGroupKey,
+  type FusionSettingsModuleKey,
   type FusionSettingsSection,
   type NotificationPreferences,
   type SettingsReturn,
@@ -108,25 +109,26 @@ export function useSettingsSections(module: "core" | "performance", options: Use
 }
 
 /** The person's own Performance notification choices. */
-export function useNotificationPreferences(options: UseFusionSettingsOptions = {}) {
+/** The person's email choices for one module's notifications. A 403 means the module tells them nothing. */
+export function useNotificationPreferences(module: FusionSettingsModuleKey, options: UseFusionSettingsOptions = {}) {
   const { viewer } = useFusionViewer();
   const api = useSettingsApi(options.api);
   return useQuery<NotificationPreferences>({
-    queryKey: fusionSettingsQueryKeys.notificationPreferences(viewer?.tenantId ?? null, viewer?.userId ?? null),
-    queryFn: ({ signal }) => api.getNotificationPreferences(signal),
+    queryKey: fusionSettingsQueryKeys.notificationPreferences(module, viewer?.tenantId ?? null, viewer?.userId ?? null),
+    queryFn: ({ signal }) => api.getNotificationPreferences(module, signal),
     enabled: Boolean(viewer?.tenantId),
     retry: false,
   });
 }
 
-/** Saves the person's email choices; the response replaces the cached choices. */
-export function useUpdateNotificationPreferences(options: UseFusionSettingsOptions = {}) {
+/** Saves the person's email choices for one module; the response replaces the cached choices. */
+export function useUpdateNotificationPreferences(module: FusionSettingsModuleKey, options: UseFusionSettingsOptions = {}) {
   const { viewer } = useFusionViewer();
   const api = useSettingsApi(options.api);
   const client = useQueryClient();
-  const key = fusionSettingsQueryKeys.notificationPreferences(viewer?.tenantId ?? null, viewer?.userId ?? null);
+  const key = fusionSettingsQueryKeys.notificationPreferences(module, viewer?.tenantId ?? null, viewer?.userId ?? null);
   return useMutation({
-    mutationFn: (request: UpdateNotificationPreferencesRequest) => api.updateNotificationPreferences(request),
+    mutationFn: (request: UpdateNotificationPreferencesRequest) => api.updateNotificationPreferences(module, request),
     onSuccess: (saved) => client.setQueryData(key, saved),
   });
 }

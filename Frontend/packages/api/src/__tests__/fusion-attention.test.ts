@@ -18,9 +18,9 @@ function fakeClient(): ApiClient & { get: ReturnType<typeof vi.fn>; post: Return
 }
 
 describe("FUSION_ATTENTION_MODULES", () => {
-  it("lists Core HR for work only and Performance for work and notifications", () => {
+  it("lists Core HR and Performance for work, notifications and moments", () => {
     expect(FUSION_ATTENTION_MODULES.map((m) => [m.key, m.entitlement, m.serves])).toEqual([
-      ["core", "CoreHR", { work: true, notifications: false, upcoming: false }],
+      ["core", "CoreHR", { work: true, notifications: true, upcoming: true }],
       ["performance", "Performance", { work: true, notifications: true, upcoming: true }],
     ]);
   });
