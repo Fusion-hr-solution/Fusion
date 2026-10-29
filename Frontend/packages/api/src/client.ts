@@ -52,7 +52,9 @@ function extractErrors(
  * status for those, and never on message text.
  */
 function extractCode(json: Record<string, unknown>): string | null {
-  return typeof json.code === "string" && json.code.length > 0 ? json.code : null;
+  return typeof json.code === "string" && json.code.length > 0
+    ? json.code
+    : null;
 }
 
 /**
@@ -126,6 +128,13 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       }
     }
 
+    if (config.getLanguage && headers["Accept-Language"] == null) {
+      const language = config.getLanguage();
+      if (language) {
+        headers["Accept-Language"] = language;
+      }
+    }
+
     if (
       headers["X-Correlation-Id"] == null &&
       typeof crypto !== "undefined" &&
@@ -175,7 +184,14 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
           // body wasn't JSON — keep the default
         }
         throwApiError(
-          new ApiError(res.status, res.statusText, errors, correlationId, null, code)
+          new ApiError(
+            res.status,
+            res.statusText,
+            errors,
+            correlationId,
+            null,
+            code
+          )
         );
       }
       const body = await res[rtype]();

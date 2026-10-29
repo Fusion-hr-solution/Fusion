@@ -3,10 +3,25 @@
 import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
+import { fusionAttentionQueryKeys } from "@repo/api";
 import { isLocale, type Locale } from "@repo/i18n/config";
 import { useLanguage } from "@repo/auth";
-import { cn, RadioGroup, RadioGroupItem, ToggleGroup, ToggleGroupItem } from "@repo/ds";
-import { SettingsBlock, SettingsPage, SettingsRow, SettingsRows, SettingsSaved, useTheme } from "@repo/ds/shell";
+import {
+  cn,
+  RadioGroup,
+  RadioGroupItem,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@repo/ds";
+import {
+  SettingsBlock,
+  SettingsPage,
+  SettingsRow,
+  SettingsRows,
+  SettingsSaved,
+  useTheme,
+} from "@repo/ds/shell";
 
 type Appearance = "dark" | "light" | "system";
 
@@ -30,16 +45,51 @@ const LANGUAGES: { value: Locale; label: string }[] = [
 function Miniature({ tone }: { tone: "dark" | "light" }) {
   const dark = tone === "dark";
   return (
-    <div className={cn("flex h-full min-w-0 flex-1", dark ? "bg-zinc-950" : "bg-zinc-50")}>
-      <div className={cn("flex w-1/4 flex-col gap-1.5 p-2", dark ? "bg-zinc-900" : "bg-zinc-200")}>
+    <div
+      className={cn(
+        "flex h-full min-w-0 flex-1",
+        dark ? "bg-zinc-950" : "bg-zinc-50"
+      )}
+    >
+      <div
+        className={cn(
+          "flex w-1/4 flex-col gap-1.5 p-2",
+          dark ? "bg-zinc-900" : "bg-zinc-200"
+        )}
+      >
         <span className="h-1.5 w-5 rounded-full bg-primary" />
-        <span className={cn("h-1 w-full rounded-full", dark ? "bg-zinc-700" : "bg-zinc-300")} />
-        <span className={cn("h-1 w-full rounded-full", dark ? "bg-zinc-700" : "bg-zinc-300")} />
+        <span
+          className={cn(
+            "h-1 w-full rounded-full",
+            dark ? "bg-zinc-700" : "bg-zinc-300"
+          )}
+        />
+        <span
+          className={cn(
+            "h-1 w-full rounded-full",
+            dark ? "bg-zinc-700" : "bg-zinc-300"
+          )}
+        />
       </div>
       <div className="flex flex-1 flex-col gap-1.5 p-2.5">
-        <span className={cn("h-2 w-1/2 rounded-full", dark ? "bg-zinc-200" : "bg-zinc-800")} />
-        <span className={cn("h-1 w-5/6 rounded-full", dark ? "bg-zinc-700" : "bg-zinc-300")} />
-        <span className={cn("h-1 w-2/3 rounded-full", dark ? "bg-zinc-700" : "bg-zinc-300")} />
+        <span
+          className={cn(
+            "h-2 w-1/2 rounded-full",
+            dark ? "bg-zinc-200" : "bg-zinc-800"
+          )}
+        />
+        <span
+          className={cn(
+            "h-1 w-5/6 rounded-full",
+            dark ? "bg-zinc-700" : "bg-zinc-300"
+          )}
+        />
+        <span
+          className={cn(
+            "h-1 w-2/3 rounded-full",
+            dark ? "bg-zinc-700" : "bg-zinc-300"
+          )}
+        />
       </div>
     </div>
   );
@@ -47,7 +97,10 @@ function Miniature({ tone }: { tone: "dark" | "light" }) {
 
 function AppearancePreview({ value }: { value: Appearance }) {
   return (
-    <div aria-hidden className="flex h-28 overflow-hidden rounded-control border border-border">
+    <div
+      aria-hidden
+      className="flex h-28 overflow-hidden rounded-control border border-border"
+    >
       {value === "system" ? (
         <>
           <Miniature tone="dark" />
@@ -69,17 +122,25 @@ export function Preferences() {
   const locale = useLocale();
   const { theme, setTheme } = useTheme();
   const [language, setLanguage, savingLanguage] = useLanguage();
+  const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [languageFailed, setLanguageFailed] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const appearance = mounted && (theme === "dark" || theme === "light" || theme === "system") ? theme : undefined;
+  const appearance =
+    mounted && (theme === "dark" || theme === "light" || theme === "system")
+      ? theme
+      : undefined;
 
   const chooseLanguage = async (next: Locale) => {
     setLanguageFailed(false);
     try {
       await setLanguage(next);
+      // Notifications are worded by the server in the language a request reads in.
+      void queryClient.invalidateQueries({
+        queryKey: fusionAttentionQueryKeys.all(),
+      });
       setSavedAt(Date.now());
     } catch {
       setLanguageFailed(true);
@@ -108,14 +169,24 @@ export function Preferences() {
                   htmlFor={`appearance-${option.value}`}
                   className={cn(
                     "flex cursor-pointer flex-col gap-3 rounded-surface border bg-card p-2.5 transition-colors",
-                    selected ? "border-primary ring-1 ring-primary" : "border-border hover:border-foreground/30",
+                    selected
+                      ? "border-primary ring-1 ring-primary"
+                      : "border-border hover:border-foreground/30"
                   )}
                 >
                   <AppearancePreview value={option.value} />
                   <span className="flex items-center gap-2.5 px-1 pb-0.5">
-                    <RadioGroupItem id={`appearance-${option.value}`} value={option.value} />
-                    <span className="flex-1 type-label font-semibold text-foreground">{t(option.value)}</span>
-                    <Icon aria-hidden className="size-4 text-muted-foreground" />
+                    <RadioGroupItem
+                      id={`appearance-${option.value}`}
+                      value={option.value}
+                    />
+                    <span className="flex-1 type-label font-semibold text-foreground">
+                      {t(option.value)}
+                    </span>
+                    <Icon
+                      aria-hidden
+                      className="size-4 text-muted-foreground"
+                    />
                   </span>
                 </label>
               );

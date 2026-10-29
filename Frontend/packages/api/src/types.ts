@@ -2,6 +2,7 @@ export interface ApiClientConfig {
   baseUrl?: string; // Prefixed to every path, Default: "/api"
   getToken?: () => string | null | Promise<string | null>; // Called per-request. Null = no auth header.
   getTenantId?: () => string | null; // Called per-request. If set, attaches X-Tenant-Id header.
+  getLanguage?: () => string | null; // Called per-request. If set, attaches Accept-Language so server text reads in it.
   defaultHeaders?: Record<string, string>; // Merged into every request.
   onAuthError?: (error: ApiError) => void; // Called once on the first 401 response. The error is still thrown.
 }
@@ -33,8 +34,12 @@ export class ApiError extends Error {
   ) {
     super(errors[0] ?? `HTTP ${status} ${statusText}`);
     this.name = "ApiError";
-    const payload = details !== null && typeof details === "object" ? details as Record<string, unknown> : null;
-    this.code = code ?? (typeof payload?.code === "string" ? payload.code : null);
+    const payload =
+      details !== null && typeof details === "object"
+        ? (details as Record<string, unknown>)
+        : null;
+    this.code =
+      code ?? (typeof payload?.code === "string" ? payload.code : null);
     this.failureKind = typeof payload?.kind === "string" ? payload.kind : null;
     // Needed for instanceof to work correctly across monorepo packages.
     Object.setPrototypeOf(this, ApiError.prototype);

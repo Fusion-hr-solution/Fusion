@@ -1,7 +1,11 @@
 import { LOCALE_COOKIE, isLocale } from "@repo/i18n/config";
 import { createApiClient } from "./client";
 import { ApiError } from "./types";
-import type { ApiClient, ApiError as ApiErrorType, RequestOptions } from "./types";
+import type {
+  ApiClient,
+  ApiError as ApiErrorType,
+  RequestOptions,
+} from "./types";
 
 declare const process: { env?: Record<string, string | undefined> } | undefined;
 
@@ -131,12 +135,54 @@ function persistBrowserAuth(auth: RefreshResponse): void {
  * A missing or unsupported value leaves the cookie alone. Signing out keeps it, so the sign-in page stays in the
  * last language.
  */
-export function persistLanguageCookie(language: string | null | undefined): void {
+export function persistLanguageCookie(
+  language: string | null | undefined
+): void {
   if (!isBrowser() || !isLocale(language)) {
     return;
   }
 
   document.cookie = `${LOCALE_COOKIE}=${language}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+}
+
+/** The language the person reads Fusion in, from the cookie their session writes; null on the server or before sign-in. */
+export function readLanguageCookie(): string | null {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  const value = (typeof document.cookie === "string" ? document.cookie : "")
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${LOCALE_COOKIE}=`))
+    ?.slice(LOCALE_COOKIE.length + 1);
+  return isLocale(value) ? value : null;
+}
+
+/**
+ * Opens a server-sent event stream through the shell's `/api` with the browser session's token and language.
+ * `EventSource` can't send an `Authorization` header, so streams are read with `fetch`.
+ */
+export async function openPlatformEventStream(
+  path: string,
+  signal: AbortSignal
+): Promise<Response> {
+  const baseUrl = "/api";
+  const headers: Record<string, string> = { Accept: "text/event-stream" };
+  const token = await getBrowserAccessToken(baseUrl);
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const language = readLanguageCookie();
+  if (language) {
+    headers["Accept-Language"] = language;
+  }
+  return fetch(`${baseUrl}${path.startsWith("/") ? path : `/${path}`}`, {
+    headers,
+    signal,
+    cache: "no-store",
+    credentials: "same-origin",
+  });
 }
 
 function clearBrowserAuth(): void {
@@ -167,7 +213,10 @@ function loadBrowserAuth(): BrowserStoredAuth | null {
 }
 
 function isAccessTokenUsable(accessTokenExpiration: string): boolean {
-  return new Date(accessTokenExpiration).getTime() > Date.now() + ACCESS_TOKEN_REFRESH_BUFFER_MS;
+  return (
+    new Date(accessTokenExpiration).getTime() >
+    Date.now() + ACCESS_TOKEN_REFRESH_BUFFER_MS
+  );
 }
 
 async function requestSessionRefresh(baseUrl: string): Promise<string | null> {
@@ -191,7 +240,11 @@ async function requestSessionRefresh(baseUrl: string): Promise<string | null> {
   });
 
   if (!response.ok) {
-    if (response.status === 400 || response.status === 401 || response.status === 403) {
+    if (
+      response.status === 400 ||
+      response.status === 401 ||
+      response.status === 403
+    ) {
       clearBrowserAuth();
       return null;
     }
@@ -294,15 +347,14 @@ export function createPlatformApiClient(
       : "/api");
 
   const usesBrowserSessionRefresh = !config.getToken && isBrowser();
-  const getToken =
-    config.getToken ??
-    (() => getBrowserAccessToken(baseUrl));
+  const getToken = config.getToken ?? (() => getBrowserAccessToken(baseUrl));
   const getTenantId = config.getTenantId;
 
   const client = createApiClient({
     baseUrl,
     getToken,
     getTenantId,
+    getLanguage: readLanguageCookie,
   });
 
   let authErrorFired = false;
@@ -356,23 +408,46 @@ export function createPlatformApiClient(
 
   return {
     get<T>(path: string, options?: RequestOptions): Promise<T> {
-      return executeWithRefreshRetry(() => client.get<T>(path, options), options);
+      return executeWithRefreshRetry(
+        () => client.get<T>(path, options),
+        options
+      );
     },
 
-    post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
-      return executeWithRefreshRetry(() => client.post<T>(path, body, options), options);
+    post<T>(
+      path: string,
+      body?: unknown,
+      options?: RequestOptions
+    ): Promise<T> {
+      return executeWithRefreshRetry(
+        () => client.post<T>(path, body, options),
+        options
+      );
     },
 
     put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
-      return executeWithRefreshRetry(() => client.put<T>(path, body, options), options);
+      return executeWithRefreshRetry(
+        () => client.put<T>(path, body, options),
+        options
+      );
     },
 
-    patch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
-      return executeWithRefreshRetry(() => client.patch<T>(path, body, options), options);
+    patch<T>(
+      path: string,
+      body?: unknown,
+      options?: RequestOptions
+    ): Promise<T> {
+      return executeWithRefreshRetry(
+        () => client.patch<T>(path, body, options),
+        options
+      );
     },
 
     delete<T>(path: string, options?: RequestOptions): Promise<T> {
-      return executeWithRefreshRetry(() => client.delete<T>(path, options), options);
+      return executeWithRefreshRetry(
+        () => client.delete<T>(path, options),
+        options
+      );
     },
   };
 }

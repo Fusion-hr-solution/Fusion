@@ -123,45 +123,76 @@ export const FUSION_ATTENTION_MODULES: readonly FusionAttentionModule[] = [
   },
 ];
 
-export function getFusionAttentionModule(key: FusionAttentionModuleKey): FusionAttentionModule {
-  const module = FUSION_ATTENTION_MODULES.find((candidate) => candidate.key === key);
+export function getFusionAttentionModule(
+  key: FusionAttentionModuleKey
+): FusionAttentionModule {
+  const module = FUSION_ATTENTION_MODULES.find(
+    (candidate) => candidate.key === key
+  );
   if (!module) throw new Error(`Unknown attention module: ${key}`);
   return module;
 }
 
 export const fusionAttentionPaths = {
-  work: (key: FusionAttentionModuleKey) => `${getFusionAttentionModule(key).apiBase}/work`,
-  upcoming: (key: FusionAttentionModuleKey) => `${getFusionAttentionModule(key).apiBase}/upcoming`,
-  notifications: (key: FusionAttentionModuleKey) => `${getFusionAttentionModule(key).apiBase}/notifications`,
-  markRead: (key: FusionAttentionModuleKey) => `${getFusionAttentionModule(key).apiBase}/notifications/read`,
+  work: (key: FusionAttentionModuleKey) =>
+    `${getFusionAttentionModule(key).apiBase}/work`,
+  upcoming: (key: FusionAttentionModuleKey) =>
+    `${getFusionAttentionModule(key).apiBase}/upcoming`,
+  notifications: (key: FusionAttentionModuleKey) =>
+    `${getFusionAttentionModule(key).apiBase}/notifications`,
+  markRead: (key: FusionAttentionModuleKey) =>
+    `${getFusionAttentionModule(key).apiBase}/notifications/read`,
+  /** The module's live nudge: server-sent events saying only that the caller's feed changed. */
+  stream: (key: FusionAttentionModuleKey) =>
+    `${getFusionAttentionModule(key).apiBase}/notifications/stream`,
 };
 
 export const fusionAttentionQueryKeys = {
   all: () => ["fusion-attention"] as const,
-  work: (key: FusionAttentionModuleKey) => [...fusionAttentionQueryKeys.all(), "work", key] as const,
+  work: (key: FusionAttentionModuleKey) =>
+    [...fusionAttentionQueryKeys.all(), "work", key] as const,
   upcoming: (key: FusionAttentionModuleKey, days: number) =>
     [...fusionAttentionQueryKeys.all(), "upcoming", key, days] as const,
   notifications: (key: FusionAttentionModuleKey) =>
     [...fusionAttentionQueryKeys.all(), "notifications", key] as const,
+  /** Every upcoming window of one module, for invalidation. */
+  upcomingOf: (key: FusionAttentionModuleKey) =>
+    [...fusionAttentionQueryKeys.all(), "upcoming", key] as const,
 };
 
 export function createFusionAttentionApi(client: ApiClient) {
   return {
     getWork: (key: FusionAttentionModuleKey, signal?: AbortSignal) =>
       client.get<FusionWorkItem[]>(fusionAttentionPaths.work(key), { signal }),
-    getUpcoming: (key: FusionAttentionModuleKey, days: number, signal?: AbortSignal) =>
-      client.get<FusionUpcoming[]>(fusionAttentionPaths.upcoming(key), { signal, params: { days } }),
+    getUpcoming: (
+      key: FusionAttentionModuleKey,
+      days: number,
+      signal?: AbortSignal
+    ) =>
+      client.get<FusionUpcoming[]>(fusionAttentionPaths.upcoming(key), {
+        signal,
+        params: { days },
+      }),
     getNotifications: (
       key: FusionAttentionModuleKey,
       request: FusionNotificationPageRequest = {},
-      signal?: AbortSignal,
+      signal?: AbortSignal
     ) =>
-      client.get<FusionNotificationPage>(fusionAttentionPaths.notifications(key), {
-        signal,
-        params: { cursor: request.cursor, limit: request.limit },
-      }),
-    markNotificationsRead: (key: FusionAttentionModuleKey, request: MarkFusionNotificationsReadRequest) =>
-      client.post<MarkFusionNotificationsReadResult>(fusionAttentionPaths.markRead(key), request),
+      client.get<FusionNotificationPage>(
+        fusionAttentionPaths.notifications(key),
+        {
+          signal,
+          params: { cursor: request.cursor, limit: request.limit },
+        }
+      ),
+    markNotificationsRead: (
+      key: FusionAttentionModuleKey,
+      request: MarkFusionNotificationsReadRequest
+    ) =>
+      client.post<MarkFusionNotificationsReadResult>(
+        fusionAttentionPaths.markRead(key),
+        request
+      ),
   };
 }
 

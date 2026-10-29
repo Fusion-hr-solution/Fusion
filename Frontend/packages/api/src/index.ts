@@ -1,7 +1,18 @@
 export { createApiClient } from "./client";
-export { createPlatformApiClient, isBrowser, persistLanguageCookie } from "./platform";
+export {
+  createPlatformApiClient,
+  isBrowser,
+  openPlatformEventStream,
+  persistLanguageCookie,
+  readLanguageCookie,
+} from "./platform";
 export { ApiError } from "./types";
-export type { ApiClient, ApiClientConfig, ApiResponse, RequestOptions } from "./types";
+export type {
+  ApiClient,
+  ApiClientConfig,
+  ApiResponse,
+  RequestOptions,
+} from "./types";
 export {
   classifyApiError,
   isRetriableErrorKind,
@@ -25,5 +36,6 @@ export * from "./performance";
 export * from "./performance-conversations";
 export * from "./performance-reviews";
 export * from "./fusion-attention";
+export * from "./fusion-feed";
 export * from "./fusion-navigation";
 export * from "./fusion-settings";

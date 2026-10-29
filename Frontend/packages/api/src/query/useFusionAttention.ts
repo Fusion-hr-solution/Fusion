@@ -1,10 +1,15 @@
 "use client";
 
-import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import {
+  useQueries,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   createFusionAttentionApi,
   FUSION_ATTENTION_MODULES,
+  fusionAttentionPaths,
   fusionAttentionQueryKeys,
   type FusionAttentionApi,
   type FusionAttentionModule,
@@ -14,7 +19,8 @@ import {
   type FusionUpcoming,
   type FusionWorkItem,
 } from "../fusion-attention";
-import { createPlatformApiClient } from "../platform";
+import { connectFusionFeed } from "../fusion-feed";
+import { createPlatformApiClient, openPlatformEventStream } from "../platform";
 
 export type FusionModuleLoadStatus = "loading" | "ready" | "error";
 
@@ -28,30 +34,49 @@ export interface UseFusionAttentionOptions {
   enabled?: boolean;
   /** Injected for tests; defaults to the platform client through the shell's `/api`. */
   api?: FusionAttentionApi;
+  /**
+   * Opens a module's live nudge stream. Defaults to the shell's `/api` with the session token when `api` isn't
+   * injected; tests pass one, or nothing to leave the stream off.
+   */
+  openStream?: (path: string, signal: AbortSignal) => Promise<Response>;
 }
 
+/** How often the bell refetches without a live stream. */
 export const FUSION_NOTIFICATION_POLL_MS = 60_000;
+/** The slow fallback while a module's live stream is open: it catches anything a dropped nudge missed. */
+export const FUSION_NOTIFICATION_FALLBACK_POLL_MS = 5 * 60_000;
 const NOTIFICATION_PAGE_SIZE = 20;
 
 function useAttentionApi(api?: FusionAttentionApi): FusionAttentionApi {
-  return useMemo(() => api ?? createFusionAttentionApi(createPlatformApiClient()), [api]);
+  return useMemo(
+    () => api ?? createFusionAttentionApi(createPlatformApiClient()),
+    [api]
+  );
 }
 
 function modulesServing(
   keys: readonly FusionAttentionModuleKey[],
-  contract: "work" | "notifications" | "upcoming",
+  contract: "work" | "notifications" | "upcoming"
 ): FusionAttentionModule[] {
-  return FUSION_ATTENTION_MODULES.filter((module) => keys.includes(module.key) && module.serves[contract]);
+  return FUSION_ATTENTION_MODULES.filter(
+    (module) => keys.includes(module.key) && module.serves[contract]
+  );
 }
 
-function statusOf(query: { isPending: boolean; isError: boolean; data: unknown }): FusionModuleLoadStatus {
+function statusOf(query: {
+  isPending: boolean;
+  isError: boolean;
+  data: unknown;
+}): FusionModuleLoadStatus {
   if (query.isError && query.data === undefined) return "error";
   if (query.isPending) return "loading";
   return "ready";
 }
 
 /** Earliest due first; undated work keeps each module's own order after the dated items. */
-export function orderWorkItems(items: readonly FusionWorkItem[]): FusionWorkItem[] {
+export function orderWorkItems(
+  items: readonly FusionWorkItem[]
+): FusionWorkItem[] {
   return items
     .map((item, index) => ({ item, index }))
     .sort((a, b) => {
@@ -73,14 +98,15 @@ export function orderWorkItems(items: readonly FusionWorkItem[]): FusionWorkItem
  */
 export function useFusionWork(
   modules: readonly FusionAttentionModuleKey[],
-  options: UseFusionAttentionOptions = {},
+  options: UseFusionAttentionOptions = {}
 ) {
   const api = useAttentionApi(options.api);
   const serving = modulesServing(modules, "work");
   const results = useQueries({
     queries: serving.map((module) => ({
       queryKey: fusionAttentionQueryKeys.work(module.key),
-      queryFn: ({ signal }: { signal: AbortSignal }) => api.getWork(module.key, signal),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        api.getWork(module.key, signal),
       enabled: options.enabled ?? true,
       refetchOnWindowFocus: true,
       retry: false,
@@ -114,7 +140,7 @@ export const FUSION_UPCOMING_DAYS = 14;
  */
 export function useFusionUpcoming(
   modules: readonly FusionAttentionModuleKey[],
-  options: UseFusionAttentionOptions & { days?: number } = {},
+  options: UseFusionAttentionOptions & { days?: number } = {}
 ) {
   const api = useAttentionApi(options.api);
   const days = options.days ?? FUSION_UPCOMING_DAYS;
@@ -122,7 +148,8 @@ export function useFusionUpcoming(
   const results = useQueries({
     queries: serving.map((module) => ({
       queryKey: fusionAttentionQueryKeys.upcoming(module.key, days),
-      queryFn: ({ signal }: { signal: AbortSignal }) => api.getUpcoming(module.key, days, signal),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        api.getUpcoming(module.key, days, signal),
       enabled: options.enabled ?? true,
       refetchOnWindowFocus: true,
       retry: false,
@@ -139,7 +166,15 @@ export function useFusionUpcoming(
     .sort((a: FusionUpcoming, b: FusionUpcoming) => {
       const left = a.at ?? `${a.date}T23:59:59Z`;
       const right = b.at ?? `${b.date}T23:59:59Z`;
-      return a.date !== b.date ? (a.date < b.date ? -1 : 1) : left < right ? -1 : left > right ? 1 : 0;
+      return a.date !== b.date
+        ? a.date < b.date
+          ? -1
+          : 1
+        : left < right
+          ? -1
+          : left > right
+            ? 1
+            : 0;
     });
 
   return {
@@ -150,7 +185,86 @@ export function useFusionUpcoming(
   };
 }
 
-function withRead(page: FusionNotificationPage, ids: readonly string[] | "all", readAt: string): FusionNotificationPage {
+interface FeedEntry {
+  refs: number;
+  connected: boolean;
+  stop: () => void;
+}
+
+// One stream per module per tab, however many bells and pages ask for it.
+const feeds = new Map<FusionAttentionModuleKey, FeedEntry>();
+
+function isFeedConnected(key: FusionAttentionModuleKey): boolean {
+  return feeds.get(key)?.connected ?? false;
+}
+
+function retainFeed(
+  key: FusionAttentionModuleKey,
+  queryClient: QueryClient,
+  openStream: (path: string, signal: AbortSignal) => Promise<Response>
+): () => void {
+  let entry = feeds.get(key);
+  if (!entry) {
+    const created: FeedEntry = { refs: 0, connected: false, stop: () => {} };
+    created.stop = connectFusionFeed(
+      (signal) => openStream(fusionAttentionPaths.stream(key), signal),
+      {
+        onConnected: (connected) => {
+          created.connected = connected;
+        },
+        onChange: () => {
+          void queryClient.invalidateQueries({
+            queryKey: fusionAttentionQueryKeys.notifications(key),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: fusionAttentionQueryKeys.work(key),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: fusionAttentionQueryKeys.upcomingOf(key),
+          });
+        },
+      }
+    );
+    feeds.set(key, created);
+    entry = created;
+  }
+  entry.refs += 1;
+  const retained = entry;
+  return () => {
+    retained.refs -= 1;
+    if (retained.refs === 0) {
+      retained.stop();
+      feeds.delete(key);
+    }
+  };
+}
+
+/** Keeps each module's live nudge open while a bell is mounted; a nudge refetches its bell, work and upcoming. */
+function useFusionFeed(
+  keys: readonly FusionAttentionModuleKey[],
+  enabled: boolean,
+  openStream:
+    | ((path: string, signal: AbortSignal) => Promise<Response>)
+    | undefined
+) {
+  const queryClient = useQueryClient();
+  const joined = keys.join(",");
+  useEffect(() => {
+    if (!enabled || !openStream || joined === "") return;
+    const releases = joined
+      .split(",")
+      .map((key) =>
+        retainFeed(key as FusionAttentionModuleKey, queryClient, openStream)
+      );
+    return () => releases.forEach((release) => release());
+  }, [enabled, joined, openStream, queryClient]);
+}
+
+function withRead(
+  page: FusionNotificationPage,
+  ids: readonly string[] | "all",
+  readAt: string
+): FusionNotificationPage {
   let changed = 0;
   const items = page.items.map((item) => {
     if (item.readAt || (ids !== "all" && !ids.includes(item.id))) return item;
@@ -166,23 +280,39 @@ function withRead(page: FusionNotificationPage, ids: readonly string[] | "all", 
 
 /**
  * The signed-in person's notifications across the given modules, newest first.
- * Polls every 60 seconds and on window focus; no real-time channel. Marking
- * read is optimistic and reconciled with the server afterwards.
+ * Each module's live nudge refetches the moment something arrives or is read in
+ * another tab; polling stays as a fallback (every 60 seconds without a stream,
+ * every 5 minutes with one) along with refetch on focus. Marking read is
+ * optimistic and reconciled with the server afterwards.
  */
 export function useFusionNotifications(
   modules: readonly FusionAttentionModuleKey[],
-  options: UseFusionAttentionOptions = {},
+  options: UseFusionAttentionOptions = {}
 ) {
   const api = useAttentionApi(options.api);
   const queryClient = useQueryClient();
   const serving = modulesServing(modules, "notifications");
+  const openStream =
+    options.openStream ?? (options.api ? undefined : openPlatformEventStream);
+  useFusionFeed(
+    serving.map((module) => module.key),
+    options.enabled ?? true,
+    openStream
+  );
   const results = useQueries({
     queries: serving.map((module) => ({
       queryKey: fusionAttentionQueryKeys.notifications(module.key),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
-        api.getNotifications(module.key, { limit: NOTIFICATION_PAGE_SIZE }, signal),
+        api.getNotifications(
+          module.key,
+          { limit: NOTIFICATION_PAGE_SIZE },
+          signal
+        ),
       enabled: options.enabled ?? true,
-      refetchInterval: FUSION_NOTIFICATION_POLL_MS,
+      refetchInterval: () =>
+        isFeedConnected(module.key)
+          ? FUSION_NOTIFICATION_FALLBACK_POLL_MS
+          : FUSION_NOTIFICATION_POLL_MS,
       refetchOnWindowFocus: true,
       retry: false,
     })),
@@ -194,20 +324,36 @@ export function useFusionNotifications(
     status: statusOf(results[index]!),
   }));
   // At most a page per module, so merging on each render is cheap.
-  const pages = results.map((result) => result.data).filter((page): page is FusionNotificationPage => Boolean(page));
+  const pages = results
+    .map((result) => result.data)
+    .filter((page): page is FusionNotificationPage => Boolean(page));
   const items = pages
     .flatMap((page) => page.items)
-    .sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : a.occurredAt > b.occurredAt ? -1 : 0));
-  const unreadCount = pages.reduce((total, page) => total + page.unreadCount, 0);
+    .sort((a, b) =>
+      a.occurredAt < b.occurredAt ? 1 : a.occurredAt > b.occurredAt ? -1 : 0
+    );
+  const unreadCount = pages.reduce(
+    (total, page) => total + page.unreadCount,
+    0
+  );
 
   const markRead = useCallback(
     async (target: Pick<FusionNotification, "id" | "module"> | "all") => {
       const readAt = new Date().toISOString();
-      const affected = target === "all" ? serving.map((module) => module.key) : [target.module];
+      const affected =
+        target === "all"
+          ? serving.map((module) => module.key)
+          : [target.module];
       for (const key of affected) {
-        await queryClient.cancelQueries({ queryKey: fusionAttentionQueryKeys.notifications(key) });
-        queryClient.setQueryData<FusionNotificationPage>(fusionAttentionQueryKeys.notifications(key), (page) =>
-          page ? withRead(page, target === "all" ? "all" : [target.id], readAt) : page,
+        await queryClient.cancelQueries({
+          queryKey: fusionAttentionQueryKeys.notifications(key),
+        });
+        queryClient.setQueryData<FusionNotificationPage>(
+          fusionAttentionQueryKeys.notifications(key),
+          (page) =>
+            page
+              ? withRead(page, target === "all" ? "all" : [target.id], readAt)
+              : page
         );
       }
       await Promise.all(
@@ -215,19 +361,23 @@ export function useFusionNotifications(
           try {
             const result = await api.markNotificationsRead(
               key,
-              target === "all" ? { all: true } : { ids: [target.id] },
+              target === "all" ? { all: true } : { ids: [target.id] }
             );
-            queryClient.setQueryData<FusionNotificationPage>(fusionAttentionQueryKeys.notifications(key), (page) =>
-              page ? { ...page, unreadCount: result.unreadCount } : page,
+            queryClient.setQueryData<FusionNotificationPage>(
+              fusionAttentionQueryKeys.notifications(key),
+              (page) =>
+                page ? { ...page, unreadCount: result.unreadCount } : page
             );
           } catch {
-            await queryClient.invalidateQueries({ queryKey: fusionAttentionQueryKeys.notifications(key) });
+            await queryClient.invalidateQueries({
+              queryKey: fusionAttentionQueryKeys.notifications(key),
+            });
           }
-        }),
+        })
       );
     },
     // serving is derived from `modules`; its keys are the stable dependency.
-    [api, queryClient, serving.map((module) => module.key).join(",")],
+    [api, queryClient, serving.map((module) => module.key).join(",")]
   );
 
   return {
@@ -236,7 +386,8 @@ export function useFusionNotifications(
     modules: states,
     isLoading: states.some((state) => state.status === "loading"),
     failedModules: states.filter((state) => state.status === "error"),
-    markRead: (item: Pick<FusionNotification, "id" | "module">) => markRead(item),
+    markRead: (item: Pick<FusionNotification, "id" | "module">) =>
+      markRead(item),
     markAllRead: () => markRead("all"),
   };
 }

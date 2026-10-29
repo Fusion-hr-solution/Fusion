@@ -21,6 +21,7 @@ export {
   type UseApiMutationResult,
 } from "./useApiMutation";
 export {
+  FUSION_NOTIFICATION_FALLBACK_POLL_MS,
   FUSION_NOTIFICATION_POLL_MS,
   FUSION_UPCOMING_DAYS,
   orderWorkItems,
