@@ -20,6 +20,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 public class AccountController(AppIdentityDbContext dbContext) : ControllerBase
 {
     public const string UnsupportedLanguageCode = "unsupported-language";
+    public const string NothingToChangeCode = "nothing-to-change";
 
     /// <summary>
     /// Sets the person's language. No permission: like a password, it is their own.
@@ -50,5 +51,37 @@ public class AccountController(AppIdentityDbContext dbContext) : ControllerBase
 
         return Ok(ApiResponse<AccountLanguageResponse>.Success(
             new AccountLanguageResponse(FusionLanguages.Resolve(user.PreferredLanguage, null))));
+    }
+
+    /// <summary>
+    /// Turns pop-ups for new notifications, and their chime, on or off. No permission: they are the person's own.
+    /// </summary>
+    [HttpPut("alerts")]
+    [ProducesResponseType(typeof(ApiResponse<AccountAlertsResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<AccountAlertsResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<AccountAlertsResponse>>> SetAlerts(
+        [FromBody] SetAccountAlertsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+            return Unauthorized();
+
+        if (request.Popups is null && request.Sound is null)
+            return BadRequest(ApiResponse<AccountAlertsResponse>.Failure(
+                "Say which choice to change.", new { code = NothingToChangeCode }));
+
+        var user = await dbContext.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive, cancellationToken);
+        if (user is null)
+            return Unauthorized();
+
+        if (request.Popups is bool popups) user.NotificationPopups = popups;
+        if (request.Sound is bool sound) user.NotificationSound = sound;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(ApiResponse<AccountAlertsResponse>.Success(
+            new AccountAlertsResponse(user.NotificationPopups, user.NotificationSound)));
     }
 }

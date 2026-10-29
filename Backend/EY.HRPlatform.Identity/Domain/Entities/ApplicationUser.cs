@@ -47,6 +47,13 @@ public class ApplicationUser : IdentityUser<Guid>
     public string? PreferredLanguage { get; set; }
 
     /// <summary>
+    /// Whether a new notification slides in as a pop-up while Fusion is open, and whether the pop-up chimes (B-154).
+    /// On until the person turns them off; like the language, they follow the person across devices.
+    /// </summary>
+    public bool NotificationPopups { get; set; } = true;
+    public bool NotificationSound { get; set; } = true;
+
+    /// <summary>
     /// Customer tenants this account participates in. Membership is the only
     /// tenancy authority: the account row itself carries no tenant, so a Platform
     /// Administrator simply has none and no code path can infer one.

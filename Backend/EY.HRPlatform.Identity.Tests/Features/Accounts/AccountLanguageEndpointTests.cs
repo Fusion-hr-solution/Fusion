@@ -231,6 +231,83 @@ public sealed class AccountLanguageEndpointTests : IAsyncLifetime
         Assert.Null(await PreferredLanguageAsync(factory, khaled));
     }
 
+    // ── Pop-ups and sound (B-154) ────────────────────────
+
+    [SkippableFact]
+    public async Task Pop_ups_and_sound_start_on_and_a_choice_survives_a_new_sign_in()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var factory = await NewApiAsync();
+        var tenantId = await AddTenantAsync(factory, "en-US");
+        await AddMemberAsync(factory, "aicha@atlas.example", tenantId);
+        var first = await LoginAsync(factory.CreateClient(), "aicha@atlas.example");
+        Assert.True(first.GetProperty("notificationPopups").GetBoolean());
+        Assert.True(first.GetProperty("notificationSound").GetBoolean());
+        var client = await SignedInClientAsync(factory, "aicha@atlas.example");
+
+        var response = await client.PutAsJsonAsync("/api/identity/account/alerts", new { sound = false });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data");
+        Assert.True(body.GetProperty("popups").GetBoolean());
+        Assert.False(body.GetProperty("sound").GetBoolean());
+        var session = await LoginAsync(factory.CreateClient(), "aicha@atlas.example");
+        Assert.True(session.GetProperty("notificationPopups").GetBoolean());
+        Assert.False(session.GetProperty("notificationSound").GetBoolean());
+    }
+
+    [SkippableFact]
+    public async Task Alerts_require_a_session()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var factory = await NewApiAsync();
+
+        var response = await factory.CreateClient()
+            .PutAsJsonAsync("/api/identity/account/alerts", new { popups = false });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [SkippableFact]
+    public async Task Alerts_without_a_choice_are_refused()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var factory = await NewApiAsync();
+        var tenantId = await AddTenantAsync(factory, "en-US");
+        await AddMemberAsync(factory, "aicha@atlas.example", tenantId);
+        var client = await SignedInClientAsync(factory, "aicha@atlas.example");
+
+        var response = await client.PutAsJsonAsync("/api/identity/account/alerts", new { });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(AccountController.NothingToChangeCode, body.GetProperty("details").GetProperty("code").GetString());
+    }
+
+    [SkippableFact]
+    public async Task Alerts_change_only_the_callers_own_account()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var factory = await NewApiAsync();
+        var tenantId = await AddTenantAsync(factory, "en-US");
+        var amira = await AddMemberAsync(factory, "amira@atlas.example", tenantId);
+        var khaled = await AddMemberAsync(factory, "khaled@atlas.example", tenantId);
+        var client = await SignedInClientAsync(factory, "amira@atlas.example");
+
+        var response = await client.PutAsJsonAsync("/api/identity/account/alerts",
+            new { popups = false, userId = khaled, accountId = khaled });
+        var byRoute = await client.PutAsJsonAsync($"/api/identity/account/{khaled}/alerts", new { popups = false });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, byRoute.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var popups = await db.Users.IgnoreQueryFilters().Where(u => u.Id == amira || u.Id == khaled)
+            .ToDictionaryAsync(u => u.Id, u => u.NotificationPopups);
+        Assert.False(popups[amira]);
+        Assert.True(popups[khaled]);
+    }
+
     // ── Arrangement ──────────────────────────────────────
 
     private async Task<LanguageApiFactory> NewApiAsync()

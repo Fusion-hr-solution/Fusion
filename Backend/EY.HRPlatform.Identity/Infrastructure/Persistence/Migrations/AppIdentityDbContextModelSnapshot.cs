@@ -246,6 +246,12 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<bool>("NotificationPopups")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotificationSound")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text");
 

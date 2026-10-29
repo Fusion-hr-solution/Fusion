@@ -29,6 +29,9 @@ public class AuthResponse
     /// else <c>en</c>. Every app reads it from the cookie the client writes from this.
     /// </summary>
     public string Language { get; set; } = string.Empty;
+    /// <summary>The person's pop-up and chime choices for new notifications.</summary>
+    public bool NotificationPopups { get; set; } = true;
+    public bool NotificationSound { get; set; } = true;
     public string AccessToken { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
     public DateTime AccessTokenExpiration { get; set; }

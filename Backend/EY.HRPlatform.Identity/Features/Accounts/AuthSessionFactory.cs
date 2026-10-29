@@ -99,6 +99,8 @@ public sealed class AuthSessionFactory(
             AccessProfiles = assignedProfiles,
             EffectivePermissions = effectivePermissions,
             Language = FusionLanguages.Resolve(user.PreferredLanguage, tenantLocale),
+            NotificationPopups = user.NotificationPopups,
+            NotificationSound = user.NotificationSound,
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
             AccessTokenExpiration = DateTime.UtcNow.AddMinutes(
